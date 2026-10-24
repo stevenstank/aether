@@ -27,7 +27,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 |----|-------|--------|
 | D-001 | Reuse `go/parser`, `go/ast`, `go/token` for the initial frontend | Accepted |
 | D-002 | Reuse `go/types` and `go/constant` for initial type checking | Accepted |
-| D-003 | Explicit subset gate and three-way diagnostic classification | Accepted |
+| D-003 | Explicit subset gate and diagnostic classification | Accepted |
 | D-004 | Aether-owned typed CFG IR, non-SSA at first | Accepted |
 | D-005 | Reference interpreter for the IR | Accepted |
 | D-006 | SSA timing and construction method | Proposed |
@@ -49,6 +49,18 @@ this file. Nothing here is supported by benchmarks: none have been run.
 |---|---|---|
 | 2026-10-24 | Phase 0 register created | D-001 – D-017 |
 | 2026-10-24 | Owner Phase 0 review: S1 accepted with clarifications; module path confirmed; GNU `as`/`ld` accepted as initial and potentially long-term dependencies; Milestone 1 provenance checks restructured | D-007, D-008, D-012, D-015 |
+| 2026-10-24 | Pre-Phase 1 audit (E7–E11), covering the items below. No status changed. | D-001, D-002, D-003, D-006, D-009, D-010, D-011, D-012, D-013 |
+
+The pre-Phase 1 audit made these corrections and clarifications:
+- Corrected the `/` and `%` rationale in D-012.
+- Added the `ParseComments` parser mode to D-001 (the gate needs directive
+  comments).
+- Added Aether-side program checks that `go/types` does not perform (D-002).
+- Added the `tool` diagnostic class and a classification precedence (D-003).
+- Pinned down ambiguous S1 forms in D-012: constant-expression operands,
+  redeclaration, `println` arguments, and the blank identifier.
+- Recorded runtime `println` behavior (D-009).
+- Stated a resolving experiment for each Proposed decision.
 
 ---
 
@@ -60,9 +72,14 @@ this file. Nothing here is supported by benchmarks: none have been run.
 Writing one is well understood but large. It does not advance the parts of the
 project that make Aether an independent compiler: IR, optimizer, and backend.
 
-**Decision.** Parse with `go/parser` (mode `parser.SkipObjectResolution`, since
-`ast.Object` is deprecated) into `go/ast`. Use `go/token.FileSet` for positions
-inside the frontend.
+**Decision.** Parse with `go/parser` into `go/ast`, using mode
+`parser.ParseComments | parser.SkipObjectResolution`:
+- `SkipObjectResolution` because `ast.Object` is deprecated.
+- `ParseComments` because without it comments, including `//go:` and
+  `//line` directives, are dropped from the AST (E11), and the subset gate
+  could not reject them.
+
+Use `go/token.FileSet` for positions inside the frontend.
 
 **Alternatives considered.**
 1. A hand-written lexer and parser from day one. This gives full ownership but
@@ -112,23 +129,43 @@ later `Instances` and `InitOrder`). Constant values come from `go/constant`.
 2. No type checker, with lowering inferring types. Rejected: Go programs cannot
    be lowered correctly without full type information.
 
-**Rationale.** `go/types` implements the same semantics as gc's checker
-(`types2` is a port of `go/types`, per `cmd/compile/README.md`). Experiment E3
-showed that it reports "declared and not used", out-of-range constant
-conversion, and constant division by zero. These are compile-time rules Aether
-would otherwise need to reimplement before it could reject invalid programs.
+**Rationale.** `go/types` implements the same type-checking rules as gc's
+checker (`types2` is a port of `go/types`, per `cmd/compile/README.md`).
+Experiment E3 showed that it reports "declared and not used", out-of-range
+constant conversion, and constant division by zero. These are compile-time
+rules Aether would otherwise need to reimplement before it could reject
+invalid programs.
 
 **Consequences.**
-- Compile-time semantics, including constant folding of *constant expressions*,
+- Compile-time semantics, including the values of *constant expressions*,
   come from `go/types`. Aether must not claim to own them.
-- What remains Aether's job: deciding layouts for codegen (using the same
-  `Sizes` so `unsafe.Sizeof` agrees), lowering semantics, evaluation order of
-  non-constant expressions, and all runtime behavior.
-- Imports later need a `types.Importer` that matches whatever Aether uses to
-  compile dependencies. That design is part of Phase 11 (`docs/ROADMAP.md`).
+  - Lowering reads a constant's value from `types.Info.Types[e].Value`. That
+    value is already converted to the expression's type: `1.0` used as `int`
+    is recorded as kind `Int`, value 1 (E8).
+  - Lowering extracts the value with `constant.Int64Val` and treats a
+    non-exact result as an `internal` error. It never re-evaluates the
+    expression with machine arithmetic.
+- `go/types` is **not** all of gc's compile-time checking. Some program-level
+  rules are enforced elsewhere in gc, so Aether's frontend must check them
+  itself. For example, `go/types` accepts `package main` with no `func main`,
+  while `go build` rejects it with "function main is undeclared in the main
+  package" (E8, E9).
+- `go/types` implements no run-time semantics. What remains Aether's job:
+  - deciding layouts for codegen (using the same `Sizes`, so `unsafe.Sizeof`
+    agrees)
+  - lowering semantics
+  - evaluation order of non-constant expressions
+  - all run-time behavior
+- **No importer** is installed (`Config.Importer` stays nil) until Phase 11.
+  Imports are rejected by the subset gate's pre-check (D-003).
+  - Aether must not import `go/importer` or `go/build`. Both transitively
+    depend on `os/exec` (E9), and gc's importer can run the `go` command. That
+    would put the Go toolchain inside the compiler and bypass the process
+    choke point (`ARCHITECTURE.md` §8).
+  - The Phase 11 importer design must preserve this.
 
 **Evidence.** `go doc go/types.Config`, `go doc go/types.Info`,
-`go doc go/types.SizesFor` (local source); Experiment E3.
+`go doc go/types.SizesFor` (local source); experiments E3, E8, E9.
 
 **Revisit when.** Type checking dominates compile latency, Aether needs
 information `types.Info` does not expose, or the owner wants semantic analysis
@@ -136,7 +173,7 @@ ownership as a project goal.
 
 ---
 
-## D-003: Explicit subset gate and three-way diagnostic classification
+## D-003: Explicit subset gate and diagnostic classification
 
 **Status:** Accepted
 
@@ -155,9 +192,24 @@ Every diagnostic Aether emits falls into exactly one class:
 
 | Class | Meaning | Source |
 |---|---|---|
-| `invalid` | The program is not valid Go | `go/parser`, `go/types` |
+| `invalid` | The program is not valid Go | `go/parser`, `go/types`, and Aether's program-level checks that `go/types` does not perform (D-002) |
 | `unsupported` | Valid Go outside Aether's declared subset | subset gate |
 | `internal` | Aether malfunctioned (an ICE) | any later stage |
+| `tool` | A required external tool is missing, unidentified, or failed (D-008) | toolchain driver |
+
+Command-line usage errors are not diagnostics about the program. They have
+their own exit code (`ARCHITECTURE.md` §Diagnostics).
+
+**Precedence**, so classification is deterministic:
+1. Pre-check `unsupported`: file-level constructs rejected before type
+   checking, listed in `ARCHITECTURE.md` §2. Imports must be among them,
+   because `go/types` cannot check them without an importer.
+2. `invalid`.
+3. Typed `unsupported`.
+
+A program that is both invalid and uses an unsupported type is therefore
+`invalid`. A program with an import is `unsupported` even if it has other
+errors.
 
 Lowering and later stages treat any construct the gate should have rejected as
 an `internal` error, not a silent fallback.
@@ -283,6 +335,13 @@ makes register allocation and most optimizations harder.
 - It is unknown whether the backend should consume SSA directly or a separate
   machine IR.
 
+**Resolving experiment.** On the completed Phase 4 IR:
+- Implement promotion of non-address-taken slots on the S2 suite.
+- Confirm that the interpreter gives identical results before and after
+  promotion, and that the verifier passes.
+- Record the implementation complexity, and the static instruction counts
+  against the Phase 4 slot-per-value backend.
+
 **Revisit / resolve when.** Phase 4 is complete. Resolve with a design note
 added to this entry.
 
@@ -385,7 +444,8 @@ The open question was whether to plan to replace them.
   byte-identical:
   - Identical inputs means the same Aether binary, source bytes, flags, and
     `as`/`ld` versions.
-  - Tools run with fixed argument lists, in a fresh work directory, with fixed
+  - Tools run by absolute path, with fixed argument lists and a fixed
+    environment (`LC_ALL=C` only; E9), in a fresh work directory, with fixed
     relative file names.
   - Generated assembly must not contain absolute or temporary paths,
     timestamps, or host-dependent data. In particular, any `.file` directive
@@ -421,8 +481,9 @@ produce static, libc-free executables reproducibly.
   in `README.md`.
 - Hosts without GNU binutils are unsupported. Tests that need the tools skip
   with a visible message (`TESTING.md`).
-- Milestone 1 provenance is established from the generated assembly, the tool
-  invocations, and the resulting objects (`ROADMAP.md` §Milestone 1). It does
+- Milestone 1 provenance is established by having the test harness rebuild
+  the executable independently from Aether's emitted assembly with GNU
+  `as`/`ld` and comparing bytes (`ROADMAP.md` §Milestone 1, check P3). It does
   not rely on Aether owning the encoder.
 - Debug info (DWARF), if added, would also be emitted as assembler directives.
 
@@ -454,6 +515,10 @@ the full G/M/P scheduler model (`runtime/HACKING.md`).
 - Printing support for `println` of integers (signed decimal, space-separated,
   trailing newline, to file descriptor 2, matching gc; see E1), using the raw
   `write` syscall.
+  - Short writes are continued and `EINTR` is retried.
+  - Any other write error is ignored, and the program continues. gc
+    ignores write errors too: with stderr closed or on `/dev/full`, a gc-built
+    `println` program still exits 0 (E7).
 - For Phase 4, a minimal panic path: print the message, `exit_group(2)`.
 
 In Phases 3 and 4 the runtime is hand-written GNU assembly kept in the
@@ -510,6 +575,13 @@ leave room for stack maps.
 register allocator. The owner's tolerance for a non-conforming interim
 allocator.
 
+**Resolving experiment.**
+- Emit a pointer map for one function in the Phase 5 backend, then check it
+  against a hand-written expected map.
+- Measure peak RSS of Phase 7 workloads under a bump allocator (`/usr/bin/time
+  -v`).
+- The owner decides whether that growth is acceptable as an interim step.
+
 **Resolve when.** Before Phase 7 begins.
 
 ---
@@ -518,8 +590,14 @@ allocator.
 
 **Status:** Proposed
 
-**Context.** Phase 3 only needs `_start → main.main` (no arguments). Phase 4
-adds functions with parameters and multiple results.
+**Context.** Phase 3 has only two kinds of calls:
+- `_start → main.main`, with no arguments.
+- `main.main →` the runtime print helpers. These use the narrow
+  runtime-helper interface in `ARCHITECTURE.md` §Runtime integration boundary,
+  which is fixed in Phase 3 and does not pre-empt this decision.
+
+Phase 4 adds Aether-compiled functions with parameters and multiple results.
+This decision covers those.
 
 **Options.**
 1. **System V AMD64** (integer arguments in `rdi, rsi, rdx, rcx, r8, r9`;
@@ -541,6 +619,16 @@ a future stack-growth check (Phase 10).
 
 **Missing evidence.** Whether goroutine stack strategy (segmented, copying, or
 fixed-large) constrains the convention. Not yet investigated.
+
+**Resolving experiment.** Write a short design note at the start of Phase 4,
+plus a hand-written assembly prototype (kept outside the repository, or as a
+test fixture once Phase 4 is authorized) of:
+- a recursive call
+- a call returning two `int` results
+- a prologue stack-bound check
+
+Confirm that the convention handles all three without changes visible to the
+caller.
 
 **Resolve when.** At the start of Phase 4.
 
@@ -584,14 +672,54 @@ fixed-large) constrains the convention. Not yet investigated.
    a separately scoped milestone (Phase 11 in `ROADMAP.md`, or an earlier
    milestone if the roadmap is re-scoped).
 
+**Audit clarifications (2026-10-24).** These remove ambiguities in the accepted
+scope. They do not add features. Details are in `SEMANTICS.md` §Subset S1.
+- **Constant-expression operands.** The S1 operator and literal restrictions
+  apply to constant expressions too.
+  - A constant expression may use only integer literals, S1 constants, `+ - *`,
+    unary `+ -`, and parentheses.
+  - Float, imaginary, rune, and string literals are `unsupported` even where
+    the resulting constant is an `int`, as in `var x int = 1.0`, which
+    `go/types` accepts (E8).
+- **Short variable redeclaration** (`a, c := 3, 4` with `a` already declared)
+  is part of `:=` and is supported. A redeclared identifier is recorded in
+  `types.Info.Uses`, not `Defs`, and must be lowered as an assignment to the
+  existing variable. Treating it as a new variable would be a silent
+  miscompilation (E8; case S1-10).
+- **`println` arguments** must have type `int` in `types.Info`. Untyped
+  integer constants default to `int` there (E8) and are accepted. Arguments of
+  type `rune`, `float64`, or any other type are `unsupported`.
+- **The blank identifier** is `unsupported` in every position, declaration as
+  well as assignment.
+- **Program-level checks.**
+  - A package name other than `main` is `unsupported`: Aether builds programs,
+    not libraries.
+  - `package main` without `func main` is `invalid`. `go/types` does not report
+    this, so Aether checks it (D-002, E8).
+
 **Rationale.**
 - The program is observable without imports: `println` is a predeclared builtin
   defined in the spec's Bootstrapping section, and gc writes its output to
   stderr (E1). This allows byte-exact differential testing against gc.
-- `/` and `%` are excluded because they can panic at run time (division by zero)
-  and have a special overflow case (`MinInt / -1 == MinInt` per the spec), which
-  `IDIV` traps on. Both need runtime panic support, which arrives in Phase 4.
-- Shifts are excluded because a negative shift count panics at run time.
+- `/` and `%` are excluded for two **different** reasons, and both need work
+  that S1 does not otherwise require (spec §Arithmetic operators, §Run-time
+  panics; behavior confirmed in E1 and E7):
+  - **Division by zero.** A zero divisor at run time causes a run-time panic,
+    which needs the Phase 4 panic path. A constant zero divisor is already a
+    compile error (E3).
+  - **`MinInt / -1` and `MinInt % -1`.** These do **not** panic. The spec
+    defines `q = x` and `r = 0`, and the gc-built binary printed
+    `-9223372036854775808 0` and exited 0. x86-64 `IDIV` faults on this
+    case, and Linux kills the process with SIGFPE (E10). So the backend needs
+    an explicit check and a separate code path, not panic support.
+  - Division truncates toward zero, and the remainder has the sign of the
+    dividend (`-7/2 == -3`, `-7%2 == -1`, E7). This matches `IDIV` apart from
+    the two cases above.
+  - Deferring both operators keeps S1 free of run-time panics and special
+    cases.
+- Shifts are excluded because a negative shift count panics at run time, and
+  x86 shift instructions mask the count (E10), so counts at or above the width
+  need explicit handling.
 - Wraparound overflow (`+ - *`) is included deliberately to test that Aether
   never treats signed overflow as undefined.
 
@@ -620,9 +748,17 @@ is removed from Go or changes its gc behavior.
   consequences.
 - **External tools in the build path:** only GNU `as` and `ld` (D-007). The
   official Go toolchain must never be invoked to compile the input program.
-- **External tools in tests:** the official Go toolchain (as a semantic oracle),
-  plus `readelf`, `nm`, and `objdump` for inspection. These are host tools, not
-  module dependencies.
+- **External tools in tests:**
+  - the official Go toolchain, as a semantic oracle
+  - `readelf`, `nm`, and `objdump`, for inspection
+  - GNU `as` and `ld`, run by the test harness itself to reconstruct
+    executables independently for the provenance checks (`ROADMAP.md`
+    §Milestone 1)
+
+  These are host tools, not module dependencies.
+- **Standard-library packages Aether must not import:** `go/importer` and
+  `go/build`. Both transitively depend on `os/exec` and can invoke the `go`
+  command (E9; D-002).
 - Candidates noted but **not adopted**: `golang.org/x/tools/go/ssa` (D-017),
   `golang.org/x/tools/go/packages` (only relevant for multi-package loading,
   Phase 11), `golang.org/x/perf/cmd/benchstat` (benchmark statistics, decided
@@ -792,6 +928,80 @@ environment.
   `.comment` section, so `ld` adds no build-id by default here.
   `as --version` printed `GNU assembler (GNU Binutils for Ubuntu) 2.42`, and
   `ld -v` printed `GNU ld (GNU Binutils for Ubuntu) 2.42`.
+
+Experiments E7–E11 ran on 2026-10-24 during the pre-Phase 1 audit, in the same
+environment.
+
+- **E7: gc run-time division and `println` behavior.** gc-built binaries,
+  run directly:
+  - **Division.** With `lo := MinInt64; m1 := -1`, `println(lo/m1, lo%m1)`
+    printed `-9223372036854775808 0` and exited 0, so there was no panic.
+    `7/2, -7/2, 7/-2, -7/-2` printed `3 -3 -3 3`, and
+    `7%2, -7%2, 7%-2, -7%-2` printed `1 -1 1 -1`.
+  - **Division by zero.** `z := 0; println(1, 1/z)` printed only the panic
+    message (`panic: runtime error: integer divide by zero`) and exited 2.
+    Nothing from `println` appeared, so all arguments are evaluated before any
+    output. `5 % z` gave the same panic message and exit 2.
+  - **Write errors.** The S1-03 program run with stderr closed (`2>&-`) or
+    redirected to `/dev/full` exited 0.
+- **E8: `go/types` probes** (`GoVersion "go1.26"`, gc/amd64 sizes, no
+  importer):
+  - **Program-level rules.**
+    - `package main` with no declarations: no error.
+    - `package foo` with `func main`: no error.
+    - `var main = 1`: "cannot declare main - must be func".
+    - `func main() int`: "func main must have no arguments and no return
+      values".
+    - `func init() {}`: no error.
+  - **Imports.** `import "fmt"` without an importer: "could not import fmt
+    (Config.Importer not installed)".
+  - **`println` argument types.** `println(0, -0, x, 1+2, 'a', 1.0)` recorded
+    argument types `int int int int rune float64`.
+    `println(9223372036854775808)`: "… (overflows)".
+  - **Float literals as `int`.**
+    - `var x int = 1.0`: the literal is recorded as type `int`, kind `Int`,
+      value 1.
+    - `const c = 2.5 * 2` used as `int`: type `int`, kind `Int`, value 5.
+  - **Redeclaration.** In `a, b := 1, 2; a, c := 3, 4`, the second `a` appears
+    in `Info.Uses` and not in `Info.Defs`; `c` appears in `Defs`. gc prints
+    `3 2 4` (case S1-10).
+- **E9: gc program rules, process dependencies, tool environment, runtime
+  file layout.**
+  - **Missing `main`.** `go build` of `package main` with no `main` failed
+    (exit 1): "function main is undeclared in the main package".
+  - **`os/exec` dependencies.** `go list -deps` showed that `os/exec` is a
+    transitive dependency of `go/importer` and `go/build`. It is not a
+    dependency of `go/parser`, `go/ast`, `go/token`, `go/types`,
+    `go/constant`, `go/format`, `embed`, `os`, or `path/filepath`.
+  - **Tool environment and output names.** `as` and `ld` ran correctly under
+    `env -i LC_ALL=C` (an otherwise empty environment). Linking the same
+    object to two different output file names gave byte-identical
+    executables. `/usr/bin/as` and `/usr/bin/ld` are symlinks to real ELF
+    binaries (`x86_64-linux-gnu-as`, `x86_64-linux-gnu-ld.bfd`).
+  - **Runtime file layout.** In a scratch module, a GAS-syntax file
+    `internal/amd64/rt/start.s` (a subdirectory with no Go files), embedded
+    from package `internal/amd64` with `//go:embed rt/*.s`, worked with
+    `go build ./...`, `go vet ./...`, and `go test ./...`. The same file placed
+    directly in the Go package directory made `go build` fail, because Go's own
+    assembler rejected it.
+- **E10: x86-64 behavior the backend must work around.** Static programs
+  assembled and linked with GNU `as`/`ld`:
+  - `idivq` with `rax = MinInt64` (sign-extended by `cqto`) and divisor `-1`
+    killed the process with SIGFPE ("Floating point exception", shell exit
+    status 136 = 128 + 8).
+  - `shlq %cl, %rdi` with `rdi = 5` and `cl = 64` left `rdi` unchanged (exit
+    status 5). The shift count is masked, so the hardware does not produce
+    Go's result for a count of 64, which is 0.
+  - These all produced exactly the results gc produced for the same Go
+    expressions (exit status 0 from a self-checking program):
+    - `negq` of `MinInt64` gives `MinInt64`
+    - `imulq` of 3037000500 by itself gives `-9223372036709301616` (the low
+      64 bits; case S1-04)
+    - `addq $1` to `MaxInt64` gives `MinInt64`
+- **E11: `go/parser` comment retention.** For a file containing
+  `//go:build linux` and `//go:noinline`:
+  - mode `SkipObjectResolution` alone retained 0 comments
+  - mode `ParseComments | SkipObjectResolution` retained both
 
 **Sources consulted:**
 - Local Go 1.26.1: `doc/go_spec.html`, `doc/go_mem.html` ("Version of June 6,

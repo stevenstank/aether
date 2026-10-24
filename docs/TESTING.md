@@ -46,6 +46,10 @@ The harness classifies actual outcomes as follows:
 **Rule:** an `internal` error is always a bug, even when it is a "graceful"
 refusal.
 
+**Precedence:** classification follows D-003. A program containing an import is
+`unsupported` even if it also has a type error, so such a program must not be
+labeled `// aether:expect invalid`.
+
 ## Test layers
 
 ### Unit tests
@@ -60,6 +64,11 @@ Ordinary `go test` tests, one package per stage:
 - **backend:** instruction selection for each IR op, frame layout, assembly
   syntax
 - **toolchain:** missing-tool errors
+- **dependency rules** (`ARCHITECTURE.md` §Candidate package boundaries):
+  - `ir` and `amd64` import no `go/*` package
+  - `os/exec` enters the dependency graph only through `toolchain`
+    (`go list -deps`)
+  - nothing imports `go/importer` or `go/build`
 
 ### Golden tests
 
@@ -96,8 +105,8 @@ For each `// aether:expect run` program:
    divergences. Example from Phase 4: for panicking programs, compare only the
    first stderr line and the exit status.
 
-The S1 suite starts with the verified cases S1-01 to S1-09 and S1-N01 to
-S1-N04 (`SEMANTICS.md` §Subset S1). The expected outputs recorded there were
+The S1 suite starts with the verified cases S1-01 to S1-10 and S1-N01 to
+S1-N05 (`SEMANTICS.md` §Subset S1). The expected outputs recorded there were
 observed from gc during Phase 0. The tests still obtain the expected result
 from gc at test time, and the recorded values serve only as a cross-check that
 the oracle has not changed.
@@ -141,9 +150,12 @@ differential harness.
   - `-MinInt`
   - `MinInt / -1`, division by zero (Phase 4)
   - shift counts ≥ width and negative (Phase 4)
-  - shadowing
+  - shadowing and short-variable redeclaration
   - empty `main`
   - `println()` with no arguments
+  - valid Go that `go/types` accepts but S1 rejects (`var x int = 1.0`,
+    `println('a')`)
+  - `package main` without `func main`, which `go/types` does not report
 - Go has no undefined behavior in the C sense for these cases. Tests assert the
   spec-defined result. Any optimization that assumes otherwise is a bug.
 
@@ -166,19 +178,24 @@ differential harness.
 
 ### Reproducibility and deterministic output
 
-- With **identical inputs and configuration**, two builds must produce
-  byte-identical diagnostics, IR text, `.s` files, and executables.
-  - Identical means the same Aether binary, source bytes, flags, environment,
-    and `as`/`ld` paths and versions.
-  - Each build runs in its own fresh work directory. The work-directory
-    location is the one permitted difference.
-  - The test records the inputs and configuration of both builds and asserts
-    they are equal before comparing outputs.
-- This is tested in Phase 3 and later.
+- Two builds must produce byte-identical diagnostics, IR text, `.s` files, and
+  executables under the documented conditions in `ROADMAP.md` §Milestone 1,
+  check P6:
+  - **Controlled:** the Aether binary, source bytes, flags, and resolved
+    `as`/`ld` paths and versions. These are identical in both builds, and the
+    test records them and asserts they are equal.
+  - **Fixed by the driver:** the tool environment (`LC_ALL=C` only) and the
+    relative file names.
+  - **Deliberately varied:** the work-directory location, the current
+    directory, the output path, and an unrelated environment variable.
+- This is tested in Phase 3 and later. Reproducibility across binutils
+  versions, Aether builds, or hosts is not claimed.
 - Phase 0 experiments support feasibility, but they are not a guarantee:
   - E2: identical rebuilds.
   - E6: identical executables across different work-directory paths and input
     file names, with no `.file` directive and no build-id.
+  - E9: identical executables across output file names; the tools work under
+    `env -i LC_ALL=C`.
 - Output must not embed absolute or temporary paths, timestamps, or build-ids
   (D-008).
 
@@ -186,31 +203,38 @@ differential harness.
 
 These tests show that an executable's program logic came from Aether's backend
 and was turned into machine code only by GNU `as` and `ld`. The full procedure
-is in `ROADMAP.md` §Milestone 1 acceptance test.
+and the mapping to requirements are in `ROADMAP.md` §Milestone 1 acceptance
+test.
 
 **Primary checks**, all required:
-1. The `.s` passed to `as` is byte-identical to Aether's backend output for the
-   same input, and contains `main.main`.
-2. The logged `as` invocations (GNU-identified) turned exactly those `.s` files
-   into the work-directory `.o` files, and the object code matches the
-   assembly.
-3. The single logged `ld` invocation (GNU-identified) linked exactly the
-   program and runtime objects into the executable, and the executable's code
-   matches the objects.
-4. The executable's behavior matches gc and the interpreter.
-5. No Go compiler was invoked. Evidence:
-   - the complete command log
-   - the `os/exec` choke-point test
-   - a rebuild with a `PATH` containing only `as` and `ld`
-6. Unsupported, invalid, and tool-failure builds exit with the documented code
-   and leave no file at the output path.
+- **P1:** Aether accepts, type-checks, and lowers the program. The verified IR
+  matches its golden file, and the interpreter reproduces gc's output.
+- **P2:** Aether's backend, run in-process on that IR, produces assembly
+  byte-identical to the program `.s` used in the build. The runtime `.s` files
+  match the repository sources.
+- **P3:** The test harness itself reconstructs the executable from that
+  assembly and the runtime sources, using GNU `as`/`ld` with the documented
+  commands and environment. The result is byte-identical to Aether's output.
+  This is what establishes that the executable is exactly GNU `as`/`ld` applied
+  to Aether's assembly, with no Go compiler involved. It does not rely on
+  Aether's own logging.
+- **P4:** The executable's behavior matches gc and the interpreter.
+- **P5:** Unsupported, invalid, and tool-failure builds exit with the
+  documented code. They create nothing at the output path and leave any
+  pre-existing file there unchanged.
+- **P6:** Rebuilds are reproducible under the documented conditions above.
 
 **Supporting evidence**, recorded but not sufficient on its own:
+- Aether's `-x` command log
+- the `os/exec` dependency test
+- a restricted-`PATH` rebuild (a failure there is investigated as a driver
+  bug, not read as provenance evidence)
+- `objdump` correspondence between `.s`, `.o`, and the executable
 - the absence of gc ELF sections (`.go.buildinfo`, `.note.go.buildid`,
-  `.gopclntab`)
-- the absence of `runtime.*` symbols
+  `.gopclntab`) and of `runtime.*` symbols
 
-A binary can lack gc sections without having been built by Aether.
+A log can be incomplete, and a binary can lack gc sections without having been
+built by Aether. Only the reconstruction is treated as proof.
 
 ## Test-only use of the official toolchain
 

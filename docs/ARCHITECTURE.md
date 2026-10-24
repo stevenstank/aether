@@ -49,11 +49,20 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
 
 - **Responsibility:**
   - Read source files.
-  - Parse with `go/parser` (`SkipObjectResolution`).
+  - Parse with `go/parser` (`ParseComments | SkipObjectResolution`).
+    `ParseComments` is required so the gate can see directive comments
+    (D-001, E11).
   - Type-check with `go/types` (`GoVersion: "go1.26"`,
     `Sizes: types.SizesFor("gc","amd64")`).
   - Convert parser and checker errors into Aether diagnostics of class
     `invalid`.
+  - Run Aether's program-level checks that `go/types` does not perform
+    (D-002). In S1 that is one check: `package main` must declare
+    `func main`. A violation is `invalid`.
+- **Importer:** none. `Config.Importer` stays nil. Imports are rejected by the
+  gate's pre-check before type checking. Aether must never import
+  `go/importer` or `go/build`, because both depend on `os/exec` and can run
+  the `go` command (E9).
 - **Output:** a *checked package*: the file set, the `[]*ast.File`, the
   `*types.Package`, and the populated `*types.Info`.
 - **Not done here:** any decision about whether Aether supports the program.
@@ -64,11 +73,22 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   supported subset (`SEMANTICS.md`). If it is not, emit an `unsupported`
   diagnostic naming the construct and its position.
 - **Two passes:**
-  - A pre-check on the raw AST *before* type checking, for constructs that would
-    make `go/types` fail for the wrong reason. For example, `import`
-    declarations: without an importer `go/types` reports them as errors, which
-    would misclassify unsupported programs as invalid.
-  - A typed walk after type checking.
+  - A pre-check on the raw files *before* type checking, for file-level
+    constructs. In S1 it rejects:
+    - more than one source file
+    - a package name other than `main`
+    - any import declaration, including `import "C"` (cgo)
+    - `//go:` directive comments, `// +build` lines, and `//line` directives
+
+    Imports must be rejected here: without an importer `go/types` reports
+    them as errors, which would misclassify unsupported programs as invalid.
+  - A typed walk after type checking. It visits **every** expression, including
+    sub-expressions of constant expressions, because S1's literal and
+    operator restrictions apply to constant expressions too (`SEMANTICS.md`
+    §Subset S1). It checks types using `types.Info` rather than syntax. For
+    example, a `println` argument must have recorded type `int`.
+- **Precedence** (D-003): pre-check `unsupported` → `invalid` (parser, checker,
+  program-level checks) → typed `unsupported`.
 - **Output:** pass or fail, plus diagnostics.
 - **Contract:** if the gate passes, every construct in the program is listed as
   supported in the support matrix.
@@ -82,6 +102,23 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   - Materialize constants from `types.Info` values.
   - Map `types.Object` to IR locals.
   - Map `token.Pos` to IR positions.
+- **Rules that S1 correctness depends on:**
+  - **Constants.** Any expression with a non-nil `types.Info.Types[e].Value`
+    becomes one IR constant, taken from that value with `constant.Int64Val`.
+    Its operands are never lowered as arithmetic.
+  - **Variables.** Identifiers in `Info.Defs` create a new local slot.
+    Identifiers in `Info.Uses` refer to the existing slot. This covers
+    shadowing, and short-variable redeclaration, which is an assignment
+    (S1-10).
+  - **Tuple assignment.** Evaluate every right-hand operand into a temporary,
+    then store to the targets left to right.
+  - **`println(a1, …, an)`.** Evaluate every argument into a temporary first.
+    Then emit, in order: print-int `a1`, print-space, print-int `a2`, …,
+    print-int `an`, print-newline. With no arguments, emit only
+    print-newline. These are IR runtime-call instructions. The interpreter
+    executes them directly, and the backend turns them into calls to the
+    runtime helpers.
+  - **Function end.** `main`'s single block ends with a `return` terminator.
 - **Output:** an IR program.
 - **Contract:** no `go/ast`, `go/types`, or `go/token` value is reachable from
   the IR.
@@ -140,13 +177,33 @@ and value numbering never depend on map iteration order.
 ### 7. Backend (Aether, architecture-specific)
 
 The **Phase 3 approach** (D-007) is deliberately naive:
-- Every IR value and local gets an `rbp`-relative stack slot.
+- Every IR value and local gets an 8-byte, 8-byte-aligned, `rbp`-relative
+  stack slot.
 - Each instruction loads its operands into fixed scratch registers, computes,
   and stores the result.
-- The frame is `rbp`-based, and `rsp` is 16-byte aligned at calls.
+- The frame is `rbp`-based, and its size is rounded so that `rsp` is 16-byte
+  aligned at every `call`.
 - The output is GNU assembly in AT&T syntax.
 
-This makes register allocation unnecessary for the first executable.
+This makes register allocation unnecessary for the first executable. The
+backend consumes only IR: `internal/amd64` must not import `go/ast`,
+`go/types`, `go/token`, or `go/parser`.
+
+**Integer representation (S1).**
+- `int` is a 64-bit two's-complement value held in a 64-bit register or slot.
+- The S1 operations map to instructions whose 64-bit results already have Go's
+  wraparound semantics:
+  - `+` → `addq`
+  - `-` → `subq`
+  - `*` → `imulq`, low 64 bits
+  - unary `-` → `negq`, which maps `MinInt64` to itself
+- Constants are materialized with `movq` for values that fit a sign-extended
+  32-bit immediate, and `movabsq` otherwise.
+- No S1 operation needs a flag check or a special case.
+
+**Runtime calls (S1).** Each print-int, print-space, or print-newline IR
+instruction becomes a `call` to the corresponding runtime helper, using the
+runtime-helper interface in §Runtime integration boundary.
 
 **Later** (Phase 5):
 - instruction selection over SSA
@@ -173,7 +230,7 @@ libraries.
 **Driver requirements** (`internal/toolchain`):
 - **Availability and identity check before use.**
   - Locate each tool (`PATH` by default; an override mechanism is defined in
-    Phase 3).
+    Phase 3), and resolve it to an absolute path.
   - Confirm it is the GNU tool (`as --version` / `ld -v` version line).
   - Confirm it can target x86-64 ELF.
   - Confirm the host is linux/amd64 when the build is going to run the
@@ -183,30 +240,64 @@ libraries.
   - the path used or searched
   - the version line, if one was obtained
   - the tool's stderr
-- **Process choke point.** This is the only package that starts processes,
-  and the only importer of `os/exec`. A test enforces this.
-- **Command log.** With `-x`, the driver logs every command it runs and each
-  tool's identity. The Milestone 1 provenance checks rely on this log
-  (`ROADMAP.md`).
-- **Atomic output.**
+- **Process choke point.** This is the only package that starts processes.
+  A test enforces that, among Aether's packages, only `internal/toolchain`
+  imports `os/exec` or calls `os.StartProcess`. It also uses `go list -deps` to
+  check that, apart from paths through `internal/toolchain`, no Aether
+  package reaches `os/exec` transitively, for example through `go/importer`
+  (E9).
+- **Fixed tool environment.** Tools run with an explicit environment
+  containing only `LC_ALL=C`, which E9 showed is sufficient. They run by
+  absolute path, with the work directory as the current directory. The
+  invoking user's environment therefore cannot change tool behavior, and tool
+  messages are stable.
+- **Command log.** With `-x`, the driver logs:
+  - every command it runs: absolute tool path, arguments, and environment
+  - each tool's version line
+
+  The log is supporting provenance evidence. The primary checks reproduce the
+  build independently (`ROADMAP.md` §Milestone 1).
+- **Work directory layout.** The work directory is a fresh temporary directory
+  per build. It contains:
+  - `prog.s` (the program assembly) and `prog.o`
+  - one `.s`/`.o` pair per runtime file
+  - the unrenamed link output
+
+  The directory is removed after the build, unless `-work` is given, in which
+  case its path is printed.
+- **Output handling.**
   - `ld` writes to a temporary name in the work directory.
-  - The result is renamed to the output path only after every step has
-    succeeded.
-  - The work directory is removed unless `-work` is given.
+  - The result is moved to the output path only after every step has
+    succeeded. It is renamed when both are on the same file system; otherwise
+    it is copied to a temporary file next to the output path and that file is
+    renamed.
+  - On any failure the output path is neither created nor modified. A file
+    already there is left untouched.
 - **Reproducibility** (D-008):
-  - fixed argument lists and relative file names inside a fresh work directory
+  - fixed argument lists, a fixed tool environment, and fixed relative file
+    names inside a fresh work directory
   - no absolute or temporary paths, timestamps, or build-ids in the generated
     assembly or the linker options
 
-  Identical inputs and configuration give byte-identical output (E6).
+  Identical inputs and configuration give byte-identical output. The
+  work-directory path and the output file name do not affect the bytes (E6,
+  E9).
 
 ### 9. Runtime (Aether, D-009)
 
 - **Phase 3:** hand-written GNU assembly containing:
-  - `_start` (align the stack, `call main.main`, `exit_group(0)`)
-  - integer printing and space/newline helpers, writing to fd 2 with raw `write`
-    syscalls
+  - `_start`: align the stack, `call main.main`, then `exit_group(0)`.
+  - Integer printing and space/newline helpers.
+    - They write to fd 2 with raw `write` syscalls.
+    - Short writes are continued and `EINTR` is retried.
+    - Other errors are ignored (D-009, E7).
+    - Integer formatting must handle `MinInt64` without negating it.
 - **Phase 4:** adds the minimal panic exit (status 2).
+- **Source layout:** runtime sources live in `internal/amd64/rt/*.s`, a
+  subdirectory with no Go files. They are embedded into the compiler with
+  `//go:embed` and written to the work directory at build time. E9 showed that
+  this layout works with `go build`, `go vet`, and `go test`. GAS-syntax `.s`
+  files placed directly in a Go package directory break `go build`.
 
 ## Runtime integration boundary
 
@@ -217,7 +308,7 @@ that interface is:
 |---|---|---|
 | `_start` | runtime | Process entry. Calls `main.main`, then exits 0. |
 | `main.main` | compiler | Aether-compiled `main`. No arguments, no results. Called with `rsp` 16-byte aligned before `call`. |
-| runtime print helpers (names fixed in Phase 3) | runtime | Print one `int64` in decimal / a space / a newline to fd 2. Calling convention is documented beside the runtime source. |
+| runtime print helpers (names fixed in Phase 3) | runtime | Print one `int64` in decimal / a space / a newline to fd 2. Planned calling interface, to be fixed in Phase 3 with the runtime source: the integer argument in `%rdi`; no result; `rsp` 16-byte aligned before `call`; the helper preserves `rbx`, `rbp`, `r12`–`r15` and may clobber every other general-purpose register (a subset of the System V convention). This interface covers only runtime helpers. It does not decide D-011. |
 
 Rules:
 - The compiler may only call runtime symbols listed in this table (later, in a
@@ -257,21 +348,22 @@ Packages are created only when code exists. Everything lives under one module.
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |
 | `internal/opt` | Optimization passes (Phase 5+) | `ir` | internal |
-| `internal/amd64` | isel, frames, regalloc, asm emission, runtime `.s` (likely embedded via `embed`) | `ir` | internal |
+| `internal/amd64` | isel, frames, regalloc, asm emission; runtime sources in `internal/amd64/rt/*.s`, embedded (§9) | `ir` | internal |
 | `internal/toolchain` | Locate and run `as` and `ld` | — | internal |
 
-Dependency rules:
-- `ir` must not import `go/ast`, `go/types`, or `go/token`.
-- Only `toolchain` imports `os/exec`.
+Dependency rules (each enforced by a test once the package exists):
+- `ir` and `amd64` must not import `go/ast`, `go/types`, `go/token`, or
+  `go/parser`. The backend sees only IR.
+- `os/exec` may enter the dependency graph only through `toolchain`:
+  - only `toolchain` imports `os/exec`
+  - no other Aether package's own imports pull it in transitively (packages
+    that import `toolchain`, such as `cmd/aether`, are allowed)
+  - nothing imports `go/importer` or `go/build` (E9)
 - Nothing imports `cmd/aether`.
 - Architecture-specific code lives only under `internal/amd64` (or
   `internal/<arch>`).
 - A shared target interface is extracted only when a second architecture
   exists.
-
-**Open detail:** how hand-written `.s` runtime files coexist with Go tooling.
-The Go tool treats `.s` files as Go assembler. Options are a non-`.s` extension,
-or a directory without Go files. This is resolved in Phase 3.
 
 ## Diagnostics and error propagation
 
@@ -344,4 +436,5 @@ bug (`TESTING.md`).
 | Premature abstraction | D-016: packages and interfaces only when used |
 | Early backend designs blocking GC later | D-010 and D-011 require a stack-map and stack-check story before Phase 5 and Phase 10 designs are finalized |
 | Host tool dependence | Accepted (D-008). Isolated in `internal/toolchain`, with identity checks, clear `tool` errors, version recording, and reproducibility tests. Revisit triggers are listed in D-008. |
-| Mistaking the absence of gc markers for provenance | The Milestone 1 primary checks prove provenance from Aether's emitted assembly, the logged `as`/`ld` invocations, and object/executable correspondence. ELF section and symbol inspection is supporting evidence only (`ROADMAP.md`). |
+| Mistaking the absence of gc markers for provenance | The Milestone 1 primary checks establish provenance by independently reconstructing the executable from Aether's emitted assembly with GNU `as`/`ld` and comparing bytes. The command log, ELF section inspection, and symbol inspection are supporting evidence only (`ROADMAP.md`). |
+| Gate accepts a valid-Go form lowering does not handle (for example `var x int = 1.0`, redeclaration) | S1 spells these forms out (`SEMANTICS.md`); the gate walks constant sub-expressions; there are dedicated unsupported and S1-10 tests; lowering reports anything unexpected as `internal` |

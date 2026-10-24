@@ -57,19 +57,32 @@ repeated in each phase below:
   - diagnostic type and rendering
   - CLI exit codes (finalize the proposal in `ARCHITECTURE.md`)
   - subset gate for S1, including the pre-type-check import rejection
+  - Aether's program-level check (`package main` must declare `func main`)
+  - the classification precedence of D-003
 - **Exclusions:** IR, code generation.
 - **Deliverables:** `cmd/aether` with `check`; `internal/diag`,
   `internal/frontend`, `internal/gate`.
 - **Acceptance criteria:**
   - Every S1 construct is accepted.
   - Every construct in S1's "explicitly unsupported" list produces an
-    `unsupported` diagnostic with the correct position and exit code 3.
-  - Invalid programs produce exit code 1.
+    `unsupported` diagnostic with the correct position and exit code 3. This
+    includes the valid-Go forms `go/types` accepts (`SEMANTICS.md` §Subset S1,
+    unsupported cases).
+  - Invalid programs produce exit code 1, including S1-N05, which `go/types`
+    alone does not detect.
   - Output is deterministic.
 - **Required tests:**
   - golden diagnostic tests: one file per unsupported feature, plus invalid
-    cases S1-N01 to S1-N04 (`SEMANTICS.md`)
-  - a test that verified cases S1-01 to S1-09 are accepted
+    cases S1-N01 to S1-N05 (`SEMANTICS.md`)
+  - a test that verified cases S1-01 to S1-10 are accepted
+  - precedence tests: a program with both an import and a type error is
+    `unsupported`; a program with both an unsupported type and a type error
+    is `invalid`
+  - dependency tests: no Aether package imports `go/importer` or `go/build`.
+    `os/exec` may enter the dependency graph only through
+    `internal/toolchain`. That package does not exist yet in Phase 1, so for
+    now the test asserts that no Aether package depends on `os/exec`, directly
+    or transitively.
   - a gate test sweep over `/usr/local/go/test/*.go` files marked `// run`.
     The sweep checks only that every program is classified without an
     `internal` error. Most will be `unsupported`.
@@ -103,8 +116,9 @@ repeated in each phase below:
   - IR golden tests
   - verifier negative tests
   - differential tests (interpreter vs. gc), covering at least verified cases
-    S1-01 to S1-09 (`SEMANTICS.md`). These include the wraparound, constant,
-    tuple-assignment, shadowing, and formatting edge cases.
+    S1-01 to S1-10 (`SEMANTICS.md`). These include the wraparound, constant,
+    tuple-assignment, shadowing, redeclaration, and formatting edge cases.
+  - a reviewed IR golden file for the Milestone 1 program (used by check P1)
   - a fuzz test of lowering + verifier on gate-accepted programs
 - **Depends on:** Phase 1.
 - **Risks:** IR design flaws discovered late; mitigated by keeping the
@@ -120,11 +134,14 @@ repeated in each phase below:
 - **Scope:**
   - `internal/amd64`, with a naive slot-per-value backend
   - AT&T GNU assembly emission
-  - the Phase 3 runtime `.s` (`_start`, print helpers)
+  - the Phase 3 runtime in `internal/amd64/rt/*.s` (`_start`, print helpers)
+  - the runtime-helper calling interface (`ARCHITECTURE.md` §Runtime
+    integration boundary)
   - `internal/toolchain` (`as`, `ld`), with the availability, identity, error,
-    and reproducibility requirements of D-008
-  - `-S` to keep the assembly, `-x` to print commands, `-work` to keep the
-    work directory (D-007, D-008, D-009)
+    environment, output-handling, and reproducibility requirements of D-008
+    and `ARCHITECTURE.md` §8
+  - `-x` to print commands, `-work` to keep the work directory (D-007, D-008,
+    D-009)
 - **Exclusions:** register allocation, optimization, other functions, any
   run-time panic.
 - **Deliverables:** `aether build -o out prog.go`; S1 rows at *Supported
@@ -133,10 +150,9 @@ repeated in each phase below:
   agreement (gc / interpreter / native) holds on the whole S1 suite.
 - **Required tests:**
   - end-to-end tests
-  - provenance tests
-  - unsupported-construct tests through `build` (no output file is created)
-  - determinism: building twice with identical inputs and configuration gives
-    byte-identical `.s` and executable
+  - provenance tests P1–P3 (Milestone 1)
+  - unsupported, invalid, and pre-existing-output tests through `build` (P5)
+  - determinism under the conditions of P6
   - tool-check tests: a missing or non-GNU `as`/`ld` gives a `tool`
     diagnostic, exit 5, and no output file
 - **Depends on:** Phase 2.
@@ -144,8 +160,8 @@ repeated in each phase below:
   - stack alignment or syscall convention errors
   - an integer-printing edge case (`MinInt64`)
   - binutils version differences
-- **Completion evidence:** the suite passes on a clean checkout, and every
-  primary provenance check in the Milestone 1 acceptance test passes.
+- **Completion evidence:** the suite passes on a clean checkout, and primary
+  checks P1–P6 of the Milestone 1 acceptance test pass.
 
 ## Phase 4: Functions, control flow, integer types (S2)
 
@@ -155,8 +171,12 @@ repeated in each phase below:
   - `if`, `for` (three-clause, condition-only, infinite), `break`/`continue`,
     `switch` on integers
   - all sized integer types and conversions between them
-  - `/ % << >> & | ^ &^`, with division-by-zero and negative-shift panics and
-    the `MinInt / -1` rule
+  - `/ % << >> & | ^ &^`, with:
+    - division-by-zero and negative-shift panics
+    - the non-panicking `MinInt / -1 == MinInt` and `MinInt % -1 == 0` path
+      (`IDIV` faults here, E10)
+    - correct results for shift counts at or above the width (x86 masks the
+      count, E10)
   - multiple top-level functions, parameters, multiple results, recursion
   - package-level `var` and `const` with `InitOrder`
   - `print`/`println` of `bool`
@@ -331,104 +351,137 @@ Phase 0 by building this exact program with go1.26.1 and running it.
 Exit status 0. This must be confirmed against the gc-built binary as part of
 the test itself, not hard-coded alone.
 
+**What the test must establish.** Each item names the check that establishes
+it:
+
+| # | Requirement | Check |
+|---|---|---|
+| 1 | The source is inside S1 and is accepted | P1 |
+| 2 | Aether parses and type-checks it | P1 |
+| 3 | Aether lowers it to its own IR | P1 |
+| 4 | Aether's backend selects the instructions and emits them as assembly | P2 |
+| 5 | GNU `as` assembles that output | P3 |
+| 6 | GNU `ld` links the resulting objects and the runtime | P3 |
+| 7 | The executable runs and produces the expected behavior | P4 |
+| 8 | Invalid and unsupported programs fail clearly | P5 |
+| 9 | Failed builds leave no misleading artifacts | P5 |
+| 10 | The build is reproducible under documented conditions | P6 |
+| 11 | The official Go compiler does not generate the executable | P3 (with P2) |
+
 **Procedure:**
 
 1. Build the reference with gc: `go build -o ref m1_arith.go`. Run `ref` and
    capture stdout, stderr, and exit status. gc is used here only as the
-   oracle (D-014).
-2. Start from a fresh test directory in which the output path does not exist.
-   Run `aether build -x -S -work -o out m1_arith.go`. This keeps:
-   - the generated assembly
-   - the work directory containing the `.s` and `.o` files
-   - the log of every external command run
-3. Run `out`, capture stdout, stderr, and exit status, and apply the checks
-   below.
+   oracle (D-014). It never touches `out`.
+2. In a fresh test directory where the output path does not exist, run
+   `aether check m1_arith.go` (exit 0), then
+   `aether build -x -work -o out m1_arith.go` (exit 0). This keeps the work
+   directory (`ARCHITECTURE.md` §8) and the command log.
+3. Run `out` and capture stdout, stderr, and exit status. Apply checks P1–P6.
 
-**Primary provenance checks.** All six must pass. Together they establish
-where the executable came from.
+**Primary checks** (all required):
 
-1. **Aether generated the assembly that contains the program's
-   instructions.**
-   - The test calls Aether's backend in-process on the same source and
-     configuration, and asserts that its output is byte-identical to the
-     program `.s` file that the `-x` log shows being passed to `as`.
-   - That `.s` defines `main.main`, containing the program's instructions.
-   - The only other assembly inputs are Aether's runtime files. They are
-     byte-identical to the runtime sources in the Aether repository, and none
-     of them defines `main.main`.
-2. **GNU `as` assembled that output.**
-   - The `-x` log shows one `as` invocation per assembly file: the program
-     `.s` and each runtime `.s`. Each invocation names that file as input and
-     a `.o` in the work directory as output.
-   - The driver's recorded identity check for that `as` binary reports
-     `GNU assembler` (D-008).
-   - The program `.o` exists, and its `main.main` disassembly
-     (`objdump -d`) matches the `main.main` body in the `.s` instruction for
-     instruction, after normalizing operand syntax.
-3. **GNU `ld` linked the resulting objects and runtime.**
-   - The `-x` log shows exactly one `ld` invocation, identified as `GNU ld`.
-   - Its inputs are exactly the program `.o` and the runtime `.o` files. There
-     are no other objects, no `-l` libraries, and no C runtime start files.
-   - Its output is the executable that ends up at `out`.
-   - `out` defines `main.main` (from the program object) and `_start` (from
-     the runtime object).
-   - The `main.main` instructions in `out` match those in the program `.o`
-     (relocated addresses may differ).
-4. **The executable runs correctly.**
-   - `out`'s stdout, stderr, and exit status equal both the gc reference and
-     the Aether interpreter result for the same program.
-   - The expected values recorded in `SEMANTICS.md` (case S1-03) are a
-     cross-check only. The comparison against the live gc result is
-     authoritative.
-5. **The executable was not compiled by the official Go compiler.**
-   - The `-x` log records every process Aether started. It contains only the
-     `as` and `ld` invocations from checks 2 and 3. No program named `go`,
-     `compile`, `asm`, `link`, `gcc`, or `cc` is executed.
-   - A static test asserts that `internal/toolchain` is the only package that
-     imports `os/exec`, so no process can start outside the logged path.
-   - The build is repeated with `PATH` set to a directory containing only `as`
-     and `ld`, and with `GOROOT` unset. It must still succeed and produce an
-     identical executable.
-6. **Unsupported constructs fail clearly and leave no misleading artifact.**
-   See the rejection checks below.
+- **P1: Accepted, checked, and lowered by Aether.**
+  - `aether check` accepts the program.
+  - In-process, the frontend and gate accept it.
+  - Lowering produces IR that passes the verifier and matches the reviewed IR
+    golden file for this program.
+  - The interpreter, run on that IR, reproduces the gc reference output.
+- **P2: Aether emitted the program's instructions.**
+  - In-process, the amd64 backend applied to the P1 IR produces assembly
+    byte-identical to `prog.s` in the kept work directory.
+  - `prog.s` defines `main.main`.
+  - The runtime `.s` files in the work directory are byte-identical to
+    `internal/amd64/rt/*.s` in the repository, and none defines `main.main`.
+  - A dependency test confirms that `internal/amd64` imports no `go/*`
+    package, so the backend works from IR alone.
+- **P3: Independent reconstruction with GNU `as` and `ld`.**
+  - In a separate fresh directory, the **test harness itself**, not Aether,
+    reconstructs the executable:
+    - It resolves `as` and `ld` to absolute paths.
+    - It checks their version lines start with `GNU assembler` and `GNU ld`.
+    - It runs them with the documented command lines and fixed environment
+      (`ARCHITECTURE.md` §8).
+    - Its inputs are the P2 in-process backend output and the repository
+      runtime sources.
+  - The reconstructed executable must be **byte-identical** to `out`.
+  - The reconstruction uses only Aether-generated assembly, Aether's runtime
+    sources, and GNU `as`/`ld`, with no Go toolchain involved. Byte identity
+    therefore establishes that `out` is exactly what those inputs produce
+    (requirements 5, 6, 11), without relying on Aether's own command log.
+- **P4: The executable behaves correctly.**
+  - `out`'s stdout, stderr, and exit status equal both the gc reference and the
+    P1 interpreter result.
+  - The values recorded in `SEMANTICS.md` (case S1-03) are a cross-check only.
+    The live gc result is authoritative.
+- **P5: Failures are clear and leave nothing misleading.** See the rejection
+  checks below.
+- **P6: Reproducible under documented conditions.** See the determinism check
+  below.
 
-**Supporting evidence.** This is recorded and checked, but it is not proof of
-provenance on its own.
-- `readelf -h out`: an ELF64 x86-64 executable, statically linked.
+**Supporting evidence.** Recorded and checked, but not sufficient on its own:
+- The `-x` log lists exactly one `as` invocation per assembly file and one
+  `ld` invocation, with the same tools, arguments, and environment the harness
+  used in P3, and no other process.
+- The dependency test (`ARCHITECTURE.md` §8) shows that `os/exec` enters the
+  dependency graph only through `internal/toolchain`, and that `go/importer` and
+  `go/build` are not imported.
+- **Restricted `PATH` rebuild.**
+  - Set `PATH` to a fresh directory containing only symlinks to the resolved
+    `as` and `ld` (both real binaries; E9).
+  - Invoke Aether by absolute path, with the rest of the environment
+    unchanged.
+  - The build must succeed and produce an identical `out`.
+  - If it fails, treat it as a driver bug to investigate. It is not, by
+    itself, evidence for or against provenance.
+- `readelf -h out` shows an ELF64 x86-64 executable, statically linked.
 - `readelf -S out` shows none of `.go.buildinfo`, `.note.go.buildid`,
-  `.gopclntab`. These are present in gc binaries (E1). Their absence is
-  consistent with a non-gc build but does **not** prove one: a binary can be
-  stripped or built by other means.
+  `.gopclntab`. These sections are present in gc binaries (E1). Their absence
+  is consistent with a non-gc build but does **not** prove one.
 - `nm out` defines no `runtime.*` symbols. The defined symbols are only:
   - `main.main` and `_start`
-  - the symbols in the runtime interface table (`ARCHITECTURE.md`)
-  - linker-defined symbols (`__bss_start`, `_edata`, `_end`, observed in E2)
+  - the runtime-interface symbols (`ARCHITECTURE.md`)
+  - linker-defined symbols (`__bss_start`, `_edata`, `_end`; E2)
+- `objdump -d` shows the `main.main` instructions in `prog.o` and in `out`
+  corresponding to `prog.s` (relocated addresses may differ).
 - `go version out` is **not** used: it exits 0 even for non-Go files (E1).
 
-**Rejection checks** (primary check 6). For each case, the output path must
-not exist before the build.
-1. Variants using `/`, `import "fmt"`, `if`, a second function, and
-   `println("hi")` each:
-   - exit with code 3
+**Rejection checks (P5).** Unless stated otherwise, the output path does not
+exist before the build.
+1. Each of these variants exits with code 3 (`unsupported`):
+   - `/`
+   - `import "fmt"`
+   - `if`
+   - a second function
+   - `println("hi")`
+   - `var x int = 1.0`
+   - `package foo`
+
+   Each must:
    - print an `unsupported` diagnostic naming the construct and its
      `file:line:col` position
    - create no file at the output path
-   - leave no `.s`, `.o`, or executable in the work directory, because the
+   - produce no `.s`, `.o`, or executable in the work directory, because the
      gate stops before lowering
-2. Invalid cases S1-N01 to S1-N04 (`SEMANTICS.md`) exit with code 1
+2. Invalid cases S1-N01 to S1-N05 (`SEMANTICS.md`) exit with code 1
    (`invalid`), with the same no-artifact checks.
-3. A build whose `ld` step fails (simulated with a failing `ld` stand-in on
-   `PATH`) exits with code 5 (`tool`) and creates no file at the output path.
-   The driver links to a temporary name in the work directory and renames it
-   into place only after success, so a partial executable never appears at
-   the output path.
+3. A build whose `ld` step fails, simulated by a failing `ld` stand-in found
+   first on `PATH`, exits with code 5 (`tool`) and creates no file at the
+   output path.
+4. **Pre-existing output.** The output path already holds a file with known
+   content, and the build fails (any of the cases above). The file must be
+   byte-for-byte unchanged afterwards: the driver neither deletes it nor
+   partially overwrites it (`ARCHITECTURE.md` §8).
 
-**Determinism check.**
-- Build twice with identical inputs and configuration:
-  - the same Aether binary, source bytes, flags, environment, and `as`/`ld`
-    paths and versions
-  - each build in its own fresh work directory
-- The test records the inputs and configuration of both builds and asserts
-  they are equal, apart from the work-directory location.
-- It then asserts byte-identical program `.s` files and byte-identical
-  executables.
+**Determinism check (P6).** Two builds are compared. The conditions are:
+
+| Category | Requirement |
+|---|---|
+| Controlled: identical in both builds, recorded and asserted equal by the test | the Aether binary; the source bytes; command-line flags; resolved `as`/`ld` paths and version lines |
+| Fixed by the driver | the tool environment (`LC_ALL=C` only); relative file names in the work directory |
+| Deliberately varied by the test | the work-directory location; the test's current directory; the output path; one unrelated variable added to the invoking environment |
+
+The program `.s` files and the executables must both be byte-identical.
+
+**Not claimed:** reproducibility across different binutils versions, different
+Aether builds, or different hosts.

@@ -25,8 +25,11 @@ changing anything architectural.
 - No placeholder packages, empty files, stub implementations, or speculative
   interfaces. A package or abstraction is created only with real code and tests
   that use it (D-016).
-- `internal/ir` must not import `go/ast`, `go/types`, or `go/token`.
+- `internal/ir` and `internal/amd64` must not import `go/*` packages.
   Architecture-specific code lives only under `internal/<arch>`.
+- Never import `go/importer` or `go/build`: they can run the `go` command
+  (D-002). `os/exec` may enter the dependency graph only through
+  `internal/toolchain`.
 - Unsupported constructs must be rejected by the subset gate with an
   `unsupported` diagnostic. Later stages report anything unexpected as an
   `internal` error. **Never generate code you are not sure is correct.**

@@ -4,8 +4,9 @@ Aether is an independent compiler for the Go programming language, written in
 Go, targeting native Linux x86-64 executables through its own intermediate
 representation and backend.
 
-> **Status: architectural preparation (Phase 0).** There is no compiler yet.
-> No Go code exists in this repository, and nothing here can compile a program.
+> **Status: Phase 0 (architecture and documentation) is complete; Phase 1 has
+> not started.** There is no compiler yet. No Go code exists in this
+> repository, and nothing here can compile a program.
 
 ## What Aether aims to become
 
@@ -74,11 +75,13 @@ and the `println` builtin. This is subset S1, accepted but **not yet
 implemented**; see [docs/SEMANTICS.md](docs/SEMANTICS.md#subset-s1-accepted-d-012).
 
 The acceptance test checks:
-- that Aether emitted the assembly
-- that GNU `as` and `ld` assembled and linked it
+- that Aether accepted, type-checked, and lowered the program to its own IR
+- that Aether's backend emitted the assembly
+- that rebuilding the executable from that assembly with GNU `as` and `ld`,
+  independently of Aether, gives byte-identical output, so no Go compiler was
+  involved
 - that the program's output matches the official Go toolchain's
-- that no Go compiler was involved
-- that unsupported programs fail clearly with no output file
+- that invalid and unsupported programs fail clearly and leave no output file
 
 See [docs/ROADMAP.md](docs/ROADMAP.md#milestone-1-acceptance-test).
 

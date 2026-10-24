@@ -49,8 +49,17 @@ A program that passes the gate must either compile correctly or fail with an
 - constant division by zero
 
 Aether does not re-derive these. For a constant expression it takes the value
-`go/types` recorded (`types.Info.Types[e].Value`), converts it to the
-expression's type, and emits it as an IR constant.
+`go/types` recorded (`types.Info.Types[e].Value`). That value is already
+converted to the expression's type (E8). Aether extracts it exactly with
+`constant.Int64Val`, where a non-exact result is an `internal` error, and emits
+it as an IR constant. Constant expressions are never evaluated with machine
+arithmetic.
+
+`go/types` does not perform every compile-time check gc performs. Aether's
+frontend adds the program-level checks that gc enforces outside its type
+checker, and classifies violations as `invalid` (D-002). The known case so far:
+`package main` must declare `func main`. gc reports a missing one at link
+time, while `go/types` accepts it (E8, E9).
 
 **Run-time semantics** are entirely Aether's responsibility:
 - evaluation order of non-constant expressions
@@ -85,13 +94,18 @@ tests is not supported.
   cause a run-time panic" (spec §Integer overflow).
 - **Optimizations must not assume overflow cannot happen.** The spec's own
   example: a compiler "may not assume that `x < x + 1` is always true".
-- Division: `MinInt / -1 == MinInt` and `MinInt % -1 == 0` (spec §Arithmetic
-  operators). x86 `IDIV` raises a fault in this case, so the backend must
-  special-case it. Division by a zero variable must panic. Both are Phase 4
-  items.
-- Shifts: a negative non-constant shift count must panic at run time. Shift
-  counts at or above the operand width are well defined and must not be
-  passed raw to x86 shift instructions, which mask the count.
+- **Division and remainder** (spec §Arithmetic operators; gc behavior
+  confirmed in E7). These are Phase 4 items.
+  - Integer division truncates toward zero, and the remainder has the sign of
+    the dividend.
+  - `MinInt / -1 == MinInt` and `MinInt % -1 == 0`. This is **not** a panic.
+    x86 `IDIV` faults on this case (SIGFPE on Linux, E10), so the backend must
+    detect a `-1` divisor and handle it on a separate path.
+  - A zero divisor at run time is a run-time panic. A constant zero divisor is
+    a compile-time error (E3).
+- **Shifts.** A negative non-constant shift count must panic at run time.
+  Shift counts at or above the operand width are well defined. They must not
+  be passed raw to x86 shift instructions, which mask the count (E10).
 - `int` and `uint` are 64-bit on amd64 (`types.SizesFor("gc", "amd64")`).
 
 ### Evaluation order
@@ -172,14 +186,21 @@ builtin** (D-012). This is not a guarantee of permanent Go language
 compatibility: if Go removes `println`, Aether's support for it becomes an
 Aether extension.
 
-For the types it supports, Aether matches gc's observed format, verified with
-go1.26.1 (E1, E4):
+**Behavior Aether reproduces in S1** (verified against go1.26.1; E1, E4, E7):
 
-- output written to **stderr** (file descriptor 2); nothing written to stdout
-- integers in decimal, with a leading `-` for negatives only
-- a single space between arguments
-- a newline at the end
-- `println()` with no arguments prints just a newline
+| Aspect | Behavior |
+|---|---|
+| Argument types | Each argument's type in `types.Info` must be `int`. Untyped integer constants are recorded as `int` (E8) and accepted. Every other argument type is `unsupported` in S1. |
+| Stream | All output goes to **stderr** (file descriptor 2). Nothing is written to stdout. |
+| Format | Each argument in signed decimal (a leading `-` for negatives only, full `int64` range), separated by a single space, followed by one newline. `println()` prints just a newline. |
+| Evaluation | All arguments are evaluated, left to right, **before** any output is produced (E7: a panic in the second argument suppressed all output). This is not observable in S1, which has no panics, but lowering must follow it so S2 is correct. |
+| Write errors | Ignored. Execution continues and the exit status is unaffected (E7). Short writes are continued, and `EINTR` is retried (D-009). |
+
+**Not specified and not reproduced:** how output is split into `write` system
+calls, and whether gc retries short writes. Neither was verified, and neither
+is observable in S1 tests, which compare complete stderr contents. If a later
+phase needs either (for example, interleaving with stdout), it becomes an open
+question at that point.
 
 `print` has a different format (no separators, no newline, per E1) and is not
 in S1.
@@ -211,19 +232,29 @@ definition was accepted at the owner's Phase 0 review on 2026-10-24.
 *Unsupported*.
 
 **Program structure**
-- Exactly one source file. Package clause `package main`.
+- Exactly one source file.
+- Package clause `package main`. Any other package name is `unsupported`:
+  Aether builds programs, not libraries.
 - **No** import declarations.
 - Exactly one top-level declaration: `func main() { … }`, with no parameters,
   no results, no receiver, and no type parameters.
+  - A `package main` with no `func main` is `invalid`. Aether checks this
+    itself, because `go/types` does not (E8).
+  - `main` declared with parameters or results, or as a non-function, is
+    `invalid` (reported by `go/types`, E8).
 - No package-level `var`, `const`, `type`, or other functions.
 
 **Statements** (inside `main`)
 - `var` declarations of type `int`, with or without an initializer, e.g.
   `var x int`, `var x int = e`, `var x = e`, `var a, b int = e1, e2`.
 - Short variable declarations `x := e`, `a, b := e1, e2`, where every
-  resulting type is `int`.
-- Local `const` declarations. Constants may be untyped. Uses must be of type
-  `int`.
+  resulting type is `int`. This includes **redeclaration**: in
+  `a, c := 3, 4` with `a` already declared in the same scope, `a` is assigned,
+  not declared. `go/types` records it in `Info.Uses`, not `Info.Defs` (E8).
+  Lowering must treat it as an assignment to the existing variable (case
+  S1-10).
+- Local `const` declarations. Constants may be untyped or of type `int`. Uses
+  must be of type `int`.
 - Assignment `x = e`, tuple assignment `a, b = e1, e2` (all right-hand sides
   are evaluated before any assignment), and `x += e`, `x -= e`, `x *= e`.
 - `x++`, `x--`.
@@ -233,8 +264,15 @@ definition was accepted at the owner's Phase 0 review on 2026-10-24.
 - Empty statements.
 
 **Expressions** (all of type `int`)
-- Integer literals and constant expressions that are representable as `int`.
-  `go/types` enforces this.
+- Integer literals, in any integer literal form: decimal, `0x`, `0o`/`0`,
+  `0b`, with or without `_` separators.
+- Constant expressions representable as `int` (`go/types` enforces
+  representability). A constant expression is subject to the **same**
+  restrictions as any other S1 expression: it may contain only integer
+  literals, S1 constants, the operators below, and parentheses.
+  - Float, imaginary, rune, and string literals are `unsupported` even when the
+    resulting constant has type `int`. For example, `var x int = 1.0` is valid
+    Go and `go/types` records it as the `int` value 1 (E8), but S1 rejects it.
 - Variables and constants declared as above.
 - Binary `+`, `-`, `*` with 64-bit two's-complement wraparound.
 - Unary `+`, `-`. `-MinInt64 == MinInt64`.
@@ -252,9 +290,17 @@ position and a feature name):
   channels, and generics
 - `print` (deferred to S2; its gc output format for multiple arguments differs
   from `println` and needs its own tests)
-- imports, package-level declarations, `init` functions
-- blank identifier `_` as an assignment target
-- multiple files, cgo, and `//go:` directives that affect code generation
+- `println` arguments of any type other than `int`, for example
+  `println('a')` (type `rune`), `println(1.5)`, or `println("hi")`
+- float, imaginary, rune, and string literals anywhere, including inside
+  constant expressions
+- imports, package-level declarations, `init` functions, package names other
+  than `main`
+- the blank identifier `_` in any position (declaration or assignment)
+- more than one source file
+- cgo
+- every `//go:` directive comment (including `//go:build`), `// +build` lines,
+  and `//line` directives
 
 **Constant expressions versus run-time arithmetic in S1**
 
@@ -280,12 +326,18 @@ effects. Evaluation order is therefore observable only through:
 - left-to-right evaluation of `println` arguments, which in S1 have no side
   effects.
 
+Lowering must nevertheless evaluate all `println` arguments before emitting any
+output (E7), so that the rule is already right when panicking operators arrive
+in S2.
+
 No S1 program depends on behavior the spec leaves unspecified.
 
 **Run-time behavior of S1 programs**
 
 S1 programs have no run-time panics. Output goes only to stderr through
-`println`. The process exits with status 0 when `main` returns.
+`println`. The process exits with status 0 when `main` returns. The spec says
+only that the program exits; status 0 is gc's observed behavior (E1, E4), and
+Aether matches it.
 
 **Limitations of S1**
 
@@ -302,10 +354,11 @@ entirely by its source. S1 tests correctness of declarations, scoping,
 assignment, wraparound arithmetic, constants, and output formatting, and
 nothing else.
 
-**Verified cases (E4, E5)**
+**Verified cases (E4, E5, E8, E9)**
 
 The cases below were run against gc (go1.26.1, `go build` followed by
-executing the binary) during the Phase 0 review. They form the minimum S1
+executing the binary): S1-01 to S1-09 during the Phase 0 review (E4), and
+S1-10 and S1-N05 during the pre-Phase 1 audit (E8, E9). They form the minimum S1
 differential suite. Phase 2 and Phase 3 tests must include each of them, with
 the expected result re-derived from gc in the test itself (`TESTING.md`).
 
@@ -320,6 +373,7 @@ the expected result re-derived from gc in the test itself (`TESTING.md`).
 | S1-07 | zero value, compound assignment, `var` forms | `var x int; x += 5; x -= 7; x *= -3; x++; x--; x--; println(x); var p, q int = 10, -10; var r = p * q; println(p, q, r)` | `5` / `10 -10 -100` |
 | S1-08 | nested shadowing, empty statement | `x := 1; { x := x + 10; { x := x * 2; println(x) }; x++; println(x) }; println(x); ;` | `22` / `12` / `1` |
 | S1-09 | integer formatting edge values | `m := -9223372036854775807 - 1; println(m, 0, -0, -1, 1, 10, -10, 100, 999999999999)` | `-9223372036854775808 0 0 -1 1 10 -10 100 999999999999` |
+| S1-10 | short variable redeclaration | `a, b := 1, 2; a, c := 3, 4; println(a, b, c)` | `3 2 4` |
 
 In the table, `/` separates output lines and `;` separates statements written
 on separate lines in the tested source.
@@ -332,11 +386,27 @@ on separate lines in the tested source.
 | S1-N02 | `const c int = 9223372036854775807; x := c + 1; println(x)` | c + 1 (constant 9223372036854775808 of type int) overflows int |
 | S1-N03 | `x := 1` | declared and not used: x |
 | S1-N04 | `const c = -9223372036854775807 - 2; x := c; println(x)` | untyped int constant -9223372036854775809 … (overflows) |
+| S1-N05 | whole file is `package main` (no `func main`) | function main is undeclared in the main package (reported by gc at link time; `go/types` reports nothing, so Aether's own check must report it) |
 
 **Unsupported cases (must be classified `unsupported`, exit 3, no output
 file).** At least one test per item in the "Explicitly unsupported in S1" list
-above. The Milestone 1 acceptance test names a required minimum set
+above. These must include the valid-Go forms that `go/types` accepts (E8):
+- `var x int = 1.0`
+- `println('a')`
+- `package foo` with `func main() {}`
+- `x := 1; _ = x` (the blank identifier as an assignment target)
+
+The Milestone 1 acceptance test names a further required minimum set
 (`ROADMAP.md`).
+
+**Classification precedence** (D-003):
+1. The gate's file-level pre-check: multiple files, a non-`main` package
+   name, imports, and directive comments (`ARCHITECTURE.md` §2).
+2. `invalid`.
+3. The remaining `unsupported` checks.
+
+A test program that contains an import is expected to be `unsupported` even if
+it also has a type error.
 
 ## Support matrix
 
