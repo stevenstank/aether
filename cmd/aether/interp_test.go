@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/stevenstank/aether/internal/diag"
 	"github.com/stevenstank/aether/internal/interp"
+	"github.com/stevenstank/aether/internal/toolchain"
 )
 
 // result is the observable behavior of a program run.
@@ -81,12 +83,14 @@ func gcRun(t *testing.T, gobin string, progs map[string][]byte) map[string]resul
 // requires gc and the interpreter to agree on.
 const generatedPrograms = 200
 
-// TestInterpAgainstGc is the Phase 2 differential test: for every corpus
-// program expected to run and for generated S1 programs, the interpreter's
-// stdout, stderr, and exit status must equal those of the gc-built binary.
-// gc is only the oracle: the interpreter's results come from Aether's own
-// lowering and IR, never from gc.
-func TestInterpAgainstGc(t *testing.T) {
+// TestDifferentialAgainstGc is the three-way differential test (Phases 2
+// and 3): for every corpus program expected to run and for generated S1
+// programs, the stdout, stderr, and exit status of the interpreter and of the
+// executable built by aether build must equal those of the gc-built binary.
+// gc is only the oracle: Aether's results come from its own lowering, IR,
+// backend, and runtime, never from gc. Without GNU as and ld, the native
+// comparison is skipped with a logged message.
+func TestDifferentialAgainstGc(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds programs with gc")
 	}
@@ -106,26 +110,37 @@ func TestInterpAgainstGc(t *testing.T) {
 		progs[strings.TrimSuffix(filepath.Base(path), ".go")] = src
 	}
 	corpusRun := len(progs)
-	rejected := 0
+	rejected := map[string][]byte{}
 	for seed := uint64(1); len(progs) < corpusRun+generatedPrograms; seed++ {
 		if seed > 3*generatedPrograms {
-			t.Fatalf("too many generated programs rejected: %d", rejected)
+			t.Fatalf("too many generated programs rejected: %d", len(rejected))
 		}
 		src := []byte(generate(seed))
 		if _, ds, _ := interpret("gen.go", src); len(ds) > 0 {
-			// Only an overflowing constant expression is expected.
-			if diag.ExitCode(ds) != diag.ExitInvalid {
+			// Only an overflowing constant expression is expected, which
+			// makes the program invalid Go; gc must agree (below).
+			if diag.ExitCode(ds) != diag.ExitInvalid || !strings.Contains(ds[0].Message, "overflows") {
 				t.Errorf("generated program %d rejected:\n%s\n%s", seed, ds[0], src)
 			}
-			rejected++
+			rejected[fmt.Sprintf("bad%04d", seed)] = src
 			continue
 		}
 		progs[fmt.Sprintf("gen%04d", seed)] = src
 	}
-	t.Logf("%d corpus programs, %d generated (%d generated programs with an overflowing constant skipped)",
-		corpusRun, generatedPrograms, rejected)
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant)",
+		corpusRun, generatedPrograms, len(rejected))
+	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)
+	native := true
+	if _, err := toolchain.Find("as", nil); err != nil {
+		native = false
+		t.Logf("native comparison skipped: %v", err)
+	} else if _, err := toolchain.Find("ld", nil); err != nil {
+		native = false
+		t.Logf("native comparison skipped: %v", err)
+	}
+	exeDir := t.TempDir()
 	names := make([]string, 0, len(progs))
 	for name := range progs {
 		names = append(names, name)
@@ -140,5 +155,55 @@ func TestInterpAgainstGc(t *testing.T) {
 		if got != want[name] {
 			t.Errorf("%s: interpreter %+v, gc %+v\n%s", name, got, want[name], progs[name])
 		}
+		if !native {
+			continue
+		}
+		exe := filepath.Join(exeDir, name)
+		ds, err = build([]source{{name + ".go", progs[name]}}, buildOptions{out: exe}, io.Discard)
+		if len(ds) > 0 || err != nil {
+			t.Errorf("%s: not built: %v %v", name, ds, err)
+			continue
+		}
+		if got := runExe(t, exe); got != want[name] {
+			t.Errorf("%s: native %+v, gc %+v\n%s", name, got, want[name], progs[name])
+		}
+	}
+	if native {
+		t.Logf("all %d programs also built and run natively", len(names))
+	}
+}
+
+// gcRejects checks that gc also rejects every program Aether classified as
+// invalid: one go build of all of them must report each as a failing
+// package with a constant overflow.
+func gcRejects(t *testing.T, gobin string, progs map[string][]byte) {
+	t.Helper()
+	if len(progs) == 0 {
+		return
+	}
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), []byte("module bad\n\ngo 1.26\n"))
+	for name, src := range progs {
+		if err := os.Mkdir(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(dir, name, "main.go"), src)
+	}
+	cmd := exec.Command(gobin, "build", "-o", os.DevNull, "./...")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatal("gc accepted programs Aether classified as invalid")
+	}
+	// Errors are grouped under a "# bad/NAME" header per package.
+	for _, part := range strings.Split(string(out), "# bad/")[1:] {
+		name, body, _ := strings.Cut(part, "\n")
+		if progs[name] != nil && strings.Contains(body, "overflows") {
+			delete(progs, name)
+		}
+	}
+	if len(progs) > 0 {
+		t.Errorf("gc did not reject %d programs Aether classified as invalid\n%s", len(progs), out)
 	}
 }
