@@ -1,8 +1,9 @@
 // Command aether is the driver for the Aether compiler.
 //
-// Phase 1 provides only "aether check", which classifies a Go source file as
-// invalid Go, valid Go outside Aether's supported subset (S1), or acceptable.
-// It does not compile anything.
+// "aether check" classifies a Go source file as invalid Go, valid Go outside
+// Aether's supported subset (S1), or acceptable. "aether build" compiles an
+// S1 program into a static Linux x86-64 executable with Aether's own backend
+// and runtime, using GNU as and ld only to assemble and link (D-007, D-008).
 package main
 
 import (
@@ -17,16 +18,23 @@ import (
 const usage = `usage: aether <command> [arguments]
 
 Commands:
-  check FILE.go   report whether FILE.go is inside Aether's supported subset (S1)
-  help            print this message
+  check FILE.go                     report whether FILE.go is inside Aether's
+                                    supported subset (S1)
+  build [-x] [-work] -o OUT FILE.go compile FILE.go into the executable OUT
+  help                              print this message
 
-Exit status of check:
-  0  accepted
+Build flags:
+  -o OUT   output file; an existing regular file is replaced only on success
+  -x       print the commands run and the tool versions to stderr
+  -work    keep the temporary work directory and print its path
+
+Exit status of check and build:
+  0  success
   1  invalid Go
-  2  usage error
+  2  usage error, or the work directory or output cannot be written
   3  valid Go outside the supported subset
   4  internal compiler error
-  5  required external tool missing or failed
+  5  GNU as or ld missing, not identified, or failed
 `
 
 func main() {
@@ -46,34 +54,46 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return diag.ExitOK
 	case "check":
 		return runCheck(args[1:], stderr)
+	case "build":
+		return runBuild(args[1:], stderr)
 	}
 	fmt.Fprintf(stderr, "aether: unknown command %q\n\n%s", args[0], usage)
 	return diag.ExitUsage
 }
 
 func runCheck(args []string, stderr io.Writer) int {
-	if len(args) == 0 {
-		fmt.Fprint(stderr, "aether check: no input file\n")
+	srcs, err := readSources("check", args, stderr)
+	if err != nil {
 		return diag.ExitUsage
 	}
+	return report(stderr, guard(func() []diag.Diagnostic { return check(srcs) }))
+}
+
+// readSources reads the source files named on the command line of cmd. A
+// problem is reported to stderr and returned as errUsage.
+func readSources(cmd string, names []string, stderr io.Writer) ([]source, error) {
+	if len(names) == 0 {
+		fmt.Fprintf(stderr, "aether %s: no input file\n", cmd)
+		return nil, errUsage
+	}
 	var srcs []source
-	for _, name := range args {
+	for _, name := range names {
 		if strings.HasPrefix(name, "-") {
-			fmt.Fprintf(stderr, "aether check: unknown flag %s\n", name)
-			return diag.ExitUsage
+			fmt.Fprintf(stderr, "aether %s: unknown flag %s\n", cmd, name)
+			return nil, errUsage
 		}
 		if !strings.HasSuffix(name, ".go") {
-			fmt.Fprintf(stderr, "aether check: %s is not a .go file\n", name)
-			return diag.ExitUsage
+			fmt.Fprintf(stderr, "aether %s: %s is not a .go file\n", cmd, name)
+			return nil, errUsage
 		}
 		data, err := os.ReadFile(name)
 		if err != nil {
-			fmt.Fprintf(stderr, "aether check: %v\n", err)
-			return diag.ExitUsage
+			fmt.Fprintf(stderr, "aether %s: %v\n", cmd, err)
+			return nil, errUsage
 		}
 		srcs = append(srcs, source{name: name, data: data})
 	}
-	return report(stderr, guard(func() []diag.Diagnostic { return check(srcs) }))
+	return srcs, nil
 }
 
 // report writes ds to w, one per line, and returns the exit status.

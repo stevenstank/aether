@@ -23,7 +23,7 @@ func TestRunUsage(t *testing.T) {
 	}{
 		{"no arguments", nil, diag.ExitUsage, "", "usage: aether"},
 		{"help", []string{"help"}, diag.ExitOK, "usage: aether", ""},
-		{"unknown command", []string{"build"}, diag.ExitUsage, "", `unknown command "build"`},
+		{"unknown command", []string{"run"}, diag.ExitUsage, "", `unknown command "run"`},
 		{"check without file", []string{"check"}, diag.ExitUsage, "", "no input file"},
 		{"check unknown flag", []string{"check", "-x", "a.go"}, diag.ExitUsage, "", "unknown flag -x"},
 		{"check non-go file", []string{"check", "main.c"}, diag.ExitUsage, "", "is not a .go file"},

@@ -1,0 +1,307 @@
+package main
+
+import (
+	"bytes"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+
+	"github.com/stevenstank/aether/internal/diag"
+)
+
+// requireTools skips the test unless executables can be built and run here.
+func requireTools(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skip("aether build needs a linux/amd64 host")
+	}
+	for _, name := range []string{"as", "ld"} {
+		if _, err := exec.LookPath(name); err != nil {
+			t.Skipf("GNU %s not found: %v", name, err)
+		}
+	}
+}
+
+func runAether(args ...string) (stderr string, code int) {
+	var stdout, errBuf bytes.Buffer
+	code = run(args, &stdout, &errBuf)
+	if stdout.Len() != 0 {
+		return "unexpected stdout: " + stdout.String(), -1
+	}
+	return errBuf.String(), code
+}
+
+// noFile fails if path exists.
+func noFile(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Lstat(path); err == nil {
+		t.Errorf("%s was created", path)
+	}
+}
+
+// corpusFile returns the path of a corpus file by name.
+func corpusFile(name string) string { return filepath.Join("testdata", "check", name+".go") }
+
+func TestBuildUsage(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "out")
+	src := corpusFile("s1_03_milestone1")
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"no output", []string{src}, "no output file: use -o FILE"},
+		{"no input", []string{"-o", out}, "no input file"},
+		{"unknown flag", []string{"-z", "-o", out, src}, "flag provided but not defined: -z"},
+		{"flag after input", []string{src, "-o", out}, "unknown flag -o"},
+		{"not a .go file", []string{"-o", out, "prog.c"}, "prog.c is not a .go file"},
+		{"output is the input", []string{"-o", src, src}, "is the input file"},
+		{"output is a directory", []string{"-o", dir, src}, "is not a regular file"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stderr, code := runAether(append([]string{"build"}, tt.args...)...)
+			if code != diag.ExitUsage || !strings.Contains(stderr, tt.want) {
+				t.Errorf("exit %d, stderr %q; want exit 2 and %q", code, stderr, tt.want)
+			}
+			noFile(t, out)
+		})
+	}
+}
+
+// TestBuildCorpus builds every corpus program expected to run, runs the
+// executable, and requires the interpreter's behavior: the output on stderr,
+// nothing on stdout, and exit status 0.
+func TestBuildCorpus(t *testing.T) {
+	requireTools(t)
+	for _, path := range corpus(t) {
+		if readExpectation(t, path).class != "run" {
+			continue
+		}
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			t.Parallel()
+			src, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, ds, err := interpret(path, src)
+			if len(ds) > 0 || err != nil {
+				t.Fatal(ds, err)
+			}
+			out := filepath.Join(t.TempDir(), "out")
+			if stderr, code := runAether("build", "-o", out, path); code != 0 || stderr != "" {
+				t.Fatalf("build: exit %d\n%s", code, stderr)
+			}
+			if fi, err := os.Stat(out); err != nil || fi.Mode().Perm() != 0o755 {
+				t.Fatalf("output: %v %v", fi, err)
+			}
+			if got := runExe(t, out); got != want {
+				t.Errorf("native %+v, interpreter %+v", got, want)
+			}
+		})
+	}
+}
+
+// runExe runs an executable and returns what it did.
+func runExe(t *testing.T, path string) result {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command(path)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	r := result{}
+	if err := cmd.Run(); err != nil {
+		exit, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatal(err)
+		}
+		r.exit = exit.ExitCode()
+	}
+	r.stdout, r.stderr = stdout.String(), stderr.String()
+	return r
+}
+
+// TestBuildRejects checks that invalid and unsupported programs fail with
+// their class, before any tool runs, without creating the output or
+// changing an existing one.
+func TestBuildRejects(t *testing.T) {
+	tests := []struct {
+		file string
+		code int
+	}{
+		{"s1_n01_constant_overflow", diag.ExitInvalid},
+		{"s1_n05_missing_main", diag.ExitInvalid},
+		{"unsupported_operator_div", diag.ExitUnsupported},
+		{"unsupported_import", diag.ExitUnsupported},
+	}
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			// Tools that would fail if run: rejection must come first.
+			t.Setenv("PATH", t.TempDir())
+			dir := t.TempDir()
+			out := filepath.Join(dir, "out")
+			stderr, code := runAether("build", "-x", "-o", out, corpusFile(tt.file))
+			if code != tt.code || !strings.HasPrefix(stderr, corpusFile(tt.file)+":") {
+				t.Errorf("exit %d, want %d\n%s", code, tt.code, stderr)
+			}
+			noFile(t, out)
+			existing := []byte("keep me\n")
+			if err := os.WriteFile(out, existing, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			runAether("build", "-o", out, corpusFile(tt.file))
+			checkUnchanged(t, out, existing)
+		})
+	}
+}
+
+func checkUnchanged(t *testing.T, path string, want []byte) {
+	t.Helper()
+	got, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, want) {
+		t.Errorf("%s changed: %q %v", path, got, err)
+	}
+	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Errorf("%s mode changed: %v %v", path, fi, err)
+	}
+	entries, _ := os.ReadDir(filepath.Dir(path))
+	if len(entries) != 1 {
+		t.Errorf("stray files next to the output: %v", entries)
+	}
+}
+
+// fakeTool installs a shell script called name in dir.
+func fakeTool(t *testing.T, dir, name, script string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// linkTool makes dir/name a symbolic link to the real tool.
+func linkTool(t *testing.T, dir, name string) {
+	t.Helper()
+	real, err := exec.LookPath(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, filepath.Join(dir, name)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const (
+	asVersion = "if [ \"$1\" = --version ]; then echo 'GNU assembler 2.42'; echo \"configured for a target of \\`x86_64-linux-gnu'.\"; exit 0; fi\n"
+	ldVersion = "if [ \"$1\" = -V ]; then echo 'GNU ld 2.42'; echo '   elf_x86_64'; exit 0; fi\n"
+)
+
+// TestBuildToolFailures checks that a missing, unidentified, or failing
+// tool gives a tool diagnostic naming it, exit status 5, and leaves the
+// output path as it was.
+func TestBuildToolFailures(t *testing.T) {
+	requireTools(t)
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, dir string)
+		want  string
+	}{
+		{"no tools", func(t *testing.T, dir string) {}, "tool: as: not found on PATH"},
+		{"no ld", func(t *testing.T, dir string) { linkTool(t, dir, "as") }, "tool: ld: not found on PATH"},
+		{"as is not GNU", func(t *testing.T, dir string) {
+			fakeTool(t, dir, "as", "echo 'clang version 18'\n")
+			linkTool(t, dir, "ld")
+		}, "not GNU as"},
+		{"as fails", func(t *testing.T, dir string) {
+			fakeTool(t, dir, "as", asVersion+"echo 'Error: simulated' >&2\nexit 1\n")
+			linkTool(t, dir, "ld")
+		}, "exit status 1: Error: simulated"},
+		{"ld fails", func(t *testing.T, dir string) {
+			linkTool(t, dir, "as")
+			fakeTool(t, dir, "ld", ldVersion+"echo 'simulated link failure' >&2\nexit 1\n")
+		}, "exit status 1: simulated link failure"},
+		{"ld succeeds without output", func(t *testing.T, dir string) {
+			linkTool(t, dir, "as")
+			fakeTool(t, dir, "ld", ldVersion+"exit 0\n")
+		}, "succeeded without writing a.out"},
+	}
+	src := corpusFile("s1_03_milestone1")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tools := t.TempDir()
+			tt.setup(t, tools)
+			t.Setenv("PATH", tools)
+			out := filepath.Join(t.TempDir(), "out")
+			stderr, code := runAether("build", "-o", out, src)
+			noFile(t, out)
+			if code != diag.ExitTool || !strings.Contains(stderr, tt.want) {
+				t.Errorf("exit %d, stderr %q; want exit 5 and %q", code, stderr, tt.want)
+			}
+			existing := []byte("keep me\n")
+			if err := os.WriteFile(out, existing, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			runAether("build", "-o", out, src)
+			checkUnchanged(t, out, existing)
+		})
+	}
+}
+
+// TestBuildWorkAndLog checks -x and -work, the work directory's contents,
+// that the work directory is removed without -work, and that a successful
+// build replaces an existing regular file.
+func TestBuildWorkAndLog(t *testing.T) {
+	requireTools(t)
+	src := corpusFile("s1_03_milestone1")
+	out := filepath.Join(t.TempDir(), "out")
+	if err := os.WriteFile(out, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stderr, code := runAether("build", "-x", "-work", "-o", out, src)
+	if code != 0 {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	work := strings.TrimPrefix(firstLine(stderr, "WORK="), "WORK=")
+	if work == "" {
+		t.Fatalf("no WORK= line:\n%s", stderr)
+	}
+	defer os.RemoveAll(work)
+	for _, f := range []string{"prog.s", "prog.o", "print.s", "print.o", "start.s", "start.o", "a.out"} {
+		if _, err := os.Stat(filepath.Join(work, f)); err != nil {
+			t.Errorf("work directory: %v", err)
+		}
+	}
+	for _, cmd := range []string{
+		"cd " + work,
+		" --64 -o prog.o prog.s", " --64 -o print.o print.s", " --64 -o start.o start.s",
+		" -static -nostdlib -e _start -o a.out prog.o print.o start.o",
+		"# as version: GNU assembler", "# ld version: GNU ld",
+	} {
+		if !strings.Contains(stderr, cmd) {
+			t.Errorf("log lacks %q:\n%s", cmd, stderr)
+		}
+	}
+	if r := runExe(t, out); r.stderr != "-6 42\n6 -9223372036854775808\n" || r.exit != 0 {
+		t.Errorf("replaced output runs as %+v", r)
+	}
+
+	stderr, code = runAether("build", "-x", "-o", out, src)
+	work = strings.TrimPrefix(firstLine(stderr, "cd "), "cd ")
+	if code != 0 || work == "" {
+		t.Fatalf("exit %d\n%s", code, stderr)
+	}
+	if _, err := os.Stat(work); !os.IsNotExist(err) {
+		t.Errorf("work directory %s not removed: %v", work, err)
+	}
+}
+
+func firstLine(s, prefix string) string {
+	for _, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return line
+		}
+	}
+	return ""
+}
