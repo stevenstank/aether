@@ -3,8 +3,10 @@
 Status:
 - **Implemented (Phase 1):** stages 1 (frontend) and 2 (subset gate),
   diagnostics, and the `aether check` driver.
-- **Design only:** every later stage (lowering, IR, interpreter, optimizer,
-  backend, assembly and linking, runtime).
+- **Implemented (Phase 2):** stages 3 (lowering), 4 (IR, with verifier and
+  printer), and 5 (reference interpreter), for S1.
+- **Design only:** every later stage (optimizer, backend, assembly and
+  linking, runtime).
 
 Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
 "proposed", the corresponding decision is not yet accepted.
@@ -119,51 +121,135 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     (S1-10).
   - **Tuple assignment.** Evaluate every right-hand operand into a temporary,
     then store to the targets left to right.
-  - **`println(a1, …, an)`.** Evaluate every argument into a temporary first.
-    Then emit, in order: print-int `a1`, print-space, print-int `a2`, …,
-    print-int `an`, print-newline. With no arguments, emit only
-    print-newline. These are IR runtime-call instructions. The interpreter
-    executes them directly, and the backend turns them into calls to the
-    runtime helpers.
-  - **Function end.** `main`'s single block ends with a `return` terminator.
+  - **`println(a1, …, an)`.** Evaluate every argument, left to right, then
+    emit one `println` instruction with those values as operands (D-021).
+  - **`var x int`** without an initializer stores the constant 0 explicitly.
+  - **`x op= y`** loads `x`, evaluates `y`, applies `op`, and stores to `x`.
+    **`x++`/`x--`** load, add or subtract the constant 1, and store.
+  - **Unary `+` and parentheses** produce no instruction. Unary `-` is `neg`.
+  - **Constant declarations** produce no instruction; uses are constants.
+  - **Function end.** `main`'s single block ends with a `ret` positioned at
+    the closing brace.
+- **Failure:** lowering only runs on gate-accepted programs. Anything it does
+  not expect (a node kind, a non-`int` type, an unresolved identifier, a
+  constant outside `int64`) stops it with an `internal` diagnostic at that
+  position, and no IR is produced.
+- **Driver:** `compile` in `cmd/aether/check.go` runs the frontend, gate,
+  lowering, and verifier. `aether check` runs it on every program, so a
+  lowering or verifier failure is reported as `internal` (exit 4) rather than
+  the program being accepted. For programs that lower correctly, `check`'s
+  output is unchanged.
 - **Output:** an IR program.
 - **Contract:** no `go/ast`, `go/types`, or `go/token` value is reachable from
   the IR.
 
-### 4. IR (Aether, D-004)
+### 4. IR (Aether, D-004, D-021)
 
-- **Structure:** program → functions → blocks → instructions, with values typed
-  by Aether IR types.
-- **Tools:**
-  - a verifier
-  - a deterministic text printer
-  - later, a text parser so passes can be tested from hand-written IR
-    (proposed; only if golden tests need it)
+The IR is `internal/ir`. It imports no `go/*` package. Its operations are
+documented on their constants in `ir.go`, and this section is the contract a
+backend or interpreter may rely on.
 
-**IR invariants.** The verifier enforces these after lowering and after every
-pass:
+**Structure.**
+- A **program** is a list of functions. Its entry point is the function named
+  `main`. In S1 it is the only function, and it has no parameters or results.
+- A **function** has a name, a source file, a position, a list of **slots**
+  (its local variables), and a list of **blocks**. `Blocks[0]` is the entry.
+- A **slot** has an ID equal to its index, a source name (for printing only;
+  names may repeat), the type `i64`, and a position. A slot has no defined
+  contents until it is stored to.
+- A **block** is a list of instructions executed in order. The last is its
+  only terminator.
+- An **instruction** has an operation, a result type (`i64`, or none), a value
+  number (`vN`; `-1` without a result), value operands, and, by operation, a
+  slot or a constant. An instruction with a result is that value; operands
+  point at earlier instructions. Value numbers are unique in the function and
+  assigned in creation order.
 
-1. Every block ends with exactly one terminator, and no terminator appears
+**Operations.** `i64` is 64-bit two's complement. No operation traps.
+
+| Op | Operands | Result | Meaning |
+|---|---|---|---|
+| `const` | the constant | `i64` | the constant |
+| `load` | slot | `i64` | the slot's current contents |
+| `store` | slot, value | none | writes the value to the slot |
+| `add`, `sub`, `mul` | 2 values | `i64` | low 64 bits of the exact result |
+| `neg` | 1 value | `i64` | `0 - x`, wrapping: `neg` of the minimum is the minimum |
+| `println` | 0 or more values | none | writes the values to standard error in signed decimal, separated by single spaces, then a newline; write errors are ignored |
+| `ret` | none | none | terminator: returns from the function |
+
+**Evaluation order and effects.** Instructions execute in block order. The
+only observable effects are `println` writes, which happen in instruction
+order. Because a `println`'s operands are values, all of them are computed
+before any of its output. Lowering emits operands left to right, and the
+right-hand sides of an assignment before its stores.
+
+**Text format.** `Program.String` prints the IR deterministically for golden
+tests. There is no parser.
+
+For `func main() {` on line 3, `x := 6` on line 4, and `println(x, -x)` on
+line 5, each indented by one tab:
+
+```
+func main @prog.go:3:6
+  slot s0 x i64 @4:2
+b0:
+  v0 = const 6 @4:7
+  store s0, v0 @4:2
+  v1 = load s0 @5:10
+  v2 = load s0 @5:14
+  v3 = neg v2 @5:13
+  println v1, v3 @5:2
+  ret @6:1
+```
+
+**Invariants.** `ir.Verify` checks all of these and reports every violation,
+naming the function, block, and instruction:
+1. There is exactly one function named `main`, and function names are unique.
+2. Every function and slot has a file and a position. Slot IDs equal their
+   indices, and slots have type `i64`.
+3. A function has at least one block. Block IDs equal their indices. Every
+   block except the entry is reported as unreachable, because S1 has no branch
+   instructions.
+4. Every block ends with exactly one terminator, and no terminator appears
    before the end.
-2. Every branch target is a block of the same function. The entry block has no
-   predecessors.
-3. Every instruction operand is defined in the same function, and operand types
-   match the instruction's signature.
-4. Loads and stores reference slots of matching type.
-5. Every instruction has a position, or is explicitly marked as synthetic.
-6. **SSA level** (Phase 5): each value is defined once, and every definition
+5. Every instruction has a valid operation and a position. Its result type,
+   value number, and operand count match its operation, and only `const` has
+   a constant and only `load` and `store` have a slot.
+6. Every operand is a value-producing instruction defined earlier in the same
+   block, of type `i64`. Value numbers are not reused.
+7. Every slot operand belongs to the function, and every `load` follows a
+   `store` to the same slot.
+8. **SSA level** (Phase 5): each value is defined once, and every definition
    dominates its uses. φ-nodes appear only at the start of a block and have one
    operand per predecessor.
+
+With no branches, invariants 6 and 7 are exact dominance and
+definite-assignment checks. When S2 adds branches, they must become control
+flow aware.
+
+**What lowering guarantees beyond the verifier.** The verifier checks the
+IR's form, not its meaning. Lowering guarantees, and the IR goldens and the
+differential tests check, that:
+- each `const` holds the exact value `go/types` computed for a constant
+  expression;
+- each Go variable has its own slot, and every use of it refers to that slot;
+- the order of instructions is Go's evaluation order (`SEMANTICS.md` §Subset
+  S1);
+- every position is the position of the source construct the instruction
+  implements.
+
+A verifier failure on lowered IR is an `internal` error.
 
 **Determinism.** Printing the same IR always produces identical bytes. Block
 and value numbering never depend on map iteration order.
 
 ### 5. Reference interpreter (Aether, D-005)
 
-- Executes IR directly and implements the subset's run-time semantics,
-  including the `println` format.
+- `internal/interp` executes IR directly. It imports only `ir`, and its tests
+  build IR by hand, so it is checked independently of lowering.
+- It verifies the program first and executes nothing if the IR is malformed.
 - It exists to give tests an oracle and to locate bugs. It is not a product
-  feature and has no performance goals.
+  feature, has no performance goals, and has no CLI command (D-021).
 
 ### 6. Optimizer (Aether, Phase 5+, D-006 proposed)
 
@@ -208,9 +294,10 @@ backend consumes only IR: `internal/amd64` must not import `go/ast`,
   32-bit immediate, and `movabsq` otherwise.
 - No S1 operation needs a flag check or a special case.
 
-**Runtime calls (S1).** Each print-int, print-space, or print-newline IR
-instruction becomes a `call` to the corresponding runtime helper, using the
-runtime-helper interface in §Runtime integration boundary.
+**Runtime calls (S1).** The backend expands each `println` instruction into
+calls to the runtime helpers, using the interface in §Runtime integration
+boundary: print-int for each operand, print-space between operands, and
+print-newline at the end (D-021).
 
 **Later** (Phase 5):
 - instruction selection over SSA
@@ -351,6 +438,11 @@ Packages are created only when code exists. Everything lives under one module.
 - `internal/diag`
 - `internal/frontend`
 - `internal/gate`
+
+**Implemented in Phase 2:**
+- `internal/ir`
+- `internal/lower`
+- `internal/interp`
 
 The other rows are still candidates.
 

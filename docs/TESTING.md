@@ -35,10 +35,13 @@ format, finalized in Phase 1, is:
   when that differs from the default: valid Go unless the file expects
   `invalid`. For example, a file that is `unsupported` because of an import,
   but also contains a type error, is `// aether:gc invalid`.
-- Until Phase 2, `run` means "accepted by `aether check`". The Phase 1 corpus
-  is `cmd/aether/testdata/check/*.go`. Each file has a reviewed `.golden` file
-  holding the exact stderr of `aether check`, regenerated with
-  `go test ./cmd/aether -run TestCheckCorpus -update`.
+- `run` means the program is accepted by `aether check` and, since Phase 2,
+  that its interpreted behavior equals gc's (`TestInterpAgainstGc`). The
+  corpus is `cmd/aether/testdata/check/*.go`. Each file has a reviewed
+  `.golden` file holding the exact stderr of `aether check`, and each `run`
+  file also has a reviewed `.ir` file holding its lowered IR
+  (`TestLowerCorpus`). Both are regenerated with
+  `go test ./cmd/aether -run 'TestCheckCorpus|TestLowerCorpus' -update`.
 - `TestCorpusAgainstGc` builds every corpus file with gc to confirm its
   declared validity.
 - `TestFeatureTableMatchesGate` (`internal/gate`) checks that the gate's
@@ -118,7 +121,9 @@ For each `// aether:expect run` program:
 1. `go build -o ref prog.go`, then execute `ref`. Never use `go run`: it
    rewrites the exit status (E1).
 2. Run the Aether interpreter (from Phase 2) and the Aether-built executable
-   (from Phase 3).
+   (from Phase 3). Phase 2's `TestInterpAgainstGc` (`cmd/aether`) builds
+   every program in one `go build` of a temporary module outside the
+   repository, with `GOTOOLCHAIN=local`.
 3. Compare stdout, stderr, and exit status across all three.
 4. Apply normalization only for divergences listed in `SEMANTICS.md` §Known
    divergences. Example from Phase 4: for panicking programs, compare only the
@@ -134,6 +139,15 @@ The gc version used is recorded in test logs. Programs that use unspecified
 behavior are marked `// aether:unspecified` and either excluded or checked
 against a list of every allowed outcome.
 
+**Generated programs (Phase 2).** `generate` (`cmd/aether/gen_test.go`)
+derives a random S1 program from a seed. It uses every S1 construct and
+literals that make arithmetic wrap. `TestInterpAgainstGc` runs the first 200
+generated programs that type-check (a generated constant expression may
+overflow `int`, which is `invalid`; any other rejection fails the test).
+Negative controls confirmed that it detects a wrong `neg` of the minimum in
+the interpreter, and tuple assignments lowered with reversed or
+non-simultaneous stores.
+
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
 come from running gc.
@@ -143,10 +157,15 @@ come from running gc.
 Native Go fuzzing (`testing.F`):
 - **Frontend and gate** (Phase 1): arbitrary bytes produce no panic and no
   `internal` diagnostic.
-- **Lowering and verifier** (Phase 2): mutate valid S-subset programs. Every
-  gate-accepted program must lower to verifier-clean IR.
+- **Lowering and verifier** (Phase 2): since Phase 2, `aether check` lowers
+  and verifies every accepted program, and `FuzzCheck` also interprets it.
+  Every gate-accepted input must lower to verifier-clean IR that the
+  interpreter runs. Most `FuzzCheck` inputs are rejected before lowering, so
+  `FuzzGenerated` fuzzes the generator's seed instead: nearly every input
+  reaches lowering, the verifier, and the interpreter.
 - **Program generation** (Phase 2+): a generator of random *valid* subset
-  programs, cross-checked between gc, the interpreter, and native code. Any
+  programs, cross-checked between gc, the interpreter, and native code. In
+  Phase 2 it is cross-checked between gc and the interpreter. Any
   disagreement becomes a regression test.
 - **IR transformations** (Phase 5): random IR or random programs, where each
   pass must preserve both verifier validity and interpreter-observed behavior.

@@ -25,8 +25,12 @@ changing anything architectural.
 - `internal/frontend`: a wrapper around `go/parser` and `go/types`, plus
   program-level checks.
 - `internal/gate`: the S1 subset gate (default-deny).
+- `internal/ir`: the IR, its printer, and its verifier. No `go/*` imports.
+- `internal/lower`: typed AST to IR.
+- `internal/interp`: the IR interpreter, a test oracle (D-005, D-021).
 - `cmd/aether/testdata/check`: the classification corpus. Each `*.go` file has
-  an `// aether:expect` header and a reviewed `*.golden` file.
+  an `// aether:expect` header and a reviewed `*.golden` file. Each `run` file
+  also has a reviewed `*.ir` file with its lowered IR.
 
 ## Validation
 
@@ -39,9 +43,12 @@ go test ./...
 - The gofmt command must print nothing. Corpus files under `testdata/` are
   deliberately not gofmt-clean.
 - Regenerate goldens only intentionally, with
-  `go test ./cmd/aether -run TestCheckCorpus -update`, and review the diff.
+  `go test ./cmd/aether -run 'TestCheckCorpus|TestLowerCorpus' -update`, and
+  review the diff.
 - When the gate changes, also fuzz:
-  `go test ./cmd/aether -run '^$' -fuzz FuzzCheck -fuzztime 60s`.
+  `go test ./cmd/aether -run '^$' -fuzz FuzzCheck -fuzztime 60s`. When
+  lowering, the IR, or the interpreter changes, also fuzz `FuzzGenerated` the
+  same way.
   - Save the complete output to a file and record the exit status. Never
     truncate it (`TESTING.md`, fuzz incident FI-1).
 - A new unsupported feature name must be added both to the gate's registry

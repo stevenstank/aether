@@ -45,6 +45,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-018 | CLI exit codes and diagnostic output | Accepted |
 | D-019 | `func main() ()` is `unsupported`, not `invalid` | Accepted |
 | D-020 | `func main()` without a body is `unsupported` | Accepted |
+| D-021 | The S1 IR instruction set and its contract | Accepted |
 
 ## Review log
 
@@ -282,7 +283,7 @@ place where Aether's ownership of compilation begins.
   instruction order. Later stages may not reorder observable effects.
 - **Textual form and verifier:** the IR has a deterministic text printer (for
   golden tests) and a verifier that checks structural and type invariants
-  (`docs/ARCHITECTURE.md` §IR invariants).
+  (`docs/ARCHITECTURE.md` §4, Invariants).
 
 **Alternatives considered.**
 1. `golang.org/x/tools/go/ssa`. Rejected in D-017.
@@ -304,6 +305,12 @@ the approach is established practice. It does not prove anything about Aether.
 
 **Revisit when.** Phase 2 shows the load/store form makes lowering of some
 construct unreasonably complex.
+
+**Phase 2 note.** The load/store form was implemented without difficulty for
+S1. D-021 fixes the concrete S1 instruction set and refines three details
+above: slots are declared on the function instead of by an `alloc`
+instruction, positions record the file once per function, and the only S1
+terminator is `ret`.
 
 ---
 
@@ -1063,6 +1070,82 @@ exact.
 `cmd/aether/testdata/fuzz/FuzzCheck/1b8f36b006382399`.
 
 **Revisit when.** Aether supports functions implemented in assembly.
+
+---
+
+## D-021: The S1 IR instruction set and its contract
+
+**Status:** Accepted (Phase 2). It refines D-004 and replaces the `println`
+expansion previously described in `ARCHITECTURE.md` §3.
+
+**Context.** D-004 fixed the IR's shape and left the instruction set to
+Phase 2. S1 needs integer values, mutable locals, wrapping `+ - *` and
+negation, `println`, and the end of `main`. Anything more would be untested
+speculation (D-016).
+
+**Decision.** The IR for S1 (`internal/ir`) is:
+- **Program → functions → slots and blocks → instructions.** The entry point is
+  the function named `main`, whose entry block is `Blocks[0]`.
+- **One type, `i64`.** Go's `int` lowers to it.
+- **Slots, not `alloc`.** A function lists its local variable slots. Every S1
+  local lives for the whole call, so an instruction would add nothing. A slot
+  has **no initial contents**: lowering stores the zero value of `var x int`
+  explicitly, and the verifier rejects a load not preceded by a store.
+- **Instructions are values.** An instruction with a result is numbered
+  `vN`, in creation order. Operands point at earlier instructions.
+- **Nine operations:** `const`, `load`, `store`, `add`, `sub`, `mul`, `neg`,
+  `println`, `ret`. Arithmetic wraps modulo 2⁶⁴ and never traps.
+- **`println` is one instruction** whose operands are already-evaluated
+  values. It writes them in signed decimal to standard error, separated by
+  single spaces and followed by a newline, ignoring write errors. It is not
+  expanded in the IR into print-int, print-space, and print-newline steps.
+  The backend makes that expansion into calls to the runtime helpers, whose
+  interface (`ARCHITECTURE.md` §Runtime integration boundary) is unchanged.
+- **No branches.** `ret` is the only terminator. A function therefore has
+  one reachable block, and the verifier rejects any other block as
+  unreachable. Branch instructions come with control flow (S2).
+- **Positions** are a line and column on every slot and instruction, with the
+  file named once per function. Lowering gives every instruction a real
+  source position, so there are no synthetic positions.
+- The text format, the full list of invariants, and which of them lowering
+  guarantees are in `ARCHITECTURE.md` §4.
+- There is no `aether run-ir` command. Tests run lowered programs through the
+  interpreter in-process, so the CLI and D-018 are unchanged.
+
+**Alternatives considered.**
+1. **Expand `println` in the IR** into print-int, print-space, and
+   print-newline instructions, as Phase 0 planned. Rejected: every consumer
+   would have to re-derive one output line from several instructions, and the
+   rule that all arguments are evaluated before any output (E7) would depend
+   on lowering's instruction order rather than on the instruction's meaning.
+2. **Zero-initialize slots implicitly.** Rejected: an explicit store keeps
+   every value the program observes visible in the IR, and lets the verifier
+   catch a lowering bug that forgets an initializer.
+3. **An `alloc` instruction per local** (D-004's wording). Deferred until a
+   local's lifetime can be shorter than its function or its address can be
+   taken.
+4. **A user-facing `aether run-ir` command.** Not needed for Phase 2's
+   purpose, testing, and it would add a CLI contract.
+
+**Rationale.** It is the smallest instruction set that expresses S1 with
+every operation's meaning stated on the operation. With no branches, "defined
+earlier in the block" and "stored earlier in the block" are exact dominance
+and definite-assignment checks, so the verifier is complete for S1.
+
+**Consequences.**
+- The backend must expand `println` itself (Phase 3).
+- S2 adds branch terminators. The verifier's reachability, dominance, and
+  load-before-store checks must then become control-flow aware.
+
+**Evidence and tests.** `internal/ir` tests: the printer's exact output, and
+29 verifier negative tests, one per invariant. `internal/lower` and the IR
+goldens `cmd/aether/testdata/check/*.ir`. `internal/interp` unit tests.
+`TestInterpAgainstGc`: for the 12 corpus programs expected to run and 200
+generated S1 programs, the interpreter's stdout, stderr, and exit status
+equal those of the gc-built binary.
+
+**Revisit when.** S2 adds control flow, or a construct cannot be lowered to
+this form without a new instruction.
 
 ---
 

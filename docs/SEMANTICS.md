@@ -33,8 +33,9 @@ A construct can be in one of these states. Only the last two count as
 
 Any command that executes or generates code (`build`, interpretation) must
 reject constructs that are not at least **Supported (interp)**. The only
-exception is `aether check` in Phase 1. It classifies programs against the
-*target* subset before lowering exists, and that is classification, not support.
+exception was `aether check` in Phase 1, which classified programs against the
+*target* subset before lowering existed. Since Phase 2 the gate's subset, S1,
+is Supported (interp) in full, so the gate accepts nothing that is not.
 A program that passes the gate must either compile correctly or fail with an
 `internal` error. It must never be silently miscompiled.
 
@@ -229,11 +230,11 @@ only the first stderr line and the exit status for panicking programs.
 S1 is the language accepted by the first native milestone (Phase 3). The
 definition was accepted at the owner's Phase 0 review on 2026-10-24.
 
-**Status.** Phase 1 implements **classification** against S1:
-`aether check` reports whether a program is inside S1, and the subset gate
-enforces every rule in this section. Nothing is **supported** yet in the sense
-of this document: there is no lowering, interpreter, or code generation, so
-every S1 row in the support matrix is still *Unsupported*.
+**Status.** S1 is **Supported (interp)** (Phase 2). The subset gate enforces
+every rule in this section (Phase 1). Every construct is lowered to IR and
+executed by the reference interpreter, whose output equals gc's on the
+corpus and on generated programs (support matrix). There is no code
+generation yet, so nothing is Supported (native).
 
 **Program structure**
 - Exactly one source file.
@@ -459,8 +460,21 @@ it also has a type error.
 
 | Feature | Spec section | Subset / phase | State | Tests |
 |---|---|---|---|---|
-| (all features) | — | — | Unsupported | — |
+| Single-file `package main`, no imports, `func main()` | Program execution | S1 / Phase 2 | Supported (interp) | S1-01; IR goldens; `TestInterpAgainstGc` |
+| `var` declarations of `int`, with and without initializers | Variable declarations | S1 / Phase 2 | Supported (interp) | `run_declaration_forms`, S1-07; `TestLowerConstructs` |
+| Short variable declarations, including redeclaration | Short variable declarations | S1 / Phase 2 | Supported (interp) | S1-06, S1-10; `TestLowerConstructs` |
+| Local `const` declarations (untyped or `int`) | Constant declarations | S1 / Phase 2 | Supported (interp) | S1-05, `run_declaration_forms` |
+| Integer literals (decimal, `0x`, `0o`, `0`, `0b`, `_`) | Integer literals | S1 / Phase 2 | Supported (interp) | `run_declaration_forms` |
+| Exact constant expressions | Constant expressions | S1 / Phase 2 | Supported (interp) | S1-05; `TestLowerConstructs` |
+| Assignment and tuple assignment | Assignment statements | S1 / Phase 2 | Supported (interp) | S1-06; generated programs |
+| `+=`, `-=`, `*=`, `++`, `--` | Assignment statements, IncDec statements | S1 / Phase 2 | Supported (interp) | S1-03, S1-07 |
+| Binary `+ - *`, unary `+ -`, parentheses, with wraparound | Arithmetic operators, Integer overflow | S1 / Phase 2 | Supported (interp) | S1-03, S1-04; `internal/interp` tests |
+| Nested blocks, shadowing, empty statements | Blocks, Declarations and scope | S1 / Phase 2 | Supported (interp) | S1-03, S1-08 |
+| `println` with `int` arguments | Bootstrapping | S1 / Phase 2 | Supported (interp) | S1-02, S1-09 |
+| Everything else | — | — | Unsupported | gate tests, corpus |
 
-S1 rows are added here as Phase 2 and Phase 3 implement them. Phase 1's
-classification of S1 (`aether check`) does not by itself make any row
-supported.
+"Tests" names corpus programs (`cmd/aether/testdata/check`, cases from
+§Subset S1) and Go tests. Every corpus program expected to run, and 200
+generated S1 programs, are run by `TestInterpAgainstGc`, which requires the
+interpreter's stdout, stderr, and exit status to equal those of the gc-built
+binary. Nothing is Supported (native) before Phase 3.

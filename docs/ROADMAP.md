@@ -138,8 +138,8 @@ repeated in each phase below:
   - **The S1 membership guarantee rests on the gate's default-deny structure
     and its tests.** There are per-construct tests, the corpus, the gc
     cross-check, the GOROOT sweep, and fuzzing. But no independent oracle
-    re-derives S1 membership. Phase 2's interpreter differential tests will
-    add one for accepted programs.
+    re-derives S1 membership. Phase 2's interpreter differential tests add
+    one for accepted programs.
   - **Classification can be wrong where `go/types` and gc disagree.** Valid Go
     that `go/types` wrongly rejects is reported as `invalid`, as happened with
     `func main() ()` before D-019. That error is in the safe direction:
@@ -148,7 +148,7 @@ repeated in each phase below:
   - **The stage ordering lives in `cmd/aether/check.go`.** Phase 2's
     in-process checks may need it moved into a package.
 
-## Phase 2: IR and reference interpreter for S1 (next; awaiting authorization)
+## Phase 2: IR and reference interpreter for S1 (complete 2026-10-24, pending owner review)
 
 - **Objective:** S1 programs lower to verified IR, and the interpreter's output
   matches gc's.
@@ -180,6 +180,36 @@ repeated in each phase below:
   instruction set minimal.
 - **Completion evidence:** the differential suite passes; the support matrix is
   updated.
+- **Evidence recorded 2026-10-24** (go1.26.1, linux/amd64, WSL2):
+  - **Delivered:** `internal/ir`, `internal/lower`, and `internal/interp`.
+    The IR contract and text format are in `ARCHITECTURE.md` §4, and the
+    instruction set is D-021. The test-only equivalent of `run-ir` is
+    `interpret` in `cmd/aether/interp_test.go`. No CLI command was added.
+  - `go vet ./...` is clean, and `gofmt -l` reports nothing for non-testdata
+    sources. `go test ./... -count=1` passes: 48 top-level tests and 550
+    subtests, with none failing or skipped.
+  - **Differential suite (`TestInterpAgainstGc`):** for the 12 corpus programs
+    expected to run (including S1-01 to S1-10) and 200 generated S1 programs,
+    the interpreter's stdout, stderr, and exit status equal those of the
+    gc-built binary. 51 generated programs with an overflowing constant
+    expression were skipped as `invalid`, as designed. Three injected bugs
+    (one in the interpreter, two in lowering) were each detected.
+  - **IR goldens:** a reviewed `.ir` file for each of the 12 programs,
+    including the Milestone 1 program (`s1_03_milestone1.ir`, for check P1).
+    `TestLowerCorpus` also checks that lowering is deterministic, and that
+    invalid and unsupported programs are not lowered.
+  - **Verifier:** 29 negative tests, each breaking one invariant.
+  - **Fuzzing:** `FuzzCheck` (which now lowers, verifies, and interprets every
+    accepted input) and `FuzzGenerated` each ran 60 s and passed, with about
+    3.45 million and 1.03 million executions.
+  - **`aether check`:** it now also lowers and verifies every accepted
+    program. Its output on every corpus file is unchanged.
+- **Known limitations:**
+  - The generator produces small programs (one function, a few nested
+    blocks), and its coverage was judged by inspection, not measured.
+  - The stage ordering stays in `cmd/aether/check.go` (`compile`). Phase 2's
+    in-process tests are in the same package, so moving it was not needed.
+  - FI-1 (`TESTING.md`) remains open and unexplained.
 
 ## Phase 3: First native executable (Milestone 1)
 
