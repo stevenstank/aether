@@ -137,6 +137,19 @@ func TestLineDirectiveDoesNotMovePositions(t *testing.T) {
 	}
 }
 
+// TestLineDirectiveDoesNotMoveSyntaxErrors checks the same for syntax errors,
+// which go/parser positions through //line directives (D-018).
+func TestLineDirectiveDoesNotMoveSyntaxErrors(t *testing.T) {
+	for _, dir := range []string{"//line elsewhere.go:100", "/*line elsewhere.go:100:1*/"} {
+		src := "package main\n\n" + dir + "\nfunc main() {\n\tx :=\n}\n"
+		_, ds := Parse(token.NewFileSet(), "p.go", []byte(src))
+		want := []string{"p.go:6:1: invalid: expected operand, found '}'"}
+		if got := strs(ds); !slices.Equal(got, want) {
+			t.Errorf("%s: diagnostics %q, want %q", dir, got, want)
+		}
+	}
+}
+
 // TestExactConstants checks that constant values come from go/types and
 // go/constant with exact precision (D-002), including intermediate values
 // that do not fit in int64 (case S1-05).

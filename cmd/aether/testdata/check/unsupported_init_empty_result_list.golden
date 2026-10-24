@@ -1,0 +1,1 @@
+testdata/check/unsupported_init_empty_result_list.go:5:13: unsupported: an empty result list on func init is not supported in subset S1 [empty-result-list]

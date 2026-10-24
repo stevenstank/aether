@@ -1,0 +1,1 @@
+testdata/check/invalid_syntax_after_line_directive.go:8:1: invalid: expected operand, found '}'

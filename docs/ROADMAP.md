@@ -115,11 +115,38 @@ repeated in each phase below:
     `internal` result, which was fixed and kept as a regression seed (E12).
     After the fix, runs of 120 s, 180 s, and 420 s (about 3.3, 17.7, and 33.4
     million executions) passed. One other 180 s run failed without reporting
-    a failing input; that failure could not be reproduced (see the Phase 1
-    report).
+    a failing input. This is fuzz incident FI-1 (`TESTING.md`): still open and
+    unexplained, and assessed as not blocking.
   - **Dependency rules:** checked on the `go list -deps` graph, with a control
     test, and confirmed by temporarily adding a forbidden import (the test
     failed as intended).
+- **Closure audit (2026-10-24):**
+  - `go test ./... -count=1` passes: 33 top-level tests and 403 subtests, with
+    none failing or skipped.
+  - The corpus is now 99 files: 12 run, 17 invalid, 70 unsupported.
+  - **Added:**
+    - D-019 and D-020, recording the two implemented classifications, with an
+      `init` variant of each in the corpus
+    - `TestFeatureTableMatchesGate`, which compares the gate's feature
+      registry with the `SEMANTICS.md` table; negative controls confirmed it
+      detects both a missing and an extra name
+    - correct syntax-error positions in files with `//line` directives, which
+      previously could name a nonexistent file (D-018)
+  - FI-1 was investigated: 24 short runs (19.3 M executions) targeting the
+    end-of-run shutdown phase passed, without reproducing the failure.
+- **Known limitations of the Phase 1 guarantees:**
+  - **The S1 membership guarantee rests on the gate's default-deny structure
+    and its tests.** There are per-construct tests, the corpus, the gc
+    cross-check, the GOROOT sweep, and fuzzing. But no independent oracle
+    re-derives S1 membership. Phase 2's interpreter differential tests will
+    add one for accepted programs.
+  - **Classification can be wrong where `go/types` and gc disagree.** Valid Go
+    that `go/types` wrongly rejects is reported as `invalid`, as happened with
+    `func main() ()` before D-019. That error is in the safe direction:
+    nothing is compiled.
+  - **FI-1 remains unexplained** (above).
+  - **The stage ordering lives in `cmd/aether/check.go`.** Phase 2's
+    in-process checks may need it moved into a package.
 
 ## Phase 2: IR and reference interpreter for S1 (next; awaiting authorization)
 

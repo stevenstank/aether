@@ -249,7 +249,8 @@ libraries.
   - the tool's stderr
 - **Process choke point.** This is the only package that starts processes.
   A test enforces that, among Aether's packages, only `internal/toolchain`
-  imports `os/exec` or calls `os.StartProcess`. It also uses `go list -deps` to
+  imports `os/exec` or `syscall`, or calls `os.StartProcess`. It also uses
+  `go list -deps` to
   check that, apart from paths through `internal/toolchain`, no Aether
   package reaches `os/exec` transitively, for example through `go/importer`
   (E9).

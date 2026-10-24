@@ -315,10 +315,13 @@ dedicated rule (E12):
 - a parenthesized assignment target, as in `(x) = 1` or `(x)++`
 - uses of package-level variables and constants (their declarations are
   rejected too)
-- an empty result list, `func main() ()`. This is valid Go, but `go/types`
-  wrongly reports it as an error, so the gate rejects it before type checking.
+- an empty result list, `func main() ()` or `func init() ()`. This is valid
+  Go, but `go/types` wrongly reports it as an error, so the gate rejects it
+  before type checking (D-019).
 - `func main()` without a body. This is valid Go per the spec (a function
-  implemented outside Go); gc rejects it only because no assembly is supplied.
+  implemented outside Go); gc rejects it only because no assembly is supplied
+  (D-020). A body-less `func init()` is instead invalid Go, and is classified
+  `invalid`.
 
 **Feature names.** Unsupported diagnostics end with a feature name in
 brackets. The names are a stable contract (D-018), used by tests and the
@@ -338,6 +341,11 @@ brackets. The names are a stable contract (D-018), used by tests and the
 
 `statement` and `expression` are catch-alls. The gate is default-deny, so a
 construct with no specific rule is still rejected.
+
+The gate keeps these names in a single registry (`gate.Features()`).
+`TestFeatureTableMatchesGate` fails if this table and the registry differ in
+either direction, and a rejection with an unregistered name is an `internal`
+error. Update the table and the registry together.
 
 **Constant expressions versus run-time arithmetic in S1**
 

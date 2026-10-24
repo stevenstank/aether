@@ -43,6 +43,8 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-016 | Package layout: create packages only when code needs them | Accepted |
 | D-017 | Reuse `golang.org/x/tools/go/ssa` as Aether's IR | Rejected |
 | D-018 | CLI exit codes and diagnostic output | Accepted |
+| D-019 | `func main() ()` is `unsupported`, not `invalid` | Accepted |
+| D-020 | `func main()` without a body is `unsupported` | Accepted |
 
 ## Review log
 
@@ -66,6 +68,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | Date | Event | Decisions affected |
 |---|---|---|
 | 2026-10-24 | Phase 1 implementation (E12): D-018 added; D-003 precedence recorded as implemented; `go.mod` created per D-015; S1 gate edge cases found by tests, the GOROOT sweep, and fuzzing recorded | D-002, D-003, D-012, D-015, D-018 |
+| 2026-10-24 | Phase 1 closure audit: D-019 and D-020 record two implemented classifications; D-018 corrected and implemented for syntax-error positions under `//line`; fuzz incident FI-1 recorded in `TESTING.md` | D-018, D-019, D-020 |
 
 ---
 
@@ -932,7 +935,14 @@ whether a program was invalid, outside the subset, or hit an Aether bug
   - Unsupported diagnostics are followed by ` [feature]`, using the feature
     names in `SEMANTICS.md`.
   - Diagnostics are sorted by position, then class, feature, and message.
-  - Positions ignore `//line` directives.
+  - Positions ignore `//line` directives, so they always name the real file,
+    line, and column.
+    - For type-checker and gate diagnostics, this uses unadjusted
+      `token.Pos` positions.
+    - For syntax errors, `go/parser` reports only adjusted positions. The
+      frontend re-parses a copy with the directives disabled by a same-length
+      substitution, which keeps offsets unchanged. Before the closure audit
+      this was not done, and such errors could name a nonexistent file.
 - **Usage errors (exit 2).** These are problems with the command line rather
   than the program:
   - no or unknown command
@@ -963,6 +973,96 @@ precedence); `cmd/aether` tests (`TestRunUsage`, `TestRunMultipleFiles`,
 
 **Revisit when.** A new class of failure appears that none of the codes
 describes.
+
+---
+
+## D-019: `func main() ()` is `unsupported`, not `invalid`
+
+**Status:** Accepted (Phase 1 closure audit). It records the classification
+implemented in Phase 1.
+
+**Context.**
+- An empty result list, `func main() ()` (likewise `func init() ()`), is
+  valid Go: the spec requires only that `main` return no value, and gc builds
+  it.
+- `go/types` reports "func main must have no arguments and no return values",
+  because it tests the result list for nil rather than for emptiness (E12).
+- Left alone, a valid program would be classified `invalid`, contradicting
+  D-003.
+
+**Decision.** The gate's pre-check, which runs before type checking (D-003),
+rejects an empty result list on `main` or `init` as `unsupported`, feature
+`empty-result-list`.
+
+**Alternatives considered.**
+1. **Accept it as S1.** It means the same as `func main()`. But `go/types`
+   would still report an error, so Aether would have to suppress that
+   specific type-checker error, presumably by matching its message. That is
+   fragile, and it means editing the output of a component Aether reuses.
+2. **Classify it as `invalid`, following `go/types`.** Rejected: the spec and
+   gc say it is valid Go, and the spec is normative (`SEMANTICS.md`).
+
+**Rationale.** `unsupported` is accurate (valid Go, not accepted by Aether)
+and safe (nothing is compiled). S1 is defined with the form `func main() { … }`,
+so rejecting this alternate spelling does not narrow S1 as accepted.
+
+**Consequences.** One valid spelling of an S1 program is rejected. If S1 ever
+needs it, accepting it requires handling the `go/types` error.
+
+**Evidence and tests.** E12. Corpus files
+`unsupported_empty_result_list.go` and `unsupported_init_empty_result_list.go`
+with goldens. `gate_test.go` cases "empty result list" and "empty result list
+on init". `TestCorpusAgainstGc` confirms gc builds both files.
+
+**Revisit when.** `go/types` changes its check, or S1 is extended to include
+this form.
+
+---
+
+## D-020: `func main()` without a body is `unsupported`
+
+**Status:** Accepted (Phase 1 closure audit). It records the classification
+implemented in Phase 1.
+
+**Context.**
+- The spec allows a function declaration without a body: it "provides the
+  signature for a function implemented outside Go, such as an assembly
+  routine".
+- `go/types` accepts `func main()` with no body.
+- gc rejects it with "missing function body", because no assembly
+  implementation is supplied.
+- So the spec says the declaration is valid, gc says the build fails, and S1
+  has no way to supply an implementation from outside Go.
+
+**Decision.** The gate rejects a body-less `main` as `unsupported`, feature
+`function-without-body`. The corpus records gc's differing verdict with
+`// aether:gc invalid`.
+
+A body-less `func init()` is a different case. It is invalid Go ("func init
+must have a body"), reported by both `go/types` and gc, and Aether classifies
+it `invalid`.
+
+**Alternatives considered.**
+1. **Classify it as `invalid`, following gc.** Rejected: the spec permits the
+   declaration. gc's error concerns a missing external implementation, not the
+   validity of the source, and the spec is normative.
+2. **Report it as `internal`.** This was the original behavior, until fuzzing
+   found it (E12). It is wrong: the case is reachable, not an Aether
+   malfunction.
+
+**Rationale.** The program is valid Go that needs a capability S1 lacks: a
+function implemented outside Go. That is what `unsupported` means.
+
+**Consequences.** Classification differs from gc for this one program shape.
+The difference is recorded in the corpus header, so the gc cross-check stays
+exact.
+
+**Evidence and tests.** E12. Corpus files `unsupported_main_without_body.go`
+(`// aether:gc invalid`) and `invalid_init_without_body.go`, with goldens.
+`gate_test.go` case "main without body". Fuzz regression seed
+`cmd/aether/testdata/fuzz/FuzzCheck/1b8f36b006382399`.
+
+**Revisit when.** Aether supports functions implemented in assembly.
 
 ---
 

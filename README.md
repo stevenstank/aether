@@ -26,6 +26,7 @@ It then runs Aether's own subset gate and reports one of the following:
 | 3 | valid Go outside S1 (`unsupported`, with a feature name) |
 | 2 | usage error |
 | 4 | internal compiler error |
+| 5 | external tool failure (reserved; no Phase 1 command uses external tools) |
 
 Diagnostics go to stderr as `file:line:col: class: message`. See D-018 in
 [docs/DECISIONS.md](docs/DECISIONS.md).

@@ -41,6 +41,12 @@ format, finalized in Phase 1, is:
   `go test ./cmd/aether -run TestCheckCorpus -update`.
 - `TestCorpusAgainstGc` builds every corpus file with gc to confirm its
   declared validity.
+- `TestFeatureTableMatchesGate` (`internal/gate`) checks that the gate's
+  feature-name registry (`gate.Features()`) and the `SEMANTICS.md` feature
+  table name exactly the same features.
+  - It reports each name missing from either side.
+  - The gate turns a rejection with an unregistered name into an `internal`
+    error, so the registry cannot fall behind the code.
 
 The harness classifies actual outcomes as follows:
 
@@ -149,6 +155,65 @@ The fuzz corpus is committed when it finds a bug. Phase 1's `FuzzCheck`
 (`cmd/aether/fuzz_test.go`) found one: `func main()` without a body (E12). Its
 input is kept in `cmd/aether/testdata/fuzz/FuzzCheck/`, so plain `go test`
 replays it.
+
+**Fuzz output must be captured in full** to a log file, with the exit status
+recorded. It must never be piped through `head` or `tail` alone. The incident
+below was left unexplained because its output was truncated.
+
+#### Fuzz incident FI-1 (open, unexplained)
+
+**What is known:**
+- **The run.** On 2026-10-24 a 180 s run of
+  `go test ./cmd/aether -run '^$' -fuzz '^FuzzCheck$' -fuzztime 180s`
+  (16 workers, go1.26.1) ended with `FAIL`, `exit status 1`, and
+  `FAIL github.com/stevenstank/aether/cmd/aether 181.327s`.
+- **Lost output.** Its output was piped through `tail -3`, so the failure
+  message is lost. No log was saved.
+- **No failing input.** No input was written to `testdata/fuzz/FuzzCheck/`.
+- **It failed at the end, not mid-run.** File timestamps in the fuzz cache
+  (`$GOCACHE/fuzz/.../FuzzCheck`) show the run adding new interesting inputs
+  steadily until about 181 s after it started, then nothing until the next
+  run.
+- **No out-of-memory evidence.** `dmesg` shows no OOM-killer events; about
+  9 GB was available.
+
+**What the Go fuzzing engine allows** (`internal/fuzz/worker.go`, go1.26.1):
+- **An assertion failure or panic** in the fuzz function on some input is
+  returned as a crasher. The engine stops at once and writes the input to
+  `testdata/fuzz`. Neither happened, so FI-1 was **not** an ordinary property
+  failure found mid-run.
+- **A slow or hung input** at the end of a run gets SIGINT, then SIGKILL, and
+  the resulting error is suppressed. This does not explain FI-1.
+- **Two paths fail without recording an input:**
+  - At the end of a run (`ctx.Done`), a worker that exits with a non-zero
+    status within 1 s of being told to stop, without being interrupted, makes
+    the run fail. FI-1's timing matches this path.
+  - A worker killed by a non-crash signal such as SIGKILL also fails the run
+    without recording an input.
+
+**Reproduction attempts, all with full output capture:**
+
+| Runs | Executions | Shutdowns | Failures |
+|---|---|---|---|
+| 120 s, 180 s, and 420 s runs, after the E12 fix | about 54 M | 3 | 0 |
+| 24 runs of 8 s (closure audit) | 19.3 M | 24 | 0 |
+
+The 8 s runs targeted the end-of-run shutdown phase specifically.
+
+**Remaining uncertainty.** The cause is unknown.
+- **Most likely:** a fuzz worker exited non-zero during end-of-run shutdown.
+  That could be environmental, such as a worker or pipe failure under WSL2,
+  or an artifact of the engine.
+- **Not excluded:** a genuine property failure on the one input in flight
+  during the 1 s shutdown window. In that case the input could not be
+  recorded.
+  - This is improbable: the same property, no `internal` diagnostic and no
+    panic, held for every one of the roughly 73 M executions run since the
+    E12 fix, before and after FI-1.
+- **Assessment.** The incident does not block later phases. The passing runs
+  show the current implementation holds the property under new fuzzing. They
+  do **not** explain FI-1.
+- **Closing it requires** a recurrence with full output captured.
 
 ### Regression tests
 

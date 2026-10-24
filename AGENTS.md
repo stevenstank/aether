@@ -42,6 +42,11 @@ go test ./...
   `go test ./cmd/aether -run TestCheckCorpus -update`, and review the diff.
 - When the gate changes, also fuzz:
   `go test ./cmd/aether -run '^$' -fuzz FuzzCheck -fuzztime 60s`.
+  - Save the complete output to a file and record the exit status. Never
+    truncate it (`TESTING.md`, fuzz incident FI-1).
+- A new unsupported feature name must be added both to the gate's registry
+  (`featureNames` in `internal/gate/gate.go`) and to the `SEMANTICS.md`
+  feature table. `TestFeatureTableMatchesGate` enforces this.
 
 ## Code quality
 

@@ -1,0 +1,1 @@
+testdata/check/invalid_init_without_body.go:5:6: invalid: func init must have a body

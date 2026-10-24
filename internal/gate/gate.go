@@ -21,6 +21,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 	"strings"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -171,7 +172,55 @@ func (c *checker) internal(n ast.Node, format string, args ...any) {
 	})
 }
 
+// featureNames is the registry of every feature name the gate may report.
+// It is the single source of truth: unsupported refuses any other name, and
+// a test compares the registry with the table in docs/SEMANTICS.md.
+var featureNames = map[string]bool{}
+
+func init() {
+	for _, f := range []string{
+		FeatMultipleFiles, FeatPackageName, FeatImport, FeatCgo, FeatDirective,
+		FeatPackageDecl, FeatInitFunc, FeatFuncDecl, FeatMethod, FeatLocalType,
+		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
+		FeatMultiValue, FeatPrintlnArg, FeatPrint, FeatBuiltin, FeatCall,
+		FeatConversion, FeatVariadic, FeatPredeclared, FeatFloatLit, FeatImagLit,
+		FeatRuneLit, FeatStringLit, FeatComparison, FeatFuncLit, FeatCompositeLit,
+		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
+		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
+		// Statement kinds, named by the statement keyword (see stmt).
+		"if", "for", "for-range", "switch", "type-switch", "select", "go",
+		"defer", "return", "label", "send",
+		token.BREAK.String(), token.CONTINUE.String(), token.GOTO.String(), token.FALLTHROUGH.String(),
+	} {
+		featureNames[f] = true
+	}
+	for _, name := range operatorNames {
+		featureNames[featOperatorPrefix+name] = true
+	}
+	for _, name := range unaryOperatorNames {
+		featureNames[featOperatorPrefix+name] = true
+	}
+	featureNames[featOperatorPrefix+"other"] = true
+}
+
+// Features returns every feature name the gate may report, sorted.
+func Features() []string {
+	names := make([]string, 0, len(featureNames))
+	for f := range featureNames {
+		names = append(names, f)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func unsupported(pos diag.Pos, feature, what string) diag.Diagnostic {
+	if !featureNames[feature] {
+		return diag.Diagnostic{
+			Class:   diag.Internal,
+			Pos:     pos,
+			Message: fmt.Sprintf("subset gate: unregistered feature name %q for %s", feature, what),
+		}
+	}
 	return diag.Diagnostic{
 		Class:   diag.Unsupported,
 		Pos:     pos,
@@ -631,16 +680,13 @@ func operatorFeature(op string) string {
 	return featOperatorPrefix + "other"
 }
 
+var unaryOperatorNames = map[token.Token]string{
+	token.XOR: "complement", token.NOT: "not", token.AND: "address", token.ARROW: "receive",
+}
+
 func unaryFeature(op token.Token) string {
-	switch op {
-	case token.XOR:
-		return featOperatorPrefix + "complement"
-	case token.NOT:
-		return featOperatorPrefix + "not"
-	case token.AND:
-		return featOperatorPrefix + "address"
-	case token.ARROW:
-		return featOperatorPrefix + "receive"
+	if name, ok := unaryOperatorNames[op]; ok {
+		return featOperatorPrefix + name
 	}
 	return featOperatorPrefix + "other"
 }

@@ -184,6 +184,7 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"build constraint", "//go:build linux\n\npackage main\n\nfunc main() {}\n", []string{"directive"}},
 		{"line directive", "package main\n\n//line x.go:1\nfunc main() {}\n", []string{"directive"}},
 		{"empty result list", "package main\n\nfunc main() () {}\n", []string{"empty-result-list"}},
+		{"empty result list on init", "package main\n\nfunc init() () {}\n\nfunc main() {}\n", []string{"empty-result-list"}},
 		{"package var", "package main\n\nvar g int\n\nfunc main() { g = 1 }\n", []string{"package-level-declaration"}},
 		{"package const", "package main\n\nconst k = 1\n\nfunc main() { println(k) }\n", []string{"package-level-declaration"}},
 		{"function", "package main\n\nfunc f() {}\n\nfunc main() { f() }\n", []string{"call", "function-declaration"}},

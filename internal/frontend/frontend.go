@@ -11,6 +11,7 @@
 package frontend
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -46,6 +47,16 @@ func Parse(fset *token.FileSet, filename string, src []byte) (*ast.File, []diag.
 	if err == nil {
 		return f, nil
 	}
+	// go/parser positions syntax errors through //line directives and
+	// reports only the adjusted position, which can name a file that does
+	// not exist. Re-parsing with the directives disabled by a same-length
+	// substitution leaves every offset unchanged, so it yields the same
+	// errors at their real positions (D-018).
+	if disabled, ok := disableLineDirectives(src); ok {
+		if _, err2 := parser.ParseFile(token.NewFileSet(), filename, disabled, ParseMode); err2 != nil {
+			err = err2
+		}
+	}
 	var list scanner.ErrorList
 	if !errors.As(err, &list) {
 		return nil, []diag.Diagnostic{{
@@ -63,6 +74,16 @@ func Parse(fset *token.FileSet, filename string, src []byte) (*ast.File, []diag.
 		})
 	}
 	return nil, ds
+}
+
+// disableLineDirectives returns a copy of src in which "//line " and
+// "/*line " no longer form line directives, and whether src had any.
+func disableLineDirectives(src []byte) ([]byte, bool) {
+	if !bytes.Contains(src, []byte("//line ")) && !bytes.Contains(src, []byte("/*line ")) {
+		return nil, false
+	}
+	out := bytes.ReplaceAll(src, []byte("//line "), []byte("//xine "))
+	return bytes.ReplaceAll(out, []byte("/*line "), []byte("/*xine ")), true
 }
 
 // TypeCheck type-checks files as one package and then runs the program-level
