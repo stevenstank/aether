@@ -30,13 +30,34 @@ Go source
   → Aether IR                 (+ reference interpreter used as a test oracle)
   → [later] SSA + optimizations
   → amd64 backend             (instruction selection, frames, later register allocation)
-  → GNU assembly → as → ld    (host binutils, for now)
+  → GNU assembly → as → ld    (GNU binutils: translate and link only)
   → static ELF executable
 ```
 
-The frontend and the assembler/linker are reused. The IR, lowering, optimizer,
-code generation, and runtime belong to Aether. The exact ownership boundaries
-are in [docs/VISION.md](docs/VISION.md).
+The frontend (`go/parser`, `go/types`) is reused.
+
+**Aether owns:**
+- the IR, lowering, and optimizer
+- instruction selection, register allocation, and stack layout
+- assembly emission
+- the runtime
+- the semantics of the generated program
+
+**GNU `as`** translates Aether's assembly into object code, and **GNU `ld`**
+links the objects into the executable. Both are accepted as initial and
+potentially long-term dependencies. The exact ownership boundaries are in
+[docs/VISION.md](docs/VISION.md) and [docs/DECISIONS.md](docs/DECISIONS.md)
+(D-007, D-008).
+
+## Planned prerequisites
+
+None of these are needed yet, because there is nothing to build:
+- Go 1.26, to build Aether. The module will be `github.com/stevenstank/aether`,
+  and `go.mod` is created in Phase 1.
+- GNU binutils (`as`, `ld`) targeting x86-64 ELF, for `aether build`. Aether
+  will check for them and report a clear error if they are missing.
+- A Linux x86-64 host to run the produced executables.
+- The official Go toolchain, only for running Aether's differential tests.
 
 ## Current limitations
 
@@ -46,11 +67,20 @@ never compiled incorrectly.
 
 ## First milestone
 
-Compile a single-file `package main` program that uses `int` local variables,
-`+ - *`, and `println` (subset S1, **proposed**) into a static executable that
-Aether's backend generated. The output is checked against the official Go
-toolchain, along with tests showing that gc took no part in building it. See
-[docs/ROADMAP.md](docs/ROADMAP.md#milestone-1-acceptance-test).
+Compile a single-file, import-free `package main` program into a static
+executable whose instructions Aether's backend generated. The program uses
+`int` local variables, `+ - *` with Go's wraparound semantics, nested blocks,
+and the `println` builtin. This is subset S1, accepted but **not yet
+implemented**; see [docs/SEMANTICS.md](docs/SEMANTICS.md#subset-s1-accepted-d-012).
+
+The acceptance test checks:
+- that Aether emitted the assembly
+- that GNU `as` and `ld` assembled and linked it
+- that the program's output matches the official Go toolchain's
+- that no Go compiler was involved
+- that unsupported programs fail clearly with no output file
+
+See [docs/ROADMAP.md](docs/ROADMAP.md#milestone-1-acceptance-test).
 
 ## Documentation
 

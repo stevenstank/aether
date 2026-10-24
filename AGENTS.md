@@ -13,7 +13,10 @@ changing anything architectural.
   named subset.
 - The official Go toolchain must **never** compile the program under test. It
   may only be used as a test oracle and to build Aether itself.
-- The build path may invoke only GNU `as` and `ld` as external tools (D-007).
+- The build path may invoke only GNU `as` and `ld` as external tools, and only
+  from `internal/toolchain` (D-007, D-008). Aether owns everything up to and
+  including the emitted assembly. Do not start work on a custom assembler or
+  linker without a new decision.
 
 ## Code quality
 

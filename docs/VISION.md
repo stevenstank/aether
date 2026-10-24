@@ -52,8 +52,9 @@ What Aether owns, and what it reuses, at the start:
 | IR, lowering, evaluation order | Yes | D-004 |
 | Optimizer | Yes | Phase 5+ |
 | Instruction selection, register allocation, frame layout, calling convention | Yes | Phases 3–5 |
-| Machine-code encoding and ELF writing | **No** (GNU `as`) | D-007; ownership evaluated in D-008 |
-| Linking | **No** (GNU `ld`) | D-007; D-008 |
+| Assembly emission (the instruction text handed to the assembler) | Yes | D-007, D-008 |
+| Machine-code encoding and ELF object writing | **No** (GNU `as`) | Accepted as an initial and potentially long-term dependency (D-008) |
+| Linking | **No** (GNU `ld`) | Accepted as an initial and potentially long-term dependency (D-008) |
 | Runtime | Yes (tiny at first) | D-009 |
 
 "Owning the backend" therefore means owning every decision up to fully specified
@@ -73,6 +74,8 @@ rather than claim full ownership.
 
 - Compatibility with gc's ABI, object format, runtime, or linker.
 - Compiling the standard library, or any program with imports, before Phase 11.
+- An in-house assembler, ELF object writer, or linker, unless a concrete
+  engineering requirement justifies one (D-008).
 - Cross-compilation and other targets (ARM64, Windows, macOS).
 - Performance competitive with gc.
 - Matching gc's diagnostic wording, panic tracebacks, or debug info.

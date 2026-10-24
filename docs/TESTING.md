@@ -74,9 +74,15 @@ flag (`-update`). Golden-file diffs are reviewed like code. They cover:
 
 ### End-to-end tests
 
-The full pipeline runs: source → `aether build` → execute → compare. These
-tests run only when `as` and `ld` are found. If the tools are missing, the
-tests are **skipped with a visible message**, never silently passed.
+The full pipeline runs: source → `aether build` → execute → compare.
+
+These tests run only when GNU `as` and `ld` pass the driver's identity check
+(D-008) on a linux/amd64 host. Otherwise they are **skipped with a visible
+message naming the missing or unidentified tool**, never silently passed.
+
+Separate driver tests cover the tool-failure paths with stand-in tools on
+`PATH` (missing, non-GNU, failing). Each must give a `tool` diagnostic, exit 5,
+and no output file.
 
 ### Differential testing against gc
 
@@ -89,6 +95,12 @@ For each `// aether:expect run` program:
 4. Apply normalization only for divergences listed in `SEMANTICS.md` §Known
    divergences. Example from Phase 4: for panicking programs, compare only the
    first stderr line and the exit status.
+
+The S1 suite starts with the verified cases S1-01 to S1-09 and S1-N01 to
+S1-N04 (`SEMANTICS.md` §Subset S1). The expected outputs recorded there were
+observed from gc during Phase 0. The tests still obtain the expected result
+from gc at test time, and the recorded values serve only as a cross-check that
+the oracle has not changed.
 
 The gc version used is recorded in test logs. Programs that use unspecified
 behavior are marked `// aether:unspecified` and either excluded or checked
@@ -154,17 +166,57 @@ differential harness.
 
 ### Reproducibility and deterministic output
 
-- Building the same input twice with the same Aether binary must produce
+- With **identical inputs and configuration**, two builds must produce
   byte-identical diagnostics, IR text, `.s` files, and executables.
-- This is tested in Phase 3 and later. One Phase 0 trial (E2) showed
-  `as`/`ld` producing identical output on rebuild. That is not yet a guarantee.
-- Output must not embed absolute temporary paths or timestamps.
+  - Identical means the same Aether binary, source bytes, flags, environment,
+    and `as`/`ld` paths and versions.
+  - Each build runs in its own fresh work directory. The work-directory
+    location is the one permitted difference.
+  - The test records the inputs and configuration of both builds and asserts
+    they are equal before comparing outputs.
+- This is tested in Phase 3 and later.
+- Phase 0 experiments support feasibility, but they are not a guarantee:
+  - E2: identical rebuilds.
+  - E6: identical executables across different work-directory paths and input
+    file names, with no `.file` directive and no build-id.
+- Output must not embed absolute or temporary paths, timestamps, or build-ids
+  (D-008).
+
+## Provenance tests (Milestone 1 onward)
+
+These tests show that an executable's program logic came from Aether's backend
+and was turned into machine code only by GNU `as` and `ld`. The full procedure
+is in `ROADMAP.md` §Milestone 1 acceptance test.
+
+**Primary checks**, all required:
+1. The `.s` passed to `as` is byte-identical to Aether's backend output for the
+   same input, and contains `main.main`.
+2. The logged `as` invocations (GNU-identified) turned exactly those `.s` files
+   into the work-directory `.o` files, and the object code matches the
+   assembly.
+3. The single logged `ld` invocation (GNU-identified) linked exactly the
+   program and runtime objects into the executable, and the executable's code
+   matches the objects.
+4. The executable's behavior matches gc and the interpreter.
+5. No Go compiler was invoked. Evidence:
+   - the complete command log
+   - the `os/exec` choke-point test
+   - a rebuild with a `PATH` containing only `as` and `ld`
+6. Unsupported, invalid, and tool-failure builds exit with the documented code
+   and leave no file at the output path.
+
+**Supporting evidence**, recorded but not sufficient on its own:
+- the absence of gc ELF sections (`.go.buildinfo`, `.note.go.buildid`,
+  `.gopclntab`)
+- the absence of `runtime.*` symbols
+
+A binary can lack gc sections without having been built by Aether.
 
 ## Test-only use of the official toolchain
 
 The gc toolchain may build **reference** binaries and run `go test`. It must
-never build the program under test. Provenance tests (`ROADMAP.md` §Milestone 1)
-enforce this.
+never build the program under test. Provenance tests (above, and `ROADMAP.md`
+§Milestone 1) enforce this.
 
 ## Conformance corpus
 

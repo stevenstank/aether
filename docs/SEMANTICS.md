@@ -166,12 +166,23 @@ includes nested blocks specifically to test this.
 
 These are bootstrapping builtins, and the spec says they are "not guaranteed to
 stay in the language", with formatting that is "implementation-specific".
-Aether matches gc's observed format for the types it supports (E1):
 
-- written to **stderr**
-- decimal integers
-- single spaces between arguments
-- a newline at the end (`println`)
+Aether supports `println` from S1 onward as an **explicitly supported compiler
+builtin** (D-012). This is not a guarantee of permanent Go language
+compatibility: if Go removes `println`, Aether's support for it becomes an
+Aether extension.
+
+For the types it supports, Aether matches gc's observed format, verified with
+go1.26.1 (E1, E4):
+
+- output written to **stderr** (file descriptor 2); nothing written to stdout
+- integers in decimal, with a leading `-` for negatives only
+- a single space between arguments
+- a newline at the end
+- `println()` with no arguments prints just a newline
+
+`print` has a different format (no separators, no newline, per E1) and is not
+in S1.
 
 ## Compatibility testing against gc
 
@@ -192,10 +203,12 @@ only the first stderr line and the exit status for panicking programs.
 
 ---
 
-## Subset S1 (proposed, D-012)
+## Subset S1 (accepted, D-012)
 
-S1 is the language accepted by the first native milestone (Phase 3). Status:
-**Proposed**. Nothing is implemented.
+S1 is the language accepted by the first native milestone (Phase 3). The
+definition was accepted at the owner's Phase 0 review on 2026-10-24.
+**Nothing is implemented yet**, and every S1 row in the support matrix is still
+*Unsupported*.
 
 **Program structure**
 - Exactly one source file. Package clause `package main`.
@@ -243,10 +256,87 @@ position and a feature name):
 - blank identifier `_` as an assignment target
 - multiple files, cgo, and `//go:` directives that affect code generation
 
+**Constant expressions versus run-time arithmetic in S1**
+
+- A constant expression has an exact, arbitrary-precision value computed by
+  `go/types` (D-002). Aether never computes or infers it by running `int64`
+  arithmetic.
+- Intermediate values may exceed `int64`, provided the final value is
+  representable where it is used (case S1-05).
+- A constant that is not representable as `int` is a compile-time error of
+  class `invalid` (cases S1-N01, S1-N02, S1-N04). It does not wrap.
+- Non-constant `+ - *` and `++`/`--` wrap modulo 2⁶⁴ in two's complement
+  (cases S1-03, S1-04).
+- Lowering emits constant expressions as IR constants holding the value from
+  `types.Info`, and emits non-constant expressions as IR arithmetic.
+
+**Evaluation order in S1**
+
+S1 has no function calls other than `println` and no expressions with side
+effects. Evaluation order is therefore observable only through:
+- statement order, including the order of `println` calls;
+- tuple assignment, where all right-hand operands are evaluated before any
+  variable is assigned (spec §Assignment statements; case S1-06);
+- left-to-right evaluation of `println` arguments, which in S1 have no side
+  effects.
+
+No S1 program depends on behavior the spec leaves unspecified.
+
 **Run-time behavior of S1 programs**
 
 S1 programs have no run-time panics. Output goes only to stderr through
 `println`. The process exits with status 0 when `main` returns.
+
+**Limitations of S1**
+
+S1 cannot express:
+- control flow, conditions, loops, or functions
+- any type except `int`
+- division, remainder, shifts, or bitwise operators
+- strings
+- non-zero exit status
+- input of any kind (arguments, environment, stdin)
+
+Every S1 program is therefore straight-line code with output determined
+entirely by its source. S1 tests correctness of declarations, scoping,
+assignment, wraparound arithmetic, constants, and output formatting, and
+nothing else.
+
+**Verified cases (E4, E5)**
+
+The cases below were run against gc (go1.26.1, `go build` followed by
+executing the binary) during the Phase 0 review. They form the minimum S1
+differential suite. Phase 2 and Phase 3 tests must include each of them, with
+the expected result re-derived from gc in the test itself (`TESTING.md`).
+
+| ID | Exercises | Program body inside `func main() { … }` | gc stderr (exit 0, empty stdout) |
+|---|---|---|---|
+| S1-01 | empty `main` | *(empty)* | *(nothing)* |
+| S1-02 | `println()` with no arguments | `println()` | `⏎` (one newline) |
+| S1-03 | arithmetic, shadowing, `++` wrap | Milestone 1 program (`ROADMAP.md`) | `-6 42` / `6 -9223372036854775808` |
+| S1-04 | `+ - *` and unary wraparound | `hi := 9223372036854775807; lo := -hi - 1; println(hi+1, lo-1, -lo, +lo); println(hi*2, lo*-1, hi*hi, lo*lo); x := 3037000500; println(x * x)` | `-9223372036854775808 9223372036854775807 -9223372036854775808 -9223372036854775808` / `-2 -9223372036854775808 1 0` / `-9223372036709301616` |
+| S1-05 | exact constants with oversized intermediates | `const big = 9223372036854775807 * 4 - 3*9223372036854775807; const neg = -9223372036854775807 - 1; x := big; y := neg; println(x, y)` | `9223372036854775807 -9223372036854775808` |
+| S1-06 | tuple assignment | `a, b := 1, 2; a, b = b, a; println(a, b); a, b = a+b, a*b; println(a, b)` | `2 1` / `3 2` |
+| S1-07 | zero value, compound assignment, `var` forms | `var x int; x += 5; x -= 7; x *= -3; x++; x--; x--; println(x); var p, q int = 10, -10; var r = p * q; println(p, q, r)` | `5` / `10 -10 -100` |
+| S1-08 | nested shadowing, empty statement | `x := 1; { x := x + 10; { x := x * 2; println(x) }; x++; println(x) }; println(x); ;` | `22` / `12` / `1` |
+| S1-09 | integer formatting edge values | `m := -9223372036854775807 - 1; println(m, 0, -0, -1, 1, 10, -10, 100, 999999999999)` | `-9223372036854775808 0 0 -1 1 10 -10 100 999999999999` |
+
+In the table, `/` separates output lines and `;` separates statements written
+on separate lines in the tested source.
+
+**Invalid cases (must be classified `invalid`, exit 1; `go build` also fails):**
+
+| ID | Program body | gc diagnostic (abridged) |
+|---|---|---|
+| S1-N01 | `x := 9223372036854775807 + 1; println(x)` | untyped int constant 9223372036854775808 … (overflows) |
+| S1-N02 | `const c int = 9223372036854775807; x := c + 1; println(x)` | c + 1 (constant 9223372036854775808 of type int) overflows int |
+| S1-N03 | `x := 1` | declared and not used: x |
+| S1-N04 | `const c = -9223372036854775807 - 2; x := c; println(x)` | untyped int constant -9223372036854775809 … (overflows) |
+
+**Unsupported cases (must be classified `unsupported`, exit 3, no output
+file).** At least one test per item in the "Explicitly unsupported in S1" list
+above. The Milestone 1 acceptance test names a required minimum set
+(`ROADMAP.md`).
 
 ## Support matrix
 

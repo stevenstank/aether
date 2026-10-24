@@ -31,17 +31,24 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-004 | Aether-owned typed CFG IR, non-SSA at first | Accepted |
 | D-005 | Reference interpreter for the IR | Accepted |
 | D-006 | SSA timing and construction method | Proposed |
-| D-007 | Initial executable path: GNU assembler text, `as`, `ld` | Accepted |
-| D-008 | In-house instruction encoder, ELF writer, and linker | Proposed |
+| D-007 | Executable path: GNU assembler text, `as`, `ld` | Accepted |
+| D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
 | D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only) |
 | D-010 | Memory management and garbage collection | Proposed |
 | D-011 | Calling convention for Aether-compiled functions | Proposed |
-| D-012 | Initial supported Go subset (S1) | Proposed |
+| D-012 | Initial supported Go subset (S1) | Accepted |
 | D-013 | Dependency policy | Accepted |
 | D-014 | Testing strategy with the official toolchain as oracle | Accepted |
 | D-015 | Go toolchain version and module creation | Accepted |
 | D-016 | Package layout: create packages only when code needs them | Accepted |
 | D-017 | Reuse `golang.org/x/tools/go/ssa` as Aether's IR | Rejected |
+
+## Review log
+
+| Date | Event | Decisions affected |
+|---|---|---|
+| 2026-10-24 | Phase 0 register created | D-001 – D-017 |
+| 2026-10-24 | Owner Phase 0 review: S1 accepted with clarifications; module path confirmed; GNU `as`/`ld` accepted as initial and potentially long-term dependencies; Milestone 1 provenance checks restructured | D-007, D-008, D-012, D-015 |
 
 ---
 
@@ -281,9 +288,10 @@ added to this entry.
 
 ---
 
-## D-007: Initial executable path: GNU assembler text, `as`, `ld`
+## D-007: Executable path: GNU assembler text, `as`, `ld`
 
-**Status:** Accepted for Phases 3 through 5. Longer-term handling is D-008.
+**Status:** Accepted. D-008 (owner review, 2026-10-24) extends this path beyond
+the early phases.
 
 **Context.** The first milestone must produce a native Linux x86-64 executable
 whose program logic comes from Aether's backend.
@@ -296,7 +304,7 @@ Go toolchain in the build path.
 **Ownership boundary.** Aether chooses every instruction, register, stack slot,
 symbol, and data layout. `as` only encodes instructions Aether has fully
 specified and writes an ELF relocatable object. `ld` only resolves symbols
-and lays out the static executable. Both are replaceable (D-008).
+and lays out the static executable. D-008 defines the details.
 
 **Alternatives considered.**
 1. Emit ELF directly now, which needs an instruction encoder and ELF writer
@@ -321,37 +329,110 @@ human-readable for debugging, and both tools were verified locally (E2).
 
 **Evidence.** Experiment E2.
 
-**Revisit when.** Assembly text measurably dominates compile time; D-008 is
-accepted; or a non-GNU host must be supported.
+**Revisit when.** A trigger listed in D-008 occurs.
 
 ---
 
-## D-008: In-house instruction encoder, ELF writer, and linker
+## D-008: GNU `as`/`ld` as the long-term encoding and linking path
 
-**Status:** Proposed
+**Status:** Accepted (owner review, 2026-10-24). This was originally registered
+as a Proposed evaluation of an in-house encoder, ELF writer, and linker. That
+option is kept below as an alternative that was considered and not
+prioritized.
 
-**Context.** Owning machine-code emission end to end is a long-term project
-goal. It is not required for early milestones.
+**Context.** D-007 put GNU binutils in the build path for the first milestone.
+The open question was whether to plan to replace them.
 
-**Proposal.** After Phase 5, evaluate replacing `as` with an Aether x86-64
-encoder that writes ELF relocatable objects, and possibly replacing `ld` with a
-static linker for Aether-only programs.
+**Decision.**
+1. GNU `as` and `ld` are accepted as the initial, and potentially long-term,
+   tools for encoding and linking.
+2. **Aether owns:**
+   - instruction selection
+   - register allocation
+   - stack layout
+   - calling convention
+   - assembly emission
+   - symbol naming
+   - data layout
+   - the runtime
+   - the semantics of the generated program
+3. **`as` only:** translates Aether-generated assembly into ELF relocatable
+   objects.
+4. **`ld` only:** combines Aether's objects and runtime objects into the final
+   static executable.
+5. No custom assembler, ELF object writer, or linker is to be prioritized
+   unless a concrete engineering requirement justifies one. That requirement
+   must be recorded as a new decision that supersedes this one.
 
-**Costs identified.**
-- The encoder must handle x86-64 encoding (REX prefixes, ModRM/SIB, displacement
-  sizes, immediates) for every instruction the backend emits, plus branch
-  relaxation.
-- The ELF writer needs section headers, symbol tables, string tables, and
-  relocations (`elf(5)`; full gABI and psABI relocation types).
-- Debug info (DWARF) is a further large step.
-- In return, compilation becomes hermetic and binutils is no longer required,
-  and encoding becomes testable by comparing against `as` output byte for byte.
+**Tool requirements.** These are binding on the driver (`internal/toolchain`,
+`ARCHITECTURE.md` §8).
+- **Availability check before use.**
+  - Locate `as` and `ld` (on `PATH` by default; an explicit override mechanism
+    is defined in Phase 3).
+  - Confirm they are GNU tools: the first line of `as --version` starts with
+    `GNU assembler`, and `ld -v` starts with `GNU ld` (both observed in E6).
+  - Confirm they can target x86-64 ELF.
+  - The host and target platform is checked too: Aether only targets
+    linux/amd64, and running produced executables requires a linux/amd64 host.
+- **Clear errors.** A missing, non-GNU, or failing tool produces a diagnostic
+  of class `tool` (exit code 5, per the proposal in `ARCHITECTURE.md`). The
+  diagnostic names the tool, the path searched or used, the version line when
+  available, and the tool's stderr. No executable is left at the output path
+  (`ARCHITECTURE.md` §Diagnostics).
+- **Version recording.** The tool version lines are recorded in `-x`/verbose
+  output and in test logs.
+- **Reproducible builds.** With identical inputs and configuration, output is
+  byte-identical:
+  - Identical inputs means the same Aether binary, source bytes, flags, and
+    `as`/`ld` versions.
+  - Tools run with fixed argument lists, in a fresh work directory, with fixed
+    relative file names.
+  - Generated assembly must not contain absolute or temporary paths,
+    timestamps, or host-dependent data. In particular, any `.file` directive
+    may name only the source path as given on the command line.
+  - No build-id or other nondeterministic linker option is passed.
 
-**Missing evidence.** No measurement of how much time `as`/`ld` take. No
-decision on whether hermetic builds matter to the owner.
+**Alternatives considered.**
+1. **An in-house x86-64 encoder plus an ELF relocatable writer, keeping `ld`.**
+   - It would need correct encoding (REX prefixes, ModRM/SIB, displacement
+     sizes, immediates) for every emitted instruction, plus branch relaxation,
+     section, symbol, and string tables, and relocations (`elf(5)`, gABI,
+     psABI).
+   - **Benefit:** no `as` dependency, and encoding becomes testable byte for
+     byte against `as`.
+   - **Not prioritized:** large cost; it does not change any semantic
+     decision Aether makes.
+2. **A full in-house linker as well.**
+   - **Benefit:** fully hermetic builds.
+   - **Not prioritized:** adds static-linking and layout work on top of
+     option 1, with no current requirement.
+3. **Use binutils only through Phase 5, then reassess.** This was the original
+   Proposed plan. It was replaced by this decision so that early backend work
+   is not shaped around a replacement that may never be needed.
 
-**Resolve when.** Phase 5 is complete and `docs/BENCHMARKS.md` compile-latency
-data exists.
+**Rationale.** The project's ownership goal is about the decisions that
+determine the generated program. Under this boundary every one of those
+decisions stays with Aether. `as` and `ld` are mature, well-documented, and
+available on the target platform. Phase 0 experiments (E2, E6) showed they
+produce static, libc-free executables reproducibly.
+
+**Consequences.**
+- GNU binutils is a host prerequisite for `aether build`, and it is documented
+  in `README.md`.
+- Hosts without GNU binutils are unsupported. Tests that need the tools skip
+  with a visible message (`TESTING.md`).
+- Milestone 1 provenance is established from the generated assembly, the tool
+  invocations, and the resulting objects (`ROADMAP.md` §Milestone 1). It does
+  not rely on Aether owning the encoder.
+- Debug info (DWARF), if added, would also be emitted as assembler directives.
+
+**Revisit when** any of these concrete requirements appears:
+- `as`/`ld` time measurably dominates compile latency on recorded workloads
+  (`BENCHMARKS.md`).
+- A required platform lacks GNU binutils.
+- Hermetic, tool-free builds become a stated requirement.
+- A needed encoding or linking feature cannot be expressed through GAS or GNU
+  ld.
 
 ---
 
@@ -467,15 +548,41 @@ fixed-large) constrains the convention. Not yet investigated.
 
 ## D-012: Initial supported Go subset (S1)
 
-**Status:** Proposed, pending owner confirmation of scope
+**Status:** Accepted (owner review, 2026-10-24, with the clarifications below)
 
-**Proposal.** Subset S1, defined precisely in `docs/SEMANTICS.md` §Subset S1:
+**Decision.** Subset S1 is defined precisely in `docs/SEMANTICS.md` §Subset S1:
 - A single file, `package main`, no imports, and only `func main()`.
 - Local `var`/`:=`/`const` declarations of type `int`, assignment, `+= -= *=`,
   and `++`/`--`.
 - Binary `+ - *`, unary `+ -`, parentheses, and nested blocks.
 - `println` with `int` arguments.
 - Everything else is rejected as `unsupported`.
+
+**Owner clarifications (binding):**
+1. **`println`.** It is supported in S1 as an explicitly supported compiler
+   builtin. This is not a guarantee that `println` stays in the Go language,
+   nor a commitment to any `println` behavior beyond what `SEMANTICS.md`
+   specifies.
+   - Output goes to **stderr**, matching gc, which was re-verified on the full
+     S1 case catalog (E4).
+2. **Specification fidelity.** S1 follows the Go specification for:
+   - integer overflow (wraparound)
+   - constant expressions
+   - evaluation order
+   - type checking
+3. **Constants versus run-time arithmetic.** Constant-expression semantics are
+   **never** inferred from run-time arithmetic.
+   - Constant expressions are exact, and their values come from `go/types`
+     (D-002).
+   - A constant that does not fit `int` is a compile error (`invalid`), even
+     where the same arithmetic on variables would wrap at run time (E5).
+4. **Rejection.** Unsupported constructs are rejected explicitly, never
+   silently miscompiled (D-003).
+5. **Documentation.** S1's limitations and the exact verified test cases are
+   documented in `SEMANTICS.md` §Subset S1.
+6. **Imports.** The no-import restriction stays until package compilation is
+   a separately scoped milestone (Phase 11 in `ROADMAP.md`, or an earlier
+   milestone if the roadmap is re-scoped).
 
 **Rationale.**
 - The program is observable without imports: `println` is a predeclared builtin
@@ -493,11 +600,13 @@ fixed-large) constrains the convention. Not yet investigated.
 without `os.Exit` (an import), so a valid Go program could not express it.
 
 **Risk.** The spec says `print`/`println` "are not guaranteed to stay in the
-language". If they are removed, Phase 3 tests would need `os` support. This is
-acceptable for now.
+language". If they are removed from Go, Aether may keep supporting `println`
+as an Aether builtin for its own tests, but differential testing of S1 would
+then need another output channel (for example `os`, once imports exist). This
+is accepted.
 
-**Resolve when.** The owner confirms the subset (open question in the Phase 0
-report).
+**Revisit when.** S1 turns out to be unimplementable as specified, or `println`
+is removed from Go or changes its gc behavior.
 
 ---
 
@@ -561,9 +670,12 @@ test is marked.
 - Aether is implemented with, and targets the language version of, **Go 1.26**.
   This environment has go1.26.1 installed, and its spec reads "Language version
   go1.26 (Jan 12, 2026)".
-- `go.mod` is **not** created in Phase 0, because there is no Go code. It is
-  created with the first real code in Phase 1, with `go 1.26` and module path
-  `github.com/stevenstank/aether`, derived from the `origin` remote.
+- `go.mod` is **not** created in Phase 0 or the Phase 0 review, because there
+  is no Go code. It is created with the first real code in Phase 1, with
+  `go 1.26` and module path `github.com/stevenstank/aether`.
+- The module path was confirmed by the owner on 2026-10-24. Both the fetch and
+  push URLs of the `origin` remote were checked on that date and are exactly
+  `https://github.com/stevenstank/aether.git`.
 - No `toolchain` line unless a reason appears.
 
 **Rationale.** A `go.mod` without code would only make the repository look
@@ -647,6 +759,40 @@ GNU as/ld 2.42.
   - `x := }` → a parser error with position
   - a valid program → no error.
 
+Experiments E4–E6 ran on 2026-10-24 during the owner review, in the same
+environment.
+
+- **E4: S1 case catalog against gc.** Each S1 program listed in
+  `docs/SEMANTICS.md` §Subset S1, verified cases, was built with
+  `go build` (go1.26.1) and executed. Results:
+  - every program exited 0
+  - every program wrote nothing to stdout
+  - all output went to stderr
+  - the expected outputs recorded in `SEMANTICS.md` are the observed bytes
+- **E5: constant expressions versus run-time arithmetic.** `go build` rejected
+  each of the following, while the equivalent run-time arithmetic on variables
+  wrapped in E4:
+  - `x := 9223372036854775807 + 1` → "(untyped int constant
+    9223372036854775808) … (overflows)"
+  - `const c int = 9223372036854775807; x := c + 1` → "c + 1 (constant
+    9223372036854775808 of type int) overflows int"
+  - `const c = -9223372036854775807 - 2; x := c` → "(untyped int constant
+    -9223372036854775809) … (overflows)"
+
+  An untyped constant whose *intermediate* value exceeds `int64`
+  (`9223372036854775807*4 - 3*9223372036854775807`) was accepted, and its
+  exact value was printed (E4 case S1-05).
+- **E6: binutils reproducibility and identity.** The same `.s` input was
+  assembled and linked:
+  - in two directories with different absolute paths
+  - under two different input file names
+
+  Both pairs of executables were byte-identical. There was no `FILE` symbol
+  (the input had no `.file` directive), no `.note`/build-id section, and no
+  `.comment` section, so `ld` adds no build-id by default here.
+  `as --version` printed `GNU assembler (GNU Binutils for Ubuntu) 2.42`, and
+  `ld -v` printed `GNU ld (GNU Binutils for Ubuntu) 2.42`.
+
 **Sources consulted:**
 - Local Go 1.26.1: `doc/go_spec.html`, `doc/go_mem.html` ("Version of June 6,
   2022"), `src/cmd/compile/README.md`, `src/cmd/compile/abi-internal.md`,
@@ -660,5 +806,5 @@ GNU as/ld 2.42.
 - `man 5 elf`, `man 2 syscall`, `/usr/include/x86_64-linux-gnu/asm/unistd_64.h`.
 
 **Not consulted:** the ELF gABI specification text (only `elf(5)` was checked);
-the Intel SDM (encoding details are deferred to D-008); gc runtime GC and
+the Intel SDM (instruction encoding is delegated to GNU `as` per D-008); gc runtime GC and
 stack-growth source in detail (deferred to D-010 and D-011).

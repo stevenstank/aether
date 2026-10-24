@@ -32,7 +32,7 @@ referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
                          │
                          ▼
      prog.s + Aether runtime .s (D-009) ──► as ──► .o ──► ld -static ──► ELF executable
-                                            └── host tools (D-007); later maybe in-house (D-008)
+                                            └── GNU host tools: translate and link only (D-007, D-008)
 ```
 
 The candidate pipeline in the Phase 0 brief has been adjusted as follows:
@@ -40,7 +40,8 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
 - A **subset gate** is added as an explicit stage.
 - SSA is **deferred** until after the first executable.
 - An **interpreter** hangs off the IR as a test oracle.
-- Object generation and linking are delegated to binutils for now.
+- Object generation and linking are delegated to GNU binutils. This is accepted
+  as a potentially long-term boundary (D-008).
 
 ## Stages
 
@@ -153,14 +154,51 @@ This makes register allocation unnecessary for the first executable.
 - a documented calling convention (D-011)
 - frame layout that reserves room for future stack maps (D-010)
 
-### 8. Assembly and linking (host tools, D-007)
+### 8. Assembly and linking (GNU host tools, D-007, D-008)
 
-The driver runs `as --64` on the generated `.s` and on the runtime `.s` files,
-then `ld -static -nostdlib -e _start`. The driver:
-- looks up the tool paths explicitly,
-- reports a missing tool as an error of class `tool`,
-- can print every external command it runs (`-x`), which the provenance tests
-  rely on.
+GNU `as` and `ld` are accepted as initial and potentially long-term
+dependencies (D-008).
+
+**What each side does.**
+- **Aether owns:** instruction selection, register allocation, stack layout,
+  assembly emission, and the semantics of the generated program.
+- **`as`:** translates Aether's assembly into ELF relocatable objects.
+- **`ld`:** constructs the static executable from Aether's program object and
+  runtime objects.
+
+**Commands.** The driver runs `as --64` on the generated `.s` and on each
+runtime `.s`, then `ld -static -nostdlib -e _start`, with no other inputs or
+libraries.
+
+**Driver requirements** (`internal/toolchain`):
+- **Availability and identity check before use.**
+  - Locate each tool (`PATH` by default; an override mechanism is defined in
+    Phase 3).
+  - Confirm it is the GNU tool (`as --version` / `ld -v` version line).
+  - Confirm it can target x86-64 ELF.
+  - Confirm the host is linux/amd64 when the build is going to run the
+    executable.
+- **Clear errors.** Any failure is a `tool` diagnostic naming:
+  - the tool
+  - the path used or searched
+  - the version line, if one was obtained
+  - the tool's stderr
+- **Process choke point.** This is the only package that starts processes,
+  and the only importer of `os/exec`. A test enforces this.
+- **Command log.** With `-x`, the driver logs every command it runs and each
+  tool's identity. The Milestone 1 provenance checks rely on this log
+  (`ROADMAP.md`).
+- **Atomic output.**
+  - `ld` writes to a temporary name in the work directory.
+  - The result is renamed to the output path only after every step has
+    succeeded.
+  - The work directory is removed unless `-work` is given.
+- **Reproducibility** (D-008):
+  - fixed argument lists and relative file names inside a fresh work directory
+  - no absolute or temporary paths, timestamps, or build-ids in the generated
+    assembly or the linker options
+
+  Identical inputs and configuration give byte-identical output (E6).
 
 ### 9. Runtime (Aether, D-009)
 
@@ -224,6 +262,7 @@ Packages are created only when code exists. Everything lives under one module.
 
 Dependency rules:
 - `ir` must not import `go/ast`, `go/types`, or `go/token`.
+- Only `toolchain` imports `os/exec`.
 - Nothing imports `cmd/aether`.
 - Architecture-specific code lives only under `internal/amd64` (or
   `internal/<arch>`).
@@ -248,7 +287,9 @@ or a directory without Go files. This is resolved in Phase 3.
   - Within one stage, errors are collected rather than stopping at the first,
     where practical. `go/types` supports this through `Config.Error`.
   - Panics inside Aether are recovered at the driver and reported as `internal`.
-- **No output on failure:** no executable is written on any error.
+- **No output on failure:** no file is created at the output path on any error.
+  This covers every class, including `tool`. Gate and frontend failures stop
+  before any `.s` or `.o` is produced. Linking is atomic (§8).
 
 **Proposed CLI exit codes** (finalized in Phase 1):
 
@@ -273,8 +314,10 @@ bug (`TESTING.md`).
   invariants. Phase 3 lowering stays valid.
 - Register allocation replaces the slot-per-value strategy inside the backend.
   The IR contract does not change.
-- An in-house assembler or ELF writer (D-008) replaces `internal/toolchain` and
-  the final emission step. Everything earlier is unaffected.
+- The binutils boundary is accepted long-term (D-008). If a concrete
+  requirement ever justifies an in-house assembler or ELF writer, it would
+  replace only `internal/toolchain` and the final emission step. Everything
+  earlier is unaffected.
 - A custom parser or type checker (revisiting D-001 or D-002) would replace
   `frontend` and the gate's inputs. The IR boundary keeps `go/*` out of the rest
   of the compiler.
@@ -282,7 +325,6 @@ bug (`TESTING.md`).
 ## Undecided areas
 
 - SSA construction method, and whether SSA shares the IR package (D-006)
-- In-house encoder, ELF writer, or linker (D-008)
 - GC strategy (D-010)
 - Calling convention (D-011)
 - Register allocation algorithm
@@ -301,4 +343,5 @@ bug (`TESTING.md`).
 | Runtime scope explosion (GC, scheduler) | Strict phase staging; runtime features decided individually (D-009, D-010) |
 | Premature abstraction | D-016: packages and interfaces only when used |
 | Early backend designs blocking GC later | D-010 and D-011 require a stack-map and stack-check story before Phase 5 and Phase 10 designs are finalized |
-| Host tool dependence | Isolated in `internal/toolchain`; replacement evaluated in D-008 |
+| Host tool dependence | Accepted (D-008). Isolated in `internal/toolchain`, with identity checks, clear `tool` errors, version recording, and reproducibility tests. Revisit triggers are listed in D-008. |
+| Mistaking the absence of gc markers for provenance | The Milestone 1 primary checks prove provenance from Aether's emitted assembly, the logged `as`/`ld` invocations, and object/executable correspondence. ELF section and symbol inspection is supporting evidence only (`ROADMAP.md`). |
