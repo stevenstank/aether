@@ -1,0 +1,1 @@
+testdata/check/unsupported_local_type.go:6:2: unsupported: local type declaration is not supported in subset S1 [local-type-declaration]

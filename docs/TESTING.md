@@ -21,13 +21,26 @@ oracle).
 ## Distinguishing compiler bugs from subset limitations
 
 Every test program declares its expected outcome in a header comment. The
-proposed format, finalized in Phase 1, is:
+format, finalized in Phase 1, is:
 
 ```go
 // aether:expect run
 // aether:expect unsupported <feature>
 // aether:expect invalid
+// aether:gc valid|invalid|skip <reason>   (optional)
 ```
+
+- `<feature>` is a name from the `SEMANTICS.md` feature table.
+- The `aether:gc` line records what the official toolchain does with the file
+  when that differs from the default: valid Go unless the file expects
+  `invalid`. For example, a file that is `unsupported` because of an import,
+  but also contains a type error, is `// aether:gc invalid`.
+- Until Phase 2, `run` means "accepted by `aether check`". The Phase 1 corpus
+  is `cmd/aether/testdata/check/*.go`. Each file has a reviewed `.golden` file
+  holding the exact stderr of `aether check`, regenerated with
+  `go test ./cmd/aether -run TestCheckCorpus -update`.
+- `TestCorpusAgainstGc` builds every corpus file with gc to confirm its
+  declared validity.
 
 The harness classifies actual outcomes as follows:
 
@@ -132,7 +145,10 @@ Native Go fuzzing (`testing.F`):
 - **IR transformations** (Phase 5): random IR or random programs, where each
   pass must preserve both verifier validity and interpreter-observed behavior.
 
-The fuzz corpus is committed when it finds a bug.
+The fuzz corpus is committed when it finds a bug. Phase 1's `FuzzCheck`
+(`cmd/aether/fuzz_test.go`) found one: `func main()` without a body (E12). Its
+input is kept in `cmd/aether/testdata/fuzz/FuzzCheck/`, so plain `go test`
+replays it.
 
 ### Regression tests
 
@@ -239,7 +255,14 @@ built by Aether. Only the reconstruction is treated as proof.
 ## Test-only use of the official toolchain
 
 The gc toolchain may build **reference** binaries and run `go test`. It must
-never build the program under test. Provenance tests (above, and `ROADMAP.md`
+never build the program under test.
+
+Test code may start processes (`go list`, `go build` of reference programs and
+of the `aether` binary). The `os/exec` rule in `ARCHITECTURE.md` governs
+compiler packages only, and `go list -deps` checks non-test code only.
+
+Tests that build with gc or scan the GOROOT corpus are skipped under
+`go test -short`. Provenance tests (above, and `ROADMAP.md`
 §Milestone 1) enforce this.
 
 ## Conformance corpus

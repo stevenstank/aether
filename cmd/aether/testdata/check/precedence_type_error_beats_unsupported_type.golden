@@ -1,0 +1,1 @@
+testdata/check/precedence_type_error_beats_unsupported_type.go:7:14: invalid: cannot use "s" (untyped string constant) as int value in variable declaration

@@ -42,6 +42,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-015 | Go toolchain version and module creation | Accepted |
 | D-016 | Package layout: create packages only when code needs them | Accepted |
 | D-017 | Reuse `golang.org/x/tools/go/ssa` as Aether's IR | Rejected |
+| D-018 | CLI exit codes and diagnostic output | Accepted |
 
 ## Review log
 
@@ -61,6 +62,10 @@ The pre-Phase 1 audit made these corrections and clarifications:
   redeclaration, `println` arguments, and the blank identifier.
 - Recorded runtime `println` behavior (D-009).
 - Stated a resolving experiment for each Proposed decision.
+
+| Date | Event | Decisions affected |
+|---|---|---|
+| 2026-10-24 | Phase 1 implementation (E12): D-018 added; D-003 precedence recorded as implemented; `go.mod` created per D-015; S1 gate edge cases found by tests, the GOROOT sweep, and fuzzing recorded | D-002, D-003, D-012, D-015, D-018 |
 
 ---
 
@@ -149,7 +154,13 @@ invalid programs.
   rules are enforced elsewhere in gc, so Aether's frontend must check them
   itself. For example, `go/types` accepts `package main` with no `func main`,
   while `go build` rejects it with "function main is undeclared in the main
-  package" (E8, E9).
+  package" (E8, E9). These checks run only when type checking succeeded
+  (E12).
+- `go/types` and gc's checker are not identical. `go/types` wrongly rejects
+  `func main() ()`, which gc and the spec accept (E12). Where they disagree,
+  the gate's pre-check intercepts the construct, so valid Go is never
+  classified as `invalid`. New disagreements are bugs to record and handle
+  the same way.
 - `go/types` implements no run-time semantics. What remains Aether's job:
   - deciding layouts for codegen (using the same `Sizes`, so `unsafe.Sizeof`
     agrees)
@@ -211,6 +222,17 @@ A program that is both invalid and uses an unsupported type is therefore
 `invalid`. A program with an import is `unsupported` even if it has other
 errors.
 
+**As implemented in Phase 1** (`cmd/aether/check.go`), each step runs only if
+every earlier step reported nothing:
+1. More than one source file → `unsupported` (checked on the arguments).
+2. Syntax errors → `invalid`. The pre-check needs a parsed file; running it
+   on a partial AST would make the result depend on parser error recovery.
+3. File-level pre-check → `unsupported`.
+4. Type errors, then program-level checks → `invalid`. Program-level checks
+   run only if type checking succeeded, because after type errors the
+   package scope can be incomplete (E12).
+5. Typed walk → `unsupported`.
+
 Lowering and later stages treat any construct the gate should have rejected as
 an `internal` error, not a silent fallback.
 
@@ -225,7 +247,9 @@ limitations from bugs (`docs/TESTING.md`).
 **Consequences.** The gate and lowering can drift apart. Any mismatch shows up
 as an `internal` error and is treated as a bug with a regression test.
 
-**Evidence.** Design reasoning only. No implementation exists.
+**Evidence.** Phase 1 tests: the precedence cases in
+`cmd/aether/testdata/check/precedence_*.go`, the GOROOT `// run` sweep (zero
+`internal` results), and fuzzing of the whole check pipeline (E12).
 
 **Revisit when.** The subset becomes broad enough that the gate is mostly a
 list of exceptions. It may then shrink to a deny-list.
@@ -697,6 +721,17 @@ scope. They do not add features. Details are in `SEMANTICS.md` §Subset S1.
   - `package main` without `func main` is `invalid`. `go/types` does not report
     this, so Aether checks it (D-002, E8).
 
+**Phase 1 implementation (2026-10-24).**
+- The gate enforces S1 by default-deny. Testing found forms that need explicit
+  rules (E12), now listed in `SEMANTICS.md` §Subset S1:
+  - `func main() ()`
+  - `func main()` without a body
+  - `iota`
+  - implicit constant values
+  - parenthesized assignment targets
+  - uses of package-level declarations
+- All of these are rejected as `unsupported`, so S1's scope is unchanged.
+
 **Rationale.**
 - The program is observable without imports: `println` is a predeclared builtin
   defined in the spec's Bootstrapping section, and gc writes its output to
@@ -806,9 +841,10 @@ test is marked.
 - Aether is implemented with, and targets the language version of, **Go 1.26**.
   This environment has go1.26.1 installed, and its spec reads "Language version
   go1.26 (Jan 12, 2026)".
-- `go.mod` is **not** created in Phase 0 or the Phase 0 review, because there
-  is no Go code. It is created with the first real code in Phase 1, with
-  `go 1.26` and module path `github.com/stevenstank/aether`.
+- `go.mod` was **not** created in Phase 0 or the Phase 0 review, because there
+  was no Go code. It was created with the first real code in Phase 1, with
+  `go 1.26` and module path `github.com/stevenstank/aether`, and no `require`
+  or `toolchain` lines.
 - The module path was confirmed by the owner on 2026-10-24. Both the fetch and
   push URLs of the `origin` remote were checked on that date and are exactly
   `https://github.com/stevenstank/aether.git`.
@@ -858,6 +894,75 @@ only when a second user exists.
 semantics. That would need its own decision entry.
 
 **Evidence.** `golang.org/x/tools@v0.49.0/go/ssa/doc.go` (module cache).
+
+---
+
+## D-018: CLI exit codes and diagnostic output
+
+**Status:** Accepted (Phase 1). This finalizes the proposal that was in
+`ARCHITECTURE.md` §Diagnostics.
+
+**Context.** Tests and users must be able to tell, from the exit status alone,
+whether a program was invalid, outside the subset, or hit an Aether bug
+(D-003, `TESTING.md`).
+
+**Decision.**
+
+| Code | Meaning |
+|---|---|
+| 0 | success: for `check`, the program is inside the supported subset |
+| 1 | `invalid` |
+| 2 | usage error |
+| 3 | `unsupported` |
+| 4 | `internal` |
+| 5 | `tool` |
+
+- **Mixed classes.** If one run produces diagnostics of several classes, the
+  code is chosen by precedence: `internal`, then `tool`, then `invalid`, then
+  `unsupported`.
+  - The classification order (D-003) normally yields a single class.
+  - `internal` wins because no other result can be trusted once Aether has
+    malfunctioned.
+- **Streams.**
+  - Diagnostics and usage errors go to **stderr**.
+  - Only `aether help` writes to stdout.
+  - A successful `check` prints nothing.
+- **Rendering.**
+  - Each diagnostic is one line: `file:line:col: class: message`.
+  - Unsupported diagnostics are followed by ` [feature]`, using the feature
+    names in `SEMANTICS.md`.
+  - Diagnostics are sorted by position, then class, feature, and message.
+  - Positions ignore `//line` directives.
+- **Usage errors (exit 2).** These are problems with the command line rather
+  than the program:
+  - no or unknown command
+  - no input file
+  - an unknown flag
+  - a file name not ending in `.go`
+  - an input file that cannot be read
+- **Internal errors.** A panic anywhere in the check pipeline is recovered by
+  the driver and reported as an `internal` diagnostic (exit 4). It is never
+  reported as a problem with the program.
+
+**Alternatives considered.**
+- A single non-zero code for every failure. This is simpler, but tests could
+  not tell a limitation from a bug without parsing messages.
+- Reporting unreadable input files as `tool`. Rejected: `tool` is reserved for
+  external tools (D-008).
+
+**Rationale.** Distinct codes give the test harness a machine-readable
+classification (`TESTING.md` table). Single-line, sorted diagnostics make
+golden tests deterministic.
+
+**Consequences.** The codes, streams, and rendering format are a contract.
+Changing them requires a superseding decision.
+
+**Evidence.** `internal/diag` tests (rendering, sorting, exit-code
+precedence); `cmd/aether` tests (`TestRunUsage`, `TestRunMultipleFiles`,
+`TestInternalErrorReporting`, `TestBinary`, the golden corpus).
+
+**Revisit when.** A new class of failure appears that none of the codes
+describes.
 
 ---
 
@@ -1002,6 +1107,45 @@ environment.
   `//go:build linux` and `//go:noinline`:
   - mode `SkipObjectResolution` alone retained 0 comments
   - mode `ParseComments | SkipObjectResolution` retained both
+
+E12 was gathered during Phase 1 implementation on 2026-10-24, in the same
+environment. Unlike E1–E11, its findings came from the repository's own tests.
+
+- **E12: classification edge cases found by Phase 1 testing.**
+  - **`func main() ()`.** gc accepts an empty result list on `main` (exit 0),
+    as the spec does, but `go/types` reports "func main must have no arguments
+    and no return values". `go/types` (`resolver.go`) tests the result list
+    for nil, while gc's `types2` tests its length. The gate's pre-check
+    therefore rejects an empty result list on `main` or `init` as
+    `unsupported` (`empty-result-list`), so valid Go is not classified as
+    invalid.
+  - **`func main()` without a body.** The spec allows a body-less function
+    declaration ("provides the signature for a function implemented outside
+    Go"), and `go/types` accepts it. gc reports "missing function body"
+    because no assembly is supplied. Aether classifies it as `unsupported`
+    (`function-without-body`). This was found by fuzzing: the gate had treated
+    it as impossible and reported an `internal` error.
+  - **Uses of package-level declarations.** Package-level `var` and `const`
+    declarations are rejected, but they still type-check, so `main` can refer
+    to them. The GOROOT sweep found three programs (`func5.go`, `method7.go`,
+    `simassign.go`) where the gate reported such references as `internal`.
+    They are now `unsupported` (`package-level-declaration`).
+  - **`var main = 1`.** `go/types` reports "cannot declare main - must be func"
+    and leaves `main` out of the package scope. The program-level "main is
+    undeclared" check therefore runs only when type checking succeeded.
+  - **Valid Go confirmed with gc.** Every corpus case expected to be accepted
+    or `unsupported` was built with gc (go1.26.1) and is valid Go, except
+    where its `// aether:gc` header records otherwise. These forms are valid
+    Go that S1 rejects:
+    - `var x int = 0i`, `var x int = 'a'`
+    - `const ( a = 1; b )`
+    - `(x) = 2`
+    - `var _ = 1`
+    - `select {}`
+    - `for range 3 {}`
+    - `package lib` with or without `func main`
+
+    The cgo case is not built.
 
 **Sources consulted:**
 - Local Go 1.26.1: `doc/go_spec.html`, `doc/go_mem.html` ("Version of June 6,

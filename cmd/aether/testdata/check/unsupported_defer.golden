@@ -1,0 +1,1 @@
+testdata/check/unsupported_defer.go:6:2: unsupported: defer statement is not supported in subset S1 [defer]

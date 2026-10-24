@@ -1,0 +1,2 @@
+testdata/check/unsupported_goto_label.go:6:2: unsupported: goto statement is not supported in subset S1 [goto]
+testdata/check/unsupported_goto_label.go:7:1: unsupported: labeled statement is not supported in subset S1 [label]

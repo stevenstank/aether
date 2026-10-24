@@ -1,0 +1,1 @@
+testdata/check/invalid_no_new_variables.go:7:4: invalid: no new variables on left side of :=

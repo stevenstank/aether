@@ -1,0 +1,1 @@
+testdata/check/s1_n03_unused_variable.go:6:2: invalid: declared and not used: x

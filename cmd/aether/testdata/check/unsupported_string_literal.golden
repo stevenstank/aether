@@ -1,0 +1,2 @@
+testdata/check/unsupported_string_literal.go:6:12: unsupported: string literal is not supported in subset S1 [string-literal]
+testdata/check/unsupported_string_literal.go:7:10: unsupported: builtin len is not supported in subset S1 [builtin]

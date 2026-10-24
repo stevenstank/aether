@@ -1,0 +1,1 @@
+testdata/check/unsupported_iota.go:6:12: unsupported: predeclared identifier iota is not supported in subset S1 [predeclared-identifier]

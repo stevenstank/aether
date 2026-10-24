@@ -1,0 +1,3 @@
+testdata/check/unsupported_blank_declarations.go:6:6: unsupported: the blank identifier is not supported in subset S1 [blank-identifier]
+testdata/check/unsupported_blank_declarations.go:7:6: unsupported: the blank identifier is not supported in subset S1 [blank-identifier]
+testdata/check/unsupported_blank_declarations.go:8:8: unsupported: the blank identifier is not supported in subset S1 [blank-identifier]

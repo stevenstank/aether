@@ -1,7 +1,12 @@
 # Aether Architecture
 
-Status: **design only.** No stage described here is implemented. Decisions are
-referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
+Status:
+- **Implemented (Phase 1):** stages 1 (frontend) and 2 (subset gate),
+  diagnostics, and the `aether check` driver.
+- **Design only:** every later stage (lowering, IR, interpreter, optimizer,
+  backend, assembly and linking, runtime).
+
+Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
 "proposed", the corresponding decision is not yet accepted.
 
 ## Pipeline
@@ -79,6 +84,8 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     - a package name other than `main`
     - any import declaration, including `import "C"` (cgo)
     - `//go:` directive comments, `// +build` lines, and `//line` directives
+    - an empty result list on `main` or `init` (`func main() ()`), which
+      `go/types` wrongly reports as an error (E12)
 
     Imports must be rejected here: without an importer `go/types` reports
     them as errors, which would misclassify unsupported programs as invalid.
@@ -338,10 +345,18 @@ Staging follows `ROADMAP.md`.
 
 Packages are created only when code exists. Everything lives under one module.
 
+**Implemented in Phase 1:**
+- `cmd/aether`: `check` only, plus the stage ordering in `check.go`.
+- `internal/diag`
+- `internal/frontend`
+- `internal/gate`
+
+The other rows are still candidates.
+
 | Candidate path | Contents | Depends on | Stability |
 |---|---|---|---|
 | `cmd/aether` | CLI driver (`aether build`, `aether check`) | everything below | CLI flags and exit codes are a contract |
-| `internal/diag` | Diagnostic type, classes, rendering | — | stable within the repo |
+| `internal/diag` | Diagnostic type, classes, rendering, exit codes | — (no `go/*`) | stable within the repo |
 | `internal/frontend` | Load, parse, type-check; produce the checked package | `go/*`, `diag` | internal |
 | `internal/gate` | Subset gate | `frontend`, `diag` | internal |
 | `internal/ir` | IR types, builder, verifier, printer | — (no `go/*`) | **contract:** text format + invariants |
@@ -351,9 +366,12 @@ Packages are created only when code exists. Everything lives under one module.
 | `internal/amd64` | isel, frames, regalloc, asm emission; runtime sources in `internal/amd64/rt/*.s`, embedded (§9) | `ir` | internal |
 | `internal/toolchain` | Locate and run `as` and `ld` | — | internal |
 
-Dependency rules (each enforced by a test once the package exists):
-- `ir` and `amd64` must not import `go/ast`, `go/types`, `go/token`, or
-  `go/parser`. The backend sees only IR.
+Dependency rules. They are enforced by `cmd/aether/deps_test.go` on the import
+graph from `go list -deps`, for each package once it exists. They govern
+compiler code, not test files. Tests may run processes, for example `go list`,
+the built `aether` binary, and gc as the oracle.
+- `diag`, `ir`, and `amd64` must not import any `go/*` package. The backend
+  sees only IR.
 - `os/exec` may enter the dependency graph only through `toolchain`:
   - only `toolchain` imports `os/exec`
   - no other Aether package's own imports pull it in transitively (packages
@@ -370,8 +388,11 @@ Dependency rules (each enforced by a test once the package exists):
 - **Diagnostic fields:** class (`invalid` | `unsupported` | `internal` |
   `tool`), position (file:line:col), message, and, for `unsupported`, the
   feature name used in `SEMANTICS.md`.
-- **Rendering:** `file:line:col: <class>: <message>`, sorted by position,
-  deterministic.
+- **Rendering:** `file:line:col: <class>: <message>`, followed by
+  ` [feature]` for `unsupported`, one line each, sorted by position,
+  deterministic (D-018).
+- **Driver ordering:** `cmd/aether/check.go` runs the stages in the D-003
+  order. That order is the only place the precedence is encoded.
 - **Propagation:**
   - Each stage returns its diagnostics.
   - A stage runs only if all earlier stages produced no errors.
@@ -383,7 +404,8 @@ Dependency rules (each enforced by a test once the package exists):
   This covers every class, including `tool`. Gate and frontend failures stop
   before any `.s` or `.o` is produced. Linking is atomic (§8).
 
-**Proposed CLI exit codes** (finalized in Phase 1):
+**CLI exit codes** (finalized in Phase 1, D-018; streams and usage errors are
+specified there):
 
 | Code | Meaning |
 |---|---|

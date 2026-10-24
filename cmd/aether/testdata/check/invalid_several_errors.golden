@@ -1,0 +1,3 @@
+testdata/check/invalid_several_errors.go:6:14: invalid: cannot use "b" (untyped string constant) as int value in variable declaration
+testdata/check/invalid_several_errors.go:7:14: invalid: cannot use "a" (untyped string constant) as int value in variable declaration
+testdata/check/invalid_several_errors.go:8:16: invalid: undefined: undefined

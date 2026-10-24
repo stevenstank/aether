@@ -1,0 +1,2 @@
+testdata/check/unsupported_composite_literal.go:6:7: unsupported: composite literal is not supported in subset S1 [composite-literal]
+testdata/check/unsupported_composite_literal.go:7:10: unsupported: index expression is not supported in subset S1 [index-expression]

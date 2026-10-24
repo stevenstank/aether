@@ -228,8 +228,12 @@ only the first stderr line and the exit status for panicking programs.
 
 S1 is the language accepted by the first native milestone (Phase 3). The
 definition was accepted at the owner's Phase 0 review on 2026-10-24.
-**Nothing is implemented yet**, and every S1 row in the support matrix is still
-*Unsupported*.
+
+**Status.** Phase 1 implements **classification** against S1:
+`aether check` reports whether a program is inside S1, and the subset gate
+enforces every rule in this section. Nothing is **supported** yet in the sense
+of this document: there is no lowering, interpreter, or code generation, so
+every S1 row in the support matrix is still *Unsupported*.
 
 **Program structure**
 - Exactly one source file.
@@ -301,6 +305,39 @@ position and a feature name):
 - cgo
 - every `//go:` directive comment (including `//go:build`), `// +build` lines,
   and `//line` directives
+
+The following forms are also outside S1. Each follows from the definition
+above and is listed explicitly because Phase 1 testing showed it needs a
+dedicated rule (E12):
+- the predeclared identifier `iota`, and `true`, `false`, `nil`
+- a constant declaration without a value (implicit repetition in a `const`
+  group)
+- a parenthesized assignment target, as in `(x) = 1` or `(x)++`
+- uses of package-level variables and constants (their declarations are
+  rejected too)
+- an empty result list, `func main() ()`. This is valid Go, but `go/types`
+  wrongly reports it as an error, so the gate rejects it before type checking.
+- `func main()` without a body. This is valid Go per the spec (a function
+  implemented outside Go); gc rejects it only because no assembly is supplied.
+
+**Feature names.** Unsupported diagnostics end with a feature name in
+brackets. The names are a stable contract (D-018), used by tests and the
+`// aether:expect unsupported <feature>` header (`TESTING.md`):
+
+| Area | Feature names |
+|---|---|
+| Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
+| Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `method`, `function-without-body` |
+| Statements | `if`, `for`, `for-range`, `switch`, `type-switch`, `select`, `go`, `defer`, `return`, `break`, `continue`, `goto`, `fallthrough`, `label`, `send`, `statement` |
+| Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
+| Types | `non-int-type`, `type-expression` |
+| Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
+| Operators | `operator-div`, `operator-rem`, `operator-shl`, `operator-shr`, `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`, `operator-logical-and`, `operator-logical-or`, `operator-complement`, `operator-not`, `operator-address`, `operator-receive`, `operator-other`, `comparison` |
+| Calls | `call`, `conversion`, `builtin`, `print`, `println-argument-type`, `variadic-call` |
+| Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
+
+`statement` and `expression` are catch-alls. The gate is default-deny, so a
+construct with no specific rule is still rejected.
 
 **Constant expressions versus run-time arithmetic in S1**
 
@@ -390,7 +427,9 @@ on separate lines in the tested source.
 
 **Unsupported cases (must be classified `unsupported`, exit 3, no output
 file).** At least one test per item in the "Explicitly unsupported in S1" list
-above. These must include the valid-Go forms that `go/types` accepts (E8):
+above. Phase 1 has one corpus file per feature category in
+`cmd/aether/testdata/check/`. These must include the valid-Go forms that
+`go/types` accepts (E8):
 - `var x int = 1.0`
 - `println('a')`
 - `package foo` with `func main() {}`
@@ -414,4 +453,6 @@ it also has a type error.
 |---|---|---|---|---|
 | (all features) | — | — | Unsupported | — |
 
-S1 rows are added here as Phase 2 and Phase 3 implement them.
+S1 rows are added here as Phase 2 and Phase 3 implement them. Phase 1's
+classification of S1 (`aether check`) does not by itself make any row
+supported.

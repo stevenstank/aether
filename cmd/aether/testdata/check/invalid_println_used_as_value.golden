@@ -1,0 +1,2 @@
+testdata/check/invalid_println_used_as_value.go:6:2: invalid: declared and not used: x
+testdata/check/invalid_println_used_as_value.go:6:7: invalid: println(1) (no value) used as value

@@ -1,0 +1,1 @@
+testdata/check/unsupported_import.go:5:8: unsupported: import "os" is not supported in subset S1 [import]

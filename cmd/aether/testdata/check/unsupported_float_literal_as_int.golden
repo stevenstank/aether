@@ -1,0 +1,1 @@
+testdata/check/unsupported_float_literal_as_int.go:6:14: unsupported: floating-point literal 1.0 is not supported in subset S1 [float-literal]

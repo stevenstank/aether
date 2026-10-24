@@ -1,0 +1,1 @@
+testdata/check/invalid_main_not_a_function.go:5:5: invalid: cannot declare main - must be func

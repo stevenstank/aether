@@ -1,0 +1,1 @@
+testdata/check/unsupported_conversion.go:6:7: unsupported: conversion to int is not supported in subset S1 [conversion]

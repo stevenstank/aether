@@ -1,0 +1,1 @@
+testdata/check/precedence_package_name_beats_missing_main.go:3:9: unsupported: package lib (only package main) is not supported in subset S1 [package-name]

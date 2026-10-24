@@ -1,0 +1,1 @@
+testdata/check/unsupported_package_name.go:3:9: unsupported: package lib (only package main) is not supported in subset S1 [package-name]

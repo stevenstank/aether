@@ -1,0 +1,1 @@
+testdata/check/precedence_directive_beats_type_error.go:6:1: unsupported: directive //go:noinline is not supported in subset S1 [directive]

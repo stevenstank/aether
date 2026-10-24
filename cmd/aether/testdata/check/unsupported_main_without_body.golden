@@ -1,0 +1,1 @@
+testdata/check/unsupported_main_without_body.go:6:1: unsupported: function main without a body (implemented outside Go) is not supported in subset S1 [function-without-body]

@@ -1,0 +1,1 @@
+testdata/check/unsupported_return.go:6:2: unsupported: return statement is not supported in subset S1 [return]

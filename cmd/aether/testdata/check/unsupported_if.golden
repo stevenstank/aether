@@ -1,0 +1,1 @@
+testdata/check/unsupported_if.go:7:2: unsupported: if statement is not supported in subset S1 [if]

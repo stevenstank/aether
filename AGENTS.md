@@ -18,6 +18,31 @@ changing anything architectural.
   including the emitted assembly. Do not start work on a custom assembler or
   linker without a new decision.
 
+## Repository layout
+
+- `cmd/aether`: the CLI. `check.go` runs the stages in the D-003 order.
+- `internal/diag`: diagnostics, rendering, and exit codes. No `go/*` imports.
+- `internal/frontend`: a wrapper around `go/parser` and `go/types`, plus
+  program-level checks.
+- `internal/gate`: the S1 subset gate (default-deny).
+- `cmd/aether/testdata/check`: the classification corpus. Each `*.go` file has
+  an `// aether:expect` header and a reviewed `*.golden` file.
+
+## Validation
+
+```
+gofmt -l $(git ls-files -co --exclude-standard '*.go' | grep -v /testdata/)
+go vet ./...
+go test ./...
+```
+
+- The gofmt command must print nothing. Corpus files under `testdata/` are
+  deliberately not gofmt-clean.
+- Regenerate goldens only intentionally, with
+  `go test ./cmd/aether -run TestCheckCorpus -update`, and review the diff.
+- When the gate changes, also fuzz:
+  `go test ./cmd/aether -run '^$' -fuzz FuzzCheck -fuzztime 60s`.
+
 ## Code quality
 
 - Go 1.26, standard library only (D-013). `gofmt`, `go vet ./...`, and

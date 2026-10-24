@@ -4,9 +4,34 @@ Aether is an independent compiler for the Go programming language, written in
 Go, targeting native Linux x86-64 executables through its own intermediate
 representation and backend.
 
-> **Status: Phase 0 (architecture and documentation) is complete; Phase 1 has
-> not started.** There is no compiler yet. No Go code exists in this
-> repository, and nothing here can compile a program.
+> **Status: Phase 1 is complete (pending owner review).** Aether can
+> *classify* a Go source file against its first supported subset, S1. It
+> cannot compile anything yet: there is no IR, code generation, or runtime.
+
+## What works today
+
+```
+go build -o aether ./cmd/aether
+./aether check prog.go
+```
+
+`aether check` parses and type-checks one file with the standard library's
+`go/parser` and `go/types`; Aether reuses these, it does not implement them.
+It then runs Aether's own subset gate and reports one of the following:
+
+| Exit | Meaning |
+|---|---|
+| 0 | the program is inside S1 (no output) |
+| 1 | not valid Go (`invalid`) |
+| 3 | valid Go outside S1 (`unsupported`, with a feature name) |
+| 2 | usage error |
+| 4 | internal compiler error |
+
+Diagnostics go to stderr as `file:line:col: class: message`. See D-018 in
+[docs/DECISIONS.md](docs/DECISIONS.md).
+
+Run the tests with `go test ./...`. `go test -short ./...` skips the gc
+cross-check, the binary test, and the GOROOT corpus sweep.
 
 ## What Aether aims to become
 
@@ -50,29 +75,31 @@ potentially long-term dependencies. The exact ownership boundaries are in
 [docs/VISION.md](docs/VISION.md) and [docs/DECISIONS.md](docs/DECISIONS.md)
 (D-007, D-008).
 
-## Planned prerequisites
+## Prerequisites
 
-None of these are needed yet, because there is nothing to build:
-- Go 1.26, to build Aether. The module will be `github.com/stevenstank/aether`,
-  and `go.mod` is created in Phase 1.
-- GNU binutils (`as`, `ld`) targeting x86-64 ELF, for `aether build`. Aether
-  will check for them and report a clear error if they are missing.
-- A Linux x86-64 host to run the produced executables.
-- The official Go toolchain, only for running Aether's differential tests.
+- Go 1.26, to build Aether (module `github.com/stevenstank/aether`, standard
+  library only).
+- The official Go toolchain, to run the tests. They use it as an oracle and
+  for `go list`.
+- Later phases: GNU binutils (`as`, `ld`) targeting x86-64 ELF for
+  `aether build`, and a Linux x86-64 host to run the executables. Phase 1 does
+  not need them.
 
 ## Current limitations
 
-All of them: nothing is implemented. When implementation begins, programs
-outside the supported subset will be **rejected with an explicit diagnostic**,
-never compiled incorrectly.
+- Only `aether check` exists. There is no `aether build`, no IR, no code
+  generation, and no runtime.
+- Only one source file, `package main`, with no imports, is ever accepted.
+  Everything outside S1 is **rejected with an explicit diagnostic**.
 
 ## First milestone
 
 Compile a single-file, import-free `package main` program into a static
 executable whose instructions Aether's backend generated. The program uses
 `int` local variables, `+ - *` with Go's wraparound semantics, nested blocks,
-and the `println` builtin. This is subset S1, accepted but **not yet
-implemented**; see [docs/SEMANTICS.md](docs/SEMANTICS.md#subset-s1-accepted-d-012).
+and the `println` builtin. This is subset S1. `aether check` can recognize S1
+programs, but **compiling them is not yet implemented** (Phases 2–3); see
+[docs/SEMANTICS.md](docs/SEMANTICS.md#subset-s1-accepted-d-012).
 
 The acceptance test checks:
 - that Aether accepted, type-checked, and lowered the program to its own IR

@@ -1,0 +1,2 @@
+testdata/check/unsupported_index.go:6:8: unsupported: type [2]int is not supported in subset S1 [non-int-type]
+testdata/check/unsupported_index.go:7:10: unsupported: index expression is not supported in subset S1 [index-expression]

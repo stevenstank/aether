@@ -47,7 +47,7 @@ repeated in each phase below:
 
   All of this is recorded in the `DECISIONS.md` review log.
 
-## Phase 1: Frontend driver, diagnostics, subset gate (next; awaiting authorization)
+## Phase 1: Frontend driver, diagnostics, subset gate (complete 2026-10-24, pending owner review)
 
 - **Objective:** `aether check prog.go` classifies any single-file program as
   `invalid`, `unsupported` (for S1), or acceptable.
@@ -92,8 +92,36 @@ repeated in each phase below:
   imports).
 - **Completion evidence:** the test suite passes; the sweep reports zero
   `internal` errors; golden files are reviewed.
+- **Evidence recorded 2026-10-24** (go1.26.1, linux/amd64, WSL2):
+  - `go vet ./...` is clean, and `gofmt -l` reports nothing for non-testdata
+    sources.
+  - `go test ./... -count=1` passes: 30 top-level tests and 393 subtests, with
+    none failing or skipped. `go test -short ./...` and `-count=3` also pass.
+  - **Corpus:** 96 files in `cmd/aether/testdata/check/`, each with a golden
+    file:
+    - S1-01 to S1-10 and two further accepted-form files
+    - S1-N01 to S1-N05 and eight further invalid cases
+    - five precedence cases
+    - one or more files per unsupported feature category
 
-## Phase 2: IR and reference interpreter for S1
+    All goldens were reviewed by the implementing agent. Owner review is
+    pending.
+  - **gc cross-check:** every corpus file except the cgo case was built with
+    gc, and gc's verdict matched each file's declared validity.
+  - **GOROOT sweep:** of the 141 `// run` programs, 0 were accepted, 0
+    invalid, and 141 unsupported, with 0 `internal`. The sweep first found 3
+    programs with `internal` results, which were fixed (E12).
+  - **Fuzzing (`FuzzCheck`):** fuzzing first found one input with an
+    `internal` result, which was fixed and kept as a regression seed (E12).
+    After the fix, runs of 120 s, 180 s, and 420 s (about 3.3, 17.7, and 33.4
+    million executions) passed. One other 180 s run failed without reporting
+    a failing input; that failure could not be reproduced (see the Phase 1
+    report).
+  - **Dependency rules:** checked on the `go list -deps` graph, with a control
+    test, and confirmed by temporarily adding a forbidden import (the test
+    failed as intended).
+
+## Phase 2: IR and reference interpreter for S1 (next; awaiting authorization)
 
 - **Objective:** S1 programs lower to verified IR, and the interpreter's output
   matches gc's.

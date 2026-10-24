@@ -1,0 +1,2 @@
+testdata/check/unsupported_address.go:7:7: unsupported: unary operator & is not supported in subset S1 [operator-address]
+testdata/check/unsupported_address.go:8:10: unsupported: pointer dereference is not supported in subset S1 [pointer-dereference]

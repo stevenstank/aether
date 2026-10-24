@@ -1,0 +1,1 @@
+testdata/check/precedence_import_beats_type_error.go:6:8: unsupported: import "os" is not supported in subset S1 [import]

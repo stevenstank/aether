@@ -1,0 +1,1 @@
+testdata/check/invalid_main_with_parameters.go:5:6: invalid: func main must have no arguments and no return values

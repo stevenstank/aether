@@ -1,0 +1,1 @@
+testdata/check/s1_n05_missing_main.go:3:9: invalid: function main is undeclared in the main package

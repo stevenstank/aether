@@ -1,0 +1,1 @@
+testdata/check/unsupported_directive_line.go:5:1: unsupported: directive //line is not supported in subset S1 [directive]

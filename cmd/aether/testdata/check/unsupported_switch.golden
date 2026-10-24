@@ -1,0 +1,1 @@
+testdata/check/unsupported_switch.go:6:2: unsupported: switch statement is not supported in subset S1 [switch]

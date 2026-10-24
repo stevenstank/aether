@@ -1,0 +1,1 @@
+testdata/check/unsupported_const_implicit_value.go:8:3: unsupported: constant declaration without a value is not supported in subset S1 [const-implicit-value]

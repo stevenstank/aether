@@ -1,0 +1,1 @@
+testdata/check/unsupported_println_float.go:6:10: unsupported: println argument of type float64 is not supported in subset S1 [println-argument-type]

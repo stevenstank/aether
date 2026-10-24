@@ -1,0 +1,1 @@
+testdata/check/unsupported_rune_literal_as_int.go:6:14: unsupported: rune literal 'a' is not supported in subset S1 [rune-literal]

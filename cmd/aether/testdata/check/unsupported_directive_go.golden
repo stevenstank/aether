@@ -1,0 +1,1 @@
+testdata/check/unsupported_directive_go.go:5:1: unsupported: directive //go:noinline is not supported in subset S1 [directive]

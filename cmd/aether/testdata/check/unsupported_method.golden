@@ -1,0 +1,2 @@
+testdata/check/unsupported_method.go:5:1: unsupported: package-level type declaration is not supported in subset S1 [package-level-declaration]
+testdata/check/unsupported_method.go:7:1: unsupported: method m is not supported in subset S1 [method]

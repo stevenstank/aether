@@ -1,0 +1,1 @@
+testdata/check/unsupported_select.go:6:2: unsupported: select statement is not supported in subset S1 [select]

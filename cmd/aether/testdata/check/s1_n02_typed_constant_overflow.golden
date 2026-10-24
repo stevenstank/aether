@@ -1,0 +1,1 @@
+testdata/check/s1_n02_typed_constant_overflow.go:7:7: invalid: c + 1 (constant 9223372036854775808 of type int) overflows int

@@ -1,0 +1,2 @@
+testdata/check/unsupported_assignment_target.go:7:2: unsupported: assignment to (x) is not supported in subset S1 [assignment-target]
+testdata/check/unsupported_assignment_target.go:8:2: unsupported: assignment to (x) is not supported in subset S1 [assignment-target]
