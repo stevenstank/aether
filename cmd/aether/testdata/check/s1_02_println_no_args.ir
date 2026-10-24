@@ -1,0 +1,4 @@
+func main @testdata/check/s1_02_println_no_args.go:5:6
+b0:
+  println @6:2
+  ret @7:1

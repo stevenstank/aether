@@ -7,6 +7,8 @@ import (
 	"github.com/stevenstank/aether/internal/diag"
 	"github.com/stevenstank/aether/internal/frontend"
 	"github.com/stevenstank/aether/internal/gate"
+	"github.com/stevenstank/aether/internal/ir"
+	"github.com/stevenstank/aether/internal/lower"
 )
 
 type source struct {
@@ -22,15 +24,25 @@ type source struct {
 //  3. file-level constructs: unsupported (gate.Precheck)
 //  4. type errors and program-level checks: invalid (frontend.TypeCheck)
 //  5. everything else outside S1: unsupported (gate.Check)
+//  6. lowering to IR and verifying it: internal (lower.Lower, ir.Verify)
 //
-// An empty result means the program is inside S1.
+// An empty result means the program is inside S1. Step 6 cannot fail for a
+// correct compiler; running it on every accepted program means a lowering
+// bug is reported as internal instead of the program being accepted.
 func check(srcs []source) []diag.Diagnostic {
+	_, ds := compile(srcs)
+	return ds
+}
+
+// compile runs the steps of check and returns the verified IR of a program
+// inside S1, or the diagnostics and no IR.
+func compile(srcs []source) (*ir.Program, []diag.Diagnostic) {
 	names := make([]string, len(srcs))
 	for i, s := range srcs {
 		names[i] = s.name
 	}
 	if ds := gate.Files(names); len(ds) > 0 {
-		return ds
+		return nil, ds
 	}
 	fset := token.NewFileSet()
 	var files []*ast.File
@@ -43,17 +55,41 @@ func check(srcs []source) []diag.Diagnostic {
 		}
 	}
 	if len(ds) > 0 {
-		return ds
+		return nil, ds
 	}
 	for _, f := range files {
 		ds = append(ds, gate.Precheck(fset, f)...)
 	}
 	if len(ds) > 0 {
-		return ds
+		return nil, ds
 	}
 	pkg, ds := frontend.TypeCheck(fset, files)
 	if len(ds) > 0 {
-		return ds
+		return nil, ds
 	}
-	return gate.Check(pkg)
+	if ds := gate.Check(pkg); len(ds) > 0 {
+		return nil, ds
+	}
+	prog, ds := lower.Lower(pkg)
+	if len(ds) > 0 {
+		return nil, ds
+	}
+	if ds := verify(prog, names[0]); len(ds) > 0 {
+		return nil, ds
+	}
+	return prog, nil
+}
+
+// verify runs the IR verifier. Lowering must produce well-formed IR, so a
+// violation is an internal error, reported against the source file.
+func verify(prog *ir.Program, file string) []diag.Diagnostic {
+	var ds []diag.Diagnostic
+	for _, err := range ir.Verify(prog) {
+		ds = append(ds, diag.Diagnostic{
+			Class:   diag.Internal,
+			Pos:     diag.Pos{File: file},
+			Message: "IR verifier: " + err.Error(),
+		})
+	}
+	return ds
 }

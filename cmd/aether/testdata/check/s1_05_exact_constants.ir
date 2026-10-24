@@ -1,0 +1,12 @@
+func main @testdata/check/s1_05_exact_constants.go:5:6
+  slot s0 x i64 @8:2
+  slot s1 y i64 @9:2
+b0:
+  v0 = const 9223372036854775807 @8:7
+  store s0, v0 @8:2
+  v1 = const -9223372036854775808 @9:7
+  store s1, v1 @9:2
+  v2 = load s0 @10:10
+  v3 = load s1 @10:13
+  println v2, v3 @10:2
+  ret @11:1

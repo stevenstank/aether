@@ -1,0 +1,37 @@
+func main @testdata/check/s1_03_milestone1.go:5:6
+  slot s0 a i64 @6:2
+  slot s1 b i64 @7:2
+  slot s2 c i64 @8:6
+  slot s3 a i64 @11:3
+  slot s4 big i64 @14:2
+b0:
+  v0 = const 6 @6:7
+  store s0, v0 @6:2
+  v1 = const 7 @7:7
+  store s1, v1 @7:2
+  v2 = load s0 @8:14
+  v3 = load s1 @8:16
+  v4 = mul v2, v3 @8:15
+  v5 = const 2 @8:20
+  v6 = sub v4, v5 @8:18
+  store s2, v6 @8:6
+  v7 = load s2 @9:2
+  v8 = const 2 @9:7
+  v9 = add v7, v8 @9:4
+  store s2, v9 @9:2
+  v10 = load s0 @11:9
+  v11 = neg v10 @11:8
+  store s3, v11 @11:3
+  v12 = load s3 @12:11
+  v13 = load s2 @12:14
+  println v12, v13 @12:3
+  v14 = const 9223372036854775807 @14:9
+  store s4, v14 @14:2
+  v15 = load s4 @15:2
+  v16 = const 1 @15:5
+  v17 = add v15, v16 @15:5
+  store s4, v17 @15:2
+  v18 = load s0 @16:10
+  v19 = load s4 @16:13
+  println v18, v19 @16:2
+  ret @17:1

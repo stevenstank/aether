@@ -1,0 +1,26 @@
+func main @testdata/check/s1_08_nested_shadowing.go:5:6
+  slot s0 x i64 @6:2
+  slot s1 x i64 @8:3
+  slot s2 x i64 @10:4
+b0:
+  v0 = const 1 @6:7
+  store s0, v0 @6:2
+  v1 = load s0 @8:8
+  v2 = const 10 @8:12
+  v3 = add v1, v2 @8:10
+  store s1, v3 @8:3
+  v4 = load s1 @10:9
+  v5 = const 2 @10:13
+  v6 = mul v4, v5 @10:11
+  store s2, v6 @10:4
+  v7 = load s2 @11:12
+  println v7 @11:4
+  v8 = load s1 @13:3
+  v9 = const 1 @13:4
+  v10 = add v8, v9 @13:4
+  store s1, v10 @13:3
+  v11 = load s1 @14:11
+  println v11 @14:3
+  v12 = load s0 @16:10
+  println v12 @16:2
+  ret @18:1

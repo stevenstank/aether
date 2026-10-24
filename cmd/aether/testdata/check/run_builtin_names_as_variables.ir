@@ -1,0 +1,17 @@
+func main @testdata/check/run_builtin_names_as_variables.go:5:6
+  slot s0 len i64 @6:2
+  slot s1 print i64 @7:2
+  slot s2 int i64 @9:2
+b0:
+  v0 = const 1 @6:9
+  store s0, v0 @6:2
+  v1 = const 2 @7:11
+  store s1, v1 @7:2
+  v2 = load s0 @8:10
+  v3 = load s1 @8:15
+  println v2, v3 @8:2
+  v4 = const 5 @9:9
+  store s2, v4 @9:2
+  v5 = load s2 @10:10
+  println v5 @10:2
+  ret @11:1

@@ -1,0 +1,42 @@
+func main @testdata/check/s1_04_wraparound.go:5:6
+  slot s0 hi i64 @6:2
+  slot s1 lo i64 @7:2
+  slot s2 x i64 @10:2
+b0:
+  v0 = const 9223372036854775807 @6:8
+  store s0, v0 @6:2
+  v1 = load s0 @7:9
+  v2 = neg v1 @7:8
+  v3 = const 1 @7:14
+  v4 = sub v2, v3 @7:12
+  store s1, v4 @7:2
+  v5 = load s0 @8:10
+  v6 = const 1 @8:13
+  v7 = add v5, v6 @8:12
+  v8 = load s1 @8:16
+  v9 = const 1 @8:19
+  v10 = sub v8, v9 @8:18
+  v11 = load s1 @8:23
+  v12 = neg v11 @8:22
+  v13 = load s1 @8:28
+  println v7, v10, v12, v13 @8:2
+  v14 = load s0 @9:10
+  v15 = const 2 @9:13
+  v16 = mul v14, v15 @9:12
+  v17 = load s1 @9:16
+  v18 = const -1 @9:19
+  v19 = mul v17, v18 @9:18
+  v20 = load s0 @9:23
+  v21 = load s0 @9:26
+  v22 = mul v20, v21 @9:25
+  v23 = load s1 @9:30
+  v24 = load s1 @9:33
+  v25 = mul v23, v24 @9:32
+  println v16, v19, v22, v25 @9:2
+  v26 = const 3037000500 @10:7
+  store s2, v26 @10:2
+  v27 = load s2 @11:10
+  v28 = load s2 @11:14
+  v29 = mul v27, v28 @11:12
+  println v29 @11:2
+  ret @12:1

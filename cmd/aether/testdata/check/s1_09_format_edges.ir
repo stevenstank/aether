@@ -1,0 +1,16 @@
+func main @testdata/check/s1_09_format_edges.go:5:6
+  slot s0 m i64 @6:2
+b0:
+  v0 = const -9223372036854775808 @6:7
+  store s0, v0 @6:2
+  v1 = load s0 @7:10
+  v2 = const 0 @7:13
+  v3 = const 0 @7:16
+  v4 = const -1 @7:20
+  v5 = const 1 @7:24
+  v6 = const 10 @7:27
+  v7 = const -10 @7:31
+  v8 = const 100 @7:36
+  v9 = const 999999999999 @7:41
+  println v1, v2, v3, v4, v5, v6, v7, v8, v9 @7:2
+  ret @8:1

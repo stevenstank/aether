@@ -1,0 +1,27 @@
+func main @testdata/check/s1_06_tuple_assignment.go:5:6
+  slot s0 a i64 @6:2
+  slot s1 b i64 @6:5
+b0:
+  v0 = const 1 @6:10
+  v1 = const 2 @6:13
+  store s0, v0 @6:2
+  store s1, v1 @6:5
+  v2 = load s1 @7:9
+  v3 = load s0 @7:12
+  store s0, v2 @7:2
+  store s1, v3 @7:5
+  v4 = load s0 @8:10
+  v5 = load s1 @8:13
+  println v4, v5 @8:2
+  v6 = load s0 @9:9
+  v7 = load s1 @9:11
+  v8 = add v6, v7 @9:10
+  v9 = load s0 @9:14
+  v10 = load s1 @9:16
+  v11 = mul v9, v10 @9:15
+  store s0, v8 @9:2
+  store s1, v11 @9:5
+  v12 = load s0 @10:10
+  v13 = load s1 @10:13
+  println v12, v13 @10:2
+  ret @11:1

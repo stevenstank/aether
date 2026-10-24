@@ -1,0 +1,47 @@
+func main @testdata/check/s1_07_compound_assignment.go:5:6
+  slot s0 x i64 @6:6
+  slot s1 p i64 @14:6
+  slot s2 q i64 @14:9
+  slot s3 r i64 @15:6
+b0:
+  v0 = const 0 @6:6
+  store s0, v0 @6:6
+  v1 = load s0 @7:2
+  v2 = const 5 @7:7
+  v3 = add v1, v2 @7:4
+  store s0, v3 @7:2
+  v4 = load s0 @8:2
+  v5 = const 7 @8:7
+  v6 = sub v4, v5 @8:4
+  store s0, v6 @8:2
+  v7 = load s0 @9:2
+  v8 = const -3 @9:7
+  v9 = mul v7, v8 @9:4
+  store s0, v9 @9:2
+  v10 = load s0 @10:2
+  v11 = const 1 @10:3
+  v12 = add v10, v11 @10:3
+  store s0, v12 @10:2
+  v13 = load s0 @11:2
+  v14 = const 1 @11:3
+  v15 = sub v13, v14 @11:3
+  store s0, v15 @11:2
+  v16 = load s0 @12:2
+  v17 = const 1 @12:3
+  v18 = sub v16, v17 @12:3
+  store s0, v18 @12:2
+  v19 = load s0 @13:10
+  println v19 @13:2
+  v20 = const 10 @14:17
+  v21 = const -10 @14:21
+  store s1, v20 @14:6
+  store s2, v21 @14:9
+  v22 = load s1 @15:10
+  v23 = load s2 @15:14
+  v24 = mul v22, v23 @15:12
+  store s3, v24 @15:6
+  v25 = load s1 @16:10
+  v26 = load s2 @16:13
+  v27 = load s3 @16:16
+  println v25, v26, v27 @16:2
+  ret @17:1
