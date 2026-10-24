@@ -4,17 +4,20 @@ Aether is an independent compiler for the Go programming language, written in
 Go, targeting native Linux x86-64 executables through its own intermediate
 representation and backend.
 
-> **Status: Phase 2 is complete (pending owner review).** Aether classifies a
-> Go source file against its first supported subset, S1, and lowers S1
-> programs to its own IR, which a reference interpreter executes with the same
-> output as gc. It cannot produce an executable yet: there is no code
-> generation or runtime.
+> **Status: Phase 3 is complete (pending owner review).** Aether compiles
+> programs in its first supported subset, S1, into static Linux x86-64
+> executables. Its own backend selects every instruction and its own runtime
+> provides process start and `println`; GNU `as` and `ld` only assemble and
+> link. S1 is small: one `main` function with `int` variables, `+ - *`, nested
+> blocks, and `println`.
 
 ## What works today
 
 ```
 go build -o aether ./cmd/aether
 ./aether check prog.go
+./aether build -o prog prog.go
+./prog
 ```
 
 `aether check` parses and type-checks one file with the standard library's
@@ -28,15 +31,22 @@ It then runs Aether's own subset gate and reports one of the following:
 | 3 | valid Go outside S1 (`unsupported`, with a feature name) |
 | 2 | usage error |
 | 4 | internal compiler error |
-| 5 | external tool failure (reserved; no Phase 1 command uses external tools) |
+| 5 | GNU `as` or `ld` missing, not identified, or failed (`build`) |
 
 Diagnostics go to stderr as `file:line:col: class: message`. See D-018 in
 [docs/DECISIONS.md](docs/DECISIONS.md).
 
 For a program inside S1, `aether check` also lowers it to Aether's IR and
-verifies the IR; a failure there is an internal error (exit 4). The IR
-interpreter is a test oracle and has no command: tests run lowered programs
-through it and compare the result with the gc-built binary.
+verifies the IR; a failure there is an internal error (exit 4).
+
+`aether build -o OUT prog.go` uses the same codes. It emits Aether's
+assembly, assembles and links it with GNU `as`/`ld` together with Aether's
+runtime, and writes `OUT` only if every step succeeds; an existing `OUT` is
+replaced only then. `-x` prints the commands run and the tool versions, and
+`-work` keeps the work directory. See D-022.
+
+The IR interpreter is a test oracle and has no command. Tests compare the
+interpreter and the built executables with the gc-built binary.
 
 Run the tests with `go test ./...`. `go test -short ./...` skips the gc
 cross-check, the gc differential test, the binary test, and the GOROOT corpus
@@ -90,14 +100,15 @@ potentially long-term dependencies. The exact ownership boundaries are in
   library only).
 - The official Go toolchain, to run the tests. They use it as an oracle and
   for `go list`.
-- Later phases: GNU binutils (`as`, `ld`) targeting x86-64 ELF for
-  `aether build`, and a Linux x86-64 host to run the executables. Phases 1–2 do
-  not need them.
+- GNU binutils (`as`, `ld`) targeting x86-64 ELF, for `aether build`, and a
+  Linux x86-64 host to run the executables. Verified with binutils 2.42. Tests
+  that need them skip with a message when they are missing.
 
 ## Current limitations
 
-- Only `aether check` exists. There is no `aether build`, no code
-  generation, and no runtime. S1 programs are only interpreted, in tests.
+- Only S1 is supported: no functions besides `main`, no control flow, no
+  types other than `int`. The generated code is unoptimized: every value
+  goes through memory.
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S1 is **rejected with an explicit diagnostic**.
 
@@ -106,9 +117,7 @@ potentially long-term dependencies. The exact ownership boundaries are in
 Compile a single-file, import-free `package main` program into a static
 executable whose instructions Aether's backend generated. The program uses
 `int` local variables, `+ - *` with Go's wraparound semantics, nested blocks,
-and the `println` builtin. This is subset S1. S1 programs are recognized and
-lowered to IR (Phases 1–2), but **native code generation is not yet
-implemented** (Phase 3); see
+and the `println` builtin. This is subset S1. It was reached in Phase 3; see
 [docs/SEMANTICS.md](docs/SEMANTICS.md#subset-s1-accepted-d-012).
 
 The acceptance test checks:

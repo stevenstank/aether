@@ -28,6 +28,11 @@ changing anything architectural.
 - `internal/ir`: the IR, its printer, and its verifier. No `go/*` imports.
 - `internal/lower`: typed AST to IR.
 - `internal/interp`: the IR interpreter, a test oracle (D-005, D-021).
+- `internal/amd64`: the x86-64 backend; its runtime is GNU assembly in
+  `internal/amd64/rt/*.s` (no Go files there). No `go/*` imports.
+- `internal/toolchain`: finds, identifies, and runs GNU `as` and `ld`; the
+  only package that starts processes.
+- `cmd/aether/build.go`: `aether build` (D-022).
 - `cmd/aether/testdata/check`: the classification corpus. Each `*.go` file has
   an `// aether:expect` header and a reviewed `*.golden` file. Each `run` file
   also has a reviewed `*.ir` file with its lowered IR.

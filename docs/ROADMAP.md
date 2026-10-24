@@ -188,7 +188,8 @@ repeated in each phase below:
   - `go vet ./...` is clean, and `gofmt -l` reports nothing for non-testdata
     sources. `go test ./... -count=1` passes: 48 top-level tests and 550
     subtests, with none failing or skipped.
-  - **Differential suite (`TestInterpAgainstGc`):** for the 12 corpus programs
+  - **Differential suite (`TestInterpAgainstGc`, renamed
+    `TestDifferentialAgainstGc` in Phase 3):** for the 12 corpus programs
     expected to run (including S1-01 to S1-10) and 200 generated S1 programs,
     the interpreter's stdout, stderr, and exit status equal those of the
     gc-built binary. 51 generated programs with an overflowing constant
@@ -211,7 +212,7 @@ repeated in each phase below:
     in-process tests are in the same package, so moving it was not needed.
   - FI-1 (`TESTING.md`) remains open and unexplained.
 
-## Phase 3: First native executable (Milestone 1)
+## Phase 3: First native executable (Milestone 1) (complete 2026-10-24, pending owner review)
 
 - **Objective:** `aether build` turns an S1 program into a static Linux x86-64
   executable whose program logic comes from Aether's backend. See
@@ -247,6 +248,43 @@ repeated in each phase below:
   - binutils version differences
 - **Completion evidence:** the suite passes on a clean checkout, and primary
   checks P1–P6 of the Milestone 1 acceptance test pass.
+- **Evidence recorded 2026-10-24** (go1.26.1, GNU as and ld 2.42,
+  linux/amd64, WSL2):
+  - **Delivered:** `internal/amd64` (backend, runtime in `rt/*.s`),
+    `internal/toolchain`, and `aether build [-x] [-work] -o OUT FILE.go`
+    (D-022). `aether check` is unchanged.
+  - `go vet ./...` is clean, and `gofmt -l` reports nothing for non-testdata
+    sources. `go test ./... -count=1` passes on a clean clone of the
+    repository: 67 top-level tests and 598 subtests, with none failing or
+    skipped. `go test -short ./...` also passes.
+  - **Milestone 1:** `TestMilestone1`, `TestMilestone1Rejections`, and
+    `TestMilestone1Determinism` pass, covering P1–P6 and the supporting
+    evidence (`TESTING.md` §Provenance tests).
+  - **Three-way agreement:** for the 12 corpus programs expected to run
+    (S1-01 to S1-10 and two more) and 200 generated programs, the interpreter
+    and the native executable match gc's stdout, stderr, and exit status.
+    The 51 generated programs Aether classified `invalid` were all rejected by
+    gc for a constant overflow.
+  - **Backend and runtime:** every IR operation, run natively at the integer
+    boundaries (0, ±1, 2, 7, −10, the 32-bit limits, 3037000500,
+    `MaxInt64`, `MinInt64`), matches the interpreter. An ABI harness checks
+    that the helpers preserve `%rbx`, `%rbp`, `%r12`–`%r15`, and `%rsp`, print
+    the extreme values correctly, and ignore a write error.
+  - **Tool and output handling:** missing, non-GNU, wrong-target, failing,
+    and silent-failing tools each give exit 5 and leave the output path
+    unchanged.
+  - **Negative controls**, each detected: a runtime helper clobbering
+    `%r12`; a driver assembling text other than the backend's output; an
+    extra `ld` option; a backend multiply truncated to 32 bits.
+- **Known limitations:**
+  - Native code is unoptimized: every value goes through memory.
+  - Native correctness is shown on the corpus, generated programs, and
+    boundary tables, which are finite. `FuzzGenerated` exercises the
+    interpreter only, because running `as` and `ld` per input is too slow.
+  - The `-x` log includes the two identification commands (`as --version`,
+    `ld -V`) besides the build commands.
+  - Reproducibility is shown for one host and one binutils version only.
+  - FI-1 (`TESTING.md`) remains open and unexplained.
 
 ## Phase 4: Functions, control flow, integer types (S2)
 
@@ -403,7 +441,10 @@ repeated in each phase below:
 
 ## Milestone 1 acceptance test
 
-**This is not implemented. It is the specification for Phase 3.**
+**Implemented in Phase 3** by `cmd/aether/m1_test.go`. The program is the
+corpus file `cmd/aether/testdata/check/s1_03_milestone1.go`, copied by the test
+to `m1_arith.go`, so its IR golden file is the reviewed
+`s1_03_milestone1.ir`.
 
 **Program** `testdata/e2e/m1_arith.go` (illustrative content):
 
@@ -507,7 +548,8 @@ it:
 **Supporting evidence.** Recorded and checked, but not sufficient on its own:
 - The `-x` log lists exactly one `as` invocation per assembly file and one
   `ld` invocation, with the same tools, arguments, and environment the harness
-  used in P3, and no other process.
+  used in P3. The only other processes are the two identification commands,
+  `as --version` and `ld -V`, which come first.
 - The dependency test (`ARCHITECTURE.md` §8) shows that `os/exec` enters the
   dependency graph only through `internal/toolchain`, and that `go/importer` and
   `go/build` are not imported.

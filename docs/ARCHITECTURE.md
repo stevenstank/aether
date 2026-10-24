@@ -5,8 +5,9 @@ Status:
   diagnostics, and the `aether check` driver.
 - **Implemented (Phase 2):** stages 3 (lowering), 4 (IR, with verifier and
   printer), and 5 (reference interpreter), for S1.
-- **Design only:** every later stage (optimizer, backend, assembly and
-  linking, runtime).
+- **Implemented (Phase 3):** stages 7 (amd64 backend), 8 (assembly and
+  linking with GNU `as`/`ld`), and 9 (runtime), for S1, and `aether build`.
+- **Design only:** the optimizer (stage 6), and everything beyond S1.
 
 Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
 "proposed", the corresponding decision is not yet accepted.
@@ -269,35 +270,52 @@ and value numbering never depend on map iteration order.
 
 ### 7. Backend (Aether, architecture-specific)
 
-The **Phase 3 approach** (D-007) is deliberately naive:
-- Every IR value and local gets an 8-byte, 8-byte-aligned, `rbp`-relative
-  stack slot.
-- Each instruction loads its operands into fixed scratch registers, computes,
-  and stores the result.
-- The frame is `rbp`-based, and its size is rounded so that `rsp` is 16-byte
-  aligned at every `call`.
-- The output is GNU assembly in AT&T syntax.
+The **Phase 3 backend** (`internal/amd64`, D-007, D-022) is deliberately
+naive. There is no register allocation and no optimization: each IR
+instruction maps to a fixed instruction sequence. The output is GNU assembly
+in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
+`go/*` package, which a dependency test enforces.
 
-This makes register allocation unnecessary for the first executable. The
-backend consumes only IR: `internal/amd64` must not import `go/ast`,
-`go/types`, `go/token`, or `go/parser`.
+**Frame layout.** `main` is emitted as the global function `main.main`:
 
-**Integer representation (S1).**
-- `int` is a 64-bit two's-complement value held in a 64-bit register or slot.
-- The S1 operations map to instructions whose 64-bit results already have Go's
-  wraparound semantics:
-  - `+` → `addq`
-  - `-` → `subq`
-  - `*` → `imulq`, low 64 bits
-  - unary `-` → `negq`, which maps `MinInt64` to itself
-- Constants are materialized with `movq` for values that fit a sign-extended
-  32-bit immediate, and `movabsq` otherwise.
-- No S1 operation needs a flag check or a special case.
+```
+ 8(%rbp)                  return address
+ 0(%rbp)                  saved %rbp
+-8(%rbp) .. -8*S(%rbp)    slots s0 .. s(S-1)
+-8*(S+1)(%rbp) ..         values v0 .. v(V-1)
+```
 
-**Runtime calls (S1).** The backend expands each `println` instruction into
-calls to the runtime helpers, using the interface in §Runtime integration
-boundary: print-int for each operand, print-space between operands, and
-print-newline at the end (D-021).
+- **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
+  checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
+  error, so offsets always fit a 32-bit displacement.
+- **Prologue:** `pushq %rbp; movq %rsp, %rbp; subq $Size, %rsp` (no `subq`
+  for an empty frame). **Epilogue** (`ret`): `movq %rbp, %rsp; popq %rbp;
+  ret`.
+- **Alignment.** `_start` calls `main.main` with `%rsp` 16-byte aligned, so it
+  is 8 mod 16 on entry, 0 after the push, and stays 0 after subtracting
+  `Size`. Every runtime call is therefore made with `%rsp` aligned.
+- **Registers.** Generated code uses only `%rax` (scratch) and `%rdi` (helper
+  argument), besides `%rbp` and `%rsp`. No value is kept in a register across
+  instructions, so nothing needs saving around calls: every value lives in the
+  frame, which the helpers do not touch.
+
+**Instruction selection.** `int` is a 64-bit two's-complement value. Every
+selected instruction already has Go's wraparound semantics, so no operation
+needs a flag check or a special case.
+
+| IR | Assembly |
+|---|---|
+| `vN = const c` | `movq $c, vN` if `c` fits a sign-extended 32-bit immediate; otherwise `movabsq $c, %rax; movq %rax, vN` |
+| `vN = load sK` | `movq sK, %rax; movq %rax, vN` |
+| `store sK, vA` | `movq vA, %rax; movq %rax, sK` |
+| `vN = add/sub/mul vA, vB` | `movq vA, %rax; addq/subq/imulq vB, %rax; movq %rax, vN` (`imulq` keeps the low 64 bits) |
+| `vN = neg vA` | `movq vA, %rax; negq %rax; movq %rax, vN` (`negq` maps `MinInt64` to itself) |
+| `println vA, vB, …` | `movq vA, %rdi; call aether.printint; call aether.printsp; movq vB, %rdi; call aether.printint; …; call aether.printnl` |
+| `ret` | the epilogue |
+
+Each instruction's code is preceded by a comment holding the IR instruction
+and its line and column. The output contains no paths, times, or host data,
+and ends with an empty `.note.GNU-stack` section (no executable stack).
 
 **Later** (Phase 5):
 - instruction selection over SSA
@@ -317,18 +335,30 @@ dependencies (D-008).
 - **`ld`:** constructs the static executable from Aether's program object and
   runtime objects.
 
-**Commands.** The driver runs `as --64` on the generated `.s` and on each
-runtime `.s`, then `ld -static -nostdlib -e _start`, with no other inputs or
-libraries.
+**Commands.** In the work directory, with the environment `LC_ALL=C` only:
+
+```
+as --64 -o prog.o prog.s
+as --64 -o print.o print.s
+as --64 -o start.o start.s
+ld -static -nostdlib -e _start -o a.out prog.o print.o start.o
+```
+
+The runtime files are processed in name order, and nothing else is linked.
+Only these fixed names are passed to the tools; the user's paths never are,
+so none can be read as an option.
 
 **Driver requirements** (`internal/toolchain`):
 - **Availability and identity check before use.**
-  - Locate each tool (`PATH` by default; an override mechanism is defined in
-    Phase 3), and resolve it to an absolute path.
-  - Confirm it is the GNU tool (`as --version` / `ld -v` version line).
-  - Confirm it can target x86-64 ELF.
-  - Confirm the host is linux/amd64 when the build is going to run the
-    executable.
+  - Locate each tool on `PATH`, which is also the override mechanism
+    (D-022), and resolve it to an absolute path.
+  - Confirm it is the GNU tool: the first line of `as --version` starts with
+    `GNU assembler`, and that of `ld -V` with `GNU ld`.
+  - Confirm it can target x86-64 ELF: `as --version` names an `x86_64-`
+    target, and `ld -V` lists the `elf_x86_64` emulation.
+  - `aether build` does not run the executable, so it does not check the
+    host; the tests that run executables skip on hosts other than
+    linux/amd64.
 - **Clear errors.** Any failure is a `tool` diagnostic naming:
   - the tool
   - the path used or searched
@@ -346,28 +376,31 @@ libraries.
   absolute path, with the work directory as the current directory. The
   invoking user's environment therefore cannot change tool behavior, and tool
   messages are stable.
-- **Command log.** With `-x`, the driver logs:
-  - every command it runs: absolute tool path, arguments, and environment
-  - each tool's version line
+- **Command log.** With `-x`, the driver logs to stderr:
+  - every command it runs, including the two identification commands, as
+    `LC_ALL=C /abs/path args…`
+  - each tool's version line, as `# as version: …`
+  - the work directory, as `cd DIR`
 
   The log is supporting provenance evidence. The primary checks reproduce the
   build independently (`ROADMAP.md` §Milestone 1).
 - **Work directory layout.** The work directory is a fresh temporary directory
   per build. It contains:
   - `prog.s` (the program assembly) and `prog.o`
-  - one `.s`/`.o` pair per runtime file
-  - the unrenamed link output
+  - one `.s`/`.o` pair per runtime file (`print.s`, `start.s`)
+  - the link output, `a.out`
 
-  The directory is removed after the build, unless `-work` is given, in which
-  case its path is printed.
+  It is created only after the program has been accepted and emitted. It is
+  removed after the build, unless `-work` is given, in which case
+  `WORK=DIR` is printed to stderr.
 - **Output handling.**
-  - `ld` writes to a temporary name in the work directory.
-  - The result is moved to the output path only after every step has
-    succeeded. It is renamed when both are on the same file system; otherwise
-    it is copied to a temporary file next to the output path and that file is
-    renamed.
+  - `ld` writes `a.out` in the work directory.
+  - Only after every step has succeeded is it copied to a temporary file next
+    to the output path, made mode 0755, and renamed over the output path.
   - On any failure the output path is neither created nor modified. A file
-    already there is left untouched.
+    already there is left untouched, and the temporary file is removed.
+  - Before building, an output path that is a directory, a symbolic link,
+    another non-regular file, or the input file itself is refused (exit 2).
 - **Reproducibility** (D-008):
   - fixed argument lists, a fixed tool environment, and fixed relative file
     names inside a fresh work directory
@@ -380,13 +413,18 @@ libraries.
 
 ### 9. Runtime (Aether, D-009)
 
-- **Phase 3:** hand-written GNU assembly containing:
-  - `_start`: align the stack, `call main.main`, then `exit_group(0)`.
-  - Integer printing and space/newline helpers.
-    - They write to fd 2 with raw `write` syscalls.
-    - Short writes are continued and `EINTR` is retried.
-    - Other errors are ignored (D-009, E7).
-    - Integer formatting must handle `MinInt64` without negating it.
+- **Phase 3 (implemented):** hand-written GNU assembly:
+  - `rt/start.s`: `_start` clears `%rbp`, aligns `%rsp` to 16 bytes,
+    `call main.main`, then `exit_group(0)`.
+  - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
+    - They write to fd 2 with raw `write` syscalls, through a local routine
+      that continues short writes, retries `EINTR`, and gives up silently on
+      any other error or a write that makes no progress (D-009, E7).
+    - `aether.printint` formats into a 32-byte buffer on its stack. It
+      converts the value to a non-positive number and divides by 10 with
+      `idivq`, so `MinInt64` is never negated.
+  - The only global symbols are `_start` and the three helpers; internal
+    labels are local (`.L…`).
 - **Phase 4:** adds the minimal panic exit (status 2).
 - **Source layout:** runtime sources live in `internal/amd64/rt/*.s`, a
   subdirectory with no Go files. They are embedded into the compiler with
@@ -403,7 +441,7 @@ that interface is:
 |---|---|---|
 | `_start` | runtime | Process entry. Calls `main.main`, then exits 0. |
 | `main.main` | compiler | Aether-compiled `main`. No arguments, no results. Called with `rsp` 16-byte aligned before `call`. |
-| runtime print helpers (names fixed in Phase 3) | runtime | Print one `int64` in decimal / a space / a newline to fd 2. Planned calling interface, to be fixed in Phase 3 with the runtime source: the integer argument in `%rdi`; no result; `rsp` 16-byte aligned before `call`; the helper preserves `rbx`, `rbp`, `r12`–`r15` and may clobber every other general-purpose register (a subset of the System V convention). This interface covers only runtime helpers. It does not decide D-011. |
+| `aether.printint`, `aether.printsp`, `aether.printnl` | runtime | Print one `int64` (in `%rdi`) in decimal / a space / a newline to fd 2. No result; `%rsp` 16-byte aligned before `call`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15` and may clobber every other general-purpose register (a subset of the System V convention). Write errors other than `EINTR` are ignored. This interface covers only runtime helpers. It does not decide D-011 (D-022). |
 
 Rules:
 - The compiler may only call runtime symbols listed in this table (later, in a
@@ -434,7 +472,7 @@ Staging follows `ROADMAP.md`.
 Packages are created only when code exists. Everything lives under one module.
 
 **Implemented in Phase 1:**
-- `cmd/aether`: `check` only, plus the stage ordering in `check.go`.
+- `cmd/aether`: `check`, plus the stage ordering in `check.go`.
 - `internal/diag`
 - `internal/frontend`
 - `internal/gate`
@@ -443,6 +481,11 @@ Packages are created only when code exists. Everything lives under one module.
 - `internal/ir`
 - `internal/lower`
 - `internal/interp`
+
+**Implemented in Phase 3:**
+- `internal/amd64`, with the runtime in `internal/amd64/rt/*.s`
+- `internal/toolchain`
+- `cmd/aether`: `build`, in `build.go`
 
 The other rows are still candidates.
 
@@ -495,7 +538,9 @@ the built `aether` binary, and gc as the oracle.
   - Panics inside Aether are recovered at the driver and reported as `internal`.
 - **No output on failure:** no file is created at the output path on any error.
   This covers every class, including `tool`. Gate and frontend failures stop
-  before any `.s` or `.o` is produced. Linking is atomic (§8).
+  before any `.s` or `.o` is produced, and before any tool runs. Publishing
+  the executable is atomic, and an existing file at the output path is left
+  unchanged on failure (§8).
 
 **CLI exit codes** (finalized in Phase 1, D-018; streams and usage errors are
 specified there):
@@ -504,7 +549,7 @@ specified there):
 |---|---|
 | 0 | success |
 | 1 | `invalid` |
-| 2 | usage error |
+| 2 | usage error; for `build`, also an unwritable work directory or output (D-022) |
 | 3 | `unsupported` |
 | 4 | `internal` |
 | 5 | `tool` |

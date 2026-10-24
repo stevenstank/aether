@@ -36,7 +36,8 @@ format, finalized in Phase 1, is:
   `invalid`. For example, a file that is `unsupported` because of an import,
   but also contains a type error, is `// aether:gc invalid`.
 - `run` means the program is accepted by `aether check` and, since Phase 2,
-  that its interpreted behavior equals gc's (`TestInterpAgainstGc`). The
+  that its interpreted and native behavior equal gc's
+  (`TestDifferentialAgainstGc`). The
   corpus is `cmd/aether/testdata/check/*.go`. Each file has a reviewed
   `.golden` file holding the exact stderr of `aether check`, and each `run`
   file also has a reviewed `.ir` file holding its lowered IR
@@ -107,8 +108,10 @@ flag (`-update`). Golden-file diffs are reviewed like code. They cover:
 
 The full pipeline runs: source → `aether build` → execute → compare.
 
-These tests run only when GNU `as` and `ld` pass the driver's identity check
-(D-008) on a linux/amd64 host. Otherwise they are **skipped with a visible
+Implemented in Phase 3: `TestBuildCorpus` builds and runs every corpus
+program expected to run, and `TestDifferentialAgainstGc` every differential
+program. They run only when GNU `as` and `ld` are found on a linux/amd64
+host. Otherwise they are **skipped with a visible
 message naming the missing or unidentified tool**, never silently passed.
 
 Separate driver tests cover the tool-failure paths with stand-in tools on
@@ -121,9 +124,11 @@ For each `// aether:expect run` program:
 1. `go build -o ref prog.go`, then execute `ref`. Never use `go run`: it
    rewrites the exit status (E1).
 2. Run the Aether interpreter (from Phase 2) and the Aether-built executable
-   (from Phase 3). Phase 2's `TestInterpAgainstGc` (`cmd/aether`) builds
-   every program in one `go build` of a temporary module outside the
-   repository, with `GOTOOLCHAIN=local`.
+   (from Phase 3). `TestDifferentialAgainstGc` (`cmd/aether`) builds every
+   program with gc in one `go build` of a temporary module outside the
+   repository, with `GOTOOLCHAIN=local`, and builds each with
+   `aether build` in-process. Without GNU `as`/`ld`, the native comparison is
+   skipped with a logged message.
 3. Compare stdout, stderr, and exit status across all three.
 4. Apply normalization only for divergences listed in `SEMANTICS.md` §Known
    divergences. Example from Phase 4: for panicking programs, compare only the
@@ -141,12 +146,14 @@ against a list of every allowed outcome.
 
 **Generated programs (Phase 2).** `generate` (`cmd/aether/gen_test.go`)
 derives a random S1 program from a seed. It uses every S1 construct and
-literals that make arithmetic wrap. `TestInterpAgainstGc` runs the first 200
-generated programs that type-check (a generated constant expression may
-overflow `int`, which is `invalid`; any other rejection fails the test).
-Negative controls confirmed that it detects a wrong `neg` of the minimum in
-the interpreter, and tuple assignments lowered with reversed or
-non-simultaneous stores.
+literals that make arithmetic wrap. `TestDifferentialAgainstGc` runs the
+first 200 generated programs that type-check. A generated constant expression
+may overflow `int`: Aether must classify such a program `invalid` with an
+"overflows" message, and one `go build` of all of them must show gc rejecting
+each for the same reason. Any other rejection fails the test. Negative
+controls confirmed that it detects a wrong `neg` of the minimum in the
+interpreter, tuple assignments lowered with reversed or non-simultaneous
+stores, and a backend multiply truncated to 32 bits.
 
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
@@ -288,8 +295,9 @@ differential harness.
     relative file names.
   - **Deliberately varied:** the work-directory location, the current
     directory, the output path, and an unrelated environment variable.
-- This is tested in Phase 3 and later. Reproducibility across binutils
-  versions, Aether builds, or hosts is not claimed.
+- This is tested from Phase 3 on (`TestMilestone1Determinism`).
+  Reproducibility across binutils versions, Aether builds, or hosts is not
+  claimed.
 - Phase 0 experiments support feasibility, but they are not a guarantee:
   - E2: identical rebuilds.
   - E6: identical executables across different work-directory paths and input
@@ -323,6 +331,13 @@ test.
   documented code. They create nothing at the output path and leave any
   pre-existing file there unchanged.
 - **P6:** Rebuilds are reproducible under the documented conditions above.
+
+**Implementation** (`cmd/aether/m1_test.go`, Phase 3): `TestMilestone1`
+(P1–P4 and the supporting evidence), `TestMilestone1Rejections` (P5), and
+`TestMilestone1Determinism` (P6). They run the `aether` binary, built by the
+test. Negative controls confirmed that P2 and P3 fail when the driver
+assembles text other than the backend's output, and that P3 and the command
+log check fail when an extra `ld` option is passed.
 
 **Supporting evidence**, recorded but not sufficient on its own:
 - Aether's `-x` command log

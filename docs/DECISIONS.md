@@ -46,6 +46,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-019 | `func main() ()` is `unsupported`, not `invalid` | Accepted |
 | D-020 | `func main()` without a body is `unsupported` | Accepted |
 | D-021 | The S1 IR instruction set and its contract | Accepted |
+| D-022 | The Phase 3 backend, runtime interface, and `aether build` | Accepted |
 
 ## Review log
 
@@ -981,6 +982,10 @@ precedence); `cmd/aether` tests (`TestRunUsage`, `TestRunMultipleFiles`,
 **Revisit when.** A new class of failure appears that none of the codes
 describes.
 
+**Phase 3 note.** D-022 applies these codes to `aether build`: exit 5 for
+`as`/`ld` problems, and exit 2 also for failures of Aether's own file
+operations (the work directory and the output file).
+
 ---
 
 ## D-019: `func main() ()` is `unsupported`, not `invalid`
@@ -1140,12 +1145,100 @@ and definite-assignment checks, so the verifier is complete for S1.
 **Evidence and tests.** `internal/ir` tests: the printer's exact output, and
 29 verifier negative tests, one per invariant. `internal/lower` and the IR
 goldens `cmd/aether/testdata/check/*.ir`. `internal/interp` unit tests.
-`TestInterpAgainstGc`: for the 12 corpus programs expected to run and 200
+`TestInterpAgainstGc` (now `TestDifferentialAgainstGc`): for the 12 corpus
+programs expected to run and 200
 generated S1 programs, the interpreter's stdout, stderr, and exit status
 equal those of the gc-built binary.
 
 **Revisit when.** S2 adds control flow, or a construct cannot be lowered to
 this form without a new instruction.
+
+---
+
+## D-022: The Phase 3 backend, runtime interface, and `aether build`
+
+**Status:** Accepted (Phase 3). It fixes what D-007, D-008, and D-009 left
+to Phase 3: the runtime helper names and interface, the tool override
+mechanism, and the `build` command's behavior. It does not decide D-011.
+
+**Context.** Milestone 1 needs a backend, a runtime, and a driver. The
+earlier decisions fixed their shape (GNU `as`/`ld`, AT&T syntax, a
+slot-per-value backend, a hand-written assembly runtime) but not these
+details.
+
+**Decision.**
+- **Backend** (`internal/amd64`). Every slot and every IR value has its own
+  8-byte `%rbp`-relative stack slot; each instruction loads its operands into
+  `%rax` (and `%rdi` for helper arguments), computes, and stores the result.
+  Frames are rounded to 16 bytes and limited to 1 GiB; a larger frame is an
+  internal error, never wrong assembly. The mapping is in `ARCHITECTURE.md`
+  §7. `main` becomes the symbol `main.main`.
+- **Runtime helpers.** `aether.printint` (argument in `%rdi`),
+  `aether.printsp`, and `aether.printnl`. They require `%rsp` 16-byte aligned
+  at the call, return nothing, preserve `%rbx`, `%rbp`, and `%r12`–`%r15`, and
+  may clobber every other general-purpose register. They write to fd 2,
+  continue short writes, retry `EINTR`, and ignore other errors.
+- **`println` expansion.** The backend expands each `println` instruction
+  into one `aether.printint` call per operand, `aether.printsp` between
+  operands, and `aether.printnl` at the end. The operands live in the frame,
+  which the helpers do not touch, and are all computed before the first call
+  (D-021).
+- **Tools.** `as` and `ld` are found on `PATH` and resolved to absolute
+  paths; `PATH` is the override mechanism. `as --version` must start with
+  `GNU assembler` and name an `x86_64-` target; `ld -V` must start with
+  `GNU ld` and list the `elf_x86_64` emulation (`-V` prints the `-v` version
+  line followed by the emulations). A tool that exits 0 without writing its
+  output is a tool failure.
+- **`aether build [-x] [-work] -o OUT FILE.go`.**
+  - `-o` is required. `OUT` may replace an existing regular file, only when
+    the build succeeds. A directory, symbolic link, other non-regular file, or
+    the input file itself is refused as a usage error, before building.
+  - The program is classified, lowered, verified, and emitted before any tool
+    is looked for, so invalid and unsupported programs never run a tool or
+    create a work directory.
+  - The executable is copied to a temporary file next to `OUT`, made mode
+    0755, and renamed over `OUT`. It is always copied, never renamed from the
+    work directory, which usually lies on another file system.
+  - Failures of Aether's own file operations (creating the work directory,
+    writing the output) are reported as `aether build: …` with exit 2, like
+    D-018's unreadable input files.
+- No `aether run-ir` command (D-021 stands).
+
+**Alternatives considered.**
+1. **One runtime call per `println`**, passing a count and a pointer to the
+   values. Rejected: it needs a memory-passing convention for a variable
+   number of arguments, which belongs to D-011.
+2. **Tool override by flags or environment variables** (`-as`, `AETHER_AS`).
+   Not needed: `PATH` already selects the tools, the identity check still
+   applies, and the Milestone 1 tests use `PATH` stand-ins.
+3. **A default output name** (as `go build` derives one). Deferred: an
+   explicit `-o` avoids silently replacing a file the user did not name.
+4. **Renaming the link output when it is on the same file system.** Copying
+   always is simpler and has the same failure guarantees.
+
+**Rationale.** Each choice is the smallest one that meets the Milestone 1
+requirements, and keeps everything that determines the generated program on
+Aether's side (D-008).
+
+**Consequences.**
+- Phase 4's calling convention (D-011) must coexist with the helper
+  interface, which is not a general calling convention.
+- Generated code is slow: every value goes through memory. Phase 5 replaces
+  this.
+
+**Evidence and tests.**
+- `internal/amd64`: the assembly golden file, constant selection, frame
+  layout and limits, native execution of every operation at integer
+  boundaries against the interpreter, and an ABI harness that checks the
+  preserved registers, `%rsp`, formatting of `MinInt64` and `MaxInt64`, and
+  that a write to `/dev/full` is ignored.
+- `internal/toolchain`: identification and rejection of tools, the fixed
+  environment, and error contents.
+- `cmd/aether`: `TestBuild*`, the Milestone 1 acceptance test (P1–P6), and
+  `TestDifferentialAgainstGc` (gc, interpreter, and native on 212 programs).
+
+**Revisit when.** Phase 4 decides D-011, or Phase 5 introduces register
+allocation.
 
 ---
 
