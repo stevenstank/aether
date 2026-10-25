@@ -218,7 +218,7 @@ has a defined normalization in the test harness.
 
 | ID | Area | Divergence | Since | Normalization in tests |
 |---|---|---|---|---|
-| — | — | None yet (no implementation) | — | — |
+| V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 
 Planned (Phase 4): the panic output has no goroutine traceback. Tests compare
 only the first stderr line and the exit status for panicking programs.
@@ -384,7 +384,10 @@ No S1 program depends on behavior the spec leaves unspecified.
 S1 programs have no run-time panics. Output goes only to stderr through
 `println`. The process exits with status 0 when `main` returns. The spec says
 only that the program exits; status 0 is gc's observed behavior (E1, E4), and
-Aether matches it.
+Aether matches it. `main` runs on a stack the runtime maps to fit its frame,
+so the result does not depend on `ulimit -s`. The only other outcome is
+divergence V-1: if that stack cannot be mapped, the program exits with
+status 2 before `main` runs.
 
 **Limitations of S1**
 

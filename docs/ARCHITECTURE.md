@@ -288,10 +288,17 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 - **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
   checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
   error, so offsets always fit a 32-bit displacement.
+- **Stack.** After the code, the backend emits the read-only 8-byte datum
+  `aether.mainstack = 16 + Size`: the bytes `main.main` uses below `_start`'s
+  call (return address, saved `%rbp`, frame). The runtime maps a stack that
+  large (§9), so a frame never depends on the process stack limit
+  (`ulimit -s`). Before this (F1), a frame over the default 8 MiB stack
+  crashed with SIGSEGV.
 - **Prologue:** `pushq %rbp; movq %rsp, %rbp; subq $Size, %rsp` (no `subq`
   for an empty frame). **Epilogue** (`ret`): `movq %rbp, %rsp; popq %rbp;
   ret`.
-- **Alignment.** `_start` calls `main.main` with `%rsp` 16-byte aligned, so it
+- **Alignment.** `_start` calls `main.main` on that stack with `%rsp` 16-byte
+  aligned, so it
   is 8 mod 16 on entry, 0 after the push, and stays 0 after subtracting
   `Size`. Every runtime call is therefore made with `%rsp` aligned.
 - **Registers.** Generated code uses only `%rax` (scratch) and `%rdi` (helper
@@ -414,17 +421,24 @@ so none can be read as an option.
 ### 9. Runtime (Aether, D-009)
 
 - **Phase 3 (implemented):** hand-written GNU assembly:
-  - `rt/start.s`: `_start` clears `%rbp`, aligns `%rsp` to 16 bytes,
-    `call main.main`, then `exit_group(0)`.
+  - `rt/start.s`: `_start` clears `%rbp`, maps the main stack, switches
+    `%rsp` to its top (page-aligned), calls `main.main`, then
+    `exit_group(0)`.
+    - The stack is `aether.mainstack` bytes plus a 4096-byte reserve for the
+      helpers (which use at most 56 bytes below `%rsp`), rounded up to whole
+      pages, with a `PROT_NONE` guard page below (`mmap`, then `mprotect`).
+    - If either call fails, `_start` writes `fatal error: cannot allocate the
+      main stack` to fd 2 and exits with status 2 (`SEMANTICS.md`, D-022).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
-      that continues short writes, retries `EINTR`, and gives up silently on
-      any other error or a write that makes no progress (D-009, E7).
+      (`aether.write`) that continues short writes, retries `EINTR`, and
+      gives up silently on any other error or a write that makes no progress
+      (D-009, E7).
     - `aether.printint` formats into a 32-byte buffer on its stack. It
       converts the value to a non-positive number and divides by 10 with
       `idivq`, so `MinInt64` is never negated.
-  - The only global symbols are `_start` and the three helpers; internal
-    labels are local (`.L…`).
+  - The only global symbols are `_start`, the three helpers, and
+    `aether.write`; internal labels are local (`.L…`).
 - **Phase 4:** adds the minimal panic exit (status 2).
 - **Source layout:** runtime sources live in `internal/amd64/rt/*.s`, a
   subdirectory with no Go files. They are embedded into the compiler with
@@ -439,9 +453,11 @@ that interface is:
 
 | Symbol | Provided by | Contract |
 |---|---|---|
-| `_start` | runtime | Process entry. Calls `main.main`, then exits 0. |
+| `_start` | runtime | Process entry. Maps the main stack from `aether.mainstack`, calls `main.main` on it, then exits 0. Exits 2 with a fatal error if the stack cannot be mapped. |
+| `aether.mainstack` | compiler | Read-only 8-byte datum: the bytes `main.main` uses below `_start`'s call, excluding the helpers' own use. |
 | `main.main` | compiler | Aether-compiled `main`. No arguments, no results. Called with `rsp` 16-byte aligned before `call`. |
 | `aether.printint`, `aether.printsp`, `aether.printnl` | runtime | Print one `int64` (in `%rdi`) in decimal / a space / a newline to fd 2. No result; `%rsp` 16-byte aligned before `call`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15` and may clobber every other general-purpose register (a subset of the System V convention). Write errors other than `EINTR` are ignored. This interface covers only runtime helpers. It does not decide D-011 (D-022). |
+| `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
 
 Rules:
 - The compiler may only call runtime symbols listed in this table (later, in a

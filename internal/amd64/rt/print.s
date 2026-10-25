@@ -7,6 +7,10 @@
 #
 # Short writes are continued and EINTR is retried. Any other write error is
 # ignored and the program continues, as with gc (E7).
+#
+# aether.write, which they share, writes %rdx bytes at %rsi to file
+# descriptor 2 under the same rules. It is for the runtime's own use (_start's
+# fatal error) and clobbers %rax, %rcx, %rdx, %rsi, %rdi, and %r11.
 
 	.text
 
@@ -35,7 +39,7 @@ aether.printint:
 	movb	$45, (%rsi)		# '-'
 3:	leaq	32(%rsp), %rdx
 	subq	%rsi, %rdx		# length
-	call	.Lwrite
+	call	aether.write
 	addq	$40, %rsp
 	ret
 	.size	aether.printint, .-aether.printint
@@ -45,7 +49,7 @@ aether.printint:
 aether.printsp:
 	leaq	.Lspace(%rip), %rsi
 	movl	$1, %edx
-	jmp	.Lwrite
+	jmp	aether.write
 	.size	aether.printsp, .-aether.printsp
 
 	.globl	aether.printnl
@@ -53,25 +57,26 @@ aether.printsp:
 aether.printnl:
 	leaq	.Lnewline(%rip), %rsi
 	movl	$1, %edx
-	jmp	.Lwrite
+	jmp	aether.write
 	.size	aether.printnl, .-aether.printnl
 
-# .Lwrite writes %rdx bytes at %rsi to file descriptor 2. It clobbers %rax,
-# %rcx, %rdx, %rsi, %rdi, and %r11.
-.Lwrite:
+	.globl	aether.write
+	.type	aether.write, @function
+aether.write:
 	testq	%rdx, %rdx
 	jle	2f
 	movl	$1, %eax		# write
 	movl	$2, %edi		# standard error
 	syscall				# clobbers %rcx and %r11
 	cmpq	$-4, %rax		# -EINTR: retry
-	je	.Lwrite
+	je	aether.write
 	testq	%rax, %rax
 	jle	2f			# other error, or no progress: give up
 	addq	%rax, %rsi
 	subq	%rax, %rdx
-	jmp	.Lwrite
+	jmp	aether.write
 2:	ret
+	.size	aether.write, .-aether.write
 
 	.section	.rodata
 .Lspace:

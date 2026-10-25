@@ -276,8 +276,16 @@ repeated in each phase below:
   - **Negative controls**, each detected: a runtime helper clobbering
     `%r12`; a driver assembling text other than the backend's output; an
     extra `ld` option; a backend multiply truncated to 32 bits.
+- **Fix-up F1, 2026-10-25** (post-Phase-3 audit): a valid program with a
+  frame over the 8 MiB process stack built but crashed with SIGSEGV, while gc
+  ran it. `main.main` now runs on a stack the runtime maps to fit its frame
+  (D-022). `TestBuildLargeFrame` and `TestRuntimeStack` cover this under
+  reduced stack limits. Two negative controls each made both tests fail.
 - **Known limitations:**
   - Native code is unoptimized: every value goes through memory.
+  - If the stack mapping is refused, the program exits with status 2 and a
+    fatal error (`SEMANTICS.md` V-1). The 1 GiB maximum frame was run on this
+    host only, where the mapping was granted.
   - Native correctness is shown on the corpus, generated programs, and
     boundary tables, which are finite. `FuzzGenerated` exercises the
     interpreter only, because running `as` and `ld` per input is too slow.

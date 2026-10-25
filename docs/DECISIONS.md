@@ -55,6 +55,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | 2026-10-24 | Phase 0 register created | D-001 – D-017 |
 | 2026-10-24 | Owner Phase 0 review: S1 accepted with clarifications; module path confirmed; GNU `as`/`ld` accepted as initial and potentially long-term dependencies; Milestone 1 provenance checks restructured | D-007, D-008, D-012, D-015 |
 | 2026-10-24 | Pre-Phase 1 audit (E7–E11), covering the items below. No status changed. | D-001, D-002, D-003, D-006, D-009, D-010, D-011, D-012, D-013 |
+| 2026-10-25 | Phase 3 fix-up F1: the runtime maps `main`'s stack from a size the compiler declares. No status changed. | D-009, D-022 (D-011 noted) |
 
 The pre-Phase 1 audit made these corrections and clarifications:
 - Corrected the `/` and `%` rationale in D-012.
@@ -556,6 +557,15 @@ the full G/M/P scheduler model (`runtime/HACKING.md`).
     `println` program still exits 0 (E7).
 - For Phase 4, a minimal panic path: print the message, `exit_group(2)`.
 
+**Amendment (2026-10-25, F1, detailed in D-022).** `_start` no longer runs
+`main.main` on the process stack. It maps a stack sized from the compiler's
+`aether.mainstack` datum, with a guard page, and exits with status 2 and a
+fatal error if it cannot. The process stack limit no longer decides whether a
+valid program runs. This covers Phase 3 only, where `main.main` is the only
+function and its stack need is known at build time. Calls of unknown depth
+(Phase 4 recursion) will need a fixed-size runtime stack and a prologue bound
+check. That belongs to D-011, which remains Proposed.
+
 In Phases 3 and 4 the runtime is hand-written GNU assembly kept in the
 repository. Once Aether can compile a large enough subset, runtime routines
 should move to Go source compiled by Aether itself. Linux syscalls follow the
@@ -651,6 +661,10 @@ place in the amd64 backend that defines it. A register-based convention would
 follow in Phase 5 with the register allocator. SysV would be used only at
 explicit foreign boundaries, if any are added. The prologue must leave room for
 a future stack-growth check (Phase 10).
+
+**Phase 3 basis (F1, D-022).** `main.main` runs on a stack the runtime maps
+itself. Whatever convention is chosen must keep that model or replace it
+explicitly; a stack-bound check for recursion is not decided here.
 
 **Missing evidence.** Whether goroutine stack strategy (segmented, copying, or
 fixed-large) constrains the convention. Not yet investigated.
@@ -1173,6 +1187,19 @@ details.
   Frames are rounded to 16 bytes and limited to 1 GiB; a larger frame is an
   internal error, never wrong assembly. The mapping is in `ARCHITECTURE.md`
   §7. `main` becomes the symbol `main.main`.
+- **Main stack** (F1 fix-up, 2026-10-25). The backend emits the read-only
+  datum `aether.mainstack = 16 + frame size`. `_start` maps that many bytes
+  plus a 4096-byte helper reserve, rounded up to pages, with a `PROT_NONE`
+  guard page below, and calls `main.main` on it. If `mmap` or `mprotect`
+  fails, it prints `fatal error: cannot allocate the main stack` through the
+  new runtime routine `aether.write` and exits with status 2 (`SEMANTICS.md`
+  V-1). Before this, a frame larger than the process stack (8 MiB by
+  default, less under a reduced `ulimit -s`) built successfully and crashed
+  with SIGSEGV, while gc ran the same program. Lowering the 1 GiB limit was
+  rejected: it would still fail under a smaller `ulimit -s`. Deriving a bound
+  from `RLIMIT_STACK` was rejected: it needs the top of the kernel's stack
+  mapping, which can only be inferred from the auxv layout, and it would
+  still turn programs gc runs into failures.
 - **Runtime helpers.** `aether.printint` (argument in `%rdi`),
   `aether.printsp`, and `aether.printnl`. They require `%rsp` 16-byte aligned
   at the call, return nothing, preserve `%rbx`, `%rbp`, and `%r12`–`%r15`, and
@@ -1231,11 +1258,14 @@ Aether's side (D-008).
   layout and limits, native execution of every operation at integer
   boundaries against the interpreter, and an ABI harness that checks the
   preserved registers, `%rsp`, formatting of `MinInt64` and `MaxInt64`, and
-  that a write to `/dev/full` is ignored.
+  that a write to `/dev/full` is ignored. `TestRuntimeStack`: frames of 64
+  MiB and 1 GiB under a 1 MiB stack limit, and the fatal error under
+  `ulimit -v`.
 - `internal/toolchain`: identification and rejection of tools, the fixed
   environment, and error contents.
 - `cmd/aether`: `TestBuild*`, the Milestone 1 acceptance test (P1–P6), and
-  `TestDifferentialAgainstGc` (gc, interpreter, and native on 212 programs).
+  `TestDifferentialAgainstGc` (gc, interpreter, and native on 212 programs),
+  and `TestBuildLargeFrame` (the F1 regression).
 
 **Revisit when.** Phase 4 decides D-011, or Phase 5 introduces register
 allocation.

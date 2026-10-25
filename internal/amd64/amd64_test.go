@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"fmt"
 	"math"
 	"os"
 	"os/exec"
@@ -265,7 +266,7 @@ func TestNativeMatchesInterpreter(t *testing.T) {
 // abiHarness calls each runtime helper with sentinel values in every
 // register the helpers must preserve, and exits with status 1 if any of
 // them, or %rsp, changed. Each call is made with %rsp 16-byte aligned.
-const abiHarness = `	.text
+var abiHarness = `	.text
 	.globl	main.main
 main.main:
 	pushq	%rbp
@@ -321,8 +322,14 @@ main.main:
 1:	movl	$231, %eax
 	movl	$1, %edi
 	syscall
-	.section	.note.GNU-stack,"",@progbits
-`
+` + mainStack(64)
+
+// mainStack declares the stack main.main uses below _start's call, as the
+// backend does (symMainStack), and ends the file.
+func mainStack(n int) string {
+	return fmt.Sprintf("\t.section\t.rodata\n\t.globl\t%s\n%s:\n\t.quad\t%d\n\t.section\t.note.GNU-stack,\"\",@progbits\n",
+		symMainStack, symMainStack, n)
+}
 
 // TestRuntimeABI checks the runtime-helper interface: formatting of the
 // extreme values, preservation of %rbx, %rbp, %r12-%r15, and %rsp, and that
@@ -340,5 +347,90 @@ func TestRuntimeABI(t *testing.T) {
 	defer full.Close()
 	if _, code := execute(t, exe, full); code != 0 {
 		t.Errorf("with stderr on /dev/full: exit %d, want 0", code)
+	}
+}
+
+// stackHarness has a frame of the given size: it writes the frame's lowest
+// word, then calls aether.printint and aether.printnl from the bottom of the
+// frame, so the helpers run below it.
+func stackHarness(frame int) string {
+	return fmt.Sprintf(`	.text
+	.globl	main.main
+main.main:
+	pushq	%%rbp
+	movq	%%rsp, %%rbp
+	subq	$%d, %%rsp
+	movq	$1, (%%rsp)
+	movq	$-5, %%rdi
+	call	aether.printint
+	call	aether.printnl
+	movq	%%rbp, %%rsp
+	popq	%%rbp
+	ret
+`, frame) + mainStack(16+frame)
+}
+
+// limited runs exe through /bin/sh with the given ulimit options, and
+// returns its stderr and exit status.
+func limited(t *testing.T, exe string, limits ...string) (string, int) {
+	t.Helper()
+	script := ""
+	for _, l := range limits {
+		script += "ulimit " + l + " && "
+	}
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command("/bin/sh", "-c", script+`exec "$0"`, exe)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	code := 0
+	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) {
+			t.Fatal(err)
+		}
+		if exit.ExitCode() < 0 {
+			t.Fatalf("%s: %v", exe, err) // killed by a signal
+		}
+		code = exit.ExitCode()
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout: %q", stdout.String())
+	}
+	return stderr.String(), code
+}
+
+// TestRuntimeStack checks that _start runs main.main on a stack it maps to
+// fit aether.mainstack, independent of the process stack limit (F1), and
+// that a stack it cannot allocate is a fatal error with exit status 2,
+// never a signal.
+func TestRuntimeStack(t *testing.T) {
+	if _, err := os.Stat("/bin/sh"); err != nil {
+		t.Skip("no /bin/sh to set limits with")
+	}
+	const fatal = "fatal error: cannot allocate the main stack\n"
+	tests := []struct {
+		name   string
+		frame  int
+		limits []string
+		want   string
+		code   int
+	}{
+		{"small frame, 256 KiB stack limit", 64, []string{"-s 256"}, "-5\n", 0},
+		{"64 MiB frame, 1 MiB stack limit", 64 << 20, []string{"-s 1024"}, "-5\n", 0},
+		{"maximum frame, 1 MiB stack limit", maxFrame, []string{"-s 1024"}, "-5\n", 0},
+		{"no address space for the stack", 256 << 20, []string{"-v 65536"}, fatal, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exe := link(t, t.TempDir(), withRuntime([]byte(stackHarness(tt.frame))))
+			got, code := limited(t, exe, tt.limits...)
+			if tt.frame == maxFrame && got == fatal {
+				// A 1 GiB private mapping can be refused under strict
+				// overcommit; the program must still fail cleanly.
+				t.Skipf("this host refused a %d-byte stack mapping: %q, exit %d", tt.frame, got, code)
+			}
+			if got != tt.want || code != tt.code {
+				t.Errorf("stderr %q, exit %d; want %q, exit %d", got, code, tt.want, tt.code)
+			}
+		})
 	}
 }

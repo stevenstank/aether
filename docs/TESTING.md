@@ -114,6 +114,16 @@ program. They run only when GNU `as` and `ld` are found on a linux/amd64
 host. Otherwise they are **skipped with a visible
 message naming the missing or unidentified tool**, never silently passed.
 
+`TestBuildLargeFrame` (F1 regression) builds a generated S1 program with a
+frame over 8 MiB and runs it, and a small corpus program, under `ulimit -s
+8192` and `ulimit -s 1024`; both must produce their exact output and exit 0,
+and a signal fails the test. `TestRuntimeStack` (`internal/amd64`) runs
+hand-written `main.main` frames of 64 bytes, 64 MiB, and the 1 GiB maximum
+under reduced stack limits, and checks that an unmappable stack (`ulimit -v`)
+gives the V-1 fatal error and exit 2. Both were checked against two negative
+controls: a runtime that ignores `aether.mainstack`, and one that keeps the
+process stack. Each control made both tests fail with SIGSEGV.
+
 Separate driver tests cover the tool-failure paths with stand-in tools on
 `PATH` (missing, non-GNU, failing). Each must give a `tool` diagnostic, exit 5,
 and no output file.

@@ -47,4 +47,11 @@ main.main:
 	popq	%rbp
 	ret
 	.size	main.main, .-main.main
+	.section	.rodata
+	.p2align	3
+	.globl	aether.mainstack
+	.type	aether.mainstack, @object
+	.size	aether.mainstack, 8
+aether.mainstack:
+	.quad	80
 	.section	.note.GNU-stack,"",@progbits
