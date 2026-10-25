@@ -324,11 +324,13 @@ Each instruction's code is preceded by a comment holding the IR instruction
 and its line and column. The output contains no paths, times, or host data,
 and ends with an empty `.note.GNU-stack` section (no executable stack).
 
-**Later** (Phase 5):
-- instruction selection over SSA
-- register allocation (algorithm not chosen)
-- a documented calling convention (D-011)
-- frame layout that reserves room for future stack maps (D-010)
+**Later:**
+- Phase 4: the calling convention for Aether-compiled functions (D-011,
+  Proposed). It must be decided before Phase 4 code depends on it
+  (`ROADMAP.md` Phase 4 prerequisite).
+- Phase 5: instruction selection over SSA, register allocation (algorithm
+  not chosen), a register-based successor to the Phase 4 convention, and a
+  frame layout that reserves room for future stack maps (D-010).
 
 ### 8. Assembly and linking (GNU host tools, D-007, D-008)
 
@@ -398,16 +400,27 @@ so none can be read as an option.
   - the link output, `a.out`
 
   It is created only after the program has been accepted and emitted. It is
-  removed after the build, unless `-work` is given, in which case
-  `WORK=DIR` is printed to stderr.
+  removed after the build, whether it succeeded or failed, unless `-work` is
+  given, in which case `WORK=DIR` is printed to stderr and the directory is
+  kept, also after a failure.
 - **Output handling.**
   - `ld` writes `a.out` in the work directory.
   - Only after every step has succeeded is it copied to a temporary file next
     to the output path, made mode 0755, and renamed over the output path.
   - On any failure the output path is neither created nor modified. A file
     already there is left untouched, and the temporary file is removed.
-  - Before building, an output path that is a directory, a symbolic link,
-    another non-regular file, or the input file itself is refused (exit 2).
+  - Before building, an output path that is a directory, a symbolic link
+    (even to a missing file), another non-regular file such as a FIFO, or the
+    input file itself (also through a hard link, or an input that is a
+    symbolic link to the output) is refused (exit 2).
+  - **Limits.** The output check runs before the build, so a change to the
+    path made concurrently is not detected (time of check to time of use).
+    The final `rename` never writes through a symbolic link and fails on a
+    directory, but it would replace a regular file or a hard link created in
+    the meantime. Cleanup runs on every error path in the process, not when
+    the process is killed by a signal, which can leave the work directory or
+    a `.aether-out-*` file behind. The output is not `fsync`ed, so publishing
+    is atomic for concurrent readers but not durable across a crash.
 - **Reproducibility** (D-008):
   - fixed argument lists, a fixed tool environment, and fixed relative file
     names inside a fresh work directory

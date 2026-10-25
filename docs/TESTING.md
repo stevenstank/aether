@@ -123,6 +123,25 @@ under reduced stack limits, and checks that an unmappable stack (`ulimit -v`)
 gives the V-1 fatal error and exit 2. Both were checked against two negative
 controls: a runtime that ignores `aether.mainstack`, and one that keeps the
 process stack. Each control made both tests fail with SIGSEGV.
+`TestRuntimeStackGuard` writes at the lowest addresses the layout guarantees
+and in the guard page below, and checks the stack top is page-aligned; a
+runtime without the guard page or without the helper reserve fails it.
+
+Output-safety tests (`TestBuildOutputRefusals`, `TestBuildCleanup`,
+`TestBuildFileFailures`) cover:
+- refused outputs: a symlink to an existing or a missing file, a FIFO, a hard
+  link to the input, and an input that is a symlink to the output; the
+  directory must be unchanged afterwards
+- an empty `TMPDIR` after an `as` or `ld` failure, and `-work` keeping the
+  work directory of a failed build
+- exit 2 with the existing output unchanged when the work directory cannot
+  be created (missing `TMPDIR`) or the output directory is not writable
+  (skipped as root)
+
+Negative controls (removing the regular-file check, the same-file check, or
+the work-directory cleanup) each made the matching tests fail. Races on the
+output path, interruption by a signal, and a failing final `rename` are not
+tested (`ARCHITECTURE.md` §8, Limits).
 
 Separate driver tests cover the tool-failure paths with stand-in tools on
 `PATH` (missing, non-GNU, failing). Each must give a `tool` diagnostic, exit 5,

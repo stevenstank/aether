@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -304,4 +306,181 @@ func firstLine(s, prefix string) string {
 		}
 	}
 	return ""
+}
+
+// TestBuildOutputRefusals checks output paths that must be refused before
+// anything is built: exit 2, and the path, its target, and the input are left
+// exactly as they were. checkOutput runs before the build, so a change to the
+// path during the build is not covered (ARCHITECTURE.md §8).
+func TestBuildOutputRefusals(t *testing.T) {
+	src := readFile(t, corpusFile("s1_03_milestone1"))
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, dir string) (in, out string)
+		want  string
+	}{
+		{"symlink to an existing file", func(t *testing.T, dir string) (string, string) {
+			writeFile(t, filepath.Join(dir, "target"), []byte("keep me\n"))
+			mustSymlink(t, "target", filepath.Join(dir, "out"))
+			return "", filepath.Join(dir, "out")
+		}, "is not a regular file"},
+		{"symlink to a missing file", func(t *testing.T, dir string) (string, string) {
+			mustSymlink(t, "missing", filepath.Join(dir, "out"))
+			return "", filepath.Join(dir, "out")
+		}, "is not a regular file"},
+		{"fifo", func(t *testing.T, dir string) (string, string) {
+			if err := syscall.Mkfifo(filepath.Join(dir, "out"), 0o600); err != nil {
+				t.Skipf("mkfifo: %v", err)
+			}
+			return "", filepath.Join(dir, "out")
+		}, "is not a regular file"},
+		{"hard link to the input", func(t *testing.T, dir string) (string, string) {
+			if err := os.Link(filepath.Join(dir, "in.go"), filepath.Join(dir, "out")); err != nil {
+				t.Skipf("link: %v", err)
+			}
+			return "", filepath.Join(dir, "out")
+		}, "is the input file"},
+		{"input is a symlink to the output", func(t *testing.T, dir string) (string, string) {
+			mustSymlink(t, "in.go", filepath.Join(dir, "link.go"))
+			return filepath.Join(dir, "link.go"), filepath.Join(dir, "in.go")
+		}, "is the input file"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "in.go"), src)
+			in, out := tt.setup(t, dir)
+			if in == "" {
+				in = filepath.Join(dir, "in.go")
+			}
+			before := snapshot(t, dir)
+			stderr, code := runAether("build", "-o", out, in)
+			if code != diag.ExitUsage || !strings.Contains(stderr, tt.want) {
+				t.Errorf("exit %d, stderr %q; want exit 2 and %q", code, stderr, tt.want)
+			}
+			if after := snapshot(t, dir); after != before {
+				t.Errorf("directory changed:\nbefore %s\nafter  %s", before, after)
+			}
+		})
+	}
+}
+
+func mustSymlink(t *testing.T, target, path string) {
+	t.Helper()
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// snapshot describes every entry of dir: name, type and permissions, link
+// target, and contents of regular files.
+func snapshot(t *testing.T, dir string) string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for _, e := range entries {
+		path := filepath.Join(dir, e.Name())
+		fi, err := os.Lstat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprintf(&b, "%s %v", e.Name(), fi.Mode())
+		switch {
+		case fi.Mode()&os.ModeSymlink != 0:
+			target, _ := os.Readlink(path)
+			fmt.Fprintf(&b, " -> %s", target)
+		case fi.Mode().IsRegular():
+			fmt.Fprintf(&b, " %q", readFile(t, path))
+		}
+		b.WriteString("; ")
+	}
+	return b.String()
+}
+
+// TestBuildCleanup checks that a failing assembler or linker leaves nothing
+// in the temporary directory, and that -work keeps the work directory of a
+// failed build.
+func TestBuildCleanup(t *testing.T) {
+	requireTools(t)
+	src := corpusFile("s1_03_milestone1")
+	for _, tool := range []string{"as", "ld"} {
+		t.Run(tool+" fails", func(t *testing.T) {
+			tools := t.TempDir()
+			fakeTool(t, tools, tool, map[string]string{"as": asVersion, "ld": ldVersion}[tool]+"exit 1\n")
+			linkTool(t, tools, map[string]string{"as": "ld", "ld": "as"}[tool])
+			t.Setenv("PATH", tools)
+			tmp := t.TempDir()
+			t.Setenv("TMPDIR", tmp)
+			out := filepath.Join(t.TempDir(), "out")
+			if _, code := runAether("build", "-o", out, src); code != diag.ExitTool {
+				t.Fatalf("exit %d, want 5", code)
+			}
+			if entries, _ := os.ReadDir(tmp); len(entries) != 0 {
+				t.Errorf("left in TMPDIR: %v", entries)
+			}
+			noFile(t, out)
+
+			stderr, code := runAether("build", "-work", "-o", out, src)
+			work := strings.TrimPrefix(firstLine(stderr, "WORK="), "WORK=")
+			if code != diag.ExitTool || !strings.HasPrefix(work, tmp) {
+				t.Fatalf("-work: exit %d, stderr %q", code, stderr)
+			}
+			if _, err := os.Stat(filepath.Join(work, "prog.s")); err != nil {
+				t.Errorf("-work did not keep the work directory: %v", err)
+			}
+			noFile(t, out)
+		})
+	}
+}
+
+// TestBuildFileFailures checks failures of Aether's own file operations
+// after the program compiled: they exit 2, keep an existing output, and leave
+// no temporary files.
+func TestBuildFileFailures(t *testing.T) {
+	requireTools(t)
+	src := corpusFile("s1_03_milestone1")
+	existing := []byte("keep me\n")
+
+	t.Run("no work directory", func(t *testing.T) {
+		t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+		out := filepath.Join(t.TempDir(), "out")
+		writeFile(t, out, existing)
+		if err := os.Chmod(out, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		stderr, code := runAether("build", "-o", out, src)
+		if code != diag.ExitUsage || !strings.Contains(stderr, "aether build: ") {
+			t.Errorf("exit %d, stderr %q; want exit 2", code, stderr)
+		}
+		checkUnchanged(t, out, existing)
+	})
+
+	t.Run("output directory not writable", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can write to a read-only directory")
+		}
+		tmp := t.TempDir()
+		t.Setenv("TMPDIR", tmp)
+		dir := t.TempDir()
+		out := filepath.Join(dir, "out")
+		writeFile(t, out, existing)
+		if err := os.Chmod(out, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, 0o555); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(dir, 0o755) })
+		stderr, code := runAether("build", "-o", out, src)
+		if code != diag.ExitUsage || !strings.Contains(stderr, "permission denied") {
+			t.Errorf("exit %d, stderr %q; want exit 2 and permission denied", code, stderr)
+		}
+		checkUnchanged(t, out, existing)
+		if entries, _ := os.ReadDir(tmp); len(entries) != 0 {
+			t.Errorf("left in TMPDIR: %v", entries)
+		}
+	})
 }

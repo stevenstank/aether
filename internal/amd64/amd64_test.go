@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stevenstank/aether/internal/interp"
@@ -430,6 +431,66 @@ func TestRuntimeStack(t *testing.T) {
 			}
 			if got != tt.want || code != tt.code {
 				t.Errorf("stderr %q, exit %d; want %q, exit %d", got, code, tt.want, tt.code)
+			}
+		})
+	}
+}
+
+// guardHarness declares a 16-byte stack need. main.main checks that the top
+// of the stack _start mapped (the address above its return address) is
+// page-aligned, exiting with status 3 if not, then writes one word at off
+// bytes from that top.
+func guardHarness(off int) string {
+	return fmt.Sprintf(`	.text
+	.globl	main.main
+main.main:
+	leaq	8(%%rsp), %%rax
+	testq	$4095, %%rax
+	jnz	1f
+	movq	$1, %d(%%rax)
+	ret
+1:	movl	$231, %%eax
+	movl	$3, %%edi
+	syscall
+`, off) + mainStack(16)
+}
+
+// TestRuntimeStackGuard checks the layout _start maps (ARCHITECTURE.md §9):
+// for a need of 16 bytes, 16 + 4096 rounded up to pages is usable, and the
+// page below is a guard that faults when written.
+func TestRuntimeStackGuard(t *testing.T) {
+	if _, err := os.Stat("/bin/sh"); err != nil {
+		t.Skip("no /bin/sh to disable core dumps with")
+	}
+	const page = 4096
+	usable := (16 + 4096 + page - 1) &^ (page - 1)
+	tests := []struct {
+		name string
+		off  int
+		segv bool
+	}{
+		{"lowest word of need plus reserve", -16 - 4096, false},
+		{"lowest usable word", -usable, false},
+		{"highest word of the guard page", -usable - 8, true},
+		{"lowest word of the guard page", -usable - page, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exe := link(t, t.TempDir(), withRuntime([]byte(guardHarness(tt.off))))
+			cmd := exec.Command("/bin/sh", "-c", `ulimit -c 0 && exec "$0"`, exe)
+			err := cmd.Run()
+			var exit *exec.ExitError
+			switch {
+			case err == nil:
+				if tt.segv {
+					t.Error("write succeeded; want SIGSEGV")
+				}
+			case errors.As(err, &exit) && exit.Sys().(syscall.WaitStatus).Signal() == syscall.SIGSEGV:
+				if !tt.segv {
+					t.Error("SIGSEGV; want exit 0")
+				}
+			default:
+				t.Errorf("%v; want %s", err, map[bool]string{false: "exit 0", true: "SIGSEGV"}[tt.segv])
 			}
 		})
 	}

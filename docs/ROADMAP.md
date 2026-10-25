@@ -281,6 +281,12 @@ repeated in each phase below:
   ran it. `main.main` now runs on a stack the runtime maps to fit its frame
   (D-022). `TestBuildLargeFrame` and `TestRuntimeStack` cover this under
   reduced stack limits. Two negative controls each made both tests fail.
+- **Closure hardening, 2026-10-25:** tests for the stack layout and guard
+  page, refused output paths (symlinks, FIFO, hard link), cleanup after tool
+  failures, and failures of the work directory and output directory
+  (`TESTING.md`). Each was checked with a negative control. The limits of the
+  output guarantees (races, signals, no `fsync`) are documented in
+  `ARCHITECTURE.md` §8.
 - **Known limitations:**
   - Native code is unoptimized: every value goes through memory.
   - If the stack mapping is refused, the program exits with status 2 and a

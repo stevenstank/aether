@@ -547,7 +547,8 @@ the full G/M/P scheduler model (`runtime/HACKING.md`).
 
 **Decision.** Aether ships its own runtime, starting tiny:
 - `_start`: establish 16-byte stack alignment, call `main.main`, then
-  `exit_group(0)`.
+  `exit_group(0)`. Amended below: since F1, `main.main` runs on a stack the
+  runtime maps.
 - Printing support for `println` of integers (signed decimal, space-separated,
   trailing newline, to file descriptor 2, matching gc; see E1), using the raw
   `write` syscall.
@@ -562,9 +563,12 @@ the full G/M/P scheduler model (`runtime/HACKING.md`).
 `aether.mainstack` datum, with a guard page, and exits with status 2 and a
 fatal error if it cannot. The process stack limit no longer decides whether a
 valid program runs. This covers Phase 3 only, where `main.main` is the only
-function and its stack need is known at build time. Calls of unknown depth
-(Phase 4 recursion) will need a fixed-size runtime stack and a prologue bound
-check. That belongs to D-011, which remains Proposed.
+function and its stack need is known exactly at build time. It is not a
+general stack strategy: with calls of unknown depth (Phase 4 recursion) no
+size is known at build time, and overflow must be detected rather than
+excluded. That strategy (for example, a fixed-size runtime stack with a
+prologue bound check) is undecided. It belongs to D-011, which remains
+Proposed, with a further amendment here for the runtime part.
 
 In Phases 3 and 4 the runtime is hand-written GNU assembly kept in the
 repository. Once Aether can compile a large enough subset, runtime routines
@@ -1260,12 +1264,16 @@ Aether's side (D-008).
   preserved registers, `%rsp`, formatting of `MinInt64` and `MaxInt64`, and
   that a write to `/dev/full` is ignored. `TestRuntimeStack`: frames of 64
   MiB and 1 GiB under a 1 MiB stack limit, and the fatal error under
-  `ulimit -v`.
+  `ulimit -v`. `TestRuntimeStackGuard`: the usable stack extends exactly to
+  the documented size, the page below it faults, and the stack top is
+  page-aligned.
 - `internal/toolchain`: identification and rejection of tools, the fixed
   environment, and error contents.
 - `cmd/aether`: `TestBuild*`, the Milestone 1 acceptance test (P1–P6), and
   `TestDifferentialAgainstGc` (gc, interpreter, and native on 212 programs),
-  and `TestBuildLargeFrame` (the F1 regression).
+  `TestBuildLargeFrame` (the F1 regression), and `TestBuildOutputRefusals`,
+  `TestBuildCleanup`, and `TestBuildFileFailures` (output refusals, cleanup
+  after tool failures, and failures of Aether's own file operations).
 
 **Revisit when.** Phase 4 decides D-011, or Phase 5 introduces register
 allocation.
