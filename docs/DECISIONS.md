@@ -33,9 +33,9 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-006 | SSA timing and construction method | Proposed |
 | D-007 | Executable path: GNU assembler text, `as`, `ld` | Accepted |
 | D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
-| D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only) |
+| D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only; Phase 4 stack amended 2026-10-26) |
 | D-010 | Memory management and garbage collection | Proposed |
-| D-011 | Calling convention for Aether-compiled functions | Proposed |
+| D-011 | Calling convention for Aether-compiled functions | Accepted (ABI-S0, 2026-10-26) |
 | D-012 | Initial supported Go subset (S1) | Accepted |
 | D-013 | Dependency policy | Accepted |
 | D-014 | Testing strategy with the official toolchain as oracle | Accepted |
@@ -47,6 +47,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | D-020 | `func main()` without a body is `unsupported` | Accepted |
 | D-021 | The S1 IR instruction set and its contract | Accepted |
 | D-022 | The Phase 3 backend, runtime interface, and `aether build` | Accepted |
+| D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26) |
 
 ## Review log
 
@@ -56,6 +57,7 @@ this file. Nothing here is supported by benchmarks: none have been run.
 | 2026-10-24 | Owner Phase 0 review: S1 accepted with clarifications; module path confirmed; GNU `as`/`ld` accepted as initial and potentially long-term dependencies; Milestone 1 provenance checks restructured | D-007, D-008, D-012, D-015 |
 | 2026-10-24 | Pre-Phase 1 audit (E7–E11), covering the items below. No status changed. | D-001, D-002, D-003, D-006, D-009, D-010, D-011, D-012, D-013 |
 | 2026-10-25 | Phase 3 fix-up F1: the runtime maps `main`'s stack from a size the compiler declares. No status changed. | D-009, D-022 (D-011 noted) |
+| 2026-10-26 | Phase 4 design gate (E13), owner approval: the D-009 Phase 4 stack amendment accepted (256 MiB default, `mmap` flags `0x20022` without `MAP_NORESERVE`, documented failure limitations); D-011 accepted as ABI-S0; D-023 accepted with staged introduction and its 4.1 subset. No Phase 4 code exists yet. | D-009, D-011, D-021, D-022, D-023 |
 
 The pre-Phase 1 audit made these corrections and clarifications:
 - Corrected the `/` and `%` rationale in D-012.
@@ -548,7 +550,8 @@ the full G/M/P scheduler model (`runtime/HACKING.md`).
 **Decision.** Aether ships its own runtime, starting tiny:
 - `_start`: establish 16-byte stack alignment, call `main.main`, then
   `exit_group(0)`. Amended below: since F1, `main.main` runs on a stack the
-  runtime maps.
+  runtime maps, and from Phase 4 increment 4.2 that stack has a fixed
+  minimum size and a software bound.
 - Printing support for `println` of integers (signed decimal, space-separated,
   trailing newline, to file descriptor 2, matching gc; see E1), using the raw
   `write` syscall.
@@ -566,9 +569,79 @@ valid program runs. This covers Phase 3 only, where `main.main` is the only
 function and its stack need is known exactly at build time. It is not a
 general stack strategy: with calls of unknown depth (Phase 4 recursion) no
 size is known at build time, and overflow must be detected rather than
-excluded. That strategy (for example, a fixed-size runtime stack with a
-prologue bound check) is undecided. It belongs to D-011, which remains
-Proposed, with a further amendment here for the runtime part.
+excluded. The Phase 4 amendment below replaces it from increment 4.2.
+
+**Amendment (2026-10-26, Phase 4 stack; accepted by the owner, E13).** From
+Phase 4 increment 4.2, when functions and recursion arrive, `_start` maps one
+runtime stack and the generated code enforces its bound. The guard page is
+not what detects overflow.
+- **Size.** S = max(DEFAULT, `aether.mainstack`) with DEFAULT = 256 MiB. The
+  `max` keeps Phase 3 programs whose `main` frame is larger than DEFAULT
+  running.
+- **Mapping.**
+  - `total` = 4096 + round_up(S + 4096, 4096): a guard page, then the stack
+    rounded up to whole pages.
+  - `mmap(NULL, total, PROT_READ|PROT_WRITE, 0x20022, -1, 0)`, where `0x20022`
+    is `MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK`, the flags Phase 3 already uses.
+    `MAP_NORESERVE` (`0x4000`) is deliberately not used.
+  - `mprotect(base, 4096, PROT_NONE)`: the lowest page is the guard.
+- **Layout.** [`base`, `base`+4096) is the guard page. [`base`+4096,
+  `base`+8192) is a 4096-byte reserve, used only as stated in D-011. The stack
+  limit is `L` = `base` + 8192, and frames may use [`L`, `top`), where `top` =
+  `base` + `total`. Since `total` − 8192 ≥ S ≥ `aether.mainstack`, the check
+  in `main.main`'s own prologue always passes.
+- **Startup order.** `_start` stores `L` in `aether.stacklimit`, a writable
+  8-byte `.bss` word, **before its first call into Aether code**. If it did
+  not, the word would be 0 and every bound check would pass. `_start` then
+  sets `%rsp` to `top` and calls `main.main`. From increment 4.6, which adds
+  package initialization (D-023), it calls `main.init` first, then
+  `main.main`. It then calls `exit_group(0)`.
+- **Overflow.** A prologue check that fails jumps to `aether.stackoverflow`,
+  which writes `fatal error: stack overflow` to fd 2 and exits with status 2
+  (`SEMANTICS.md`, planned divergence V-2).
+- **Mapping failure.** As in Phase 3: `fatal error: cannot allocate the main
+  stack`, exit 2 (V-1).
+
+**What is guaranteed:**
+
+| Failure | Outcome | Guaranteed |
+|---|---|---|
+| Overflow detected by a prologue check | `fatal error: stack overflow`, exit 2 | Yes, deterministically for a given program and stack size. Write errors are ignored, so the message can be lost if fd 2 is unwritable, but the status is still 2. |
+| `mmap` or `mprotect` fails | V-1 message, exit 2, before any Aether code runs | Yes |
+| Memory runs out while stack pages are first written | Can be killed by SIGKILL (the out-of-memory killer, system-wide or a memory cgroup), or get SIGSEGV or SIGBUS; no message | **No.** SIGKILL cannot be caught, and the runtime installs no signal handlers. |
+| A compiler or runtime defect writes below the reserve | SIGSEGV if the write hits the guard page; a write more than 4096 bytes below can corrupt other memory instead | **No.** This is a bug, not supported behavior. |
+
+**Why no `MAP_NORESERVE`.** Neither flag set guarantees physical memory.
+Pages are allocated on first write, and `mmap(2)` warns that without a
+reservation "one might get SIGSEGV upon a write if no physical memory is
+available". The flag only changes when the kernel may refuse the mapping:
+- **Overcommit mode 0** (the default; measured on this host, E13): an ordinary
+  mapping larger than about RAM plus swap is refused (14 GiB succeeded,
+  16 GiB failed with `ENOMEM`). With `MAP_NORESERVE` even 1024 GiB succeeded.
+  The kernel marks the two as `ac` (accounted) and `nr` in the `VmFlags` of
+  `/proc/<pid>/smaps`.
+- **Mode 1:** neither is ever refused. **Mode 2:** the kernel ignores
+  `MAP_NORESERVE` and charges both against `CommitLimit`. Both statements come
+  from the kernel's overcommit documentation and were not run here (changing
+  the mode needs a system setting change).
+
+At 256 MiB the flag changes nothing on a host with enough RAM and swap. On a
+small host it would turn a clean startup failure (V-1) into a possible later
+kill, so it is not used.
+
+**Limitations (documented, not handled):**
+- Out-of-memory termination while the stack is in use cannot be made clean.
+- A guard-page fault means a defect, and produces no diagnostic.
+- With a 256 MiB stack, a small `ulimit -v` makes every program fail at
+  startup with V-1. Phase 3 programs ran under such limits. The exact
+  threshold (estimated at about 260 MiB) has not been measured.
+- Runaway recursion uses up to S bytes of memory before it overflows.
+- Aether frames are larger than gc's, so Aether overflows at a smaller
+  recursion depth than gc does at its 1e9-byte limit. The limit is stated in
+  bytes, not calls.
+
+**Required tests** (none has run yet; they belong to increment 4.2): see
+D-011 and `ROADMAP.md` Phase 4.
 
 In Phases 3 and 4 the runtime is hand-written GNU assembly kept in the
 repository. Once Aether can compile a large enough subset, runtime routines
@@ -637,7 +710,10 @@ allocator.
 
 ## D-011: Calling convention for Aether-compiled functions
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-26, owner approval after the Phase 4 design
+gate, E13): option 3, as the stack-based convention **ABI-S0**. It is required
+before Phase 4 increment 4.2, which introduces calls; increment 4.1 does not
+depend on it.
 
 **Context.** Phase 3 has only two kinds of calls:
 - `_start → main.main`, with no arguments.
@@ -660,30 +736,137 @@ This decision covers those.
 3. **An Aether-internal convention**, initially all stack-based (simplest),
    later register-based.
 
-**Recommendation.** Option 3, stack-based in Phase 4, with a single documented
-place in the amd64 backend that defines it. A register-based convention would
-follow in Phase 5 with the register allocator. SysV would be used only at
-explicit foreign boundaries, if any are added. The prologue must leave room for
-a future stack-growth check (Phase 10).
+**Decision: ABI-S0.** Calls between Aether-compiled functions are direct calls
+to the symbol `main.<name>`, defined in one documented place in the amd64
+backend. A register-based successor follows in Phase 5 with the register
+allocator. There is no foreign (System V) boundary; adding one needs its own
+decision.
+- **Words.** Each argument and result is one 8-byte word in canonical form
+  (D-023): signed integers sign-extended to 64 bits, unsigned integers
+  zero-extended, `bool` as 0 or 1.
+- **Outgoing area.** A caller reserves A = 8·max(P+R) bytes over all its call
+  sites (P arguments, R results; 0 without calls) at the **bottom** of its
+  frame. A is part of the frame size, Size = round_up(8·(slots + values) + A,
+  16), and **Size ≤ 2³⁰** (`maxFrame`), outgoing area included; a larger frame
+  is an internal error.
+- **Offsets.** The caller stores argument i at `8i(%rsp)`, calls, and reads
+  result j from `8(P+j)(%rsp)`. The callee sees the same words at
+  `16+8i(%rbp)` and `16+8(P+j)(%rbp)`, because `call` and `pushq %rbp` lower
+  `%rsp` by 16 before `movq %rsp, %rbp`.
+- **Caller.** It never moves `%rsp` after the prologue, so nothing is cleaned
+  up after a call. It copies every result into a value cell before its next
+  call (D-023 tuple storage), and assumes nothing about the argument words
+  after the call.
+- **Callee.** It may write anywhere in its argument and result words, and must
+  write every result word before `ret`. It restores `%rbp` and `%rsp`, so
+  `ret` pops only the return address.
+- **Alignment.** `%rsp` ≡ 0 (mod 16) at every call; so 8 at entry and 0 after
+  `pushq %rbp`. Size is a multiple of 16, so every call made from a body,
+  including calls to runtime helpers, is aligned.
+- **Registers.** The callee preserves only `%rbp` and `%rsp`. Every other
+  general-purpose register, the flags, and the vector registers may be
+  clobbered. The direction flag is clear at entry and exit. The frame-pointer
+  chain (`0(%rbp)` holds the caller's `%rbp`) is mandatory.
+- **Prologue.** Before anything is written below the return address:
+
+  ```
+  f:  movq  aether.stacklimit(%rip), %rax
+      addq  $Size+8, %rax
+      cmpq  %rax, %rsp
+      jb    aether.stackoverflow
+      pushq %rbp
+      movq  %rsp, %rbp
+      subq  $Size, %rsp      # omitted when Size is 0
+  ```
+
+  `%rax` is free at entry because ABI-S0 passes nothing in registers. The
+  jump is a `jb`, not a call, so nothing is pushed. The epilogue is unchanged
+  from Phase 3: `movq %rbp, %rsp; popq %rbp; ret`.
+- **Recursion** needs nothing special: every activation has its own frame,
+  and every prologue, including `main.main`'s, is checked.
+- **Boundaries.**
+  - Aether to Aether: ABI-S0.
+  - Aether to runtime helpers: the existing helper interface (argument in
+    `%rdi`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15`). It is
+    stricter than ABI-S0, so it is compatible. Every helper must state its
+    stack use below `%rsp`, which must fit the reserve (below).
+  - Process entry: `_start` calls `main.main` (and from increment 4.6
+    `main.init`) as ABI-S0 calls with no arguments or results, and relies on
+    no register surviving them.
+- **Compatibility.** There is no separate compilation, so the compiler and
+  runtime always change together, and ABI-S0 carries no stability promise.
+
+**Why the bound check is correct.** With `L` the stack limit and `top` the
+stack top (D-009 Phase 4 amendment):
+- **Invariant I:** `%rsp` ≥ `L` at every call into Aether code. `_start`
+  calls with `%rsp` = `top` ≥ `L`.
+- The `call` writes the return address at [`rsp_call` − 8, `rsp_call`), at
+  least `L` − 8: inside the reserve, above the guard page. The callee's entry
+  `%rsp` is E = `rsp_call` − 8 ≥ `L` − 8.
+- The callee writes the saved `%rbp` at [E−8, E) and its frame, outgoing area
+  included, at [E−8−Size, E−8). Its lowest write is E − 8 − Size, so the
+  requirement is E − 8 − Size ≥ `L`, that is **E ≥ T = `L` + Size + 8**.
+- The four check instructions do not touch the stack, so `%rsp` = E when it
+  compares, and execution falls through exactly when E ≥ T.
+- After the prologue, `%rsp` = E − 8 − Size ≥ `L`, and the body never moves
+  `%rsp`, so every call the body makes satisfies invariant I.
+- **No wraparound.** `L` < 2⁴⁷ (a user-space address from `mmap` with no
+  hint), and Size + 8 ≤ 2³⁰ + 8 < 2³¹, so the sign-extended 32-bit immediate
+  is exact and positive. T < 2⁴⁷ + 2³¹ cannot carry out of 64 bits. The only
+  way to get a false "safe" result is a wrong `L`, which is why `_start` must
+  store it before its first call (D-009).
+- **Reserve.** Below `L`, only these are written: a return address (8 bytes);
+  the helpers, from a checked body (`aether.printint`: 8 + 40 + 8 = 56 bytes;
+  `aether.printsp` and `aether.printnl`: 8); and `aether.stackoverflow`,
+  entered at `%rsp` ≥ `L` − 8, which aligns `%rsp` (up to 8 bytes) and calls
+  `aether.write` (8 bytes), at most 24 bytes. `aether.write` uses no stack.
+  All fit in the 4096-byte reserve. A new helper, such as Phase 4's panic
+  path, must state its own bound.
 
 **Phase 3 basis (F1, D-022).** `main.main` runs on a stack the runtime maps
-itself. Whatever convention is chosen must keep that model or replace it
-explicitly; a stack-bound check for recursion is not decided here.
+itself. ABI-S0 keeps that model, and D-009's Phase 4 amendment fixes its size
+and limit.
 
-**Missing evidence.** Whether goroutine stack strategy (segmented, copying, or
-fixed-large) constrains the convention. Not yet investigated.
+**Rationale.** A stack-only convention is the smallest one that supports
+parameters, any number of results, and recursion with the existing
+slot-per-value backend, which keeps no value in a register across
+instructions. The check makes overflow a clean, deterministic error for any
+frame size, including frames larger than the guard page.
 
-**Resolving experiment.** Write a short design note at the start of Phase 4,
-plus a hand-written assembly prototype (kept outside the repository, or as a
-test fixture once Phase 4 is authorized) of:
-- a recursive call
-- a call returning two `int` results
-- a prologue stack-bound check
+**Consequences.**
+- Every call costs a memory load, an add, a compare, and a branch in the
+  prologue.
+- The backend's `NewFrame` must include the outgoing area in its 2³⁰ bound.
+- The runtime gains `aether.stacklimit` and `aether.stackoverflow` (D-009).
 
-Confirm that the convention handles all three without changes visible to the
-caller.
+**Evidence (E13).** A hand-written assembly prototype of this convention, run
+outside the repository:
+- a recursive function with one argument and two results, checking the
+  callee's result and `%rsp` alignment at every level: depths 0, 1, 1000, and
+  1,000,000 exit 0;
+- 1.5 million frames of 48 bytes in a 64 MiB stack, and unbounded recursion
+  with 1 MiB frames: `fatal error: stack overflow`, exit 2;
+- with the check removed, both overflow cases die with SIGSEGV instead;
+- a `jb` to `aether.stackoverflow` defined in another object file links with
+  static `ld` (an `R_X86_64_PLT32` relocation) and works taken and not taken.
 
-**Resolve when.** At the start of Phase 4.
+**Not yet executed** (required tests in `ROADMAP.md` Phase 4): the boundary
+entries E = T and E = T − 16, the helpers and the overflow handler at the
+reserve's edge, argument offsets with P other than 1, and the D-009 sizing.
+The prototype mapped with `MAP_NORESERVE` (`0x24022`); rerun with `0x20022`,
+its results were identical.
+
+**Revisit when.**
+- Phase 5 adds the register-based successor. It must keep a scratch register
+  free at function entry for the check.
+- Multi-word values (strings and structs, Phase 6).
+- Closures need a context register (Phase 8).
+- `defer`, `recover`, and unwinding (Phase 8).
+- The runtime installs signal handlers: they then need an alternate signal
+  stack, since only the reserve lies below `L`.
+- Goroutines (Phase 10): the limit becomes per goroutine; the prologue keeps
+  its shape.
+- Stack maps for garbage collection (D-010).
 
 ---
 
@@ -1100,6 +1283,8 @@ exact.
 
 **Status:** Accepted (Phase 2). It refines D-004 and replaces the `println`
 expansion previously described in `ARCHITECTURE.md` §3.
+Its "no branches" rule, its single `i64` type, and the `println` operand rule
+are extended by D-023 from Phase 4 increment 4.1; everything else stands.
 
 **Context.** D-004 fixed the IR's shape and left the instruction set to
 Phase 2. S1 needs integer values, mutable locals, wrapping `+ - *` and
@@ -1275,8 +1460,180 @@ Aether's side (D-008).
   `TestBuildCleanup`, and `TestBuildFileFailures` (output refusals, cleanup
   after tool failures, and failures of Aether's own file operations).
 
-**Revisit when.** Phase 4 decides D-011, or Phase 5 introduces register
-allocation.
+**Phase 4 note (2026-10-26).** D-011 is now accepted as ABI-S0, which
+coexists with the helper interface. Phase 4 adds runtime symbols in stages:
+`aether.printbool` in increment 4.1 (D-023), and `aether.stacklimit` and
+`aether.stackoverflow` in 4.2 (D-009 amendment). Each enters the runtime
+boundary table in `ARCHITECTURE.md` when it is implemented, and the exact
+symbol set checked by the Milestone 1 test changes with it.
+
+**Revisit when.** Phase 5 introduces register allocation.
+
+---
+
+## D-023: The S2 IR extension, introduced in stages
+
+**Status:** Accepted (2026-10-26, owner approval after the Phase 4 design
+gate, E13), with staged introduction. Each part enters the IR, verifier,
+interpreter, and backend only in the increment named below, with its tests.
+It extends D-004 and D-021 and supersedes D-021's "no branches" rule.
+
+**Context.** S2 (`ROADMAP.md` Phase 4) needs control flow, `bool`, sized
+integer types, calls with parameters and multiple results, run-time panics,
+and package-level variables. The S1 IR has one block per function and one
+type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
+(D-006) and are not part of this decision.
+
+**Decision.**
+- **Values stay local to their block.** An operand must be defined earlier in
+  the same block, as in S1. Anything that crosses blocks goes through a slot:
+  variables, parameters, call results used later, and the temporaries of
+  `&&` and `||`. The operand check stays exact, and the backend keeps one
+  cell per value.
+- **Types.** `bool`, `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`,
+  and `tuple(T1, …, Tn)`, which only a multi-result `call` may have. `int`
+  lowers to `i64`, `uint` and `uintptr` to `u64`, `byte` to `u8`, `rune` to
+  `i32`. Signedness belongs to the type; an operation's meaning follows its
+  operand type.
+- **Canonical form.** Every value is held as 64 bits: signed types
+  sign-extended from their width, unsigned types zero-extended, `bool` as 0 or
+  1. A `const` holds this canonical 64-bit pattern in `Const` (an `int64`),
+  which must be in range for its type: `bool` ∈ {0, 1}, `i8` ∈ [−128, 127],
+  `u8` ∈ [0, 255], `u32` ∈ [0, 2³²), and so on; `u64` uses all 64 bits. Every
+  operation on a type narrower than 64 bits produces the canonical form of
+  its exact result reduced modulo 2^width. For example, `i8` −128 / −1 is 128
+  in 64 bits, which is −128 in `i8`.
+- **Terminators.** `jump bK`; `branch v, bT, bF` (v is `bool`); `ret v…`
+  (operands match the function's results); `panic K`, where K is a closed set
+  of run-time errors: `divide` ("integer divide by zero") and `shift`
+  ("negative shift amount").
+- **Operations.**
+  - `const` (typed); `eq`, `ne`, `lt`, `le`, `gt`, `ge`, which produce `bool`
+    (on `bool` operands, only `eq` and `ne`); `not` on `bool`.
+  - `add`, `sub`, `mul`, `neg`: wrap at the type's width.
+  - `and`, `or`, `xor`, `andnot`, `com` on integers.
+  - `div`, `rem`: truncate toward zero; `Min / −1 = Min` and `Min % −1 = 0`.
+    **Precondition:** the divisor is not zero.
+  - `shl`, `shr`: the count is an unsigned value. A count at or above the
+    width gives 0, or the sign fill for `shr` of a signed type.
+  - `conv T→U` between integer types: the canonical form of the source's
+    value modulo 2^width(U).
+  - `param i` (entry block only); `call f(args…)` (direct calls only);
+    `extract i` of a tuple.
+  - `gload g`, `gstore g, v`.
+  - `println`, whose operands may be any integer type or `bool`.
+- **Explicit checks.** Lowering guards division by zero and negative signed
+  shift counts with a comparison, a `branch`, and a block ending in
+  `panic K`, then converts a checked count to an unsigned type. Every
+  operation is therefore total on valid IR. If the interpreter meets a
+  violated precondition, it reports an **internal error** (a lowering bug),
+  never a Go panic.
+- **Tuple storage.** A `call` with two or more results has a `tuple` type and
+  its own R value cells, which the backend fills from the outgoing area
+  immediately after the call, before any other call (D-011). `extract i`
+  must take a tuple-typed `call` in the same block as its operand, with i in
+  range, and copies cell i. A tuple is used only by `extract`.
+- **Program.** `Globals` (name, type, position) start at zero, unlike slots,
+  so loads of globals need no definite assignment. A synthetic `Init`
+  function, emitted as `main.init` and called by `_start` before `main.main`,
+  runs package initializers in `types.Info.InitOrder`. It cannot be inlined
+  into `main`, because Go programs may call `main()` recursively (gc accepts
+  it, E13). Functions gain `Params` and `Results`.
+- **Positions.** Every instruction keeps a line and column, with one file per
+  function (programs remain single-file). `branch`: its `if` or `for`
+  keyword, or the `&&`/`||` operator. `jump`: its `break` or `continue`, or
+  the closing brace that ends the block. `call`: the call expression.
+  `panic`: the operator that can panic. Temporary slots: the operator that
+  creates them. Globals: their identifier.
+
+**Verifier invariants** (added or changed):
+1. Every block is reachable from the entry. Lowering removes unreachable
+   code (after `return`, `break`, or `for {}`) and renumbers blocks so IDs
+   still equal indices.
+2. Every block ends in exactly one terminator; `jump` and `branch` targets
+   are blocks of the function; a `branch` condition is `bool`.
+3. Operands are defined earlier in the same block, and their types are
+   exactly what the operation requires (both operands of a binary operation
+   have the same type).
+4. **Definite assignment** is a forward "must be stored" dataflow over the
+   reachable blocks:
+   - `in(entry)` = ∅; every other block starts with `in` = all slots.
+   - `out(b)` = `in(b)` plus the slots `b` stores.
+   - `in(b)` = the intersection of `out(p)` over b's predecessors.
+   - Iterate in block order until nothing changes. The result is the greatest
+     fixed point; starting the non-entry blocks at ∅ would reject valid loops.
+   - Within a block, a `load` of slot s is valid if s is in `in(b)` or is
+     stored earlier in the block.
+5. Each `const` is in range for its type (canonical form).
+6. `param` appears only in the entry block, with an index and type matching
+   `Params`. `ret` operands match `Results`. `main` and `Init` have neither.
+7. A `call`'s callee is a function of the program; its argument types match
+   the callee's `Params`; its type is none, the single result type, or the
+   tuple of `Results`. `extract` follows the tuple-storage rule above.
+8. Globals have unique names and valid types, and every `gload` and `gstore`
+   names a global of the program.
+9. Every `panic` kind is in the closed set.
+
+**Interpreter.** Frames hold their slots and current block; values are kept
+in canonical form. Increment 4.1 adds a step budget, for tests only, so a
+lowering bug that loops fails instead of hanging. Increment 4.2 adds an
+explicit call-depth limit: Go's own stack overflow is a fatal error that
+cannot be recovered, so without the limit deep recursion would crash the
+test binary. Increment 4.5 makes `Run` report an exit status: a panic writes
+`panic: runtime error: <message>` and a newline to stderr and exits 2.
+
+**Stages.**
+
+| Increment | IR parts introduced |
+|---|---|
+| **4.1** | `bool`; `eq`…`ge`, `not`; `jump`, `branch`; invariants 1–4; `println` of `bool`; the interpreter's step budget; runtime helper `aether.printbool` |
+| 4.2 | `Params`, `Results`, `param`, single-result `call`, `ret v`; the interpreter's depth limit; ABI-S0 (D-011) and the stack amendment (D-009) |
+| 4.3 | `tuple`, `extract`, tuple storage |
+| 4.4 | sized integer types, canonical-form rules, `conv`, bit operations, `println` of unsigned values (a new helper) |
+| 4.5 | `div`, `rem`, `shl`, `shr`, `panic K`, exit-status results; a runtime panic helper with a stated stack bound |
+| 4.6 | `Globals`, `gload`, `gstore`, `Init`; `_start` calls `main.init` |
+| 4.7 | `switch` on integers, lowered to the above (no new IR) |
+
+The **4.1 subset** is `bool` locals and constants, comparisons of `int` and
+`bool`, `!`, `&&`, `||`, `if`/`else`, the three `for` forms, unlabeled
+`break` and `continue`, and `println` of `int` and `bool`. It needs neither
+D-011 nor the D-009 stack amendment.
+
+**Alternatives considered.**
+1. **SSA with φ-nodes now.** Deferred to Phase 5 (D-006): block-local values
+   plus slots need no dominator tree and keep the slot-per-value backend.
+2. **Signless types with signed and unsigned operations** (as in LLVM).
+   Rejected: Go types carry signedness, and `println` formatting depends on
+   it.
+3. **Trapping `div`, `rem`, and shift operations** that panic inside the
+   operation. Rejected: explicit checks keep every operation total and
+   visible in the CFG, and Phase 5 can remove checks it proves unnecessary.
+4. **Calls whose results go straight into slots.** Rejected: values stay
+   values, and `tuple` plus `extract` is the established form (`go/ssa` uses
+   it).
+5. **Package initialization inlined into `main`.** Rejected: `main` can be
+   called recursively.
+
+**Consequences.**
+- The verifier gains a dataflow analysis and a CFG reachability check.
+- Lowering removes dead code and emits explicit panic checks.
+- The runtime gains `aether.printbool` (4.1), later an unsigned printer and a
+  panic helper, each with a stated stack bound (D-011).
+- The roadmap's prerequisite moves: D-011 is required before 4.2, not 4.1.
+
+**Evidence (E13).** `go/types` records `true`, `1 < 2`, `x < 4`, `!b`, and
+`b && x > 0` passed to `println` as type `bool`, with constant values where
+the expression is constant. gc prints `println(true, 3 < 2)` as
+`true false`, wraps `int8` 127 + 1 to −128, gives `MinInt64 / −1 = MinInt64`
+and `MinInt64 % −1 = 0`, and panics with `panic: runtime error: integer
+divide by zero` and `panic: runtime error: negative shift amount` (exit 2).
+No Phase 4 code has been written.
+
+**Required tests.** Listed per increment in `ROADMAP.md` Phase 4.
+
+**Revisit when.** Phase 5 introduces SSA (D-006); a construct in S2 cannot be
+lowered to this form; or programs become multi-file, which would need a file
+in every position.
 
 ---
 
@@ -1460,6 +1817,24 @@ environment. Unlike E1–E11, its findings came from the repository's own tests.
     - `package lib` with or without `func main`
 
     The cgo case is not built.
+
+- **E13: Phase 4 design gate (2026-10-25 and 2026-10-26).** Run outside
+  the repository, on the same host (overcommit mode 0, 11.5 GiB RAM, 3 GiB
+  swap).
+  - **ABI-S0 prototype** (hand-written assembly): the results under D-011.
+  - **`mmap` flags.** The committed runtime passes `0x20022`, which `strace`
+    decodes as `MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK`; the prototype passed
+    `0x24022`, which adds `MAP_NORESERVE`. Both values match the kernel
+    headers and Go's `syscall` constants.
+  - **Overcommit mode 0.** An ordinary private anonymous mapping of 14 GiB
+    succeeded and 16 GiB failed with `ENOMEM`; with `MAP_NORESERVE`, 1024 GiB
+    succeeded. `/proc/<pid>/smaps` showed `VmFlags` `ac` for the first and
+    `nr` for the second, and showed that the kernel can merge such a mapping
+    with an adjacent one.
+  - **gc behavior** (go1.26.1): the results under D-023; unbounded recursion
+    prints `runtime: goroutine stack exceeds 1000000000-byte limit`, then
+    `fatal error: stack overflow` and a traceback, and exits 2; a recursive
+    call of `main()` builds and runs.
 
 **Sources consulted:**
 - Local Go 1.26.1: `doc/go_spec.html`, `doc/go_mem.html` ("Version of June 6,

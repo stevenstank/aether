@@ -212,7 +212,7 @@ repeated in each phase below:
     in-process tests are in the same package, so moving it was not needed.
   - FI-1 (`TESTING.md`) remains open and unexplained.
 
-## Phase 3: First native executable (Milestone 1) (complete 2026-10-24, pending owner review)
+## Phase 3: First native executable (Milestone 1) (complete; accepted by the owner)
 
 - **Objective:** `aether build` turns an S1 program into a static Linux x86-64
   executable whose program logic comes from Aether's backend. See
@@ -300,7 +300,7 @@ repeated in each phase below:
   - Reproducibility is shown for one host and one binutils version only.
   - FI-1 (`TESTING.md`) remains open and unexplained.
 
-## Phase 4: Functions, control flow, integer types (S2)
+## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; not started)
 
 - **Objective:** structured programs with functions run natively.
 - **Scope:**
@@ -319,19 +319,106 @@ repeated in each phase below:
   - `print`/`println` of `bool`
   - the minimal panic runtime path
 - **Exclusions:** closures, methods, strings, the heap.
-- **Prerequisite:** D-011 (calling convention) must be resolved.
+- **Prerequisites** (design gate, 2026-10-26: D-009 Phase 4 amendment, D-011,
+  and D-023 accepted):
+  - **4.1** needs D-023 (its 4.1 subset). It does not depend on D-011.
+  - **4.2 and later** need D-011 (ABI-S0) and the D-009 Phase 4 stack
+    amendment. No calling code is written before them.
+- **Increments**, in dependency order, each kept under about 800 changed
+  lines (D-023 lists the IR parts of each):
+  1. **4.1: control flow and `bool`.** `bool` locals and constants,
+     comparisons of `int` and `bool`, `!`, `&&`, `||`, `if`/`else`, the three
+     `for` forms, unlabeled `break` and `continue`, `println` of `int` and
+     `bool`. Runtime: `aether.printbool`. Still unsupported: functions,
+     `switch`, labels, `goto`, `for range`, sized types, `/ % << >>`.
+  2. **4.2: functions.** `int` parameters, one `int` result, recursion,
+     ABI-S0 with the prologue bound check, and the 256 MiB runtime stack
+     (`aether.stacklimit`, `aether.stackoverflow`). Short-circuit side
+     effects first become observable here and are tested here.
+  3. **4.3: multiple results** (`tuple`, `extract`).
+  4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`.
+  5. **4.5: `/ % << >>`** with the panic path.
+  6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
+     calls `main.init` before `main.main` (D-009, D-023).
+  7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
-  - Panicking programs match gc on the first stderr line and exit status 2
-    (documented divergence).
-- **Required tests:**
-  - per-type wraparound and conversion tables generated against gc
-  - control-flow tests
-  - recursion depth test (within a documented stack limit)
+  - Panicking programs: Aether's stderr equals gc's stderr up to and
+    including the first line that begins with `panic: `, and both exit with
+    status 2. (Comparing only the first stderr line is wrong whenever the
+    program printed before panicking.) The missing traceback is a documented
+    divergence.
+  - Stack overflow: both exit 2 and both print a line
+    `fatal error: stack overflow` (planned divergence V-2). Tests print
+    nothing while recursing toward the overflow.
+- **Required tests** (none has run yet):
+  - **All increments:**
+    - every gc-built and Aether-built program in the differential and build
+      tests runs **with a timeout**. Today they run without one
+      (`cmd/aether/interp_test.go`, `cmd/aether/build_test.go`), and with
+      loops a bug would hang the suite instead of failing it;
+    - the Milestone 1 test's exact `nm` symbol set is updated whenever the
+      runtime gains a symbol: `aether.printbool` in 4.1 (the whole runtime is
+      linked into every program); `aether.stacklimit` and
+      `aether.stackoverflow` in 4.2;
+    - `FuzzCheck` and `FuzzGenerated` after gate, lowering, IR, or
+      interpreter changes, with the complete output saved (FI-1);
+    - Milestone 1 P1–P6 and the reproducibility checks, which are rerun
+      because the runtime and the generated assembly change.
+  - **4.1:**
+    - corpus `.go`, `.golden`, and `.ir` files for each new construct, and
+      `unsupported` cases for labeled `break`, `goto`, `switch`, `for range`,
+      and functions;
+    - a verifier negative test for each new invariant, including a slot
+      stored on only one path before a load, and a slot stored only inside a
+      loop body and loaded after the loop;
+    - a verifier positive test of a loop whose header reads a slot stored
+      before the loop (the fixed-point rule);
+    - interpreter tests on hand-built IR, and the step budget;
+    - the generator extended to bounded loops, `if` trees, and comparisons
+      including negative operands; gc, interpreter, and native agree on
+      corpus and 200 or more generated programs;
+    - negative controls, each applied, run, and reverted: swapped branch
+      targets; unsigned `setb` for signed `<`; a definite-assignment check
+      that accepts a store on any path; `||` lowered as `&&`; `printbool`
+      printing `1`; and a `continue` that skips the post statement, which
+      must fail by timeout rather than hang.
+  - **4.2:**
+    - **mapping:** a harness `main.main` writes its `%rsp` and `L`, then
+      blocks reading stdin; the test reads `/proc/<pid>/smaps` and checks that
+      the guard page is `---p`, the stack is `rw-p` with no `nr` in
+      `VmFlags`, and its size is `total`, by containment, because the kernel
+      can merge adjacent mappings. Under overcommit mode 2 the `nr` check
+      proves nothing (the kernel ignores `MAP_NORESERVE` there), so the test
+      logs the mode. Negative control: flags `0x24022` must fail it;
+    - **boundary:** a function entered at E = T (D-011) runs; at E = T − 16
+      it exits 2 with exactly `fatal error: stack overflow` and no signal;
+    - **reserve:** with `%rsp` = `L`, `aether.printint(MinInt64)`,
+      `aether.printsp`, and `aether.printnl` print correctly; the overflow
+      handler entered at `L` − 8 exits 2, also with stderr closed;
+    - **end to end:** unbounded small-frame recursion, and one non-`main`
+      frame larger than S, each with exact stderr and exit 2;
+    - **depth within the limit:** recursion using no more than S/4 bytes of
+      stack matches gc exactly;
+    - **argument offsets** for several parameter and result counts, not only
+      P = 1;
+    - **negative controls:** `_start` never stores `L`, or the `jb` is
+      removed; the boundary and end-to-end tests must then fail with
+      SIGSEGV;
+    - `NewFrame` keeps Size, outgoing area included, at 2³⁰ or less;
+    - `TestRuntimeStackGuard` (whose usable size assumes today's formula) and
+      the `ulimit -v` test of V-1 are updated to the 256 MiB policy.
+  - **4.3–4.7:** per-type wraparound and conversion tables generated against
+    gc; `MinInt / −1` and `MinInt % −1` for every signed type; shift counts at
+    and above the width; division-by-zero and negative-shift panics with
+    output printed before them; `InitOrder` against gc; `switch` cases.
+  - **Not tested:** out-of-memory termination while the stack is in use. It
+    cannot be tested safely without cgroups or root, and is a documented
+    limitation (D-009).
 - **Depends on:** Phase 3.
 - **Risks:** calling-convention bugs; `IDIV` edge cases; flags handling.
 - **Completion evidence:** the suite passes; `SEMANTICS.md` lists the panic
-  divergence.
+  and stack-overflow divergences and the D-009 stack limitations.
 
 ## Phase 5: SSA, register allocation, first optimizations
 

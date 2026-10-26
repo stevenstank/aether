@@ -220,8 +220,20 @@ has a defined normalization in the test harness.
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 
-Planned (Phase 4): the panic output has no goroutine traceback. Tests compare
-only the first stderr line and the exit status for panicking programs.
+Planned (Phase 4; each row is added when its increment is implemented):
+- **Panics** print no goroutine traceback. For panicking programs, tests
+  require Aether's stderr to equal gc's up to and including the first line
+  that begins with `panic: `, and both to exit with status 2.
+- **V-2, stack overflow** (increment 4.2, D-009). Aether's stack is 256 MiB
+  and its frames are larger than gc's, so recursion overflows at a smaller
+  depth than under gc's 1e9-byte limit. Aether prints only
+  `fatal error: stack overflow` and exits 2; gc prints a `runtime: goroutine
+  stack exceeds …` line, the same `fatal error` line, and a traceback, and
+  also exits 2. Tests require exit status 2 from both and that line in both
+  outputs.
+- **Stack limitations** (D-009): running out of memory while the stack is in
+  use can end the program by a signal with no message, and a small
+  `ulimit -v` makes every program fail at startup with V-1.
 
 ---
 

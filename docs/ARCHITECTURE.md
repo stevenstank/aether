@@ -225,8 +225,13 @@ naming the function, block, and instruction:
    operand per predecessor.
 
 With no branches, invariants 6 and 7 are exact dominance and
-definite-assignment checks. When S2 adds branches, they must become control
-flow aware.
+definite-assignment checks. S2 (D-023, from increment 4.1) keeps invariant 6
+block-local (values cross blocks only through slots), requires every block to
+be reachable, and replaces invariant 7 with a "must be stored" dataflow over
+the CFG. That dataflow starts the entry block at ∅ and every other block at all
+slots, and iterates to the greatest fixed point. This section describes the
+S1 IR that exists today; D-023 is the contract for each extension until its
+increment updates this section.
 
 **What lowering guarantees beyond the verifier.** The verifier checks the
 IR's form, not its meaning. Lowering guarantees, and the IR goldens and the
@@ -325,9 +330,12 @@ and its line and column. The output contains no paths, times, or host data,
 and ends with an empty `.note.GNU-stack` section (no executable stack).
 
 **Later:**
-- Phase 4: the calling convention for Aether-compiled functions (D-011,
-  Proposed). It must be decided before Phase 4 code depends on it
-  (`ROADMAP.md` Phase 4 prerequisite).
+- Phase 4: control flow and `bool` first (increment 4.1, D-023), with block
+  labels and compare-and-branch sequences. From increment 4.2, calls use the
+  accepted stack convention ABI-S0 (D-011): arguments and results in a
+  caller-owned outgoing area at the bottom of the frame, and a stack-bound
+  check before every prologue's `pushq %rbp`. The outgoing area counts in the
+  frame size, which stays at most 1 GiB.
 - Phase 5: instruction selection over SSA, register allocation (algorithm
   not chosen), a register-based successor to the Phase 4 convention, and a
   frame layout that reserves room for future stack maps (D-010).
@@ -452,7 +460,12 @@ so none can be read as an option.
       `idivq`, so `MinInt64` is never negated.
   - The only global symbols are `_start`, the three helpers, and
     `aether.write`; internal labels are local (`.L…`).
-- **Phase 4:** adds the minimal panic exit (status 2).
+- **Phase 4:** `aether.printbool` (increment 4.1). From increment 4.2, a
+  256 MiB stack mapped with the Phase 3 flags, a software stack limit in
+  `aether.stacklimit`, and `aether.stackoverflow` (D-009 Phase 4 amendment).
+  From 4.5, the minimal panic exit (status 2); from 4.6, `_start` calls
+  `main.init` before `main.main`. Each symbol enters the boundary table below
+  when it is implemented.
 - **Source layout:** runtime sources live in `internal/amd64/rt/*.s`, a
   subdirectory with no Go files. They are embedded into the compiler with
   `//go:embed` and written to the work directory at build time. E9 showed that
@@ -607,7 +620,7 @@ bug (`TESTING.md`).
 
 - SSA construction method, and whether SSA shares the IR package (D-006)
 - GC strategy (D-010)
-- Calling convention (D-011)
+- The register-based successor to ABI-S0 (Phase 5, D-011)
 - Register allocation algorithm
 - Representation of interfaces, closures, defer records, and maps
 - Goroutine stack strategy

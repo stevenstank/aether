@@ -160,8 +160,9 @@ For each `// aether:expect run` program:
    skipped with a logged message.
 3. Compare stdout, stderr, and exit status across all three.
 4. Apply normalization only for divergences listed in `SEMANTICS.md` §Known
-   divergences. Example from Phase 4: for panicking programs, compare only the
-   first stderr line and the exit status.
+   divergences. Example from Phase 4: for panicking programs, Aether's stderr
+   must equal gc's up to and including the first line that begins with
+   `panic: `, and both must exit with status 2 (`ROADMAP.md` Phase 4).
 
 The S1 suite starts with the verified cases S1-01 to S1-10 and S1-N01 to
 S1-N05 (`SEMANTICS.md` §Subset S1). The expected outputs recorded there were
