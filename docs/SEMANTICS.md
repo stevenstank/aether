@@ -224,10 +224,11 @@ Planned (Phase 4; each row is added when its increment is implemented):
 - **Panics** print no goroutine traceback. For panicking programs, tests
   require Aether's stderr to equal gc's up to and including the first line
   that begins with `panic: `, and both to exit with status 2.
-- **V-2, stack overflow** (increment 4.2, D-009). Aether's stack is 256 MiB
-  and its frames are larger than gc's, so recursion overflows at a smaller
-  depth than under gc's 1e9-byte limit. Aether prints only
-  `fatal error: stack overflow` and exits 2; gc prints a `runtime: goroutine
+- **V-2, stack overflow** (increment 4.2, D-009). Aether's stack is at least
+  256 MiB, larger only when `main`'s own frame needs more
+  (`aether.mainstack`), and its frames are larger than gc's, so recursion
+  usually overflows at a smaller depth than under gc's 1e9-byte limit.
+  Aether prints only `fatal error: stack overflow` and exits 2; gc prints a `runtime: goroutine
   stack exceeds …` line, the same `fatal error` line, and a traceback, and
   also exits 2. Tests require exit status 2 from both and that line in both
   outputs.

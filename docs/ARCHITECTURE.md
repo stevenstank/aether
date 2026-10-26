@@ -461,8 +461,9 @@ so none can be read as an option.
   - The only global symbols are `_start`, the three helpers, and
     `aether.write`; internal labels are local (`.L…`).
 - **Phase 4:** `aether.printbool` (increment 4.1). From increment 4.2, a
-  256 MiB stack mapped with the Phase 3 flags, a software stack limit in
-  `aether.stacklimit`, and `aether.stackoverflow` (D-009 Phase 4 amendment).
+  stack of at least 256 MiB mapped with the Phase 3 flags, a software stack
+  limit in `aether.stacklimit`, and `aether.stackoverflow` (D-009 Phase 4
+  amendment).
   From 4.5, the minimal panic exit (status 2); from 4.6, `_start` calls
   `main.init` before `main.main`. Each symbol enters the boundary table below
   when it is implemented.

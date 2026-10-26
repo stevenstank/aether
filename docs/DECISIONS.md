@@ -17,9 +17,12 @@ other document must be corrected.
 **Evidence conventions.** "Local source" means files in the installed Go
 distribution at `/usr/local/go` (go1.26.1, linux/amd64), which is the
 version-matched authoritative source for this environment. "Experiment" means a
-throwaway check run during Phase 0 outside the repository. Its results are
-summarized in [Phase 0 research notes](#phase-0-research-notes) at the end of
-this file. Nothing here is supported by benchmarks: none have been run.
+throwaway check run outside the repository: E1–E11 during Phase 0, and later
+experiments in the phase their note names (E12 in Phase 1, E13 at the Phase 4
+design gate). Their results are summarized in
+[Phase 0 research notes](#phase-0-research-notes) at the end of this file,
+which also holds the later experiments. Nothing here is supported by
+benchmarks: none have been run.
 
 ## Summary
 
@@ -632,8 +635,8 @@ kill, so it is not used.
 **Limitations (documented, not handled):**
 - Out-of-memory termination while the stack is in use cannot be made clean.
 - A guard-page fault means a defect, and produces no diagnostic.
-- With a 256 MiB stack, a small `ulimit -v` makes every program fail at
-  startup with V-1. Phase 3 programs ran under such limits. The exact
+- With a stack of at least 256 MiB, a small `ulimit -v` makes every program
+  fail at startup with V-1. Phase 3 programs ran under such limits. The exact
   threshold (estimated at about 260 MiB) has not been measured.
 - Runaway recursion uses up to S bytes of memory before it overflows.
 - Aether frames are larger than gc's, so Aether overflows at a smaller
@@ -1522,6 +1525,9 @@ type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
     `extract i` of a tuple.
   - `gload g`, `gstore g, v`.
   - `println`, whose operands may be any integer type or `bool`.
+  - `print`, with the same operands and evaluation rule as `println`, but
+    written with no separators and no trailing newline (gc's format, E1:
+    `print(1, 2); print(3)` writes `123`).
 - **Explicit checks.** Lowering guards division by zero and negative signed
   shift counts with a comparison, a `branch`, and a block ending in
   `panic K`, then converts a checked count to an unsigned type. Every
@@ -1576,10 +1582,26 @@ type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
 
 **Interpreter.** Frames hold their slots and current block; values are kept
 in canonical form. Increment 4.1 adds a step budget, for tests only, so a
-lowering bug that loops fails instead of hanging. Increment 4.2 adds an
-explicit call-depth limit: Go's own stack overflow is a fatal error that
-cannot be recovered, so without the limit deep recursion would crash the
-test binary. Increment 4.5 makes `Run` report an exit status: a panic writes
+lowering bug that loops fails instead of hanging.
+
+Increment 4.2 makes `Run` report an exit status (0 for a normal return from
+`main`) and adds an explicit call-depth limit. Go's own stack overflow is a
+fatal error that cannot be recovered, so without the limit deep recursion
+would crash the test binary.
+- The limit is a fixed number of active calls, `main`'s included, defined as
+  a constant in `internal/interp`. It is chosen low enough that the
+  interpreter never exhausts its own Go stack, which a test checks with
+  unbounded recursion.
+- A `call` that would exceed the limit is not executed. The interpreter
+  writes `fatal error: stack overflow` and a newline to stderr, after any
+  output already written, and returns exit status 2. This is the native
+  program's result (D-009, V-2).
+- The interpreter's limit counts calls and the native limit counts bytes, so
+  the two overflow at different depths. Overflow tests therefore compare only
+  the V-2 normalization (exit status 2 and the `fatal error: stack overflow`
+  line), never the output of programs that come close to either limit.
+
+Increment 4.5 adds panics to the same exit-status result: a panic writes
 `panic: runtime error: <message>` and a newline to stderr and exits 2.
 
 **Stages.**
@@ -1587,10 +1609,10 @@ test binary. Increment 4.5 makes `Run` report an exit status: a panic writes
 | Increment | IR parts introduced |
 |---|---|
 | **4.1** | `bool`; `eq`…`ge`, `not`; `jump`, `branch`; invariants 1–4; `println` of `bool`; the interpreter's step budget; runtime helper `aether.printbool` |
-| 4.2 | `Params`, `Results`, `param`, single-result `call`, `ret v`; the interpreter's depth limit; ABI-S0 (D-011) and the stack amendment (D-009) |
+| 4.2 | `Params`, `Results`, `param`, single-result `call`, `ret v`; the interpreter's exit-status result and depth limit (stack overflow, exit 2); ABI-S0 (D-011) and the stack amendment (D-009) |
 | 4.3 | `tuple`, `extract`, tuple storage |
-| 4.4 | sized integer types, canonical-form rules, `conv`, bit operations, `println` of unsigned values (a new helper) |
-| 4.5 | `div`, `rem`, `shl`, `shr`, `panic K`, exit-status results; a runtime panic helper with a stated stack bound |
+| 4.4 | sized integer types, canonical-form rules, `conv`, bit operations, `println` of unsigned values (a new helper), `print` of every integer type and `bool` |
+| 4.5 | `div`, `rem`, `shl`, `shr`, `panic K`, panic results (exit 2); a runtime panic helper with a stated stack bound |
 | 4.6 | `Globals`, `gload`, `gstore`, `Init`; `_start` calls `main.init` |
 | 4.7 | `switch` on integers, lowered to the above (no new IR) |
 
@@ -1639,9 +1661,10 @@ in every position.
 
 ## Phase 0 research notes
 
-All experiments ran in a scratch directory outside the repository on
+Experiments E1–E12 ran in a scratch directory outside the repository on
 2026-10-24, on Ubuntu 24.04 (WSL2, kernel 6.6.87), go1.26.1 linux/amd64,
-GNU as/ld 2.42.
+GNU as/ld 2.42. Later experiments ran on the same host with the same tools,
+on the dates given in their own notes (E13: 2026-10-25 and 2026-10-26).
 
 - **E1: gc observable behavior.** Program `x := 6; y := 7; println(x*y - 1 + 1)`
   built with gc printed `42` to **stderr**; stdout was empty; exit 0.

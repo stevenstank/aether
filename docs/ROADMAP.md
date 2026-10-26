@@ -316,7 +316,7 @@ repeated in each phase below:
       count, E10)
   - multiple top-level functions, parameters, multiple results, recursion
   - package-level `var` and `const` with `InitOrder`
-  - `print`/`println` of `bool`
+  - `println` of `bool` (4.1), and `print` of integers and `bool` (4.4)
   - the minimal panic runtime path
 - **Exclusions:** closures, methods, strings, the heap.
 - **Prerequisites** (design gate, 2026-10-26: D-009 Phase 4 amendment, D-011,
@@ -330,13 +330,18 @@ repeated in each phase below:
      comparisons of `int` and `bool`, `!`, `&&`, `||`, `if`/`else`, the three
      `for` forms, unlabeled `break` and `continue`, `println` of `int` and
      `bool`. Runtime: `aether.printbool`. Still unsupported: functions,
-     `switch`, labels, `goto`, `for range`, sized types, `/ % << >>`.
+     `switch`, labels, `goto`, `for range`, sized types, `/ % << >>`,
+     `print`.
   2. **4.2: functions.** `int` parameters, one `int` result, recursion,
-     ABI-S0 with the prologue bound check, and the 256 MiB runtime stack
-     (`aether.stacklimit`, `aether.stackoverflow`). Short-circuit side
-     effects first become observable here and are tested here.
+     ABI-S0 with the prologue bound check, and the runtime stack of at least
+     256 MiB (`aether.stacklimit`, `aether.stackoverflow`). The interpreter
+     gains an exit status and a call-depth limit that reports a stack
+     overflow with exit 2 (D-023). Short-circuit side effects first become
+     observable here and are tested here.
   3. **4.3: multiple results** (`tuple`, `extract`).
-  4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`.
+  4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`, and
+     `print` (no separators, no newline; E1) of every integer type and
+     `bool`.
   5. **4.5: `/ % << >>`** with the panic path.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).
@@ -400,6 +405,10 @@ repeated in each phase below:
       frame larger than S, each with exact stderr and exit 2;
     - **depth within the limit:** recursion using no more than S/4 bytes of
       stack matches gc exactly;
+    - **interpreter depth limit:** unbounded recursion in the interpreter
+      writes `fatal error: stack overflow` after any earlier output and
+      returns exit status 2, without exhausting the Go stack; a recursion
+      within the limit returns exit status 0;
     - **argument offsets** for several parameter and result counts, not only
       P = 1;
     - **negative controls:** `_start` never stores `L`, or the `jb` is
@@ -409,8 +418,9 @@ repeated in each phase below:
     - `TestRuntimeStackGuard` (whose usable size assumes today's formula) and
       the `ulimit -v` test of V-1 are updated to the 256 MiB policy.
   - **4.3–4.7:** per-type wraparound and conversion tables generated against
-    gc; `MinInt / −1` and `MinInt % −1` for every signed type; shift counts at
-    and above the width; division-by-zero and negative-shift panics with
+    gc; `print` output of every integer type and `bool` against gc, including
+    mixed `print` and `println` calls; `MinInt / −1` and `MinInt % −1` for
+    every signed type; shift counts at and above the width; division-by-zero and negative-shift panics with
     output printed before them; `InitOrder` against gc; `switch` cases.
   - **Not tested:** out-of-memory termination while the stack is in use. It
     cannot be tested safely without cgroups or root, and is a documented
