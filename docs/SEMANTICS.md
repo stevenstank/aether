@@ -232,12 +232,17 @@ Planned (Phase 4; each row is added when its increment is implemented):
   `runtime: goroutine stack exceeds …` line, a `runtime: sp=…` line, the same
   `fatal error` line, and a traceback, and also exits 2 (E14).
   Normalization:
-  Let P be the exact stderr that the gc-built binary writes before its line
-  beginning `runtime: goroutine stack exceeds `. The stderr of the
-  Aether-built executable and the stderr of the interpreter must each equal P
-  followed by `fatal error: stack overflow\n`, and all three exit statuses must
-  be 2. Test programs print nothing during the recursive calls that overflow;
-  output printed before that recursion is part of P and is compared exactly.
+  The rule applies to test programs whose recursion never ends, so that the
+  gc-built binary, the Aether-built executable, and the interpreter all
+  overflow. Let P be the exact bytes the gc-built binary writes to stderr
+  before the first occurrence of the text `runtime: goroutine stack exceeds`.
+  The stderr of the Aether-built executable and the stderr of the interpreter
+  must each be exactly P followed by `fatal error: stack overflow` and one
+  newline. The gc-built binary, the Aether-built executable, and the
+  interpreter must each exit with status 2. The program prints nothing during
+  its recursion; what it prints before the recursion is part of P and is
+  compared exactly. A program that overflows in Aether but not under gc shows
+  the V-2 depth difference and is not compared with gc by this rule.
 - **Stack limitations** (D-009): running out of memory while the stack is in
   use can end the program by a signal with no message, and a small
   `ulimit -v` makes every program fail at startup with V-1.

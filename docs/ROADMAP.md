@@ -336,12 +336,15 @@ repeated in each phase below:
      ABI-S0 with the prologue bound check, and the runtime stack of at least
      256 MiB (`aether.stacklimit`, `aether.stackoverflow`). The interpreter
      gains an exit status and a call-depth limit that reports a stack
-     overflow with exit 2 (D-023). Short-circuit side effects first become
-     observable here and are tested here.
+     overflow with exit 2 (D-023). The interpreter's frame stack is a hard
+     prerequisite for any IR call, and 4.2 is not accepted until the depth
+     limit's value is chosen, recorded in D-023, and tested. Short-circuit
+     side effects first become observable here and are tested here.
   3. **4.3: multiple results** (`tuple`, `extract`).
   4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`, and
-     `print` (no separators, no newline; E1) of every integer type and
-     `bool`.
+     `print` (no separators, no newline) of every integer type and `bool`.
+     Observed in gc so far: `int` (E1), and `bool`, `uint8`, `int8` (E13);
+     the other types' formats are established by the 4.4 tests.
   5. **4.5: `/ % << >>`** with the panic path.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).
@@ -354,12 +357,17 @@ repeated in each phase below:
     program printed before panicking.) The missing traceback is a documented
     divergence.
   - Stack overflow (planned divergence V-2):
-    Let P be the exact stderr that the gc-built binary writes before its line
-    beginning `runtime: goroutine stack exceeds `. The stderr of the
-    Aether-built executable and the stderr of the interpreter must each equal P
-    followed by `fatal error: stack overflow\n`, and all three exit statuses must
-    be 2. Test programs print nothing during the recursive calls that overflow;
-    output printed before that recursion is part of P and is compared exactly.
+    The rule applies to test programs whose recursion never ends, so that the
+    gc-built binary, the Aether-built executable, and the interpreter all
+    overflow. Let P be the exact bytes the gc-built binary writes to stderr
+    before the first occurrence of the text `runtime: goroutine stack exceeds`.
+    The stderr of the Aether-built executable and the stderr of the interpreter
+    must each be exactly P followed by `fatal error: stack overflow` and one
+    newline. The gc-built binary, the Aether-built executable, and the
+    interpreter must each exit with status 2. The program prints nothing during
+    its recursion; what it prints before the recursion is part of P and is
+    compared exactly. A program that overflows in Aether but not under gc shows
+    the V-2 depth difference and is not compared with gc by this rule.
 - **Required tests** (none has run yet):
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
@@ -412,14 +420,30 @@ repeated in each phase below:
     - **interpreter depth limit:** unbounded recursion in the interpreter
       writes `fatal error: stack overflow` after any earlier output and
       returns exit status 2; a recursion within the limit returns exit
-      status 0. Run it again in a subprocess with `debug.SetMaxStack` set
-      far below what Go recursion to the limit would need: it must still
-      reach the limit cleanly. This is evidence for the frame-stack design
-      (D-023), not a proof that Go stack exhaustion is impossible;
-    - **overflow comparison:** a few programs that print before an
-      unbounded recursion are compared with gc by the V-2 rule. Each gc
-      binary takes about 1 GB of memory and 4 s to overflow (E14), so they
-      run one at a time and stay few;
+      status 0, both at the limit value recorded in D-023. Run it again in
+      a subprocess with `debug.SetMaxStack` set far below what Go recursion
+      to the limit would need: it must still reach the limit cleanly. This
+      subprocess test is supporting evidence for the frame-stack design
+      (D-023) and does not by itself prove that Go stack exhaustion is
+      impossible;
+    - **overflow comparison** (required): a few programs that print before
+      an unbounded recursion are compared with gc by the V-2 rule, natively
+      and in the interpreter.
+      - **Cost:** each gc binary took about 1 GB of memory and 4 s to
+        overflow (E14), and each Aether executable can touch up to S bytes
+        of stack, at least 256 MiB.
+      - **Serial:** these binaries run one at a time, and the test does not
+        call `t.Parallel`. Tests of other packages can still run at the same
+        time under `go test ./...`, so the memory estimate below has to
+        allow for them.
+      - **Timeout:** each run has a 2-minute timeout, as
+        `TestBuildLargeFrame` uses; that is far above the measured 4 s, so
+        a run that hits it is treated as a bug.
+      - **Never weakened to a skip:** like the other gc-building tests, it
+        is skipped only under `-short`. In the full suite, a timeout, a
+        signal, or an out-of-memory kill of any of the three runs fails the
+        test. By estimate, not measurement, the host needs about 1.5 GB of
+        free memory for it: one gc binary at a time plus one Aether stack;
     - **argument offsets** for several parameter and result counts, not only
       P = 1;
     - **negative controls:** `_start` never stores `L`, or the `jb` is

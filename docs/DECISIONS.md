@@ -1597,13 +1597,19 @@ Increment 4.2 makes `Run` report an exit status (0 for a normal return from
   until it is written. Go's own stack overflow is a fatal error that cannot
   be recovered and would end the test binary, which is itself a gc-built
   program; gc-built programs limit a goroutine's stack to 1e9 bytes by
-  default, as the gc output in E13 and E14 states. Recursive IR calls are
-  not enabled without this frame stack.
+  default, as the gc output in E13 and E14 states. The frame stack is a
+  **hard prerequisite**: the interpreter executes no IR `call`, recursive or
+  not, until it exists. Its Go-stack safety rests on this design (no Go call
+  per IR call), not on any test; the low-stack subprocess test in
+  `ROADMAP.md` 4.2 is supporting evidence only.
 - **A call-depth limit,** a fixed number of active frames, `main`'s
   included, defined as a constant in `internal/interp`. It gives overflow a
   defined result and bounds the frame stack's heap memory, which is at most
   the limit times the largest frame of the program (8 bytes per slot and per
-  value). A `call` that would exceed the limit is not executed: the
+  value). Its value is not chosen yet: increment 4.2 is not accepted until
+  the value is fixed, recorded here with the heap bound it implies for the
+  largest frame in the 4.2 tests, and the 4.2 interpreter tests pass at that
+  value. A `call` that would exceed the limit is not executed: the
   interpreter writes `fatal error: stack overflow` and a newline to stderr,
   after any output already written, and returns exit status 2, the native
   program's result (D-009, V-2).
@@ -1612,16 +1618,23 @@ The interpreter's limit counts frames and the native limit counts bytes, so
 the two overflow at different depths. Overflowing programs are compared by
 one rule, the same in `SEMANTICS.md` V-2 and `ROADMAP.md` Phase 4:
 
-> Let P be the exact stderr that the gc-built binary writes before its line
-> beginning `runtime: goroutine stack exceeds `. The stderr of the
-> Aether-built executable and the stderr of the interpreter must each equal P
-> followed by `fatal error: stack overflow\n`, and all three exit statuses must
-> be 2. Test programs print nothing during the recursive calls that overflow;
-> output printed before that recursion is part of P and is compared exactly.
+> The rule applies to test programs whose recursion never ends, so that the
+> gc-built binary, the Aether-built executable, and the interpreter all
+> overflow. Let P be the exact bytes the gc-built binary writes to stderr
+> before the first occurrence of the text `runtime: goroutine stack exceeds`.
+> The stderr of the Aether-built executable and the stderr of the interpreter
+> must each be exactly P followed by `fatal error: stack overflow` and one
+> newline. The gc-built binary, the Aether-built executable, and the
+> interpreter must each exit with status 2. The program prints nothing during
+> its recursion; what it prints before the recursion is part of P and is
+> compared exactly. A program that overflows in Aether but not under gc shows
+> the V-2 depth difference and is not compared with gc by this rule.
 
 The rule fits gc's actual output (E14): gc writes `println` output before
-the overflow unbuffered, and starts its diagnostic with that line. S2
-programs print only integers and `bool`, so P cannot contain the line. The
+the overflow unbuffered, then its diagnostic, which starts with that text.
+The rule matches the text rather than a line start because a program that
+last used `print` (4.4) leaves no newline before it. S2 programs print only
+integers and `bool`, so P cannot contain the text. The
 test harness already captures each binary's complete stderr and exit status
 (`gcRun` in `cmd/aether/interp_test.go`). The rule has not yet been applied
 to Aether, which has no Phase 4 code.
