@@ -353,9 +353,13 @@ repeated in each phase below:
     status 2. (Comparing only the first stderr line is wrong whenever the
     program printed before panicking.) The missing traceback is a documented
     divergence.
-  - Stack overflow: both exit 2 and both print a line
-    `fatal error: stack overflow` (planned divergence V-2). Tests print
-    nothing while recursing toward the overflow.
+  - Stack overflow (planned divergence V-2):
+    Let P be the exact stderr that the gc-built binary writes before its line
+    beginning `runtime: goroutine stack exceeds `. The stderr of the
+    Aether-built executable and the stderr of the interpreter must each equal P
+    followed by `fatal error: stack overflow\n`, and all three exit statuses must
+    be 2. Test programs print nothing during the recursive calls that overflow;
+    output printed before that recursion is part of P and is compared exactly.
 - **Required tests** (none has run yet):
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
@@ -407,8 +411,15 @@ repeated in each phase below:
       stack matches gc exactly;
     - **interpreter depth limit:** unbounded recursion in the interpreter
       writes `fatal error: stack overflow` after any earlier output and
-      returns exit status 2, without exhausting the Go stack; a recursion
-      within the limit returns exit status 0;
+      returns exit status 2; a recursion within the limit returns exit
+      status 0. Run it again in a subprocess with `debug.SetMaxStack` set
+      far below what Go recursion to the limit would need: it must still
+      reach the limit cleanly. This is evidence for the frame-stack design
+      (D-023), not a proof that Go stack exhaustion is impossible;
+    - **overflow comparison:** a few programs that print before an
+      unbounded recursion are compared with gc by the V-2 rule. Each gc
+      binary takes about 1 GB of memory and 4 s to overflow (E14), so they
+      run one at a time and stay few;
     - **argument offsets** for several parameter and result counts, not only
       P = 1;
     - **negative controls:** `_start` never stores `L`, or the `jb` is

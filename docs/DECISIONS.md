@@ -18,8 +18,8 @@ other document must be corrected.
 distribution at `/usr/local/go` (go1.26.1, linux/amd64), which is the
 version-matched authoritative source for this environment. "Experiment" means a
 throwaway check run outside the repository: E1–E11 during Phase 0, and later
-experiments in the phase their note names (E12 in Phase 1, E13 at the Phase 4
-design gate). Their results are summarized in
+experiments in the phase their note names (E12 in Phase 1, E13 and E14 at
+the Phase 4 design gate). Their results are summarized in
 [Phase 0 research notes](#phase-0-research-notes) at the end of this file,
 which also holds the later experiments. Nothing here is supported by
 benchmarks: none have been run.
@@ -1526,8 +1526,11 @@ type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
   - `gload g`, `gstore g, v`.
   - `println`, whose operands may be any integer type or `bool`.
   - `print`, with the same operands and evaluation rule as `println`, but
-    written with no separators and no trailing newline (gc's format, E1:
-    `print(1, 2); print(3)` writes `123`).
+    written with no separators and no trailing newline. Evidence: for `int`,
+    E1 (`print(1, 2); print(3)` writes `123`); for `bool`, `uint8`, and
+    `int8`, E13 (`true-1false255-128`). The format of the other sized types
+    is not yet observed and is established by the required 4.4 tests against
+    gc.
 - **Explicit checks.** Lowering guards division by zero and negative signed
   shift counts with a comparison, a `branch`, and a block ending in
   `panic K`, then converts a checked count to an unsigned type. Every
@@ -1585,21 +1588,43 @@ in canonical form. Increment 4.1 adds a step budget, for tests only, so a
 lowering bug that loops fails instead of hanging.
 
 Increment 4.2 makes `Run` report an exit status (0 for a normal return from
-`main`) and adds an explicit call-depth limit. Go's own stack overflow is a
-fatal error that cannot be recovered, so without the limit deep recursion
-would crash the test binary.
-- The limit is a fixed number of active calls, `main`'s included, defined as
-  a constant in `internal/interp`. It is chosen low enough that the
-  interpreter never exhausts its own Go stack, which a test checks with
-  unbounded recursion.
-- A `call` that would exceed the limit is not executed. The interpreter
-  writes `fatal error: stack overflow` and a newline to stderr, after any
-  output already written, and returns exit status 2. This is the native
+`main`), and adds IR calls under two requirements:
+- **An interpreter-managed frame stack.** `Run` executes calls and returns
+  by pushing and popping frames on an explicit stack (a slice of frames) in
+  one loop, never by a Go call per IR call. Its Go stack use therefore does
+  not grow with IR call depth. A depth limit alone cannot be justified as Go
+  stack protection: the interpreter's Go stack use per IR call is unknown
+  until it is written. Go's own stack overflow is a fatal error that cannot
+  be recovered and would end the test binary, which is itself a gc-built
+  program; gc-built programs limit a goroutine's stack to 1e9 bytes by
+  default, as the gc output in E13 and E14 states. Recursive IR calls are
+  not enabled without this frame stack.
+- **A call-depth limit,** a fixed number of active frames, `main`'s
+  included, defined as a constant in `internal/interp`. It gives overflow a
+  defined result and bounds the frame stack's heap memory, which is at most
+  the limit times the largest frame of the program (8 bytes per slot and per
+  value). A `call` that would exceed the limit is not executed: the
+  interpreter writes `fatal error: stack overflow` and a newline to stderr,
+  after any output already written, and returns exit status 2, the native
   program's result (D-009, V-2).
-- The interpreter's limit counts calls and the native limit counts bytes, so
-  the two overflow at different depths. Overflow tests therefore compare only
-  the V-2 normalization (exit status 2 and the `fatal error: stack overflow`
-  line), never the output of programs that come close to either limit.
+
+The interpreter's limit counts frames and the native limit counts bytes, so
+the two overflow at different depths. Overflowing programs are compared by
+one rule, the same in `SEMANTICS.md` V-2 and `ROADMAP.md` Phase 4:
+
+> Let P be the exact stderr that the gc-built binary writes before its line
+> beginning `runtime: goroutine stack exceeds `. The stderr of the
+> Aether-built executable and the stderr of the interpreter must each equal P
+> followed by `fatal error: stack overflow\n`, and all three exit statuses must
+> be 2. Test programs print nothing during the recursive calls that overflow;
+> output printed before that recursion is part of P and is compared exactly.
+
+The rule fits gc's actual output (E14): gc writes `println` output before
+the overflow unbuffered, and starts its diagnostic with that line. S2
+programs print only integers and `bool`, so P cannot contain the line. The
+test harness already captures each binary's complete stderr and exit status
+(`gcRun` in `cmd/aether/interp_test.go`). The rule has not yet been applied
+to Aether, which has no Phase 4 code.
 
 Increment 4.5 adds panics to the same exit-status result: a panic writes
 `panic: runtime error: <message>` and a newline to stderr and exits 2.
@@ -1664,7 +1689,8 @@ in every position.
 Experiments E1–E12 ran in a scratch directory outside the repository on
 2026-10-24, on Ubuntu 24.04 (WSL2, kernel 6.6.87), go1.26.1 linux/amd64,
 GNU as/ld 2.42. Later experiments ran on the same host with the same tools,
-on the dates given in their own notes (E13: 2026-10-25 and 2026-10-26).
+on the dates given in their own notes (E13: 2026-10-25 and 2026-10-26;
+E14: 2026-10-27).
 
 - **E1: gc observable behavior.** Program `x := 6; y := 7; println(x*y - 1 + 1)`
   built with gc printed `42` to **stderr**; stdout was empty; exit 0.
@@ -1858,6 +1884,19 @@ environment. Unlike E1–E11, its findings came from the repository's own tests.
     prints `runtime: goroutine stack exceeds 1000000000-byte limit`, then
     `fatal error: stack overflow` and a traceback, and exits 2; a recursive
     call of `main()` builds and runs.
+  - **`print` format** (gc, 2026-10-26): a program with
+    `var u uint8 = 255`, `var i8 int8 = -128`, and
+    `print(true, -1, false, u, i8); println(); print(); println(true, u, i8)`
+    wrote exactly `true-1false255-128\ntrue 255 -128\n` to stderr, nothing to
+    stdout, and exited 0.
+- **E14: gc's stack-overflow output (2026-10-27).** Same host and tools. A
+  program printing `println(1, 2)` and `println(true)`, then calling
+  `println(r(0))` where `r(n)` returns `r(n+1) + 1`, built with gc (go1.26.1):
+  stderr began with exactly `1 2\ntrue\n`, followed by
+  `runtime: goroutine stack exceeds 1000000000-byte limit`, a `runtime: sp=…`
+  line, and `fatal error: stack overflow` (its fifth line), then a
+  traceback; stdout was empty; exit status 2. The run took about 4 s with a
+  maximum resident set of about 1 GB, so each such gc program is expensive.
 
 **Sources consulted:**
 - Local Go 1.26.1: `doc/go_spec.html`, `doc/go_mem.html` ("Version of June 6,

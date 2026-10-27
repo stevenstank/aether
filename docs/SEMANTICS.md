@@ -228,10 +228,16 @@ Planned (Phase 4; each row is added when its increment is implemented):
   256 MiB, larger only when `main`'s own frame needs more
   (`aether.mainstack`), and its frames are larger than gc's, so recursion
   usually overflows at a smaller depth than under gc's 1e9-byte limit.
-  Aether prints only `fatal error: stack overflow` and exits 2; gc prints a `runtime: goroutine
-  stack exceeds …` line, the same `fatal error` line, and a traceback, and
-  also exits 2. Tests require exit status 2 from both and that line in both
-  outputs.
+  Aether prints only `fatal error: stack overflow` and exits 2; gc prints a
+  `runtime: goroutine stack exceeds …` line, a `runtime: sp=…` line, the same
+  `fatal error` line, and a traceback, and also exits 2 (E14).
+  Normalization:
+  Let P be the exact stderr that the gc-built binary writes before its line
+  beginning `runtime: goroutine stack exceeds `. The stderr of the
+  Aether-built executable and the stderr of the interpreter must each equal P
+  followed by `fatal error: stack overflow\n`, and all three exit statuses must
+  be 2. Test programs print nothing during the recursive calls that overflow;
+  output printed before that recursion is part of P and is compared exactly.
 - **Stack limitations** (D-009): running out of memory while the stack is in
   use can end the program by a signal with no message, and a small
   `ulimit -v` makes every program fail at startup with V-1.
