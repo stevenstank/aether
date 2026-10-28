@@ -1620,21 +1620,30 @@ one rule, the same in `SEMANTICS.md` V-2 and `ROADMAP.md` Phase 4:
 
 > The rule applies to test programs whose recursion never ends, so that the
 > gc-built binary, the Aether-built executable, and the interpreter all
-> overflow. Let P be the exact bytes the gc-built binary writes to stderr
-> before the first occurrence of the text `runtime: goroutine stack exceeds`.
-> The stderr of the Aether-built executable and the stderr of the interpreter
-> must each be exactly P followed by `fatal error: stack overflow` and one
-> newline. The gc-built binary, the Aether-built executable, and the
-> interpreter must each exit with status 2. The program prints nothing during
-> its recursion; what it prints before the recursion is part of P and is
-> compared exactly. A program that overflows in Aether but not under gc shows
-> the V-2 depth difference and is not compared with gc by this rule.
+> overflow. The program prints nothing during its recursion. Let D be the
+> text `runtime: goroutine stack exceeds`, which begins gc's stack-overflow
+> diagnostic. Let P be the exact byte prefix of the gc-built binary's stderr
+> before the first occurrence of D. P holds everything the program printed
+> before the recursion and is compared exactly; it need not end in a newline,
+> because `print` writes none. The gc-built binary's stderr must contain D,
+> and its bytes from that occurrence on must begin with D, a space, a decimal
+> number, the text `-byte limit`, and a newline, and must contain a later
+> line that is exactly `fatal error: stack overflow`. The rest of gc's stderr
+> after P, including the `runtime: sp=` line and the traceback, is not
+> compared. The stderr of the Aether-built executable and the stderr of the
+> interpreter must each be exactly P followed by `fatal error: stack overflow`
+> and one newline, with nothing after it. The gc-built binary, the
+> Aether-built executable, and the interpreter must each exit with status 2.
+> If any of these checks fails, the test fails. A program that overflows in
+> Aether but not under gc shows the V-2 depth difference and is not compared
+> with gc by this rule.
 
 The rule fits gc's actual output (E14): gc writes `println` output before
-the overflow unbuffered, then its diagnostic, which starts with that text.
-The rule matches the text rather than a line start because a program that
-last used `print` (4.4) leaves no newline before it. S2 programs print only
-integers and `bool`, so P cannot contain the text. The
+the overflow unbuffered, then its diagnostic, which starts with D. The rule
+finds D anywhere rather than at a line start because a program that last
+used `print` (4.4) leaves no newline before it. S2 programs print only
+integers and `bool`, so P cannot contain D. The rule does not fix gc's limit
+in the diagnostic (1e9 bytes in E14), only its form. The
 test harness already captures each binary's complete stderr and exit status
 (`gcRun` in `cmd/aether/interp_test.go`). The rule has not yet been applied
 to Aether, which has no Phase 4 code.

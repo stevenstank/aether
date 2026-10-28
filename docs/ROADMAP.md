@@ -359,15 +359,23 @@ repeated in each phase below:
   - Stack overflow (planned divergence V-2):
     The rule applies to test programs whose recursion never ends, so that the
     gc-built binary, the Aether-built executable, and the interpreter all
-    overflow. Let P be the exact bytes the gc-built binary writes to stderr
-    before the first occurrence of the text `runtime: goroutine stack exceeds`.
-    The stderr of the Aether-built executable and the stderr of the interpreter
-    must each be exactly P followed by `fatal error: stack overflow` and one
-    newline. The gc-built binary, the Aether-built executable, and the
-    interpreter must each exit with status 2. The program prints nothing during
-    its recursion; what it prints before the recursion is part of P and is
-    compared exactly. A program that overflows in Aether but not under gc shows
-    the V-2 depth difference and is not compared with gc by this rule.
+    overflow. The program prints nothing during its recursion. Let D be the
+    text `runtime: goroutine stack exceeds`, which begins gc's stack-overflow
+    diagnostic. Let P be the exact byte prefix of the gc-built binary's stderr
+    before the first occurrence of D. P holds everything the program printed
+    before the recursion and is compared exactly; it need not end in a newline,
+    because `print` writes none. The gc-built binary's stderr must contain D,
+    and its bytes from that occurrence on must begin with D, a space, a decimal
+    number, the text `-byte limit`, and a newline, and must contain a later
+    line that is exactly `fatal error: stack overflow`. The rest of gc's stderr
+    after P, including the `runtime: sp=` line and the traceback, is not
+    compared. The stderr of the Aether-built executable and the stderr of the
+    interpreter must each be exactly P followed by `fatal error: stack overflow`
+    and one newline, with nothing after it. The gc-built binary, the
+    Aether-built executable, and the interpreter must each exit with status 2.
+    If any of these checks fails, the test fails. A program that overflows in
+    Aether but not under gc shows the V-2 depth difference and is not compared
+    with gc by this rule.
 - **Required tests** (none has run yet):
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
@@ -433,17 +441,22 @@ repeated in each phase below:
         overflow (E14), and each Aether executable can touch up to S bytes
         of stack, at least 256 MiB.
       - **Serial:** these binaries run one at a time, and the test does not
-        call `t.Parallel`. Tests of other packages can still run at the same
-        time under `go test ./...`, so the memory estimate below has to
-        allow for them.
+        call `t.Parallel`. That makes only this test serial: under
+        `go test ./...`, tests of other packages can run at the same time
+        and add to the memory pressure.
       - **Timeout:** each run has a 2-minute timeout, as
         `TestBuildLargeFrame` uses; that is far above the measured 4 s, so
         a run that hits it is treated as a bug.
       - **Never weakened to a skip:** like the other gc-building tests, it
         is skipped only under `-short`. In the full suite, a timeout, a
         signal, or an out-of-memory kill of any of the three runs fails the
-        test. By estimate, not measurement, the host needs about 1.5 GB of
-        free memory for it: one gc binary at a time plus one Aether stack;
+        test, and no automatic skip based on free memory or other host
+        resources is added.
+      - **Memory:** about 1.5 GB of free memory is an estimate, not a
+        guarantee: one gc binary at about 1 GB, from a single observed run
+        (E14), plus one Aether stack. It does not include the other
+        packages' tests, and a host with less free memory may fail the
+        test;
     - **argument offsets** for several parameter and result counts, not only
       P = 1;
     - **negative controls:** `_start` never stores `L`, or the `jb` is
