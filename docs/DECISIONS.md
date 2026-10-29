@@ -1609,7 +1609,18 @@ Increment 4.2 makes `Run` report an exit status (0 for a normal return from
   value). Its value is not chosen yet: increment 4.2 is not accepted until
   the value is fixed, recorded here with the heap bound it implies for the
   largest frame in the 4.2 tests, and the 4.2 interpreter tests pass at that
-  value. A `call` that would exceed the limit is not executed: the
+  value.
+  **Proposed value (2026-10-29, pending owner approval):** `MaxDepth` =
+  100,000 frames. Each frame is an 88-byte entry of the frame stack (a
+  function pointer, a program counter, and three slice headers) plus
+  8 bytes per parameter, slot, and value, each array rounded up to a Go
+  allocation size class. The largest frames run at depth in the 4.2 tests
+  are those of `r(n) = r(n+1) + 1` (1 parameter, no slot, 5 values):
+  88 + 8 + 48 = 144 bytes, so about 14.4 MB for 100,000 frames, plus the
+  frame stack's spare capacity from slice growth. This is computed, not
+  measured. `TestStackOverflow` runs at this value: 100,000 frames return
+  normally, 100,001 overflow.
+  A `call` that would exceed the limit is not executed: the
   interpreter writes `fatal error: stack overflow` and a newline to stderr,
   after any output already written, and returns exit status 2, the native
   program's result (D-009, V-2).
@@ -1648,7 +1659,11 @@ integers and `bool`, so P cannot contain D. The rule does not fix gc's limit
 in the diagnostic (1e9 bytes in E14), only its form. The
 test harness already captures each binary's complete stderr and exit status
 (`gcRun` in `cmd/aether/interp_test.go`). The rule has not yet been applied
-to Aether, which has no Phase 4 code.
+to Aether with gc as the reference: the gate does not accept functions yet,
+so no Go program reaches the 4.2 calls. On hand-built IR, the interpreter
+and the native executable both write exactly the earlier output followed by
+`fatal error: stack overflow` and a newline, write nothing to stdout, and
+exit 2 (`TestStackOverflow`, `TestNativeStackOverflow`).
 
 Increment 4.5 adds panics to the same exit-status result: a panic writes
 `panic: runtime error: <message>` and a newline to stderr and exits 2.

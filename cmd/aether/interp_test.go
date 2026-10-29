@@ -24,16 +24,16 @@ type result struct {
 }
 
 // interpret compiles src and runs its IR with the interpreter: the test-only
-// equivalent of an "aether run-ir" command. An S1 program never writes to
-// stdout and always exits 0.
+// equivalent of an "aether run-ir" command. The interpreter has no standard
+// output (interp.Run takes only a stderr writer), so stdout is always empty.
 func interpret(name string, src []byte) (result, []diag.Diagnostic, error) {
 	prog, ds := compile([]source{{name, src}})
 	if len(ds) > 0 {
 		return result{}, ds, nil
 	}
 	var stderr bytes.Buffer
-	err := interp.Run(prog, &stderr)
-	return result{stderr: stderr.String()}, nil, err
+	code, err := interp.Run(prog, &stderr)
+	return result{stderr: stderr.String(), exit: code}, nil, err
 }
 
 // gcRun builds every program with gc in one module outside this one, with

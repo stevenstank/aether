@@ -56,7 +56,7 @@ func compileAndRun(t *testing.T, src []byte) []diag.Diagnostic {
 		}
 	}
 	if prog != nil {
-		if err := interp.Run(prog, io.Discard); err != nil {
+		if _, err := interp.Run(prog, io.Discard); err != nil {
 			t.Fatalf("interpreter: %v\nsource:\n%s", err, src)
 		}
 	}

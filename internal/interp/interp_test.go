@@ -3,7 +3,11 @@ package interp
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
+	"os"
+	"os/exec"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -28,8 +32,8 @@ func program(body func(f *ir.Func, b *ir.Block)) *ir.Program {
 func output(t *testing.T, p *ir.Program) string {
 	t.Helper()
 	var stderr bytes.Buffer
-	if err := Run(p, &stderr); err != nil {
-		t.Fatal(err)
+	if code, err := Run(p, &stderr); err != nil || code != 0 {
+		t.Fatalf("exit %d, %v", code, err)
 	}
 	return stderr.String()
 }
@@ -99,7 +103,7 @@ func TestMalformedNotExecuted(t *testing.T) {
 		f.Load(b, f.NewSlot("x", ir.I64, p1), p1) // load before store
 	})
 	var stderr bytes.Buffer
-	err := Run(p, &stderr)
+	_, err := Run(p, &stderr)
 	if err == nil || !strings.Contains(err.Error(), "load of s0 (x) before any store") {
 		t.Errorf("got error %v", err)
 	}
@@ -121,10 +125,117 @@ func TestWriteErrorsIgnored(t *testing.T) {
 		f.Println(b, nil, p1)
 	})
 	w := &failingWriter{}
-	if err := Run(p, w); err != nil {
-		t.Fatalf("write error reported: %v", err)
+	if code, err := Run(p, w); err != nil || code != 0 {
+		t.Fatalf("write error reported: exit %d, %v", code, err)
 	}
 	if w.calls != 2 {
 		t.Errorf("%d writes, want 2: execution must continue after a failed write", w.calls)
+	}
+}
+
+func TestCalls(t *testing.T) {
+	// func f(a, b, c int) int { return a - b*c }
+	// func g(x int) { println(x) }
+	// func main() { x := f(1, 2, 3); g(x); println(f(x, x, x)) }
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	f := p.NewFunc("f", "p.go", p1)
+	f.Params, f.Results = []ir.Type{ir.I64, ir.I64, ir.I64}, []ir.Type{ir.I64}
+	fb := f.Entry()
+	a, b, c := f.Param(fb, 0, p1), f.Param(fb, 1, p1), f.Param(fb, 2, p1)
+	f.Ret(fb, p1, f.Binary(fb, ir.Sub, a, f.Binary(fb, ir.Mul, b, c, p1), p1))
+	g := p.NewFunc("g", "p.go", p1)
+	g.Params = []ir.Type{ir.I64}
+	g.Println(g.Entry(), []*ir.Instr{g.Param(g.Entry(), 0, p1)}, p1)
+	g.Ret(g.Entry(), p1)
+	mb := m.Entry()
+	x := m.NewSlot("x", ir.I64, p1)
+	m.Store(mb, x, m.Call(mb, f, []*ir.Instr{m.Const(mb, 1, p1), m.Const(mb, 2, p1), m.Const(mb, 3, p1)}, p1), p1)
+	m.Call(mb, g, []*ir.Instr{m.Load(mb, x, p1)}, p1)
+	lx := m.Load(mb, x, p1)
+	m.Println(mb, []*ir.Instr{m.Call(mb, f, []*ir.Instr{lx, lx, lx}, p1)}, p1)
+	m.Ret(mb, p1)
+	if got, want := output(t, p), "-5\n-30\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// recursion returns a program that prints 7, then calls r(0), where
+// r(n) = r(n+1) + 1 never returns.
+func recursion() *ir.Program {
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	r := p.NewFunc("r", "p.go", p1)
+	r.Params, r.Results = []ir.Type{ir.I64}, []ir.Type{ir.I64}
+	rb := r.Entry()
+	one := r.Const(rb, 1, p1)
+	n := r.Binary(rb, ir.Add, r.Param(rb, 0, p1), one, p1)
+	r.Ret(rb, p1, r.Binary(rb, ir.Add, r.Call(rb, r, []*ir.Instr{n}, p1), one, p1))
+	mb := m.Entry()
+	m.Println(mb, []*ir.Instr{m.Const(mb, 7, p1)}, p1)
+	m.Println(mb, []*ir.Instr{m.Call(mb, r, []*ir.Instr{m.Const(mb, 0, p1)}, p1)}, p1)
+	m.Ret(mb, p1)
+	return p
+}
+
+// chain returns a program of depth frames: main calls f1, which calls f2,
+// and so on; the last prints 1.
+func chain(depth int) *ir.Program {
+	p := &ir.Program{}
+	fs := []*ir.Func{p.NewFunc("main", "p.go", p1)}
+	for i := 1; i < depth; i++ {
+		fs = append(fs, p.NewFunc(fmt.Sprintf("f%d", i), "p.go", p1))
+	}
+	for i, f := range fs {
+		if i+1 < len(fs) {
+			f.Call(f.Entry(), fs[i+1], nil, p1)
+		} else {
+			f.Println(f.Entry(), []*ir.Instr{f.Const(f.Entry(), 1, p1)}, p1)
+		}
+		f.Ret(f.Entry(), p1)
+	}
+	return p
+}
+
+// TestStackOverflow checks the depth limit (D-023): MaxDepth frames run,
+// one more is a stack overflow, reported after the earlier output with exit
+// status 2, as the native runtime does (SEMANTICS.md V-2).
+func TestStackOverflow(t *testing.T) {
+	tests := []struct {
+		name string
+		prog *ir.Program
+		out  string
+		code int
+	}{
+		{"unbounded recursion", recursion(), "7\n" + stackOverflow, 2},
+		{"MaxDepth frames", chain(MaxDepth), "1\n", 0},
+		{"MaxDepth+1 frames", chain(MaxDepth + 1), stackOverflow, 2},
+	}
+	for _, tt := range tests {
+		var stderr bytes.Buffer
+		code, err := Run(tt.prog, &stderr)
+		if err != nil || code != tt.code || stderr.String() != tt.out {
+			t.Errorf("%s: exit %d, %v, stderr %q; want exit %d, %q", tt.name, code, err, stderr.String(), tt.code, tt.out)
+		}
+	}
+}
+
+// TestStackOverflowLowGoStack runs unbounded recursion to MaxDepth in a
+// subprocess whose Go stack is limited far below what one Go call per IR
+// call would need. It is supporting evidence for the frame-stack design
+// (D-023), not a proof that the Go stack cannot be exhausted.
+func TestStackOverflowLowGoStack(t *testing.T) {
+	if os.Getenv("AETHER_INTERP_LOW_STACK") == "1" {
+		debug.SetMaxStack(64 << 10)
+		var stderr bytes.Buffer
+		if code, err := Run(recursion(), &stderr); err != nil || code != 2 || stderr.String() != "7\n"+stackOverflow {
+			t.Fatalf("exit %d, %v, stderr %q", code, err, stderr.String())
+		}
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestStackOverflowLowGoStack$", "-test.count=1")
+	cmd.Env = append(os.Environ(), "AETHER_INTERP_LOW_STACK=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("subprocess with a 64 KiB Go stack: %v\n%s", err, out)
 	}
 }

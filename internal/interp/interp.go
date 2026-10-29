@@ -16,51 +16,85 @@ import (
 	"github.com/stevenstank/aether/internal/ir"
 )
 
-// Run executes the program's entry function, main, and writes the output of
-// println to stderr. An S1 program writes nothing to standard output and
-// always exits with status 0, so Run has nothing else to report.
+// MaxDepth is the call-depth limit (D-023): the most frames, main's
+// included, that may be active at once. A call that would exceed it is a
+// stack overflow. It bounds the frame stack's heap memory to MaxDepth frames
+// (D-023 records the bound).
+const MaxDepth = 100_000
+
+// stackOverflow is what the native runtime writes for a stack overflow
+// (D-009, SEMANTICS.md V-2).
+const stackOverflow = "fatal error: stack overflow\n"
+
+// Run executes the program's entry function, main, writes the output of
+// println to stderr, and returns the program's exit status: 0 when main
+// returns, 2 after a stack overflow. Nothing is ever written to standard
+// output.
 //
 // The program is verified first. Malformed IR is an error, and nothing is
 // executed. Errors writing to stderr are ignored, as the IR requires.
-func Run(prog *ir.Program, stderr io.Writer) error {
+func Run(prog *ir.Program, stderr io.Writer) (int, error) {
 	if errs := ir.Verify(prog); len(errs) > 0 {
-		return fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
+		return 0, fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
 			return run(f, stderr)
 		}
 	}
-	return errors.New("interp: no function main") // excluded by Verify
+	return 0, errors.New("interp: no function main") // excluded by Verify
 }
 
-func run(f *ir.Func, stderr io.Writer) error {
-	// Verify guarantees that every operand was computed earlier in the
-	// block and every slot was stored before it is loaded, so neither map
-	// lookup below can miss.
-	values := map[*ir.Instr]int64{}
-	slots := make([]int64, len(f.Slots))
-	// Verify also guarantees a single block ending in ret: the IR has no
-	// branches.
-	for _, in := range f.Entry().Instrs {
-		arg := func(i int) int64 { return values[in.Args[i]] }
+// frame is one active call.
+type frame struct {
+	f      *ir.Func
+	pc     int     // index of the next instruction in the entry block
+	args   []int64 // the parameters
+	slots  []int64
+	values []int64 // indexed by value number
+}
+
+// run executes main and every call it makes on an explicit frame stack in
+// one loop, never with a Go call per IR call, so the interpreter's own Go
+// stack does not grow with the IR call depth (D-023).
+func run(main *ir.Func, stderr io.Writer) (int, error) {
+	nvalues := map[*ir.Func]int{}
+	newFrame := func(f *ir.Func, args []int64) frame {
+		n, ok := nvalues[f]
+		if !ok {
+			for _, in := range f.Entry().Instrs {
+				n = max(n, in.ID+1)
+			}
+			nvalues[f] = n
+		}
+		return frame{f: f, args: args, slots: make([]int64, len(f.Slots)), values: make([]int64, n)}
+	}
+	stack := []frame{newFrame(main, nil)}
+	for {
+		fr := &stack[len(stack)-1]
+		// Verify guarantees that every operand was computed earlier in
+		// the block and every slot was stored before it is loaded, and a
+		// single block ending in ret: the IR has no branches.
+		in := fr.f.Entry().Instrs[fr.pc]
+		fr.pc++
+		arg := func(i int) int64 { return fr.values[in.Args[i].ID] }
 		switch in.Op {
 		case ir.Const:
-			values[in] = in.Const
+			fr.values[in.ID] = in.Const
 		case ir.Load:
-			values[in] = slots[in.Slot.ID]
+			fr.values[in.ID] = fr.slots[in.Slot.ID]
 		case ir.Store:
-			slots[in.Slot.ID] = arg(0)
+			fr.slots[in.Slot.ID] = arg(0)
 		// Go's int64 arithmetic wraps in two's complement (spec §Integer
 		// overflow), which is exactly the IR's semantics.
 		case ir.Add:
-			values[in] = arg(0) + arg(1)
+			fr.values[in.ID] = arg(0) + arg(1)
 		case ir.Sub:
-			values[in] = arg(0) - arg(1)
+			fr.values[in.ID] = arg(0) - arg(1)
 		case ir.Mul:
-			values[in] = arg(0) * arg(1)
+			fr.values[in.ID] = arg(0) * arg(1)
 		case ir.Neg:
-			values[in] = -arg(0)
+			fr.values[in.ID] = -arg(0)
 		case ir.Println:
 			var line []byte
 			for i := range in.Args {
@@ -71,11 +105,33 @@ func run(f *ir.Func, stderr io.Writer) error {
 			}
 			line = append(line, '\n')
 			_, _ = stderr.Write(line)
+		case ir.Param:
+			fr.values[in.ID] = fr.args[in.Index]
+		case ir.Call:
+			if len(stack) == MaxDepth {
+				_, _ = io.WriteString(stderr, stackOverflow)
+				return 2, nil
+			}
+			args := make([]int64, len(in.Args))
+			for i := range args {
+				args[i] = arg(i)
+			}
+			stack = append(stack, newFrame(in.Callee, args))
 		case ir.Ret:
-			return nil
+			var result int64
+			if len(in.Args) > 0 {
+				result = arg(0)
+			}
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				return 0, nil
+			}
+			caller := &stack[len(stack)-1]
+			if call := caller.f.Entry().Instrs[caller.pc-1]; call.Type != ir.NoType {
+				caller.values[call.ID] = result
+			}
 		default:
-			return fmt.Errorf("interp: func %s: cannot execute %s", f.Name, in)
+			return 0, fmt.Errorf("interp: func %s: cannot execute %s", fr.f.Name, in)
 		}
 	}
-	return fmt.Errorf("interp: func %s: block b0 has no terminator", f.Name) // excluded by Verify
 }

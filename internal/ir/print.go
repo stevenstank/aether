@@ -17,6 +17,14 @@ import (
 //	  v1 = load s0 @5:10
 //	  println v1 @5:2
 //	  ret @6:1
+//
+// A function with parameters or results lists their types:
+//
+//	func f(i64) i64 @p.go:8:6
+//	b0:
+//	  v0 = param 0 @8:8
+//	  v1 = call f, v0 @9:9
+//	  ret v1 @9:2
 func (p *Program) String() string {
 	var b strings.Builder
 	for i, f := range p.Funcs {
@@ -29,7 +37,14 @@ func (p *Program) String() string {
 }
 
 func (f *Func) write(b *strings.Builder) {
-	fmt.Fprintf(b, "func %s @%s:%s\n", f.Name, f.File, f.Pos)
+	b.WriteString("func " + f.Name)
+	if len(f.Params)+len(f.Results) > 0 {
+		b.WriteString("(" + types(f.Params) + ")")
+		if len(f.Results) > 0 {
+			b.WriteString(" " + types(f.Results))
+		}
+	}
+	fmt.Fprintf(b, " @%s:%s\n", f.File, f.Pos)
 	for _, s := range f.Slots {
 		fmt.Fprintf(b, "  slot s%d %s %s @%s\n", s.ID, s.Name, s.Type, s.Pos)
 	}
@@ -58,6 +73,14 @@ func (in *Instr) String() string {
 		} else {
 			ops = append(ops, "s?")
 		}
+	case Param:
+		ops = append(ops, fmt.Sprint(in.Index))
+	case Call:
+		if in.Callee != nil {
+			ops = append(ops, in.Callee.Name)
+		} else {
+			ops = append(ops, "?")
+		}
 	}
 	for _, a := range in.Args {
 		if a == nil {
@@ -71,4 +94,12 @@ func (in *Instr) String() string {
 		b.WriteString(strings.Join(ops, ", "))
 	}
 	return b.String()
+}
+
+func types(ts []Type) string {
+	s := make([]string, len(ts))
+	for i, t := range ts {
+		s[i] = t.String()
+	}
+	return strings.Join(s, ", ")
 }

@@ -31,6 +31,10 @@ func (e *VerifyError) Error() string {
 func Verify(p *Program) []error {
 	var errs []error
 	names := map[string]bool{}
+	funcs := map[*Func]bool{}
+	for _, f := range p.Funcs {
+		funcs[f] = true
+	}
 	mains := 0
 	for _, f := range p.Funcs {
 		if f == nil {
@@ -44,7 +48,7 @@ func Verify(p *Program) []error {
 		if f.Name == "main" {
 			mains++
 		}
-		errs = append(errs, verifyFunc(f)...)
+		errs = append(errs, verifyFunc(f, funcs)...)
 	}
 	if mains == 0 {
 		errs = append(errs, &VerifyError{Func: "main", Block: -1, Index: -1, Msg: "missing entry point: no function named main"})
@@ -53,8 +57,9 @@ func Verify(p *Program) []error {
 }
 
 type verifier struct {
-	f    *Func
-	errs []error
+	f     *Func
+	funcs map[*Func]bool // the functions of the program
+	errs  []error
 }
 
 func (v *verifier) errorf(block, index int, in *Instr, format string, args ...any) {
@@ -65,10 +70,26 @@ func (v *verifier) errorf(block, index int, in *Instr, format string, args ...an
 	v.errs = append(v.errs, e)
 }
 
-func verifyFunc(f *Func) []error {
-	v := &verifier{f: f}
+func verifyFunc(f *Func, funcs map[*Func]bool) []error {
+	v := &verifier{f: f, funcs: funcs}
 	if f.File == "" || !validPos(f.Pos) {
 		v.errorf(-1, -1, nil, "missing source position")
+	}
+	for i, t := range f.Params {
+		if t != I64 {
+			v.errorf(-1, -1, nil, "parameter %d has invalid type %s", i, t)
+		}
+	}
+	for i, t := range f.Results {
+		if t != I64 {
+			v.errorf(-1, -1, nil, "result %d has invalid type %s", i, t)
+		}
+	}
+	switch {
+	case len(f.Results) > 1:
+		v.errorf(-1, -1, nil, "%d results; at most 1 is supported", len(f.Results))
+	case f.Name == "main" && len(f.Params)+len(f.Results) > 0:
+		v.errorf(-1, -1, nil, "main has parameters or results")
 	}
 	for i, s := range f.Slots {
 		switch {
@@ -172,7 +193,27 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	case Println:
 		want, nargs = NoType, -1
 	case Ret:
+		want, nargs = NoType, len(v.f.Results)
+	case Param:
 		want, nargs = NoType, 0
+		switch {
+		case bi != 0:
+			v.errorf(bi, i, in, "param outside the entry block")
+		case in.Index < 0 || in.Index >= len(v.f.Params):
+			v.errorf(bi, i, in, "param %d of a function with %d parameters", in.Index, len(v.f.Params))
+		default:
+			want = v.f.Params[in.Index]
+		}
+	case Call:
+		want, nargs = NoType, len(in.Args)
+		if in.Callee == nil || !v.funcs[in.Callee] {
+			v.errorf(bi, i, in, "callee is not a function of the program")
+			break
+		}
+		if len(in.Callee.Results) == 1 {
+			want = in.Callee.Results[0]
+		}
+		nargs = len(in.Callee.Params)
 	default:
 		v.errorf(bi, i, in, "invalid operation %s", in.Op)
 		return
@@ -191,6 +232,12 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	}
 	if in.Op != Load && in.Op != Store && in.Slot != nil {
 		v.errorf(bi, i, in, "%s has a slot operand", in.Op)
+	}
+	if in.Op != Param && in.Index != 0 {
+		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
+	}
+	if in.Op != Call && in.Callee != nil {
+		v.errorf(bi, i, in, "%s has a callee", in.Op)
 	}
 }
 

@@ -3,9 +3,13 @@
 	.globl	main.main
 	.type	main.main, @function
 main.main:
+	movq	aether.stacklimit(%rip), %rax
+	addq	$104, %rax
+	cmpq	%rax, %rsp
+	jb	aether.stackoverflow
 	pushq	%rbp
 	movq	%rsp, %rbp
-	subq	$64, %rsp
+	subq	$96, %rsp
 	# v0 = const 6 @1:1
 	movq	$6, -16(%rbp)
 	# store s0, v0 @1:1
@@ -42,16 +46,55 @@ main.main:
 	call	aether.printnl
 	# println @1:1
 	call	aether.printnl
+	# v7 = call sub, v1, v2 @1:1
+	movq	-24(%rbp), %rax
+	movq	%rax, 0(%rsp)
+	movq	-32(%rbp), %rax
+	movq	%rax, 8(%rsp)
+	call	main.sub
+	movq	16(%rsp), %rax
+	movq	%rax, -72(%rbp)
+	# println v7 @1:1
+	movq	-72(%rbp), %rdi
+	call	aether.printint
+	call	aether.printnl
 	# ret @1:1
 	movq	%rbp, %rsp
 	popq	%rbp
 	ret
 	.size	main.main, .-main.main
+	.globl	main.sub
+	.type	main.sub, @function
+main.sub:
+	movq	aether.stacklimit(%rip), %rax
+	addq	$40, %rax
+	cmpq	%rax, %rsp
+	jb	aether.stackoverflow
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$32, %rsp
+	# v0 = param 0 @1:1
+	movq	16(%rbp), %rax
+	movq	%rax, -8(%rbp)
+	# v1 = param 1 @1:1
+	movq	24(%rbp), %rax
+	movq	%rax, -16(%rbp)
+	# v2 = sub v0, v1 @1:1
+	movq	-8(%rbp), %rax
+	subq	-16(%rbp), %rax
+	movq	%rax, -24(%rbp)
+	# ret v2 @1:1
+	movq	-24(%rbp), %rax
+	movq	%rax, 32(%rbp)
+	movq	%rbp, %rsp
+	popq	%rbp
+	ret
+	.size	main.sub, .-main.sub
 	.section	.rodata
 	.p2align	3
 	.globl	aether.mainstack
 	.type	aether.mainstack, @object
 	.size	aether.mainstack, 8
 aether.mainstack:
-	.quad	80
+	.quad	112
 	.section	.note.GNU-stack,"",@progbits

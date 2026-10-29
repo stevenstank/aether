@@ -5,8 +5,8 @@
 // meaning is specified here and in docs/ARCHITECTURE.md §4, precisely enough
 // that a backend or interpreter can consume it without consulting Go source.
 //
-// The instruction set covers exactly subset S1 (docs/SEMANTICS.md). A
-// program is a set of functions; a function owns its local variable slots
+// The instruction set covers subset S1 (docs/SEMANTICS.md) and the calls
+// of D-023 increment 4.2. A program is a set of functions; a function owns its local variable slots
 // and a list of basic blocks; a block is a sequence of instructions ending in
 // one terminator. An instruction that produces a value is that value:
 // operands refer to such instructions directly.
@@ -63,13 +63,24 @@ const (
 	// before any output. Write errors are ignored (D-009). It produces no
 	// value.
 	Println
-	// Ret ends the function. It is a terminator and produces no value.
+	// Ret ends the function, returning its args as the function's
+	// results: one arg per entry of Results, of the same type. It is a
+	// terminator and produces no value.
 	Ret
+	// Param produces the value of parameter Index of the function. No
+	// args. It appears only in the entry block.
+	Param
+	// Call calls Callee, a function of the program, with args, one per
+	// entry of Callee.Params and of the same type, and produces its result:
+	// the type is Callee's single result type, or NoType if it has none.
+	// Each call has a fresh set of slots.
+	Call
 )
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",
 	Add: "add", Sub: "sub", Mul: "mul", Neg: "neg", Println: "println", Ret: "ret",
+	Param: "param", Call: "call",
 }
 
 func (op Op) String() string {
@@ -94,12 +105,14 @@ type Program struct {
 	Funcs []*Func
 }
 
-// Func is a function. In S1, functions take no parameters and return no
-// results.
+// Func is a function. Main takes no parameters and returns no results.
 type Func struct {
 	Name string
 	File string // source file of every position in the function
 	Pos  Pos
+	// Params and Results are the types of the parameters and results. A
+	// function has at most one result (D-023, increment 4.2).
+	Params, Results []Type
 	// Slots are the function's local variables. A slot has no defined
 	// contents until it is stored to.
 	Slots []*Slot
@@ -127,13 +140,15 @@ type Block struct {
 // Instr is an instruction. If its Type is not NoType it produces a value,
 // numbered ID, and other instructions may use it as an argument.
 type Instr struct {
-	Op    Op
-	Type  Type
-	ID    int // value number, unique in the function; -1 if no value
-	Args  []*Instr
-	Slot  *Slot // for Load and Store
-	Const int64 // for Const
-	Pos   Pos
+	Op     Op
+	Type   Type
+	ID     int // value number, unique in the function; -1 if no value
+	Args   []*Instr
+	Slot   *Slot // for Load and Store
+	Const  int64 // for Const
+	Index  int   // for Param
+	Callee *Func // for Call
+	Pos    Pos
 }
 
 // NewFunc returns an empty function with an entry block.
@@ -198,7 +213,21 @@ func (f *Func) Println(b *Block, args []*Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Println, Args: args, Pos: pos})
 }
 
-// Ret appends a return.
-func (f *Func) Ret(b *Block, pos Pos) *Instr {
-	return f.add(b, &Instr{Op: Ret, Pos: pos})
+// Ret appends a return of results.
+func (f *Func) Ret(b *Block, pos Pos, results ...*Instr) *Instr {
+	return f.add(b, &Instr{Op: Ret, Args: results, Pos: pos})
+}
+
+// Param appends parameter i of f.
+func (f *Func) Param(b *Block, i int, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Param, Type: f.Params[i], Index: i, Pos: pos})
+}
+
+// Call appends a call of callee with args.
+func (f *Func) Call(b *Block, callee *Func, args []*Instr, pos Pos) *Instr {
+	t := NoType
+	if len(callee.Results) == 1 {
+		t = callee.Results[0]
+	}
+	return f.add(b, &Instr{Op: Call, Type: t, Args: args, Callee: callee, Pos: pos})
 }

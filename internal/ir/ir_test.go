@@ -134,3 +134,85 @@ func TestVerifyRejects(t *testing.T) {
 		})
 	}
 }
+
+// callSample builds the IR for
+//
+//	func main() { println(f(6)) }
+//	func f(n int) int { return f(n) }
+func callSample() *Program {
+	p := &Program{}
+	m := p.NewFunc("main", "p.go", Pos{3, 6})
+	f := p.NewFunc("f", "p.go", Pos{4, 6})
+	f.Params, f.Results = []Type{I64}, []Type{I64}
+	fb := f.Entry()
+	f.Ret(fb, Pos{4, 21}, f.Call(fb, f, []*Instr{f.Param(fb, 0, Pos{4, 8})}, Pos{4, 29}))
+	mb := m.Entry()
+	m.Println(mb, []*Instr{m.Call(mb, f, []*Instr{m.Const(mb, 6, Pos{3, 23})}, Pos{3, 21})}, Pos{3, 15})
+	m.Ret(mb, Pos{3, 28})
+	return p
+}
+
+func TestPrintCalls(t *testing.T) {
+	want := `func main @p.go:3:6
+b0:
+  v0 = const 6 @3:23
+  v1 = call f, v0 @3:21
+  println v1 @3:15
+  ret @3:28
+
+func f(i64) i64 @p.go:4:6
+b0:
+  v0 = param 0 @4:8
+  v1 = call f, v0 @4:29
+  ret v1 @4:21
+`
+	if got := callSample().String(); got != want {
+		t.Errorf("String():\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifyCalls checks invariants 6 and 7 of D-023 as far as increment 4.2
+// introduces them.
+func TestVerifyCalls(t *testing.T) {
+	if errs := Verify(callSample()); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	main := func(p *Program, i int) *Instr { return p.Funcs[0].Blocks[0].Instrs[i] }
+	f := func(p *Program, i int) *Instr { return p.Funcs[1].Blocks[0].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		{"main with a parameter", func(p *Program) { p.Funcs[0].Params = []Type{I64} }, "func main: main has parameters or results"},
+		{"two results", func(p *Program) { p.Funcs[1].Results = []Type{I64, I64} }, "func f: 2 results; at most 1 is supported"},
+		{"parameter type", func(p *Program) { p.Funcs[1].Params[0] = NoType }, "func f: parameter 0 has invalid type none"},
+		{"result type", func(p *Program) { p.Funcs[1].Results[0] = Type(9) }, "func f: result 0 has invalid type Type(9)"},
+		{"param index", func(p *Program) { f(p, 0).Index = 1 }, "param 1 of a function with 1 parameters"},
+		{"param type", func(p *Program) { f(p, 0).Type = NoType }, "param has result type none, want i64"},
+		{"param outside entry", func(p *Program) {
+			p.Funcs[1].Blocks = append(p.Funcs[1].Blocks, &Block{ID: 1, Instrs: []*Instr{{Op: Param, Type: I64, ID: 5, Pos: Pos{1, 1}}, {Op: Ret, ID: -1, Pos: Pos{1, 1}}}})
+		}, "b1: instr 0 (v5 = param 0): param outside the entry block"},
+		{"index on another operation", func(p *Program) { main(p, 0).Index = 2 }, "const has a parameter index"},
+		{"foreign callee", func(p *Program) { main(p, 1).Callee = &Func{Name: "g"} }, "instr 1 (v1 = call g, v0): callee is not a function of the program"},
+		{"missing callee", func(p *Program) { main(p, 1).Callee = nil }, "callee is not a function of the program"},
+		{"callee on another operation", func(p *Program) { main(p, 0).Callee = p.Funcs[1] }, "const has a callee"},
+		{"argument count", func(p *Program) { main(p, 1).Args = nil }, "call has 0 operands, want 1"},
+		{"call result type", func(p *Program) { main(p, 1).Type = NoType }, "call has result type none, want i64"},
+		{"missing result", func(p *Program) { f(p, 2).Args = nil }, "func f: b0: instr 2 (ret): ret has 0 operands, want 1"},
+		{"result from main", func(p *Program) { main(p, 3).Args = []*Instr{main(p, 0)} }, "func main: b0: instr 3 (ret v0): ret has 1 operands, want 0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := callSample()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors do not mention %q:\n%s", tt.want, all)
+			}
+		})
+	}
+}

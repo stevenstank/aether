@@ -31,19 +31,27 @@ func program(body func(f *ir.Func, b *ir.Block)) *ir.Program {
 	return p
 }
 
-// sample uses every IR operation.
+// sample uses every IR operation: main and sub(a, b int) int { return a - b }.
 func sample() *ir.Program {
-	return program(func(f *ir.Func, b *ir.Block) {
-		x := f.NewSlot("x", ir.I64, p1)
-		f.Store(b, x, f.Const(b, 6, p1), p1)
-		lx := f.Load(b, x, p1)
-		big := f.Const(b, math.MinInt64, p1)
-		sum := f.Binary(b, ir.Add, lx, big, p1)
-		diff := f.Binary(b, ir.Sub, sum, lx, p1)
-		prod := f.Binary(b, ir.Mul, diff, f.Neg(b, lx, p1), p1)
-		f.Println(b, []*ir.Instr{lx, prod}, p1)
-		f.Println(b, nil, p1)
-	})
+	p := &ir.Program{}
+	f := p.NewFunc("main", "p.go", p1)
+	sub := p.NewFunc("sub", "p.go", p1)
+	sub.Params, sub.Results = []ir.Type{ir.I64, ir.I64}, []ir.Type{ir.I64}
+	sb := sub.Entry()
+	sub.Ret(sb, p1, sub.Binary(sb, ir.Sub, sub.Param(sb, 0, p1), sub.Param(sb, 1, p1), p1))
+	b := f.Entry()
+	x := f.NewSlot("x", ir.I64, p1)
+	f.Store(b, x, f.Const(b, 6, p1), p1)
+	lx := f.Load(b, x, p1)
+	big := f.Const(b, math.MinInt64, p1)
+	sum := f.Binary(b, ir.Add, lx, big, p1)
+	diff := f.Binary(b, ir.Sub, sum, lx, p1)
+	prod := f.Binary(b, ir.Mul, diff, f.Neg(b, lx, p1), p1)
+	f.Println(b, []*ir.Instr{lx, prod}, p1)
+	f.Println(b, nil, p1)
+	f.Println(b, []*ir.Instr{f.Call(b, sub, []*ir.Instr{lx, big}, p1)}, p1)
+	f.Ret(b, p1)
+	return p
 }
 
 // TestEmitGolden pins the instruction selection and frame layout for every
@@ -99,16 +107,17 @@ func TestConstantSelection(t *testing.T) {
 }
 
 func TestFrame(t *testing.T) {
-	tests := []struct{ slots, values, size int }{
-		{0, 0, 0}, {1, 0, 16}, {2, 0, 16}, {1, 2, 32}, {3, 3, 48}, {0, 5, 48},
+	tests := []struct{ slots, values, out, size int }{
+		{0, 0, 0, 0}, {1, 0, 0, 16}, {2, 0, 0, 16}, {1, 2, 0, 32}, {3, 3, 0, 48}, {0, 5, 0, 48},
+		{0, 0, 1, 16}, {1, 2, 2, 48}, {0, 0, maxFrame / 8, maxFrame},
 	}
 	for _, tt := range tests {
-		fr, err := NewFrame(tt.slots, tt.values)
+		fr, err := NewFrame(tt.slots, tt.values, tt.out)
 		if err != nil || fr.Size != tt.size || fr.Size%16 != 0 {
-			t.Errorf("NewFrame(%d, %d) = %+v, %v; want size %d", tt.slots, tt.values, fr, err, tt.size)
+			t.Errorf("NewFrame(%d, %d, %d) = %+v, %v; want size %d", tt.slots, tt.values, tt.out, fr, err, tt.size)
 		}
 	}
-	fr, _ := NewFrame(2, 3)
+	fr, _ := NewFrame(2, 3, 0)
 	if fr.SlotOffset(0) != -8 || fr.SlotOffset(1) != -16 || fr.ValueOffset(0) != -24 || fr.ValueOffset(2) != -40 {
 		t.Errorf("offsets: s0 %d s1 %d v0 %d v2 %d", fr.SlotOffset(0), fr.SlotOffset(1), fr.ValueOffset(0), fr.ValueOffset(2))
 	}
@@ -116,9 +125,13 @@ func TestFrame(t *testing.T) {
 	if -fr.ValueOffset(fr.Values-1) > fr.Size {
 		t.Errorf("value v%d at %d is outside a frame of %d bytes", fr.Values-1, fr.ValueOffset(fr.Values-1), fr.Size)
 	}
-	for _, bad := range [][2]int{{-1, 0}, {0, -1}, {maxFrame / 8, 1}, {1, maxFrame / 8}, {math.MaxInt, math.MaxInt}} {
-		if _, err := NewFrame(bad[0], bad[1]); err == nil {
-			t.Errorf("NewFrame(%d, %d) accepted", bad[0], bad[1])
+	// Size, outgoing area included, is at most maxFrame (D-011).
+	for _, bad := range [][3]int{
+		{-1, 0, 0}, {0, -1, 0}, {0, 0, -1}, {maxFrame / 8, 1, 0}, {1, maxFrame / 8, 0},
+		{0, 1, maxFrame / 8}, {maxFrame/8 - 1, 0, 1 + 1}, {math.MaxInt, math.MaxInt, math.MaxInt},
+	} {
+		if _, err := NewFrame(bad[0], bad[1], bad[2]); err == nil {
+			t.Errorf("NewFrame(%d, %d, %d) accepted", bad[0], bad[1], bad[2])
 		}
 	}
 }
@@ -129,12 +142,6 @@ func TestEmitRejects(t *testing.T) {
 	})
 	if asm, err := Emit(malformed); err == nil || asm != nil || !strings.Contains(err.Error(), "malformed IR") {
 		t.Errorf("malformed IR: %v, %d bytes", err, len(asm))
-	}
-	two := sample()
-	f := two.NewFunc("f", "p.go", p1)
-	f.Ret(f.Entry(), p1)
-	if asm, err := Emit(two); err == nil || asm != nil || !strings.Contains(err.Error(), "func f: only main is supported") {
-		t.Errorf("second function: %v, %d bytes", err, len(asm))
 	}
 }
 
@@ -248,8 +255,8 @@ func TestNativeMatchesInterpreter(t *testing.T) {
 		f.Println(b, nil, p1)
 	})
 	var want bytes.Buffer
-	if err := interp.Run(prog, &want); err != nil {
-		t.Fatal(err)
+	if code, err := interp.Run(prog, &want); err != nil || code != 0 {
+		t.Fatalf("interpreter: exit %d, %v", code, err)
 	}
 	asm, err := Emit(prog)
 	if err != nil {
@@ -438,45 +445,54 @@ func TestRuntimeStack(t *testing.T) {
 
 // guardHarness declares a 16-byte stack need. main.main checks that the top
 // of the stack _start mapped (the address above its return address) is
-// page-aligned, exiting with status 3 if not, then writes one word at off
-// bytes from that top.
-func guardHarness(off int) string {
+// page-aligned, exiting with status 3 if not, and that aether.stacklimit
+// holds L, the reserve's top, exiting with status 4 if not. Then it writes
+// one word at off bytes from the top.
+func guardHarness(usable, off int) string {
 	return fmt.Sprintf(`	.text
 	.globl	main.main
 main.main:
 	leaq	8(%%rsp), %%rax
 	testq	$4095, %%rax
 	jnz	1f
+	movq	%%rax, %%rcx
+	subq	$%d, %%rcx
+	cmpq	%s(%%rip), %%rcx
+	jne	2f
 	movq	$1, %d(%%rax)
 	ret
 1:	movl	$231, %%eax
 	movl	$3, %%edi
 	syscall
-`, off) + mainStack(16)
+2:	movl	$231, %%eax
+	movl	$4, %%edi
+	syscall
+`, usable-4096, symStackLimit, off) + mainStack(16)
 }
 
-// TestRuntimeStackGuard checks the layout _start maps (ARCHITECTURE.md §9):
-// for a need of 16 bytes, 16 + 4096 rounded up to pages is usable, and the
-// page below is a guard that faults when written.
+// TestRuntimeStackGuard checks the layout _start maps (D-009,
+// ARCHITECTURE.md §9): for a need of 16 bytes, S = 256 MiB plus the
+// 4096-byte reserve, rounded up to pages, is usable, L is the reserve's top,
+// and the page below is a guard that faults when written.
 func TestRuntimeStackGuard(t *testing.T) {
 	if _, err := os.Stat("/bin/sh"); err != nil {
 		t.Skip("no /bin/sh to disable core dumps with")
 	}
 	const page = 4096
-	usable := (16 + 4096 + page - 1) &^ (page - 1)
+	usable := (256<<20 + 4096 + page - 1) &^ (page - 1)
 	tests := []struct {
 		name string
 		off  int
 		segv bool
 	}{
-		{"lowest word of need plus reserve", -16 - 4096, false},
+		{"lowest word above L", -usable + 4096, false},
 		{"lowest usable word", -usable, false},
 		{"highest word of the guard page", -usable - 8, true},
 		{"lowest word of the guard page", -usable - page, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exe := link(t, t.TempDir(), withRuntime([]byte(guardHarness(tt.off))))
+			exe := link(t, t.TempDir(), withRuntime([]byte(guardHarness(usable, tt.off))))
 			cmd := exec.Command("/bin/sh", "-c", `ulimit -c 0 && exec "$0"`, exe)
 			err := cmd.Run()
 			var exit *exec.ExitError
@@ -493,5 +509,155 @@ func TestRuntimeStackGuard(t *testing.T) {
 				t.Errorf("%v; want %s", err, map[bool]string{false: "exit 0", true: "SIGSEGV"}[tt.segv])
 			}
 		})
+	}
+}
+
+// TestNativeCalls checks ABI-S0 argument and result offsets for 0 to 4
+// parameters, with and without a result, natively against the interpreter.
+func TestNativeCalls(t *testing.T) {
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	mb := m.Entry()
+	var outs []*ir.Instr
+	for n := range 5 {
+		// fn(a0, ..., an-1) int { println(a0, ..., an-1); return a0 - a1 - ... - 100 }
+		f := p.NewFunc(fmt.Sprintf("f%d", n), "p.go", p1)
+		fb := f.Entry()
+		for range n {
+			f.Params = append(f.Params, ir.I64)
+		}
+		f.Results = []ir.Type{ir.I64}
+		var params []*ir.Instr
+		acc := f.Const(fb, 100, p1)
+		for i := range n {
+			params = append(params, f.Param(fb, i, p1))
+			acc = f.Binary(fb, ir.Sub, params[i], acc, p1)
+		}
+		f.Println(fb, params, p1)
+		f.Ret(fb, p1, acc)
+		var args []*ir.Instr
+		for i := range n {
+			args = append(args, m.Const(mb, int64(10*i+1)-int64(i%2)*math.MaxInt64, p1))
+		}
+		outs = append(outs, m.Call(mb, f, args, p1))
+	}
+	// A call without a result, whose callee prints its argument.
+	g := p.NewFunc("g", "p.go", p1)
+	g.Params = []ir.Type{ir.I64}
+	g.Println(g.Entry(), []*ir.Instr{g.Param(g.Entry(), 0, p1)}, p1)
+	g.Ret(g.Entry(), p1)
+	m.Call(mb, g, []*ir.Instr{outs[4]}, p1)
+	m.Println(mb, outs, p1)
+	m.Ret(mb, p1)
+	var want bytes.Buffer
+	if code, err := interp.Run(p, &want); err != nil || code != 0 {
+		t.Fatalf("interpreter: exit %d, %v", code, err)
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil)
+	if code != 0 || got != want.String() {
+		t.Errorf("exit %d; native output differs from the interpreter's\nnative:\n%s\ninterpreter:\n%s", code, got, want.String())
+	}
+}
+
+// TestNativeStackOverflow runs unbounded recursion natively: the prologue
+// check must end it with exactly the earlier output and the fatal error,
+// exit status 2, and no signal, as the interpreter does at its depth limit
+// (SEMANTICS.md V-2). With stderr on /dev/full the status is still 2.
+func TestNativeStackOverflow(t *testing.T) {
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	r := p.NewFunc("r", "p.go", p1)
+	r.Params, r.Results = []ir.Type{ir.I64}, []ir.Type{ir.I64}
+	rb := r.Entry()
+	one := r.Const(rb, 1, p1)
+	n := r.Binary(rb, ir.Add, r.Param(rb, 0, p1), one, p1)
+	r.Ret(rb, p1, r.Binary(rb, ir.Add, r.Call(rb, r, []*ir.Instr{n}, p1), one, p1))
+	mb := m.Entry()
+	m.Println(mb, []*ir.Instr{m.Const(mb, 7, p1)}, p1)
+	m.Println(mb, []*ir.Instr{m.Call(mb, r, []*ir.Instr{m.Const(mb, 0, p1)}, p1)}, p1)
+	m.Ret(mb, p1)
+	const want = "7\nfatal error: stack overflow\n"
+	var interpOut bytes.Buffer
+	if code, err := interp.Run(p, &interpOut); err != nil || code != 2 || interpOut.String() != want {
+		t.Errorf("interpreter: exit %d, %v, stderr %q", code, err, interpOut.String())
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := link(t, t.TempDir(), withRuntime(asm))
+	if got, code := execute(t, exe, nil); code != 2 || got != want {
+		t.Errorf("native: exit %d, stderr %q; want exit 2, %q", code, got, want)
+	}
+	full, err := os.OpenFile("/dev/full", os.O_WRONLY, 0)
+	if err != nil {
+		t.Skipf("no /dev/full: %v", err)
+	}
+	defer full.Close()
+	if _, code := execute(t, exe, full); code != 2 {
+		t.Errorf("with stderr on /dev/full: exit %d, want 2", code)
+	}
+}
+
+// TestStackBoundary enters a compiled function at the lowest entry %rsp its
+// prologue accepts, E = T = L + Size + 8 (D-011), and 16 bytes below it. At
+// E = T it runs, and its println runs the helpers in the reserve below L;
+// at E = T - 16 it is a stack overflow. A hand-written main.main sets %rsp
+// from aether.stacklimit; the compiled main is renamed out of the way.
+func TestStackBoundary(t *testing.T) {
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	leaf := p.NewFunc("leaf", "p.go", p1)
+	lb := leaf.Entry()
+	leaf.Println(lb, []*ir.Instr{leaf.Const(lb, math.MinInt64, p1), leaf.Const(lb, -1, p1)}, p1)
+	leaf.Ret(lb, p1)
+	m.Call(m.Entry(), leaf, nil, p1)
+	m.Ret(m.Entry(), p1)
+	fr, err := NewFrame(0, 2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(asm, fmt.Appendf(nil, "\taddq\t$%d, %%rax\n\tcmpq\t%%rax, %%rsp\n\tjb\taether.stackoverflow\n\tpushq\t%%rbp\n\tmovq\t%%rsp, %%rbp\n\tsubq\t$%d, %%rsp\n\t# v0 = const", fr.Size+8, fr.Size)) {
+		t.Fatalf("leaf's frame is not %d bytes:\n%s", fr.Size, asm)
+	}
+	compiled := bytes.ReplaceAll(asm, []byte("main.main"), []byte("main.compiled"))
+	tests := []struct {
+		name string
+		e    int // entry %rsp minus T
+		want string
+		code int
+	}{
+		{"E = T", 0, "-9223372036854775808 -1\n", 0},
+		{"E = T - 16", -16, "fatal error: stack overflow\n", 2},
+	}
+	for _, tt := range tests {
+		// The call pushes 8 bytes, so %rsp before it is E + 8, aligned.
+		harness := fmt.Sprintf(`	.text
+	.globl	main.main
+main.main:
+	pushq	%%rbp
+	movq	%%rsp, %%rbp
+	movq	%s(%%rip), %%rsp
+	addq	$%d, %%rsp
+	call	main.leaf
+	movq	%%rbp, %%rsp
+	popq	%%rbp
+	ret
+	.section	.note.GNU-stack,"",@progbits
+`, symStackLimit, fr.Size+16+tt.e)
+		files := withRuntime(compiled)
+		files["harness.s"] = []byte(harness)
+		got, code := execute(t, link(t, t.TempDir(), files), nil)
+		if got != tt.want || code != tt.code {
+			t.Errorf("%s: exit %d, stderr %q; want exit %d, %q", tt.name, code, got, tt.code, tt.want)
+		}
 	}
 }

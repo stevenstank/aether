@@ -293,6 +293,12 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 - **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
   checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
   error, so offsets always fit a 32-bit displacement.
+- **Calls (increment 4.2, ABI-S0, D-011).** A function with calls also
+  reserves an outgoing area of `8*max(P+R)` bytes at the bottom of its frame,
+  included in Size; its own arguments and result are at `16+8*i(%rbp)`.
+  Every prologue, `main.main`'s included, first checks the frame against
+  `aether.stacklimit` and jumps to `aether.stackoverflow` if it does not
+  fit.
 - **Stack.** After the code, the backend emits the read-only 8-byte datum
   `aether.mainstack = 16 + Size`: the bytes `main.main` uses below `_start`'s
   call (return address, saved `%rbp`, frame). The runtime maps a stack that
@@ -460,9 +466,11 @@ so none can be read as an option.
       `idivq`, so `MinInt64` is never negated.
   - The only global symbols are `_start`, the three helpers, and
     `aether.write`; internal labels are local (`.L…`).
-- **Phase 4:** `aether.printbool` (increment 4.1). From increment 4.2, a
-  stack of at least 256 MiB mapped with the Phase 3 flags, a software stack
-  limit in `aether.stacklimit`, and `aether.stackoverflow` (D-009 Phase 4
+- **Phase 4:** `aether.printbool` (increment 4.1). From increment 4.2
+  (implemented in the runtime and backend; the gate does not yet accept
+  functions), a stack of at least 256 MiB mapped with the Phase 3 flags, a
+  software stack limit `L` in `aether.stacklimit`, stored by `_start` before
+  it calls `main.main`, and `aether.stackoverflow` (D-009 Phase 4
   amendment).
   From 4.5, the minimal panic exit (status 2); from 4.6, `_start` calls
   `main.init` before `main.main`. Each symbol enters the boundary table below
@@ -480,9 +488,12 @@ that interface is:
 
 | Symbol | Provided by | Contract |
 |---|---|---|
-| `_start` | runtime | Process entry. Maps the main stack from `aether.mainstack`, calls `main.main` on it, then exits 0. Exits 2 with a fatal error if the stack cannot be mapped. |
+| `_start` | runtime | Process entry. Maps a stack of max(256 MiB, `aether.mainstack`) bytes, stores its limit in `aether.stacklimit`, calls `main.main` on it, then exits 0. Exits 2 with a fatal error if the stack cannot be mapped. |
 | `aether.mainstack` | compiler | Read-only 8-byte datum: the bytes `main.main` uses below `_start`'s call, excluding the helpers' own use. |
 | `main.main` | compiler | Aether-compiled `main`. No arguments, no results. Called with `rsp` 16-byte aligned before `call`. |
+| `main.<name>` | compiler | Every other Aether-compiled function, called only from compiled code under ABI-S0 (D-011). |
+| `aether.stacklimit` | runtime | Writable 8-byte word: the stack limit `L` every prologue checks against (D-009, D-011). |
+| `aether.stackoverflow` | runtime | Entered by `jb` from a prologue, with `%rsp` at least `L` − 8. Writes `fatal error: stack overflow` to fd 2 and exits 2; uses at most 24 bytes below `L`. |
 | `aether.printint`, `aether.printsp`, `aether.printnl` | runtime | Print one `int64` (in `%rdi`) in decimal / a space / a newline to fd 2. No result; `%rsp` 16-byte aligned before `call`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15` and may clobber every other general-purpose register (a subset of the System V convention). Write errors other than `EINTR` are ignored. This interface covers only runtime helpers. It does not decide D-011 (D-022). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
 
