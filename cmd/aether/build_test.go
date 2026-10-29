@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -111,14 +112,16 @@ func TestBuildCorpus(t *testing.T) {
 // runExe runs an executable and returns what it did.
 func runExe(t *testing.T, path string) result {
 	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
+	defer cancel()
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(path)
+	cmd := exec.CommandContext(ctx, path)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	r := result{}
 	if err := cmd.Run(); err != nil {
 		exit, ok := err.(*exec.ExitError)
-		if !ok {
-			t.Fatal(err)
+		if !ok || exit.ExitCode() < 0 {
+			t.Fatalf("%s: %v", path, err) // a timeout or a signal
 		}
 		r.exit = exit.ExitCode()
 	}

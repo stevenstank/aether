@@ -1,0 +1,352 @@
+func trace(i64, bool) bool @testdata/check/s2_c02_bool.go:6:6
+  slot s0 x i64 @6:12
+  slot s1 b bool @6:19
+b0:
+  v0 = param 0 @6:12
+  store s0, v0 @6:12
+  v1 = param 1 @6:19
+  store s1, v1 @6:19
+  v2 = load s0 @7:10
+  println v2 @7:2
+  v3 = load s1 @8:9
+  ret v3 @8:2
+
+func xor(bool, bool) bool @testdata/check/s2_c02_bool.go:11:6
+  slot s0 a bool @11:10
+  slot s1 b bool @11:13
+b0:
+  v0 = param 0 @11:10
+  store s0, v0 @11:10
+  v1 = param 1 @11:13
+  store s1, v1 @11:13
+  v2 = load s0 @12:9
+  v3 = load s1 @12:14
+  v4 = ne v2, v3 @12:11
+  ret v4 @12:2
+
+func main @testdata/check/s2_c02_bool.go:15:6
+  slot s0 z bool @17:6
+  slot s1 t bool @18:2
+  slot s2 x i64 @24:2
+  slot s3 y i64 @24:5
+  slot s4 tmp bool @29:10
+  slot s5 tmp bool @29:16
+  slot s6 tmp bool @29:14
+  slot s7 tmp bool @29:24
+  slot s8 tmp bool @29:22
+  slot s9 tmp bool @29:33
+  slot s10 tmp bool @29:38
+  slot s11 tmp bool @29:30
+  slot s12 tmp bool @29:54
+  slot s13 tmp bool @29:48
+  slot s14 tmp bool @33:26
+  slot s15 tmp bool @34:25
+  slot s16 tmp bool @35:25
+  slot s17 tmp bool @36:26
+  slot s18 tmp bool @37:26
+  slot s19 tmp bool @37:46
+  slot s20 a i64 @40:2
+  slot s21 tmp i64 @41:10
+  slot s22 tmp bool @41:29
+  slot s23 tmp bool @43:14
+  slot s24 b bool @43:2
+  slot s25 tmp bool @48:25
+  slot s26 i i64 @51:6
+  slot s27 tmp bool @51:20
+b0:
+  v0 = const false @17:6
+  store s0, v0 @17:6
+  v1 = const true @18:7
+  store s1, v1 @18:2
+  v2 = load s0 @21:10
+  v3 = load s1 @21:13
+  v4 = const true @21:16
+  v5 = const false @21:19
+  v6 = const false @21:23
+  println v2, v3, v4, v5, v6 @21:2
+  v7 = const -3 @24:10
+  v8 = const 4 @24:14
+  store s2, v7 @24:2
+  store s3, v8 @24:5
+  v9 = load s2 @25:10
+  v10 = load s3 @25:15
+  v11 = eq v9, v10 @25:12
+  v12 = load s2 @25:18
+  v13 = load s3 @25:23
+  v14 = ne v12, v13 @25:20
+  v15 = load s2 @25:26
+  v16 = load s3 @25:30
+  v17 = lt v15, v16 @25:28
+  v18 = load s2 @25:33
+  v19 = load s3 @25:38
+  v20 = le v18, v19 @25:35
+  v21 = load s2 @25:41
+  v22 = load s3 @25:45
+  v23 = gt v21, v22 @25:43
+  v24 = load s2 @25:48
+  v25 = load s3 @25:53
+  v26 = ge v24, v25 @25:50
+  println v11, v14, v17, v20, v23, v26 @25:2
+  v27 = const -9223372036854775808 @26:10
+  v28 = load s2 @26:33
+  v29 = lt v27, v28 @26:31
+  v30 = load s2 @26:36
+  v31 = const 9223372036854775807 @26:40
+  v32 = lt v30, v31 @26:38
+  v33 = load s1 @26:61
+  v34 = const true @26:66
+  v35 = eq v33, v34 @26:63
+  v36 = load s1 @26:69
+  v37 = load s0 @26:74
+  v38 = ne v36, v37 @26:71
+  println v29, v32, v35, v38 @26:2
+  v39 = load s1 @29:11
+  v40 = not v39 @29:10
+  store s4, v40 @29:10
+  v41 = load s1 @29:14
+  store s5, v41 @29:16
+  branch v41, b1, b2 @29:16
+b1:
+  v42 = load s0 @29:19
+  store s5, v42 @29:16
+  jump b2 @29:16
+b2:
+  v43 = load s5 @29:16
+  store s6, v43 @29:14
+  v44 = load s1 @29:22
+  store s7, v44 @29:24
+  branch v44, b4, b3 @29:24
+b3:
+  v45 = load s0 @29:27
+  store s7, v45 @29:24
+  jump b4 @29:24
+b4:
+  v46 = load s7 @29:24
+  store s8, v46 @29:22
+  v47 = load s1 @29:31
+  v48 = not v47 @29:30
+  store s9, v48 @29:33
+  branch v48, b6, b5 @29:33
+b5:
+  v49 = load s1 @29:36
+  store s10, v49 @29:38
+  branch v49, b7, b8 @29:38
+b6:
+  v53 = load s9 @29:33
+  store s11, v53 @29:30
+  v54 = load s1 @29:46
+  store s13, v54 @29:48
+  branch v54, b10, b9 @29:48
+b7:
+  v50 = load s0 @29:42
+  v51 = not v50 @29:41
+  store s10, v51 @29:38
+  jump b8 @29:38
+b8:
+  v52 = load s10 @29:38
+  store s9, v52 @29:33
+  jump b6 @29:33
+b9:
+  v55 = load s0 @29:51
+  store s13, v55 @29:48
+  jump b10 @29:48
+b10:
+  v56 = load s13 @29:48
+  store s12, v56 @29:54
+  branch v56, b11, b12 @29:54
+b11:
+  v57 = load s0 @29:57
+  store s12, v57 @29:54
+  jump b12 @29:54
+b12:
+  v58 = load s12 @29:54
+  v59 = load s4 @29:10
+  v60 = load s6 @29:14
+  v61 = load s8 @29:22
+  v62 = load s11 @29:30
+  println v59, v60, v61, v62, v58 @29:2
+  v63 = load s1 @30:14
+  v64 = load s0 @30:17
+  v65 = call xor, v63, v64 @30:10
+  v66 = load s1 @30:25
+  v67 = load s1 @30:28
+  v68 = call xor, v66, v67 @30:21
+  println v65, v68 @30:2
+  v69 = const 1 @33:16
+  v70 = const false @33:19
+  v71 = call trace, v69, v70 @33:10
+  store s14, v71 @33:26
+  branch v71, b13, b14 @33:26
+b13:
+  v72 = const 2 @33:35
+  v73 = const true @33:38
+  v74 = call trace, v72, v73 @33:29
+  store s14, v74 @33:26
+  jump b14 @33:26
+b14:
+  v75 = load s14 @33:26
+  println v75 @33:2
+  v76 = const 3 @34:16
+  v77 = const true @34:19
+  v78 = call trace, v76, v77 @34:10
+  store s15, v78 @34:25
+  branch v78, b15, b16 @34:25
+b15:
+  v79 = const 4 @34:34
+  v80 = const false @34:37
+  v81 = call trace, v79, v80 @34:28
+  store s15, v81 @34:25
+  jump b16 @34:25
+b16:
+  v82 = load s15 @34:25
+  println v82 @34:2
+  v83 = const 5 @35:16
+  v84 = const true @35:19
+  v85 = call trace, v83, v84 @35:10
+  store s16, v85 @35:25
+  branch v85, b18, b17 @35:25
+b17:
+  v86 = const 6 @35:34
+  v87 = const true @35:37
+  v88 = call trace, v86, v87 @35:28
+  store s16, v88 @35:25
+  jump b18 @35:25
+b18:
+  v89 = load s16 @35:25
+  println v89 @35:2
+  v90 = const 7 @36:16
+  v91 = const false @36:19
+  v92 = call trace, v90, v91 @36:10
+  store s17, v92 @36:26
+  branch v92, b20, b19 @36:26
+b19:
+  v93 = const 8 @36:35
+  v94 = const true @36:38
+  v95 = call trace, v93, v94 @36:29
+  store s17, v95 @36:26
+  jump b20 @36:26
+b20:
+  v96 = load s17 @36:26
+  println v96 @36:2
+  v97 = const 9 @37:16
+  v98 = const false @37:19
+  v99 = call trace, v97, v98 @37:10
+  store s18, v99 @37:26
+  branch v99, b22, b21 @37:26
+b21:
+  v100 = const 10 @37:35
+  v101 = const false @37:39
+  v102 = call trace, v100, v101 @37:29
+  store s19, v102 @37:46
+  branch v102, b23, b24 @37:46
+b22:
+  v107 = load s18 @37:26
+  println v107 @37:2
+  v108 = const 10 @40:7
+  store s20, v108 @40:2
+  v109 = load s20 @41:10
+  store s21, v109 @41:10
+  v110 = const 12 @41:19
+  v111 = const true @41:23
+  v112 = call trace, v110, v111 @41:13
+  store s22, v112 @41:29
+  branch v112, b25, b26 @41:29
+b23:
+  v103 = const 11 @37:55
+  v104 = const true @37:59
+  v105 = call trace, v103, v104 @37:49
+  store s19, v105 @37:46
+  jump b24 @37:46
+b24:
+  v106 = load s19 @37:46
+  store s18, v106 @37:26
+  jump b22 @37:26
+b25:
+  v113 = load s20 @41:32
+  v114 = const 5 @41:36
+  v115 = gt v113, v114 @41:34
+  store s22, v115 @41:29
+  jump b26 @41:29
+b26:
+  v116 = load s22 @41:29
+  v117 = load s20 @41:39
+  v118 = const 1 @41:41
+  v119 = add v117, v118 @41:40
+  v120 = load s21 @41:10
+  println v120, v116, v119 @41:2
+  v121 = const 20 @42:6
+  store s20, v121 @42:2
+  v122 = load s20 @43:7
+  v123 = const 15 @43:11
+  v124 = gt v122, v123 @43:9
+  store s23, v124 @43:14
+  branch v124, b27, b28 @43:14
+b27:
+  v125 = const 13 @43:23
+  v126 = const true @43:27
+  v127 = call trace, v125, v126 @43:17
+  store s23, v127 @43:14
+  jump b28 @43:14
+b28:
+  v128 = load s23 @43:14
+  store s24, v128 @43:2
+  v129 = load s20 @44:2
+  v130 = const 5 @44:7
+  v131 = add v129, v130 @44:4
+  store s20, v131 @44:2
+  v132 = load s20 @45:10
+  v133 = load s24 @45:13
+  println v132, v133 @45:2
+  v134 = const 14 @48:15
+  v135 = const true @48:19
+  v136 = call trace, v134, v135 @48:9
+  store s25, v136 @48:25
+  branch v136, b29, b30 @48:25
+b29:
+  v137 = const 15 @48:34
+  v138 = const false @48:38
+  v139 = call trace, v137, v138 @48:28
+  store s25, v139 @48:25
+  jump b30 @48:25
+b30:
+  v140 = load s25 @48:25
+  v141 = load s3 @48:46
+  v142 = const 0 @48:50
+  v143 = gt v141, v142 @48:48
+  v144 = call xor, v140, v143 @48:5
+  branch v144, b31, b32 @48:2
+b31:
+  v145 = const 16 @49:11
+  println v145 @49:3
+  jump b32 @50:2
+b32:
+  v146 = const 0 @51:11
+  store s26, v146 @51:6
+  jump b33 @51:2
+b33:
+  v147 = load s26 @51:14
+  v148 = const 3 @51:18
+  v149 = lt v147, v148 @51:16
+  store s27, v149 @51:20
+  branch v149, b37, b38 @51:20
+b34:
+  jump b36 @52:2
+b35:
+  ret @53:1
+b36:
+  v156 = load s26 @51:42
+  v157 = const 1 @51:43
+  v158 = add v156, v157 @51:43
+  store s26, v158 @51:42
+  jump b33 @51:42
+b37:
+  v150 = const 17 @51:29
+  v151 = load s26 @51:32
+  v152 = add v150, v151 @51:31
+  v153 = const true @51:35
+  v154 = call trace, v152, v153 @51:23
+  store s27, v154 @51:20
+  jump b38 @51:20
+b38:
+  v155 = load s27 @51:20
+  branch v155, b34, b35 @51:2

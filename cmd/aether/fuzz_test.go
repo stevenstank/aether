@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -42,7 +43,9 @@ func FuzzGenerated(f *testing.F) {
 }
 
 // compileAndRun compiles src, failing on a panic or internal error, then
-// interprets the IR if there is any, failing if that does not succeed.
+// interprets the IR if there is any, failing if that does not succeed. A
+// valid program may loop forever, so running out of the step budget is not
+// a failure.
 func compileAndRun(t *testing.T, src []byte) []diag.Diagnostic {
 	t.Helper()
 	var prog *ir.Program
@@ -56,7 +59,7 @@ func compileAndRun(t *testing.T, src []byte) []diag.Diagnostic {
 		}
 	}
 	if prog != nil {
-		if _, err := interp.Run(prog, io.Discard); err != nil {
+		if _, err := interp.RunSteps(prog, io.Discard, 1_000_000); err != nil && !errors.Is(err, interp.ErrSteps) {
 			t.Fatalf("interpreter: %v\nsource:\n%s", err, src)
 		}
 	}

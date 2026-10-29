@@ -1,5 +1,11 @@
-// Package lower translates a type-checked program of S1 and the functions
-// of increment 4.2 into IR (D-004, D-021, D-023).
+// Package lower translates a type-checked program of S1, the functions of
+// increment 4.2, and the bool and control flow of increment 4.1 into IR
+// (D-004, D-021, D-023).
+//
+// IR values are local to their block (D-023). && and || branch, so a value
+// computed before an operand containing them is kept in a temporary slot
+// across the branch. Code after a return, break, or continue is not
+// lowered, and blocks that no path reaches are removed.
 //
 // Lowering runs only on programs the subset gate has accepted, so every
 // construct it meets should be in S1. It nevertheless checks each assumption
@@ -79,6 +85,14 @@ type lowerer struct {
 	done  bool      // the block has its terminator: the rest is unreachable
 	slots map[*types.Var]*ir.Slot
 	funcs map[*types.Func]*ir.Func
+	loops []*loop // the enclosing for statements, innermost last
+}
+
+// loop is a for statement being lowered: break jumps to exit, continue to
+// next (the post statement, or the condition).
+type loop struct {
+	next, exit *ir.Block
+	broken     bool // a break targets exit
 }
 
 func (l *lowerer) fail(n ast.Node, format string, args ...any) {
@@ -99,8 +113,8 @@ func (l *lowerer) pos(n ast.Node, p token.Pos) ir.Pos {
 	return ir.Pos{Line: dp.Line, Col: dp.Col}
 }
 
-// declare creates the IR function for fd, with its signature: int
-// parameters and at most one int result.
+// declare creates the IR function for fd, with its signature: int or bool
+// parameters and at most one int or bool result.
 func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 	obj, ok := l.pkg.Info.Defs[fd.Name].(*types.Func)
 	if !ok {
@@ -113,16 +127,13 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
 	f := prog.NewFunc(fd.Name.Name, file, l.pos(fd.Name, fd.Name.Pos()))
 	for v := range sig.Params().Variables() {
-		if !isInt(v.Type()) {
-			l.fail(fd, "parameter of type %s", v.Type())
-		}
-		f.Params = append(f.Params, ir.I64)
+		f.Params = append(f.Params, l.irType(fd, v.Type()))
 	}
 	for v := range sig.Results().Variables() {
-		if !isInt(v.Type()) || v.Name() != "" {
+		if v.Name() != "" {
 			l.fail(fd, "unexpected result %s", v)
 		}
-		f.Results = append(f.Results, ir.I64)
+		f.Results = append(f.Results, l.irType(fd, v.Type()))
 	}
 	l.funcs[obj] = f
 }
@@ -150,13 +161,43 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 	if !l.done {
 		// Falling off the end of a body returns; the closing brace is the
 		// return's position, as in gc's line tables. go/types has checked
-		// that a function with a result cannot fall off its end.
+		// that a function with a result cannot fall off its end, and
+		// lowering marks the end of "for {}" without break unreachable.
 		if len(l.fn.Results) > 0 {
 			l.fail(fd.Body, "function %s falls off its end", fd.Name.Name)
 		}
 		l.fn.Ret(l.b, l.pos(fd.Body, fd.Body.Rbrace))
 	}
+	prune(l.fn)
 	l.fn = nil
+}
+
+// prune removes the blocks that no path from the entry reaches and
+// renumbers the others, so that block IDs equal indices (D-023 invariant 1).
+func prune(f *ir.Func) {
+	seen := map[*ir.Block]bool{f.Entry(): true}
+	work := []*ir.Block{f.Entry()}
+	for len(work) > 0 {
+		b := work[len(work)-1]
+		work = work[:len(work)-1]
+		if len(b.Instrs) == 0 {
+			continue // reported by the verifier
+		}
+		for _, t := range b.Instrs[len(b.Instrs)-1].Targets {
+			if !seen[t] {
+				seen[t] = true
+				work = append(work, t)
+			}
+		}
+	}
+	var kept []*ir.Block
+	for _, b := range f.Blocks {
+		if seen[b] {
+			b.ID = len(kept)
+			kept = append(kept, b)
+		}
+	}
+	f.Blocks = kept
 }
 
 // stmts lowers a statement list up to its first return. What follows a
@@ -204,7 +245,22 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.exprStmt(s)
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
-		l.fn.Ret(l.b, l.pos(s, s.Return), l.exprs(s.Results)...)
+		l.fn.Ret(l.b, l.pos(s, s.Return), l.values(s.Results)...)
+		l.done = true
+	case *ast.IfStmt:
+		l.ifStmt(s)
+	case *ast.ForStmt:
+		l.forStmt(s)
+	case *ast.BranchStmt:
+		if s.Label != nil || len(l.loops) == 0 || s.Tok != token.BREAK && s.Tok != token.CONTINUE {
+			l.fail(s, "unexpected %s statement", s.Tok)
+		}
+		lp := l.loops[len(l.loops)-1]
+		target := lp.next
+		if s.Tok == token.BREAK {
+			target, lp.broken = lp.exit, true
+		}
+		l.fn.Jump(l.b, target, l.pos(s, s.Pos()))
 		l.done = true
 	case *ast.BlockStmt:
 		// A block only scopes names, which go/types has resolved: each
@@ -216,22 +272,102 @@ func (l *lowerer) stmt(s ast.Stmt) {
 	}
 }
 
+// ifStmt lowers "if init; cond { … } else …". The branch is at the if
+// keyword, and the jump that ends each arm at its closing brace. The
+// statement ends unreachably if both arms do.
+func (l *lowerer) ifStmt(s *ast.IfStmt) {
+	if s.Init != nil {
+		l.stmt(s.Init)
+	}
+	cond := l.expr(s.Cond)
+	then, join := l.fn.NewBlock(), l.fn.NewBlock()
+	els := join
+	if s.Else != nil {
+		els = l.fn.NewBlock()
+	}
+	l.fn.Branch(l.b, cond, then, els, l.pos(s, s.If))
+	l.b, l.done = then, false
+	l.stmts(s.Body.List)
+	if !l.done {
+		l.fn.Jump(l.b, join, l.pos(s.Body, s.Body.Rbrace))
+	}
+	done := l.done
+	if s.Else != nil {
+		l.b, l.done = els, false
+		l.stmt(s.Else)
+		if !l.done {
+			l.fn.Jump(l.b, join, l.pos(s.Else, s.Else.End()-1))
+		}
+		done = done && l.done
+	} else {
+		done = false
+	}
+	l.b, l.done = join, done
+}
+
+// forStmt lowers the three for forms. The condition is evaluated in its
+// own block, which the entry and the end of each iteration jump to; the
+// post statement, if any, has its own block, where continue goes. Go 1.22
+// gives each iteration its own copy of a variable declared in init, but
+// without closures or pointers no program can observe the difference, so
+// one slot serves all iterations.
+func (l *lowerer) forStmt(s *ast.ForStmt) {
+	if s.Init != nil {
+		l.stmt(s.Init)
+	}
+	head, body, exit := l.fn.NewBlock(), l.fn.NewBlock(), l.fn.NewBlock()
+	next := head
+	if s.Post != nil {
+		next = l.fn.NewBlock()
+	}
+	pos := l.pos(s, s.For)
+	l.fn.Jump(l.b, head, pos)
+	l.b = head
+	if s.Cond != nil {
+		l.fn.Branch(l.b, l.expr(s.Cond), body, exit, pos)
+	} else {
+		l.fn.Jump(l.b, body, pos)
+	}
+	lp := &loop{next: next, exit: exit}
+	l.loops = append(l.loops, lp)
+	l.b, l.done = body, false
+	l.stmts(s.Body.List)
+	if !l.done {
+		l.fn.Jump(l.b, next, l.pos(s.Body, s.Body.Rbrace))
+	}
+	l.loops = l.loops[:len(l.loops)-1]
+	if s.Post != nil {
+		l.b, l.done = next, false
+		l.stmt(s.Post)
+		l.fn.Jump(l.b, head, l.pos(s.Post, s.Post.Pos()))
+	}
+	// Without a condition, only a break reaches the exit.
+	l.b, l.done = exit, s.Cond == nil && !lp.broken
+}
+
 // varSpec lowers "var a, b T = x, y" and "var a, b T". All values are
 // evaluated, left to right, before any is stored. A variable without an
-// initializer is explicitly stored its zero value, 0, since slots start
-// undefined.
+// initializer is explicitly stored its zero value, 0 or false, since slots
+// start undefined.
 func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 	if len(spec.Values) == 0 {
 		for _, id := range spec.Names {
 			slot := l.define(id)
-			l.fn.Store(l.b, slot, l.fn.Const(l.b, 0, l.pos(id, id.Pos())), l.pos(id, id.Pos()))
+			pos := l.pos(id, id.Pos())
+			var zero *ir.Instr
+			if slot.Type == ir.Bool {
+				zero = l.fn.BoolConst(l.b, false, pos)
+			} else {
+				zero = l.fn.Const(l.b, 0, pos)
+			}
+			l.fn.Store(l.b, slot, zero, pos)
 		}
 		return
 	}
 	if len(spec.Values) != len(spec.Names) {
 		l.fail(spec, "%d names but %d values", len(spec.Names), len(spec.Values))
 	}
-	vals := l.exprs(spec.Values)
+	vals := l.values(spec.Values)
 	for i, id := range spec.Names {
 		l.fn.Store(l.b, l.define(id), vals[i], l.pos(id, id.Pos()))
 	}
@@ -248,7 +384,7 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		if len(s.Lhs) != len(s.Rhs) {
 			l.fail(s, "%d targets but %d values", len(s.Lhs), len(s.Rhs))
 		}
-		vals := l.exprs(s.Rhs)
+		vals := l.values(s.Rhs)
 		for i, e := range s.Lhs {
 			id := l.ident(e)
 			var slot *ir.Slot
@@ -266,9 +402,16 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		op := map[token.Token]ir.Op{token.ADD_ASSIGN: ir.Add, token.SUB_ASSIGN: ir.Sub, token.MUL_ASSIGN: ir.Mul}[s.Tok]
 		id := l.ident(s.Lhs[0])
 		slot := l.lookup(id)
-		x := l.fn.Load(l.b, slot, l.pos(id, id.Pos()))
+		// The right side may branch (a call argument with && or ||), so x
+		// is kept across it.
+		pos := l.pos(id, id.Pos())
+		x := l.fn.Load(l.b, slot, pos)
+		get := func() *ir.Instr { return x }
+		if l.branches(s.Rhs) {
+			get = l.spill(x, pos)
+		}
 		y := l.expr(s.Rhs[0])
-		l.fn.Store(l.b, slot, l.fn.Binary(l.b, op, x, y, l.pos(s, s.TokPos)), l.pos(id, id.Pos()))
+		l.fn.Store(l.b, slot, l.fn.Binary(l.b, op, get(), y, l.pos(s, s.TokPos)), pos)
 	default:
 		l.fail(s, "unexpected assignment %s", s.Tok)
 	}
@@ -284,7 +427,7 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	}
 	if id, ok := call.Fun.(*ast.Ident); ok {
 		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "println" {
-			l.fn.Println(l.b, l.exprs(call.Args), l.pos(call, call.Pos()))
+			l.fn.Println(l.b, l.values(call.Args), l.pos(call, call.Pos()))
 			return
 		}
 	}
@@ -302,7 +445,7 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 	if !ok || l.funcs[obj] == nil {
 		l.fail(call, "unexpected call of %s", id.Name)
 	}
-	return l.fn.Call(l.b, l.funcs[obj], l.exprs(call.Args), l.pos(call, call.Pos()))
+	return l.fn.Call(l.b, l.funcs[obj], l.values(call.Args), l.pos(call, call.Pos()))
 }
 
 // ident returns e as the identifier of an assignment target.
@@ -314,16 +457,16 @@ func (l *lowerer) ident(e ast.Expr) *ast.Ident {
 	return id
 }
 
-// define creates the slot for the int variable that id declares.
+// define creates the slot for the int or bool variable that id declares.
 func (l *lowerer) define(id *ast.Ident) *ir.Slot {
 	v, ok := l.pkg.Info.Defs[id].(*types.Var)
-	if !ok || !isInt(v.Type()) {
-		l.fail(id, "%s does not declare an int variable", id.Name)
+	if !ok {
+		l.fail(id, "%s does not declare a variable", id.Name)
 	}
 	if l.slots[v] != nil {
 		l.fail(id, "variable %s declared twice", id.Name)
 	}
-	slot := l.fn.NewSlot(id.Name, ir.I64, l.pos(id, id.Pos()))
+	slot := l.fn.NewSlot(id.Name, l.irType(id, v.Type()), l.pos(id, id.Pos()))
 	l.slots[v] = slot
 	return slot
 }
@@ -337,32 +480,79 @@ func (l *lowerer) lookup(id *ast.Ident) *ir.Slot {
 	return l.slots[v]
 }
 
-func (l *lowerer) exprs(list []ast.Expr) []*ir.Instr {
-	vals := make([]*ir.Instr, len(list))
+// values lowers list left to right. A value computed before a later
+// operand that branches is stored in a temporary slot and loaded again
+// after the last operand, in the block where the values are used.
+func (l *lowerer) values(list []ast.Expr) []*ir.Instr {
+	// later[i] reports whether an operand after list[i] branches. It is
+	// computed in one pass, since println may have very many operands.
+	later := make([]bool, len(list))
+	for i := len(list) - 2; i >= 0; i-- {
+		later[i] = later[i+1] || l.branches(list[i+1:i+2])
+	}
+	get := make([]func() *ir.Instr, len(list))
 	for i, e := range list {
-		vals[i] = l.expr(e)
+		v, pos := l.expr(e), l.pos(e, e.Pos())
+		get[i] = func() *ir.Instr { return v }
+		if later[i] {
+			get[i] = l.spill(v, pos)
+		}
+	}
+	vals := make([]*ir.Instr, len(list))
+	for i := range get {
+		vals[i] = get[i]()
 	}
 	return vals
 }
 
-// expr lowers an int expression and returns its value. Operands are
-// evaluated left to right.
+// spill stores v in a temporary slot and returns a function that loads it
+// again in the then current block.
+func (l *lowerer) spill(v *ir.Instr, pos ir.Pos) func() *ir.Instr {
+	tmp := l.fn.NewSlot("tmp", v.Type, pos)
+	l.fn.Store(l.b, tmp, v, pos)
+	return func() *ir.Instr { return l.fn.Load(l.b, tmp, pos) }
+}
+
+// branches reports whether lowering any of list would branch: whether it
+// contains a non-constant && or ||.
+func (l *lowerer) branches(list []ast.Expr) bool {
+	found := false
+	for _, e := range list {
+		ast.Inspect(e, func(n ast.Node) bool {
+			if e, ok := n.(ast.Expr); ok {
+				if tv, ok := l.pkg.Info.Types[e]; ok && tv.Value != nil {
+					return false // a constant: lowered as one const
+				}
+			}
+			if b, ok := n.(*ast.BinaryExpr); ok && (b.Op == token.LAND || b.Op == token.LOR) {
+				found = true
+			}
+			return !found
+		})
+	}
+	return found
+}
+
+// expr lowers an int or bool expression and returns its value. Operands
+// are evaluated left to right.
 func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	tv, ok := l.pkg.Info.Types[e]
-	if !ok || !isInt(tv.Type) && !types.Identical(tv.Type, types.Typ[types.UntypedInt]) {
-		l.fail(e, "expression %s is not of type int", types.ExprString(e))
+	if !ok {
+		l.fail(e, "no type for expression %s", types.ExprString(e))
 	}
+	t := l.irType(e, tv.Type)
 	if tv.Value != nil {
 		// A constant expression, of any form: use the exact value go/types
 		// computed, without evaluating it again.
-		if tv.Value.Kind() != constant.Int {
-			l.fail(e, "constant %s is not an integer", tv.Value)
+		pos := l.pos(e, e.Pos())
+		if t == ir.Bool {
+			return l.fn.BoolConst(l.b, constant.BoolVal(tv.Value), pos)
 		}
 		n, exact := constant.Int64Val(tv.Value)
-		if !exact {
+		if tv.Value.Kind() != constant.Int || !exact {
 			l.fail(e, "constant %s does not fit in 64 bits", tv.Value)
 		}
-		return l.fn.Const(l.b, n, l.pos(e, e.Pos()))
+		return l.fn.Const(l.b, n, pos)
 	}
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -371,8 +561,8 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return l.expr(e.X)
 	case *ast.CallExpr:
 		v := l.call(e)
-		if v.Type != ir.I64 {
-			l.fail(e, "call of a function without a result used as a value")
+		if v.Type != t {
+			l.fail(e, "call of type %s used as a value of type %s", v.Type, t)
 		}
 		return v
 	case *ast.UnaryExpr:
@@ -381,17 +571,60 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			return l.expr(e.X)
 		case token.SUB:
 			return l.fn.Neg(l.b, l.expr(e.X), l.pos(e, e.OpPos))
+		case token.NOT:
+			return l.fn.Not(l.b, l.expr(e.X), l.pos(e, e.OpPos))
 		}
 	case *ast.BinaryExpr:
-		op, ok := map[token.Token]ir.Op{token.ADD: ir.Add, token.SUB: ir.Sub, token.MUL: ir.Mul}[e.Op]
-		if ok {
-			x := l.expr(e.X)
-			y := l.expr(e.Y)
-			return l.fn.Binary(l.b, op, x, y, l.pos(e, e.OpPos))
+		pos := l.pos(e, e.OpPos)
+		switch e.Op {
+		case token.LAND, token.LOR:
+			return l.logical(e, pos)
+		}
+		if op, ok := binaryOps[e.Op]; ok {
+			xy := l.values([]ast.Expr{e.X, e.Y})
+			if op.IsComparison() {
+				return l.fn.Compare(l.b, op, xy[0], xy[1], pos)
+			}
+			return l.fn.Binary(l.b, op, xy[0], xy[1], pos)
 		}
 	}
 	l.fail(e, "unexpected expression %s", types.ExprString(e))
 	return nil
 }
 
-func isInt(t types.Type) bool { return types.Identical(t, types.Typ[types.Int]) }
+var binaryOps = map[token.Token]ir.Op{
+	token.ADD: ir.Add, token.SUB: ir.Sub, token.MUL: ir.Mul,
+	token.EQL: ir.Eq, token.NEQ: ir.Ne, token.LSS: ir.Lt, token.LEQ: ir.Le, token.GTR: ir.Gt, token.GEQ: ir.Ge,
+}
+
+// logical lowers x && y and x || y: x is stored in a temporary slot, and
+// y is evaluated, and stored over it, only if x does not decide the
+// result. Both branches are at the operator.
+func (l *lowerer) logical(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
+	tmp := l.fn.NewSlot("tmp", ir.Bool, pos)
+	x := l.expr(e.X)
+	l.fn.Store(l.b, tmp, x, pos)
+	right, join := l.fn.NewBlock(), l.fn.NewBlock()
+	if e.Op == token.LAND {
+		l.fn.Branch(l.b, x, right, join, pos)
+	} else {
+		l.fn.Branch(l.b, x, join, right, pos)
+	}
+	l.b = right
+	l.fn.Store(l.b, tmp, l.expr(e.Y), pos)
+	l.fn.Jump(l.b, join, pos)
+	l.b = join
+	return l.fn.Load(l.b, tmp, pos)
+}
+
+// irType returns the IR type of an int or bool Go type, typed or untyped.
+func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
+	switch {
+	case types.Identical(t, types.Typ[types.Int]) || types.Identical(t, types.Typ[types.UntypedInt]):
+		return ir.I64
+	case types.Identical(t, types.Typ[types.Bool]) || types.Identical(t, types.Typ[types.UntypedBool]):
+		return ir.Bool
+	}
+	l.fail(n, "unexpected type %s", t)
+	return ir.NoType
+}

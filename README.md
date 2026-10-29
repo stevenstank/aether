@@ -10,8 +10,8 @@ representation and backend.
 > provides process start and `println`; GNU `as` and `ld` only assemble and
 > link. S1 is small: one `main` function with `int` variables, `+ - *`, nested
 > blocks, and `println`. Phase 4 is in progress: functions with `int`
-> parameters and results, and stack-overflow detection, are implemented
-> (increment 4.2); control flow is not.
+> parameters and results, stack-overflow detection (increment 4.2), `bool`,
+> `if`, and `for` (increment 4.1) are implemented.
 
 ## What works today
 
@@ -108,8 +108,9 @@ potentially long-term dependencies. The exact ownership boundaries are in
 
 ## Current limitations
 
-- Only S1 and functions with `int` parameters and at most one `int`
-  result are supported: no control flow, no types other than `int`. The generated code is unoptimized: every value
+- Only S1, functions with `int` or `bool` parameters and at most one
+  result, `bool`, `if`, and `for` are supported: no `switch`, no types
+  other than `int` and `bool`, no `/ % << >>` or bit operators. The generated code is unoptimized: every value
   goes through memory.
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S1 is **rejected with an explicit diagnostic**.

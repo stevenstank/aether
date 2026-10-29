@@ -1,2 +1,0 @@
-testdata/check/unsupported_comparison.go:8:7: unsupported: comparison < is not supported in subset S1 [comparison]
-testdata/check/unsupported_comparison.go:9:10: unsupported: println argument of type bool is not supported in subset S1 [println-argument-type]

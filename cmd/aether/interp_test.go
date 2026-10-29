@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stevenstank/aether/internal/diag"
 	"github.com/stevenstank/aether/internal/interp"
@@ -32,9 +32,18 @@ func interpret(name string, src []byte) (result, []diag.Diagnostic, error) {
 		return result{}, ds, nil
 	}
 	var stderr bytes.Buffer
-	code, err := interp.Run(prog, &stderr)
+	code, err := interp.RunSteps(prog, &stderr, interpSteps)
 	return result{stderr: stderr.String(), exit: code}, nil, err
 }
+
+// interpSteps is the interpreter's step budget in tests (D-023): far more
+// than any test program needs, so a lowering bug that loops fails the test
+// instead of hanging it.
+const interpSteps = 100_000_000
+
+// runTimeout bounds every run of a gc-built or Aether-built test program,
+// so that a bug that loops fails the test instead of hanging the suite.
+const runTimeout = 2 * time.Minute
 
 // gcRun builds every program with gc (gcBuild), runs each binary, and
 // returns the results by name.
@@ -43,19 +52,7 @@ func gcRun(t *testing.T, gobin string, progs map[string][]byte) map[string]resul
 	bin := gcBuild(t, gobin, progs)
 	results := map[string]result{}
 	for name := range progs {
-		var stdout, stderr bytes.Buffer
-		cmd := exec.Command(filepath.Join(bin, name))
-		cmd.Stdout, cmd.Stderr = &stdout, &stderr
-		r := result{}
-		if err := cmd.Run(); err != nil {
-			var exit *exec.ExitError
-			if !errors.As(err, &exit) {
-				t.Fatalf("%s: %v", name, err)
-			}
-			r.exit = exit.ExitCode()
-		}
-		r.stdout, r.stderr = stdout.String(), stderr.String()
-		results[name] = r
+		results[name] = runExe(t, filepath.Join(bin, name))
 	}
 	return results
 }

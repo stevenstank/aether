@@ -1,0 +1,1 @@
+testdata/check/unsupported_labeled_break.go:6:1: unsupported: labeled statement is not supported in subset S1 [label]

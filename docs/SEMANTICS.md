@@ -370,11 +370,11 @@ brackets. The names are a stable contract (D-018), used by tests and the
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `method`, `function-without-body` |
-| Statements | `if`, `for`, `for-range`, `switch`, `type-switch`, `select`, `go`, `defer`, `break`, `continue`, `goto`, `fallthrough`, `label`, `send`, `statement` |
+| Statements | `for-range`, `switch`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
 | Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
-| Operators | `operator-div`, `operator-rem`, `operator-shl`, `operator-shr`, `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`, `operator-logical-and`, `operator-logical-or`, `operator-complement`, `operator-not`, `operator-address`, `operator-receive`, `operator-other`, `comparison` |
+| Operators | `operator-div`, `operator-rem`, `operator-shl`, `operator-shr`, `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`, `operator-complement`, `operator-address`, `operator-receive`, `operator-other` |
 | Calls | `call`, `conversion`, `builtin`, `print`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
 
@@ -515,6 +515,27 @@ inside every function. Diagnostics still name subset S1.
   without end and overflows the stack (V-2).
 - The `return` feature name no longer exists: every `return` is accepted.
 
+## Control flow and bool (Phase 4 increment 4.1)
+
+The gate also accepts, in every function:
+- the type `bool`: variables, parameters, results, untyped and typed
+  constants, `true` and `false`, and `println` arguments, printed as `true`
+  or `false`;
+- the comparisons `== != < <= > >=` of `int` operands and `== !=` of
+  `bool` operands, unary `!`, and `&&` and `||`, which evaluate their right
+  operand only when it decides the result;
+- `if`, with an optional init statement, `else`, and `else if`;
+- the three `for` forms (three-clause, condition-only, and infinite), and
+  unlabeled `break` and `continue`. Each iteration of a three-clause loop
+  shares one variable; Go 1.22 gives each its own copy, which no program in
+  the subset can observe (it needs closures or pointers).
+
+Still `unsupported`: labeled statements and `break` or `continue` with a
+label (`label`), `goto`, `switch`, `for range`, and every type and operator
+not listed. The feature names `if`, `for`, `break`, `continue`, `comparison`,
+`operator-not`, `operator-logical-and`, and `operator-logical-or` no longer
+exist.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -531,6 +552,8 @@ inside every function. Diagnostics still name subset S1.
 | Nested blocks, shadowing, empty statements | Blocks, Declarations and scope | S1 / Phases 2–3 | Supported (native) | S1-03, S1-08 |
 | `println` with `int` arguments | Bootstrapping | S1 / Phases 2–3 | Supported (native) | S1-02, S1-09 |
 | Functions with `int` parameters and at most one `int` result, `return`, direct calls | Function declarations, Calls, Return statements | S2 / 4.2 | Supported (native) | `s2_f01_functions`; `TestNativeCalls`; gate and lowering tests |
+| `bool`, comparisons, `!`, `&&`, `\|\|` with short-circuit evaluation | Boolean types, Comparison operators, Logical operators | S2 / 4.1 | Supported (native) | `s2_c02_bool`; `TestNativeControlFlow`; gate and lowering tests |
+| `if`/`else`, the three `for` forms, unlabeled `break`/`continue` | If statements, For statements, Break and Continue statements | S2 / 4.1 | Supported (native) | `s2_c01_control_flow`, `s2_c03_recursion` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

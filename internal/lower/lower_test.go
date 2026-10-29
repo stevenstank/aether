@@ -113,15 +113,15 @@ func TestLowerPositions(t *testing.T) {
 // an internal error at the offending construct instead of emitting IR.
 func TestLowerUnexpected(t *testing.T) {
 	tests := []struct{ name, src, want string }{
-		{"statement", "func main() { x := 1; if x > 0 { println(x) } }", "p.go:2:23: internal: lowering: unexpected statement *ast.IfStmt"},
+		{"statement", "func main() { x := 1; switch x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.SwitchStmt"},
 		{"operator", "func main() { x := 1; println(x / 2) }", "p.go:2:31: internal: lowering: unexpected expression x / 2"},
-		{"type", "func main() { var s string; println(s) }", "p.go:2:19: internal: lowering: s does not declare an int variable"},
+		{"type", "func main() { var s string; println(s) }", "p.go:2:19: internal: lowering: unexpected type string"},
 		{"two results", "func f() (int, int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected signature for f"},
-		{"function value", "func f() {}\nfunc main() { g := f; g() }", "p.go:3:20: internal: lowering: expression f is not of type int"},
+		{"function value", "func f() {}\nfunc main() { g := f; g() }", "p.go:3:20: internal: lowering: unexpected type func()"},
 		{"package variable", "var g int\nfunc main() { println(g) }", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 		{"blank target", "func main() { _ = 1 }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
 		{"builtin call", "func main() { print(1) }", "p.go:2:15: internal: lowering: unexpected call of print"},
-		{"uint variable", "func main() { var x uint = 1; println(x) }", "p.go:2:28: internal: lowering: expression 1 is not of type int"},
+		{"uint variable", "func main() { var x uint = 1; println(x) }", "p.go:2:28: internal: lowering: unexpected type uint"},
 		{"no body", "func main()", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 	}
 	for _, tt := range tests {

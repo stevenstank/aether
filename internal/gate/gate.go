@@ -1,6 +1,7 @@
 // Package gate decides whether a Go program is inside Aether's supported
 // subset: S1 (docs/SEMANTICS.md §Subset S1, D-012) plus the functions of
-// Phase 4 increment 4.2 (§Functions).
+// Phase 4 increment 4.2 (§Functions) and the bool and control flow of
+// increment 4.1 (§Control flow and bool).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -58,7 +59,6 @@ const (
 	FeatImagLit       = "imaginary-literal"
 	FeatRuneLit       = "rune-literal"
 	FeatStringLit     = "string-literal"
-	FeatComparison    = "comparison"
 	FeatFuncLit       = "function-literal"
 	FeatCompositeLit  = "composite-literal"
 	FeatSelector      = "selector"
@@ -185,13 +185,13 @@ func init() {
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatPrint, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatFloatLit, FeatImagLit,
-		FeatRuneLit, FeatStringLit, FeatComparison, FeatFuncLit, FeatCompositeLit,
+		FeatRuneLit, FeatStringLit, FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
 		// Statement kinds, named by the statement keyword (see stmt).
-		"if", "for", "for-range", "switch", "type-switch", "select", "go",
+		"for-range", "switch", "type-switch", "select", "go",
 		"defer", "label", "send",
-		token.BREAK.String(), token.CONTINUE.String(), token.GOTO.String(), token.FALLTHROUGH.String(),
+		token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
 		featureNames[f] = true
 	}
@@ -322,9 +322,26 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.EmptyStmt:
 		// Allowed.
 	case *ast.IfStmt:
-		c.reject(s, "if", "if statement")
+		if s.Init != nil {
+			c.stmt(s.Init)
+		}
+		c.expr(s.Cond)
+		c.stmts(s.Body.List)
+		if s.Else != nil {
+			c.stmt(s.Else)
+		}
 	case *ast.ForStmt:
-		c.reject(s, "for", "for statement")
+		// go/types has checked that init and post are simple statements.
+		if s.Init != nil {
+			c.stmt(s.Init)
+		}
+		if s.Cond != nil {
+			c.expr(s.Cond)
+		}
+		if s.Post != nil {
+			c.stmt(s.Post)
+		}
+		c.stmts(s.Body.List)
 	case *ast.RangeStmt:
 		c.reject(s, "for-range", "for-range statement")
 	case *ast.SwitchStmt:
@@ -343,7 +360,14 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.expr(r)
 		}
 	case *ast.BranchStmt:
-		c.reject(s, s.Tok.String(), s.Tok.String()+" statement")
+		switch {
+		case s.Tok == token.GOTO || s.Tok == token.FALLTHROUGH:
+			c.reject(s, s.Tok.String(), s.Tok.String()+" statement")
+		case s.Label != nil:
+			c.reject(s, "label", "labeled "+s.Tok.String())
+		}
+		// An unlabeled break or continue: every enclosing statement that
+		// could be its target other than for is rejected.
 	case *ast.LabeledStmt:
 		c.reject(s, "label", "labeled statement")
 	case *ast.SendStmt:
@@ -398,17 +422,18 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 			c.internal(name, "no object for declared name %s", name.Name)
 			continue
 		}
-		ok := isInt(obj.Type()) || tok == token.CONST && types.Identical(obj.Type(), types.Typ[types.UntypedInt])
+		ok := isSupported(obj.Type()) || tok == token.CONST && isSupportedOrUntyped(obj.Type())
 		if !ok && !explained {
 			c.reject(name, FeatNonIntType, fmt.Sprintf("%s %s of type %s", tok, name.Name, obj.Type()))
 		}
 	}
 }
 
-// typeExpr allows exactly the predeclared type int, identified by object
-// identity so that a shadowed or redefined name cannot stand in for it.
+// typeExpr allows exactly the predeclared types int and bool, identified by
+// object identity so that a shadowed or redefined name cannot stand in for
+// them.
 func (c *checker) typeExpr(e ast.Expr) {
-	if id, ok := e.(*ast.Ident); ok && c.info.Uses[id] == types.Universe.Lookup("int") {
+	if id, ok := e.(*ast.Ident); ok && (c.info.Uses[id] == types.Universe.Lookup("int") || c.info.Uses[id] == types.Universe.Lookup("bool")) {
 		return
 	}
 	c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
@@ -493,7 +518,7 @@ func (c *checker) intVar(id *ast.Ident, obj types.Object, reportType bool) {
 	if !c.local(id, v) {
 		return
 	}
-	if reportType && !isInt(v.Type()) {
+	if reportType && !isSupported(v.Type()) {
 		c.reject(id, FeatNonIntType, fmt.Sprintf("variable %s of type %s", id.Name, v.Type()))
 	}
 }
@@ -518,7 +543,7 @@ func (c *checker) exprStmt(s *ast.ExprStmt) {
 			c.internal(a, "no type for println argument")
 			continue
 		}
-		if !isInt(tv.Type) {
+		if !isSupported(tv.Type) {
 			c.reject(a, FeatPrintlnArg, fmt.Sprintf("println argument of type %s", tv.Type))
 			continue
 		}
@@ -574,19 +599,21 @@ func (c *checker) call(call *ast.CallExpr) bool {
 }
 
 // expr checks an expression used as a value. Allowed forms are integer
-// literals, S1 variables and constants, binary + - *, unary + -, and
-// parentheses, and every allowed node must have type int or untyped int. The
-// same rules apply inside constant expressions (D-012).
+// literals, true and false, variables and constants, binary + - *, the
+// comparisons, && and ||, unary + - !, parentheses, and calls of the
+// program's functions, and every allowed node must have type int or bool,
+// typed or untyped. go/types has checked that each operator applies to its
+// operands. The same rules apply inside constant expressions (D-012).
 //
 // A disallowed form is reported by kind and not descended into. An allowed
-// form whose type is not int is reported once, also without descending, so
-// one problem yields one diagnostic.
+// form of another type is reported once, also without descending, so one
+// problem yields one diagnostic.
 func (c *checker) expr(e ast.Expr) {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		switch e.Kind {
 		case token.INT:
-			c.intTyped(e)
+			c.typed(e)
 		case token.FLOAT:
 			c.reject(e, FeatFloatLit, "floating-point literal "+e.Value)
 			return
@@ -605,37 +632,35 @@ func (c *checker) expr(e ast.Expr) {
 		}
 	case *ast.Ident:
 		if c.valueIdent(e) {
-			c.intTyped(e)
+			c.typed(e)
 		}
 	case *ast.ParenExpr:
-		if c.intTyped(e) {
+		if c.typed(e) {
 			c.expr(e.X)
 		}
 	case *ast.UnaryExpr:
-		if e.Op != token.ADD && e.Op != token.SUB {
+		if e.Op != token.ADD && e.Op != token.SUB && e.Op != token.NOT {
 			c.reject(e, unaryFeature(e.Op), "unary operator "+e.Op.String())
 			return
 		}
-		if c.intTyped(e) {
+		if c.typed(e) {
 			c.expr(e.X)
 		}
 	case *ast.BinaryExpr:
 		switch e.Op {
-		case token.ADD, token.SUB, token.MUL:
-		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
-			c.reject(e, FeatComparison, "comparison "+e.Op.String())
-			return
+		case token.ADD, token.SUB, token.MUL, token.LAND, token.LOR,
+			token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
 		default:
 			c.reject(e, operatorFeature(e.Op.String()), "operator "+e.Op.String())
 			return
 		}
-		if c.intTyped(e) {
+		if c.typed(e) {
 			c.expr(e.X)
 			c.expr(e.Y)
 		}
 	case *ast.CallExpr:
 		if c.call(e) {
-			c.intTyped(e)
+			c.typed(e)
 		}
 	case *ast.FuncLit:
 		c.reject(e, FeatFuncLit, "function literal")
@@ -658,15 +683,15 @@ func (c *checker) expr(e ast.Expr) {
 	}
 }
 
-// intTyped reports whether e has type int or untyped int, rejecting it if
-// not.
-func (c *checker) intTyped(e ast.Expr) bool {
+// typed reports whether e has type int or bool, typed or untyped, rejecting
+// it if not.
+func (c *checker) typed(e ast.Expr) bool {
 	tv, ok := c.info.Types[e]
 	if !ok {
 		c.internal(e, "no type for expression %s", types.ExprString(e))
 		return false
 	}
-	if !isIntOrUntypedInt(tv.Type) {
+	if !isSupportedOrUntyped(tv.Type) {
 		c.reject(e, FeatNonIntType, fmt.Sprintf("expression of type %s", tv.Type))
 		return false
 	}
@@ -682,6 +707,9 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 	case *types.Var:
 		return c.local(id, obj)
 	case *types.Const:
+		if obj == types.Universe.Lookup("true") || obj == types.Universe.Lookup("false") {
+			return true
+		}
 		if obj.Parent() == types.Universe {
 			c.reject(id, FeatPredeclared, "predeclared identifier "+id.Name)
 			return false
@@ -721,7 +749,6 @@ func (c *checker) local(id *ast.Ident, obj types.Object) bool {
 var operatorNames = map[string]string{
 	"/": "div", "%": "rem", "<<": "shl", ">>": "shr",
 	"&": "and", "|": "or", "^": "xor", "&^": "and-not",
-	"&&": "logical-and", "||": "logical-or",
 }
 
 func operatorFeature(op string) string {
@@ -732,7 +759,7 @@ func operatorFeature(op string) string {
 }
 
 var unaryOperatorNames = map[token.Token]string{
-	token.XOR: "complement", token.NOT: "not", token.AND: "address", token.ARROW: "receive",
+	token.XOR: "complement", token.AND: "address", token.ARROW: "receive",
 }
 
 func unaryFeature(op token.Token) string {
@@ -742,10 +769,12 @@ func unaryFeature(op token.Token) string {
 	return featOperatorPrefix + "other"
 }
 
-func isInt(t types.Type) bool {
-	return types.Identical(t, types.Typ[types.Int])
+// isSupported reports whether t is int or bool.
+func isSupported(t types.Type) bool {
+	return types.Identical(t, types.Typ[types.Int]) || types.Identical(t, types.Typ[types.Bool])
 }
 
-func isIntOrUntypedInt(t types.Type) bool {
-	return isInt(t) || types.Identical(t, types.Typ[types.UntypedInt])
+// isSupportedOrUntyped reports whether t is int or bool, typed or untyped.
+func isSupportedOrUntyped(t types.Type) bool {
+	return isSupported(t) || types.Identical(t, types.Typ[types.UntypedInt]) || types.Identical(t, types.Typ[types.UntypedBool])
 }

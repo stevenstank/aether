@@ -339,9 +339,15 @@ repeated in each phase below:
      and `aether.printbool`, all tested on hand-built IR. Negative controls
      run by hand and reverted: swapped branch targets, `setb` for signed
      `<`, `printbool` printing `1`, and definite assignment accepting a
-     store on any path each fail a test. Part 2, not done: the gate and
-     lowering (still rejecting `bool`, comparisons, `if`, and `for`), the
-     corpus, the generator, and the `continue` control.
+     store on any path each fail a test. Part 2 done: the gate and
+     lowering (`SEMANTICS.md` §Control flow and bool), corpus programs run
+     against gc, the interpreter's step budget and a 2-minute timeout for
+     every gc-built and Aether-built program in the differential and build
+     tests, and 4.2's last two tests: recursion 50,000 calls deep and
+     short-circuit side effects through calls (`s2_c02_bool`,
+     `s2_c03_recursion`). Part 3, not done: the generator and the remaining
+     controls (`||` lowered as `&&`, a `continue` that skips the post
+     statement).
   2. **4.2: functions.** `int` parameters, one `int` result, recursion,
      ABI-S0 with the prologue bound check, and the runtime stack of at least
      256 MiB (`aether.stacklimit`, `aether.stackoverflow`). The interpreter
@@ -416,9 +422,9 @@ repeated in each phase below:
   the other increments: everything else below.
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
-      tests runs **with a timeout**. Today they run without one
-      (`cmd/aether/interp_test.go`, `cmd/aether/build_test.go`), and with
-      loops a bug would hang the suite instead of failing it;
+      tests runs **with a timeout** (done in 4.1: `runExe`, 2 minutes; the
+      interpreter runs with a step budget), so a bug that loops fails the
+      suite instead of hanging it;
     - the Milestone 1 test's exact `nm` symbol set is updated whenever the
       runtime gains a symbol: `aether.printbool` in 4.1 (the whole runtime is
       linked into every program); `aether.stacklimit` and
