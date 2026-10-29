@@ -388,8 +388,9 @@ repeated in each phase below:
      interpreter each fail a test. Part 2 done: the gate and lowering
      (`SEMANTICS.md` §Integer types), and per-type tables of every
      operator and conversion, and `print` of every type, run against gc
-     (`s2_i01_integer_tables`, `s2_i02_conversions_print`). Not done: the
-     generator.
+     (`s2_i01_integer_tables`, `s2_i02_conversions_print`). Part 3 done:
+     the generator (`TESTING.md`), with conversions lowered as no-ops and
+     `&^` lowered as `&` as negative controls.
   5. **4.5: `/ % << >>`** with the panic path.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).

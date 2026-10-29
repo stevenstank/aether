@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stevenstank/aether/internal/diag"
 )
@@ -110,15 +112,30 @@ func TestBuildCorpus(t *testing.T) {
 }
 
 // runExe runs an executable and returns what it did.
+//
+// Starting it can fail with ETXTBSY if the file was just written by this
+// process: a child that a parallel test forks holds a copy of the writing
+// descriptor until it execs (golang/go#22315). The start is retried then.
 func runExe(t *testing.T, path string) result {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, path)
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	var cmd *exec.Cmd
+	for try := 0; ; try++ {
+		cmd = exec.CommandContext(ctx, path)
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		err := cmd.Start()
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.ETXTBSY) || try == 50 {
+			t.Fatalf("%s: %v", path, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	r := result{}
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Wait(); err != nil {
 		exit, ok := err.(*exec.ExitError)
 		if !ok || exit.ExitCode() < 0 {
 			t.Fatalf("%s: %v", path, err) // a timeout or a signal

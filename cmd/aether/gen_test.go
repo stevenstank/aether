@@ -9,17 +9,19 @@ import (
 // generate returns a random program determined by seed. It uses every S1
 // construct (var, :=, and const declarations, redeclaration, shadowing in
 // nested blocks, plain, tuple, and compound assignment, ++ and --, binary
-// + - *, unary + -, parentheses, empty statements, and println) and the
-// constructs of increment 4.1: bool variables and constants, comparisons
+// + - *, unary + -, parentheses, empty statements, and println), the
+// constructs of increment 4.1 (bool variables and constants, comparisons
 // with negative and boundary operands, ! && ||, if/else trees, and bounded
-// loops in all three for forms with break and continue. Literals include
-// values that make run-time arithmetic wrap.
+// loops in all three for forms with break and continue), and those of
+// increment 4.4 (variables of every integer type, conversions between them,
+// & | ^ &^ and unary ^ with their compound assignments, and print).
+// Literals include values that make run-time arithmetic wrap.
 //
 // Every program is valid Go except that a constant expression may overflow
-// int, which go/types (and gc) reject; callers skip such programs. Every
-// variable is printed at the end of its block, so none is unused. Every
-// loop runs at most 3 times: its counter is never a target of assignment,
-// and nested loops are bounded in depth.
+// its type, which go/types (and gc) reject; callers skip such programs.
+// Every variable is printed at the end of its block, so none is unused.
+// Every loop runs at most 3 times: its counter is never a target of
+// assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
 	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed))}
 	g.line(0, "package main")
@@ -34,19 +36,59 @@ func generate(seed uint64) string {
 type kind uint8
 
 const (
-	intConst kind = iota
-	boolConst
-	intVar
-	boolVar
-	counter // a loop counter: an int variable that is never assigned
+	intConst  kind = iota // an untyped integer constant
+	boolConst             // an untyped bool constant
+	variable              // a variable of the entry's type
+	counter               // a loop counter: an int variable that is never assigned
 )
 
-func (k kind) isVar() bool { return k >= intVar }
+// entry is a declared name: what it denotes and, for a variable, its type.
+type entry struct {
+	k kind
+	t string // "bool" or an integer type name; "int" for a counter
+}
+
+func (e entry) isVar() bool { return e.k == variable || e.k == counter }
+
+// intTypes are the integer types variables are declared with. byte and
+// rune are uint8 and int32 under other names.
+var intTypes = []string{
+	"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16",
+	"uint32", "uint64", "uintptr", "byte", "rune",
+}
+
+// same reports whether two type names denote the same type.
+func same(a, b string) bool {
+	alias := map[string]string{"byte": "uint8", "rune": "int32"}
+	if x, ok := alias[a]; ok {
+		a = x
+	}
+	if x, ok := alias[b]; ok {
+		b = x
+	}
+	return a == b
+}
+
+func unsigned(t string) bool { return strings.HasPrefix(t, "u") || t == "byte" }
+
+// intLiterals are the literals of an int expression; maxLiteral gives each
+// other type its maximum, so its arithmetic wraps too.
+var intLiterals = []string{
+	"0", "1", "2", "3", "7", "10", "100", "1_000", "0x7f", "0o17", "017", "0b101",
+	"3037000500", "4294967296", "9223372036854775807",
+}
+
+var maxLiteral = map[string]string{
+	"int8": "127", "int16": "32767", "int32": "2147483647", "rune": "2147483647",
+	"int64": "9223372036854775807", "uint8": "255", "byte": "255", "uint16": "65535",
+	"uint32": "4294967295", "uint": "18446744073709551615", "uint64": "18446744073709551615",
+	"uintptr": "18446744073709551615",
+}
 
 type generator struct {
 	r      *rand.Rand
 	b      strings.Builder
-	scopes []map[string]kind
+	scopes []map[string]entry
 	order  [][]string // declaration order, per scope
 	names  int
 	loops  int // enclosing loops
@@ -60,7 +102,7 @@ func (g *generator) line(depth int, format string, args ...any) {
 
 // block emits statements in a new scope, then prints its variables.
 func (g *generator) block(depth int) {
-	g.scopes = append(g.scopes, map[string]kind{})
+	g.scopes = append(g.scopes, map[string]entry{})
 	g.order = append(g.order, nil)
 	for n := 2 + g.r.IntN(7); n > 0; n-- {
 		g.stmt(depth)
@@ -79,27 +121,32 @@ func (g *generator) block(depth int) {
 }
 
 // lookup returns what a visible name denotes.
-func (g *generator) lookup(name string) (kind, bool) {
+func (g *generator) lookup(name string) (entry, bool) {
 	for i := len(g.scopes) - 1; i >= 0; i-- {
-		if k, ok := g.scopes[i][name]; ok {
-			return k, true
+		if e, ok := g.scopes[i][name]; ok {
+			return e, true
 		}
 	}
-	return 0, false
+	return entry{}, false
 }
 
 // visible returns the visible names for which want is true, in a
 // deterministic order.
-func (g *generator) visible(want func(kind) bool) []string {
+func (g *generator) visible(want func(entry) bool) []string {
 	var out []string
 	for i := range g.order {
 		for _, name := range g.order[i] {
-			if k, _ := g.lookup(name); want(k) && !contains(out, name) {
+			if e, _ := g.lookup(name); want(e) && !contains(out, name) {
 				out = append(out, name)
 			}
 		}
 	}
 	return out
+}
+
+// vars returns the visible variables of type t, counters included for int.
+func (g *generator) vars(t string) []string {
+	return g.visible(func(e entry) bool { return e.isVar() && same(e.t, t) })
 }
 
 func contains(list []string, s string) bool {
@@ -116,7 +163,7 @@ func (g *generator) pick(list []string) string { return list[g.r.IntN(len(list))
 // newName returns a name not declared in the current scope: usually a fresh
 // one, sometimes one from an outer scope, which the declaration shadows.
 func (g *generator) newName(taken []string) string {
-	if outer := g.visible(func(kind) bool { return true }); len(outer) > 0 && g.r.IntN(4) == 0 {
+	if outer := g.visible(func(entry) bool { return true }); len(outer) > 0 && g.r.IntN(4) == 0 {
 		name := g.pick(outer)
 		if _, inScope := g.scopes[len(g.scopes)-1][name]; !inScope && !contains(taken, name) {
 			return name
@@ -135,23 +182,57 @@ func (g *generator) newNames(n int) []string {
 	return out
 }
 
-func (g *generator) declare(name string, k kind) {
-	g.scopes[len(g.scopes)-1][name] = k
+func (g *generator) declare(name string, e entry) {
+	g.scopes[len(g.scopes)-1][name] = e
 	g.order[len(g.order)-1] = append(g.order[len(g.order)-1], name)
 }
 
-// value returns an int or bool expression, and whether it is bool.
-func (g *generator) value(useVars bool) (string, bool) {
-	if g.r.IntN(3) == 0 {
-		return g.boolExpr(3, useVars), true
+// intType returns an integer type: int half the time, and otherwise
+// usually a type with a visible variable, since an expression of a narrow
+// type without one is constant and likely to overflow it.
+func (g *generator) intType() string {
+	if g.r.IntN(2) == 0 {
+		return "int"
 	}
-	return g.intExpr(3, useVars), false
+	var typed []string
+	for _, t := range intTypes {
+		if len(g.vars(t)) > 0 {
+			typed = append(typed, t)
+		}
+	}
+	if len(typed) > 0 && g.r.IntN(4) > 0 {
+		return g.pick(typed)
+	}
+	return g.pick(intTypes)
+}
+
+// value returns a bool or integer expression and its type. A constant
+// integer expression has type int, the default type of its untyped value.
+func (g *generator) value() (string, string) {
+	if g.r.IntN(3) == 0 {
+		return g.boolExpr(3, true), "bool"
+	}
+	t := g.intType()
+	e, isConst := g.intExpr(3, true, t)
+	if isConst {
+		t = "int"
+	}
+	return e, t
+}
+
+// typed returns an expression of type t.
+func (g *generator) typed(t string, useVars bool) string {
+	if t == "bool" {
+		return g.boolExpr(3, useVars)
+	}
+	e, _ := g.intExpr(3, useVars, t)
+	return e
 }
 
 func (g *generator) stmt(depth int) {
-	ints := g.visible(func(k kind) bool { return k == intVar })
-	bools := g.visible(func(k kind) bool { return k == boolVar })
-	switch k := g.r.IntN(18); {
+	assignable := g.visible(func(e entry) bool { return e.k == variable })
+	ints := g.visible(func(e entry) bool { return e.k == variable && e.t != "bool" })
+	switch k := g.r.IntN(19); {
 	case k <= 1 && depth < 5:
 		g.line(depth, "{")
 		g.block(depth + 1)
@@ -162,79 +243,76 @@ func (g *generator) stmt(depth int) {
 		name := g.newName(nil)
 		if g.r.IntN(3) == 0 {
 			g.line(depth, "const %s = %s", name, g.boolExpr(2, false))
-			g.declare(name, boolConst)
+			g.declare(name, entry{k: boolConst})
 		} else {
-			g.line(depth, "const %s = %s", name, g.intExpr(2, false))
-			g.declare(name, intConst)
+			e, _ := g.intExpr(2, false, "int")
+			g.line(depth, "const %s = %s", name, e)
+			g.declare(name, entry{k: intConst})
 		}
 	case k <= 5:
 		// var declaration with or without values, and with or without a
-		// type.
+		// type. Without one, the type is bool or int, which the values'
+		// untyped constants default to.
 		n := 1 + g.r.IntN(2)
 		names := g.newNames(n)
-		isBool := g.r.IntN(3) == 0
-		typ, kd := "int", intVar
-		if isBool {
-			typ, kd = "bool", boolVar
+		t := "bool"
+		if g.r.IntN(3) > 0 {
+			t = g.intType()
 		}
 		var vals []string
 		for range n {
-			vals = append(vals, g.typed(isBool, true))
+			vals = append(vals, g.typed(t, true))
 		}
-		switch r := g.r.IntN(3); r {
-		case 0:
-			g.line(depth, "var %s %s", strings.Join(names, ", "), typ)
-		case 1:
-			g.line(depth, "var %s %s = %s", strings.Join(names, ", "), typ, strings.Join(vals, ", "))
+		switch r := g.r.IntN(3); {
+		case r == 0:
+			g.line(depth, "var %s %s", strings.Join(names, ", "), t)
+		case r == 1 || t != "bool" && t != "int":
+			g.line(depth, "var %s %s = %s", strings.Join(names, ", "), t, strings.Join(vals, ", "))
 		default:
 			g.line(depth, "var %s = %s", strings.Join(names, ", "), strings.Join(vals, ", "))
 		}
 		for _, name := range names {
-			g.declare(name, kd)
+			g.declare(name, entry{k: variable, t: t})
 		}
-	case k <= 7 || len(ints)+len(bools) == 0:
+	case k <= 7 || len(assignable) == 0:
 		// := with one or two names, redeclaring a variable of this scope
 		// alongside a new one where possible.
-		var lhs, vals []string
-		var kinds []kind
+		var lhs, vals, typs []string
 		var local []string
 		for _, name := range g.order[len(g.order)-1] {
-			if k := g.scopes[len(g.scopes)-1][name]; k == intVar || k == boolVar {
+			if g.scopes[len(g.scopes)-1][name].k == variable {
 				local = append(local, name)
 			}
 		}
 		if len(local) > 0 && g.r.IntN(3) == 0 {
 			name := g.pick(local)
-			kd, _ := g.lookup(name)
-			lhs, vals, kinds = append(lhs, name), append(vals, g.typed(kd == boolVar, true)), append(kinds, kd)
+			e, _ := g.lookup(name)
+			lhs, vals, typs = append(lhs, name), append(vals, g.typed(e.t, true)), append(typs, e.t)
 		}
 		for _, name := range g.newNames(1 + g.r.IntN(2)) {
-			v, isBool := g.value(true)
-			kd := intVar
-			if isBool {
-				kd = boolVar
-			}
-			lhs, vals, kinds = append(lhs, name), append(vals, v), append(kinds, kd)
+			v, t := g.value()
+			lhs, vals, typs = append(lhs, name), append(vals, v), append(typs, t)
 		}
 		g.line(depth, "%s := %s", strings.Join(lhs, ", "), strings.Join(vals, ", "))
 		for i, name := range lhs {
 			if !contains(local, name) {
-				g.declare(name, kinds[i])
+				g.declare(name, entry{k: variable, t: typs[i]})
 			}
 		}
 	case k == 8:
 		// Tuple assignment; a target may repeat, and the last store wins.
 		var lhs, vals []string
 		for n := 1 + g.r.IntN(3); n > 0; n-- {
-			if len(bools) > 0 && (len(ints) == 0 || g.r.IntN(3) == 0) {
-				lhs, vals = append(lhs, g.pick(bools)), append(vals, g.boolExpr(3, true))
-			} else {
-				lhs, vals = append(lhs, g.pick(ints)), append(vals, g.intExpr(3, true))
-			}
+			name := g.pick(assignable)
+			e, _ := g.lookup(name)
+			lhs, vals = append(lhs, name), append(vals, g.typed(e.t, true))
 		}
 		g.line(depth, "%s = %s", strings.Join(lhs, ", "), strings.Join(vals, ", "))
 	case k == 9 && len(ints) > 0:
-		g.line(depth, "%s %s %s", g.pick(ints), g.pick([]string{"+=", "-=", "*="}), g.intExpr(2, true))
+		name := g.pick(ints)
+		e, _ := g.lookup(name)
+		rhs, _ := g.intExpr(2, true, e.t)
+		g.line(depth, "%s %s %s", name, g.pick([]string{"+=", "-=", "*=", "&=", "|=", "^=", "&^="}), rhs)
 	case k == 10 && len(ints) > 0:
 		g.line(depth, "%s%s", g.pick(ints), g.pick([]string{"++", "--"}))
 	case k <= 12 && depth < 5:
@@ -248,10 +326,10 @@ func (g *generator) stmt(depth int) {
 	default:
 		var args []string
 		for n := g.r.IntN(4); n > 0; n-- {
-			v, _ := g.value(true)
+			v, _ := g.value()
 			args = append(args, v)
 		}
-		g.line(depth, "println(%s)", strings.Join(args, ", "))
+		g.line(depth, "%s(%s)", g.pick([]string{"println", "println", "print"}), strings.Join(args, ", "))
 	}
 }
 
@@ -291,7 +369,7 @@ func (g *generator) loop(depth int) {
 	switch g.r.IntN(3) {
 	case 0:
 		g.line(depth, "for %s := 0; %s < %d; %s++ {", i, i, n, i)
-		g.scopes = append(g.scopes, map[string]kind{i: counter})
+		g.scopes = append(g.scopes, map[string]entry{i: {k: counter, t: "int"}})
 		g.order = append(g.order, []string{i})
 		g.block(depth + 1)
 		g.scopes, g.order = g.scopes[:len(g.scopes)-1], g.order[:len(g.order)-1]
@@ -299,12 +377,12 @@ func (g *generator) loop(depth int) {
 		return
 	case 1:
 		g.line(depth, "%s := 0", i)
-		g.declare(i, counter)
+		g.declare(i, entry{k: counter, t: "int"})
 		g.line(depth, "for %s < %d {", i, n)
 		g.line(depth+1, "%s++", i)
 	default:
 		g.line(depth, "%s := 0", i)
-		g.declare(i, counter)
+		g.declare(i, entry{k: counter, t: "int"})
 		g.line(depth, "for {")
 		g.line(depth+1, "%s++", i)
 		g.line(depth+1, "if %s > %d {", i, n)
@@ -315,40 +393,52 @@ func (g *generator) loop(depth int) {
 	g.line(depth, "}")
 }
 
-var literals = []string{
-	"0", "1", "2", "3", "7", "10", "100", "1_000", "0x7f", "0o17", "017", "0b101",
-	"3037000500", "4294967296", "9223372036854775807",
-}
-
-// typed returns an expression of the given kind.
-func (g *generator) typed(isBool, useVars bool) string {
-	if isBool {
-		return g.boolExpr(3, useVars)
-	}
-	return g.intExpr(3, useVars)
-}
-
-// intExpr returns an int expression of at most the given depth. If useVars
-// is false, it uses only literals and constants, so it is constant.
-func (g *generator) intExpr(depth int, useVars bool) string {
+// intExpr returns an expression of integer type t of at most the given
+// depth, and whether it is constant. If useVars is false, it uses only
+// literals and constants. A constant is never negated or complemented in an
+// unsigned type, and only variables are converted, since either would make
+// the program invalid for a reason other than overflow.
+func (g *generator) intExpr(depth int, useVars bool, t string) (string, bool) {
 	if depth <= 0 || g.r.IntN(3) == 0 {
-		vars := g.visible(func(k kind) bool { return k == intVar || k == counter })
-		if useVars && len(vars) > 0 && g.r.IntN(3) > 0 {
-			return g.pick(vars)
+		if vars := g.vars(t); useVars && len(vars) > 0 && g.r.IntN(3) > 0 {
+			return g.pick(vars), false
 		}
-		if consts := g.visible(func(k kind) bool { return k == intConst }); !useVars && len(consts) > 0 && g.r.IntN(3) == 0 {
-			return g.pick(consts)
+		if consts := g.visible(func(e entry) bool { return e.k == intConst }); !useVars && len(consts) > 0 && g.r.IntN(3) == 0 {
+			return g.pick(consts), true
 		}
-		return g.pick(literals)
+		if same(t, "int") {
+			return g.pick(intLiterals), true
+		}
+		return g.pick([]string{"0", "1", "2", "3", "7", "100", maxLiteral[t]}), true
 	}
-	switch g.r.IntN(4) {
+	switch g.r.IntN(5) {
 	case 0:
 		// A space keeps "- -x" from scanning as the -- operator.
-		return g.pick([]string{"-", "+"}) + " " + g.intExpr(depth-1, useVars)
+		x, isConst := g.intExpr(depth-1, useVars, t)
+		ops := []string{"-", "+", "^"}
+		if isConst && unsigned(t) {
+			ops = []string{"+"}
+		}
+		return g.pick(ops) + " " + x, isConst
 	case 1:
-		return "(" + g.intExpr(depth-1, useVars) + ")"
+		x, isConst := g.intExpr(depth-1, useVars, t)
+		return "(" + x + ")", isConst
+	case 2:
+		// A conversion of a variable of another integer type.
+		from := g.pick(intTypes)
+		if vars := g.vars(from); useVars && len(vars) > 0 && !same(from, t) {
+			return t + "(" + g.pick(vars) + ")", false
+		}
 	}
-	return g.intExpr(depth-1, useVars) + " " + g.pick([]string{"+", "-", "*"}) + " " + g.intExpr(depth-1, useVars)
+	x, cx := g.intExpr(depth-1, useVars, t)
+	y, cy := g.intExpr(depth-1, useVars, t)
+	ops := []string{"+", "-", "*", "&", "|", "^", "&^"}
+	if cx && cy && !same(t, "int") {
+		// Bitwise operations keep constants of t in range; arithmetic on
+		// them mostly overflows a narrow type.
+		ops = ops[3:]
+	}
+	return x + " " + g.pick(ops) + " " + y, cx && cy
 }
 
 // boolExpr returns a bool expression of at most the given depth, with every
@@ -356,11 +446,10 @@ func (g *generator) intExpr(depth int, useVars bool) string {
 // constant.
 func (g *generator) boolExpr(depth int, useVars bool) string {
 	if depth <= 0 || g.r.IntN(4) == 0 {
-		vars := g.visible(func(k kind) bool { return k == boolVar })
-		if useVars && len(vars) > 0 && g.r.IntN(2) == 0 {
+		if vars := g.vars("bool"); useVars && len(vars) > 0 && g.r.IntN(2) == 0 {
 			return g.pick(vars)
 		}
-		if consts := g.visible(func(k kind) bool { return k == boolConst }); len(consts) > 0 && g.r.IntN(3) == 0 {
+		if consts := g.visible(func(e entry) bool { return e.k == boolConst }); len(consts) > 0 && g.r.IntN(3) == 0 {
 			return g.pick(consts)
 		}
 		return g.pick([]string{"true", "false"})
@@ -369,12 +458,19 @@ func (g *generator) boolExpr(depth int, useVars bool) string {
 	case 0:
 		return "!(" + g.boolExpr(depth-1, useVars) + ")"
 	case 1, 2:
-		// Operands are often negated, so negative and boundary values are
-		// compared. They are shallow: a constant comparison of deep
-		// operands mostly overflows, which makes the program invalid.
+		// Operands of one integer type, often negated, so negative and
+		// boundary values are compared. They are shallow: a constant
+		// comparison of deep operands mostly overflows, which makes the
+		// program invalid.
 		op := g.pick([]string{"==", "!=", "<", "<=", ">", ">="})
 		d := min(depth-1, 1)
-		return "(" + g.intExpr(d, useVars) + ") " + op + " (" + g.pick([]string{"- ", ""}) + g.intExpr(d, useVars) + ")"
+		t := g.intType()
+		x, _ := g.intExpr(d, useVars, t)
+		y, cy := g.intExpr(d, useVars, t)
+		if !cy || !unsigned(t) {
+			y = g.pick([]string{"- ", ""}) + y
+		}
+		return "(" + x + ") " + op + " (" + y + ")"
 	case 3:
 		return "(" + g.boolExpr(depth-1, useVars) + ") " + g.pick([]string{"==", "!="}) + " (" + g.boolExpr(depth-1, useVars) + ")"
 	}

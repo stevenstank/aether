@@ -197,6 +197,17 @@ controls confirmed that it detects `||` lowered as `&&`, and a `continue`
 that skips the post statement, which the interpreter's step budget stops
 instead of hanging.
 
+Since increment 4.4 it also declares variables of every integer type and
+uses conversions between them, `&`, `|`, `^`, `&^`, unary `^`, their
+compound assignments, and `print`. Each integer expression is generated
+for a type and knows whether it is constant: a constant is never negated or
+complemented in an unsigned type, only variables are converted, and two
+constant operands in a type other than `int` are combined only bitwise,
+since anything else would be invalid for a reason other than overflow or
+would mostly overflow. About 36% of seeds now give an invalid program.
+Negative controls confirmed that it detects conversions lowered as no-ops
+and `&^` lowered as `&`.
+
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
 come from running gc.
