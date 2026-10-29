@@ -120,8 +120,9 @@ func TestLowerUnexpected(t *testing.T) {
 		{"function value", "func f() {}\nfunc main() { g := f; g() }", "p.go:3:20: internal: lowering: unexpected type func()"},
 		{"package variable", "var g int\nfunc main() { println(g) }", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 		{"blank target", "func main() { _ = 1 }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
-		{"builtin call", "func main() { print(1) }", "p.go:2:15: internal: lowering: unexpected call of print"},
-		{"uint variable", "func main() { var x uint = 1; println(x) }", "p.go:2:28: internal: lowering: unexpected type uint"},
+		{"builtin call", "func main() { _ = len([1]int{}) }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
+		{"builtin call statement", "func main() { panic(1) }", "p.go:2:15: internal: lowering: unexpected call of panic"},
+		{"float variable", "func main() { var x float64 = 1; println(x > 0) }", "p.go:2:31: internal: lowering: unexpected type float64"},
 		{"no body", "func main()", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 	}
 	for _, tt := range tests {

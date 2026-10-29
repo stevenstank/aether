@@ -1,4 +1,4 @@
-// aether:expect unsupported println-argument-type
+// aether:expect unsupported rune-literal
 
 package main
 

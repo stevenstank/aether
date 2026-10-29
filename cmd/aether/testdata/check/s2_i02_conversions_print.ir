@@ -1,0 +1,160 @@
+func conv(i64) @testdata/check/s2_i02_conversions_print.go:6:6
+  slot s0 x i64 @6:11
+b0:
+  v0 = param 0 @6:11
+  store s0, v0 @6:11
+  v1 = load s0 @7:15
+  v2 = conv i8, v1 @7:10
+  v3 = load s0 @7:25
+  v4 = conv i16, v3 @7:19
+  v5 = load s0 @7:35
+  v6 = conv i32, v5 @7:29
+  v7 = load s0 @7:45
+  v8 = load s0 @7:55
+  v9 = conv u8, v8 @7:49
+  v10 = load s0 @7:66
+  v11 = conv u16, v10 @7:59
+  v12 = load s0 @7:77
+  v13 = conv u32, v12 @7:70
+  v14 = load s0 @7:88
+  v15 = conv u64, v14 @7:81
+  println v2, v4, v6, v7, v9, v11, v13, v15 @7:2
+  ret @8:1
+
+func uconv(u64) @testdata/check/s2_i02_conversions_print.go:11:6
+  slot s0 x u64 @11:12
+b0:
+  v0 = param 0 @11:12
+  store s0, v0 @11:12
+  v1 = load s0 @12:15
+  v2 = conv i8, v1 @12:10
+  v3 = load s0 @12:25
+  v4 = conv i16, v3 @12:19
+  v5 = load s0 @12:35
+  v6 = conv i32, v5 @12:29
+  v7 = load s0 @12:45
+  v8 = conv i64, v7 @12:39
+  v9 = load s0 @12:55
+  v10 = conv u8, v9 @12:49
+  v11 = load s0 @12:66
+  v12 = conv u16, v11 @12:59
+  v13 = load s0 @12:77
+  v14 = conv u32, v13 @12:70
+  v15 = load s0 @12:88
+  println v2, v4, v6, v8, v10, v12, v14, v15 @12:2
+  ret @13:1
+
+func main @testdata/check/s2_i02_conversions_print.go:15:6
+  slot s0 a i8 @36:6
+  slot s1 b u8 @37:6
+  slot s2 i16 i16 @42:6
+  slot s3 i32 i32 @43:6
+  slot s4 u16 u16 @44:6
+  slot s5 u32 u32 @45:6
+  slot s6 u64 u64 @46:6
+b0:
+  v0 = const 0 @16:7
+  call conv, v0 @16:2
+  v1 = const -1 @17:7
+  call conv, v1 @17:2
+  v2 = const 127 @18:7
+  call conv, v2 @18:2
+  v3 = const 128 @19:7
+  call conv, v3 @19:2
+  v4 = const -129 @20:7
+  call conv, v4 @20:2
+  v5 = const 255 @21:7
+  call conv, v5 @21:2
+  v6 = const 256 @22:7
+  call conv, v6 @22:2
+  v7 = const 32767 @23:7
+  call conv, v7 @23:2
+  v8 = const -32769 @24:7
+  call conv, v8 @24:2
+  v9 = const 65536 @25:7
+  call conv, v9 @25:2
+  v10 = const 2147483648 @26:7
+  call conv, v10 @26:2
+  v11 = const -2147483649 @27:7
+  call conv, v11 @27:2
+  v12 = const 4294967295 @28:7
+  call conv, v12 @28:2
+  v13 = const -9223372036854775808 @29:7
+  call conv, v13 @29:2
+  v14 = const 9223372036854775807 @30:7
+  call conv, v14 @30:2
+  v15 = const u64 18446744073709551615 @31:8
+  call uconv, v15 @31:2
+  v16 = const u64 9223372036854775808 @32:8
+  call uconv, v16 @32:2
+  v17 = const u64 4295032831 @33:8
+  call uconv, v17 @33:2
+  v18 = const i8 -100 @36:15
+  store s0, v18 @36:6
+  v19 = const u8 156 @37:16
+  store s1, v19 @37:6
+  v20 = load s0 @38:16
+  v21 = conv i64, v20 @38:10
+  v22 = load s0 @38:27
+  v23 = conv u64, v22 @38:20
+  v24 = load s1 @38:37
+  v25 = conv i64, v24 @38:31
+  v26 = load s1 @38:52
+  v27 = conv i8, v26 @38:47
+  v28 = conv i16, v27 @38:41
+  v29 = load s0 @38:64
+  v30 = conv u32, v29 @38:57
+  v31 = load s0 @38:81
+  v32 = conv u16, v31 @38:74
+  v33 = conv i32, v32 @38:68
+  println v21, v23, v25, v28, v30, v33 @38:2
+  v34 = load s0 @39:15
+  v35 = load s0 @39:17
+  v36 = add v34, v35 @39:16
+  v37 = load s1 @39:27
+  v38 = load s1 @39:29
+  v39 = add v37, v38 @39:28
+  v40 = load s1 @39:38
+  v41 = conv i8, v40 @39:33
+  v42 = load s0 @39:44
+  v43 = eq v41, v42 @39:41
+  v44 = load s0 @39:53
+  v45 = conv u8, v44 @39:47
+  v46 = load s1 @39:59
+  v47 = eq v45, v46 @39:56
+  println v36, v39, v43, v47 @39:2
+  v48 = const i16 -32768 @42:18
+  store s2, v48 @42:6
+  v49 = const i32 2147483647 @43:18
+  store s3, v49 @43:6
+  v50 = const u16 65535 @44:19
+  store s4, v50 @44:6
+  v51 = const u32 4294967295 @45:19
+  store s5, v51 @45:6
+  v52 = const u64 18446744073709551615 @46:19
+  store s6, v52 @46:6
+  v53 = load s0 @47:8
+  v54 = load s1 @47:11
+  v55 = load s2 @47:14
+  v56 = load s3 @47:19
+  v57 = load s4 @47:24
+  v58 = load s5 @47:29
+  v59 = load s6 @47:34
+  v60 = const true @47:39
+  v61 = const false @47:45
+  v62 = const -1 @47:52
+  v63 = const 0 @47:56
+  print v53, v54, v55, v56, v57, v58, v59, v60, v61, v62, v63 @47:2
+  print @48:2
+  println @49:2
+  v64 = const 1 @50:8
+  v65 = const 2 @50:11
+  print v64, v65 @50:2
+  v66 = const 3 @51:10
+  v67 = const 4 @51:13
+  println v66, v67 @51:2
+  v68 = load s6 @52:8
+  v69 = load s0 @52:13
+  print v68, v69 @52:2
+  println @53:2
+  ret @54:1

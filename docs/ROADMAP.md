@@ -374,8 +374,8 @@ repeated in each phase below:
      because a second call overwrites the area first.
   4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`, and
      `print` (no separators, no newline) of every integer type and `bool`.
-     Observed in gc so far: `int` (E1), and `bool`, `uint8`, `int8` (E13);
-     the other types' formats are established by the 4.4 tests.
+     Observed in gc: `int` (E1), `bool`, `uint8`, `int8` (E13), and the
+     other types in 4.4 (`s2_i02_conversions_print`, D-023).
      **Status (2026-10-29):** part 1 done: the eight integer types in
      canonical form, `and or xor andnot com conv print` in the IR, verifier
      (canonical constants), printer, interpreter, and backend (a
@@ -385,8 +385,11 @@ repeated in each phase below:
      and every conversion. Negative controls run by hand and reverted:
      no canonicalization, signed condition codes for unsigned types,
      `printint` for unsigned values, and a signed comparison in the
-     interpreter each fail a test. Not done: the gate and lowering, the
-     corpus, `print` against gc, and the generator.
+     interpreter each fail a test. Part 2 done: the gate and lowering
+     (`SEMANTICS.md` §Integer types), and per-type tables of every
+     operator and conversion, and `print` of every type, run against gc
+     (`s2_i01_integer_tables`, `s2_i02_conversions_print`). Not done: the
+     generator.
   5. **4.5: `/ % << >>`** with the panic path.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).

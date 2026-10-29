@@ -204,7 +204,10 @@ phase needs either (for example, interleaving with stdout), it becomes an open
 question at that point.
 
 `print` has a different format (no separators, no newline, per E1) and is not
-in S1.
+in S1. From increment 4.4, `print` and `println` take every integer type and
+`bool`: signed types in signed decimal, unsigned types in unsigned decimal,
+and `bool` as `true` or `false`, as gc prints them (`s2_i02_conversions_print`,
+D-023).
 
 ## Compatibility testing against gc
 
@@ -374,8 +377,8 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
 | Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
-| Operators | `operator-div`, `operator-rem`, `operator-shl`, `operator-shr`, `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`, `operator-complement`, `operator-address`, `operator-receive`, `operator-other` |
-| Calls | `call`, `conversion`, `builtin`, `print`, `println-argument-type`, `variadic-call` |
+| Operators | `operator-div`, `operator-rem`, `operator-shl`, `operator-shr`, `operator-address`, `operator-receive`, `operator-other` |
+| Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
 
 `statement` and `expression` are catch-alls. The gate is default-deny, so a
@@ -546,6 +549,19 @@ or `var` declaration of as many variables (`a, b := f()`, `a, b = f()`,
 results (`function-declaration`) and the blank identifier as a target
 (`blank-identifier`).
 
+## Integer types (Phase 4 increment 4.4)
+
+The gate also accepts the predeclared integer types `int8`, `int16`,
+`int32`, `int64`, `uint`, `uint8`, `uint16`, `uint32`, `uint64`,
+`uintptr`, and the aliases `byte` and `rune`, in every position `int` is
+accepted, with wraparound at each type's width; conversions between integer
+types (and `bool(b)`); the operators `&`, `|`, `^`, `&^`, unary `^`, and
+their compound assignments; and `print`. `int`, `uint`, and `uintptr` are
+64 bits wide. Still `unsupported`: `/`, `%`, `<<`, `>>` (increment 4.5),
+rune literals, and conversions to other types (`conversion`). The feature
+names `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`,
+`operator-complement`, and `print` no longer exist.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -565,6 +581,7 @@ results (`function-declaration`) and the blank identifier as a target
 | `bool`, comparisons, `!`, `&&`, `\|\|` with short-circuit evaluation | Boolean types, Comparison operators, Logical operators | S2 / 4.1 | Supported (native) | `s2_c02_bool`; `TestNativeControlFlow`; gate and lowering tests |
 | `if`/`else`, the three `for` forms, unlabeled `break`/`continue` | If statements, For statements, Break and Continue statements | S2 / 4.1 | Supported (native) | `s2_c01_control_flow`, `s2_c03_recursion` |
 | Multiple results and multi-value calls | Function types, Return statements, Assignment statements, Calls | S2 / 4.3 | Supported (native) | `s2_t01_multiple_results`; `TestNativeTuples`; `TestVerifyTuples`; gate tests |
+| Every integer type, conversions, `& \| ^ &^`, unary `^`, `print` | Numeric types, Conversions, Arithmetic operators | S2 / 4.4 | Supported (native) | `s2_i01_integer_tables`, `s2_i02_conversions_print`; `TestIntegerTypes`, `TestConversions` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

@@ -1,1 +1,0 @@
-testdata/check/unsupported_print.go:6:2: unsupported: builtin print is not supported in subset S1 [print]

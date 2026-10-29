@@ -1,0 +1,2 @@
+testdata/check/unsupported_float_conversion.go:7:10: unsupported: conversion to float64 is not supported in subset S1 [conversion]
+testdata/check/unsupported_float_conversion.go:7:23: unsupported: expression of type float64 is not supported in subset S1 [non-int-type]

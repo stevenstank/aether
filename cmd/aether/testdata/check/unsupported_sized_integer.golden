@@ -1,3 +1,0 @@
-testdata/check/unsupported_sized_integer.go:6:8: unsupported: type int8 is not supported in subset S1 [non-int-type]
-testdata/check/unsupported_sized_integer.go:6:15: unsupported: expression of type int8 is not supported in subset S1 [non-int-type]
-testdata/check/unsupported_sized_integer.go:7:10: unsupported: println argument of type int8 is not supported in subset S1 [println-argument-type]

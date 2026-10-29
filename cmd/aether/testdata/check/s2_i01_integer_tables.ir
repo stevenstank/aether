@@ -1,0 +1,1164 @@
+func tint8(i8, i8) @testdata/check/s2_i01_integer_tables.go:9:6
+  slot s0 x i8 @9:12
+  slot s1 y i8 @9:15
+  slot s2 z i8 @12:2
+b0:
+  v0 = param 0 @9:12
+  store s0, v0 @9:12
+  v1 = param 1 @9:15
+  store s1, v1 @9:15
+  v2 = load s0 @10:10
+  v3 = load s1 @10:12
+  v4 = add v2, v3 @10:11
+  v5 = load s0 @10:15
+  v6 = load s1 @10:17
+  v7 = sub v5, v6 @10:16
+  v8 = load s0 @10:20
+  v9 = load s1 @10:22
+  v10 = mul v8, v9 @10:21
+  v11 = load s0 @10:25
+  v12 = load s1 @10:27
+  v13 = and v11, v12 @10:26
+  v14 = load s0 @10:30
+  v15 = load s1 @10:32
+  v16 = or v14, v15 @10:31
+  v17 = load s0 @10:35
+  v18 = load s1 @10:37
+  v19 = xor v17, v18 @10:36
+  v20 = load s0 @10:40
+  v21 = load s1 @10:43
+  v22 = andnot v20, v21 @10:41
+  v23 = load s0 @10:47
+  v24 = neg v23 @10:46
+  v25 = load s0 @10:51
+  v26 = com v25 @10:50
+  v27 = load s1 @10:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @10:2
+  v28 = load s0 @11:10
+  v29 = load s1 @11:15
+  v30 = eq v28, v29 @11:12
+  v31 = load s0 @11:18
+  v32 = load s1 @11:23
+  v33 = ne v31, v32 @11:20
+  v34 = load s0 @11:26
+  v35 = load s1 @11:30
+  v36 = lt v34, v35 @11:28
+  v37 = load s0 @11:33
+  v38 = load s1 @11:38
+  v39 = le v37, v38 @11:35
+  v40 = load s0 @11:41
+  v41 = load s1 @11:45
+  v42 = gt v40, v41 @11:43
+  v43 = load s0 @11:48
+  v44 = load s1 @11:53
+  v45 = ge v43, v44 @11:50
+  println v30, v33, v36, v39, v42, v45 @11:2
+  v46 = load s0 @12:7
+  store s2, v46 @12:2
+  v47 = load s2 @13:2
+  v48 = load s1 @13:7
+  v49 = add v47, v48 @13:4
+  store s2, v49 @13:2
+  v50 = load s2 @14:2
+  v51 = load s0 @14:7
+  v52 = mul v50, v51 @14:4
+  store s2, v52 @14:2
+  v53 = load s2 @15:2
+  v54 = const i8 1 @15:7
+  v55 = sub v53, v54 @15:4
+  store s2, v55 @15:2
+  v56 = load s2 @16:2
+  v57 = load s1 @16:8
+  v58 = com v57 @16:7
+  v59 = and v56, v58 @16:4
+  store s2, v59 @16:2
+  v60 = load s2 @17:2
+  v61 = const i8 5 @17:7
+  v62 = or v60, v61 @17:4
+  store s2, v62 @17:2
+  v63 = load s2 @18:2
+  v64 = load s0 @18:7
+  v65 = xor v63, v64 @18:4
+  store s2, v65 @18:2
+  v66 = load s2 @19:2
+  v67 = const i8 3 @19:8
+  v68 = andnot v66, v67 @19:4
+  store s2, v68 @19:2
+  v69 = load s2 @20:2
+  v70 = const i8 1 @20:3
+  v71 = add v69, v70 @20:3
+  store s2, v71 @20:2
+  v72 = load s2 @21:2
+  v73 = const i8 1 @21:3
+  v74 = sub v72, v73 @21:3
+  store s2, v74 @21:2
+  v75 = load s2 @22:2
+  v76 = const i8 1 @22:3
+  v77 = add v75, v76 @22:3
+  store s2, v77 @22:2
+  v78 = load s2 @23:10
+  println v78 @23:2
+  ret @24:1
+
+func tint16(i16, i16) @testdata/check/s2_i01_integer_tables.go:26:6
+  slot s0 x i16 @26:13
+  slot s1 y i16 @26:16
+  slot s2 z i16 @29:2
+b0:
+  v0 = param 0 @26:13
+  store s0, v0 @26:13
+  v1 = param 1 @26:16
+  store s1, v1 @26:16
+  v2 = load s0 @27:10
+  v3 = load s1 @27:12
+  v4 = add v2, v3 @27:11
+  v5 = load s0 @27:15
+  v6 = load s1 @27:17
+  v7 = sub v5, v6 @27:16
+  v8 = load s0 @27:20
+  v9 = load s1 @27:22
+  v10 = mul v8, v9 @27:21
+  v11 = load s0 @27:25
+  v12 = load s1 @27:27
+  v13 = and v11, v12 @27:26
+  v14 = load s0 @27:30
+  v15 = load s1 @27:32
+  v16 = or v14, v15 @27:31
+  v17 = load s0 @27:35
+  v18 = load s1 @27:37
+  v19 = xor v17, v18 @27:36
+  v20 = load s0 @27:40
+  v21 = load s1 @27:43
+  v22 = andnot v20, v21 @27:41
+  v23 = load s0 @27:47
+  v24 = neg v23 @27:46
+  v25 = load s0 @27:51
+  v26 = com v25 @27:50
+  v27 = load s1 @27:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @27:2
+  v28 = load s0 @28:10
+  v29 = load s1 @28:15
+  v30 = eq v28, v29 @28:12
+  v31 = load s0 @28:18
+  v32 = load s1 @28:23
+  v33 = ne v31, v32 @28:20
+  v34 = load s0 @28:26
+  v35 = load s1 @28:30
+  v36 = lt v34, v35 @28:28
+  v37 = load s0 @28:33
+  v38 = load s1 @28:38
+  v39 = le v37, v38 @28:35
+  v40 = load s0 @28:41
+  v41 = load s1 @28:45
+  v42 = gt v40, v41 @28:43
+  v43 = load s0 @28:48
+  v44 = load s1 @28:53
+  v45 = ge v43, v44 @28:50
+  println v30, v33, v36, v39, v42, v45 @28:2
+  v46 = load s0 @29:7
+  store s2, v46 @29:2
+  v47 = load s2 @30:2
+  v48 = load s1 @30:7
+  v49 = add v47, v48 @30:4
+  store s2, v49 @30:2
+  v50 = load s2 @31:2
+  v51 = load s0 @31:7
+  v52 = mul v50, v51 @31:4
+  store s2, v52 @31:2
+  v53 = load s2 @32:2
+  v54 = const i16 1 @32:7
+  v55 = sub v53, v54 @32:4
+  store s2, v55 @32:2
+  v56 = load s2 @33:2
+  v57 = load s1 @33:8
+  v58 = com v57 @33:7
+  v59 = and v56, v58 @33:4
+  store s2, v59 @33:2
+  v60 = load s2 @34:2
+  v61 = const i16 5 @34:7
+  v62 = or v60, v61 @34:4
+  store s2, v62 @34:2
+  v63 = load s2 @35:2
+  v64 = load s0 @35:7
+  v65 = xor v63, v64 @35:4
+  store s2, v65 @35:2
+  v66 = load s2 @36:2
+  v67 = const i16 3 @36:8
+  v68 = andnot v66, v67 @36:4
+  store s2, v68 @36:2
+  v69 = load s2 @37:2
+  v70 = const i16 1 @37:3
+  v71 = add v69, v70 @37:3
+  store s2, v71 @37:2
+  v72 = load s2 @38:2
+  v73 = const i16 1 @38:3
+  v74 = sub v72, v73 @38:3
+  store s2, v74 @38:2
+  v75 = load s2 @39:2
+  v76 = const i16 1 @39:3
+  v77 = add v75, v76 @39:3
+  store s2, v77 @39:2
+  v78 = load s2 @40:10
+  println v78 @40:2
+  ret @41:1
+
+func tint32(i32, i32) @testdata/check/s2_i01_integer_tables.go:43:6
+  slot s0 x i32 @43:13
+  slot s1 y i32 @43:16
+  slot s2 z i32 @46:2
+b0:
+  v0 = param 0 @43:13
+  store s0, v0 @43:13
+  v1 = param 1 @43:16
+  store s1, v1 @43:16
+  v2 = load s0 @44:10
+  v3 = load s1 @44:12
+  v4 = add v2, v3 @44:11
+  v5 = load s0 @44:15
+  v6 = load s1 @44:17
+  v7 = sub v5, v6 @44:16
+  v8 = load s0 @44:20
+  v9 = load s1 @44:22
+  v10 = mul v8, v9 @44:21
+  v11 = load s0 @44:25
+  v12 = load s1 @44:27
+  v13 = and v11, v12 @44:26
+  v14 = load s0 @44:30
+  v15 = load s1 @44:32
+  v16 = or v14, v15 @44:31
+  v17 = load s0 @44:35
+  v18 = load s1 @44:37
+  v19 = xor v17, v18 @44:36
+  v20 = load s0 @44:40
+  v21 = load s1 @44:43
+  v22 = andnot v20, v21 @44:41
+  v23 = load s0 @44:47
+  v24 = neg v23 @44:46
+  v25 = load s0 @44:51
+  v26 = com v25 @44:50
+  v27 = load s1 @44:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @44:2
+  v28 = load s0 @45:10
+  v29 = load s1 @45:15
+  v30 = eq v28, v29 @45:12
+  v31 = load s0 @45:18
+  v32 = load s1 @45:23
+  v33 = ne v31, v32 @45:20
+  v34 = load s0 @45:26
+  v35 = load s1 @45:30
+  v36 = lt v34, v35 @45:28
+  v37 = load s0 @45:33
+  v38 = load s1 @45:38
+  v39 = le v37, v38 @45:35
+  v40 = load s0 @45:41
+  v41 = load s1 @45:45
+  v42 = gt v40, v41 @45:43
+  v43 = load s0 @45:48
+  v44 = load s1 @45:53
+  v45 = ge v43, v44 @45:50
+  println v30, v33, v36, v39, v42, v45 @45:2
+  v46 = load s0 @46:7
+  store s2, v46 @46:2
+  v47 = load s2 @47:2
+  v48 = load s1 @47:7
+  v49 = add v47, v48 @47:4
+  store s2, v49 @47:2
+  v50 = load s2 @48:2
+  v51 = load s0 @48:7
+  v52 = mul v50, v51 @48:4
+  store s2, v52 @48:2
+  v53 = load s2 @49:2
+  v54 = const i32 1 @49:7
+  v55 = sub v53, v54 @49:4
+  store s2, v55 @49:2
+  v56 = load s2 @50:2
+  v57 = load s1 @50:8
+  v58 = com v57 @50:7
+  v59 = and v56, v58 @50:4
+  store s2, v59 @50:2
+  v60 = load s2 @51:2
+  v61 = const i32 5 @51:7
+  v62 = or v60, v61 @51:4
+  store s2, v62 @51:2
+  v63 = load s2 @52:2
+  v64 = load s0 @52:7
+  v65 = xor v63, v64 @52:4
+  store s2, v65 @52:2
+  v66 = load s2 @53:2
+  v67 = const i32 3 @53:8
+  v68 = andnot v66, v67 @53:4
+  store s2, v68 @53:2
+  v69 = load s2 @54:2
+  v70 = const i32 1 @54:3
+  v71 = add v69, v70 @54:3
+  store s2, v71 @54:2
+  v72 = load s2 @55:2
+  v73 = const i32 1 @55:3
+  v74 = sub v72, v73 @55:3
+  store s2, v74 @55:2
+  v75 = load s2 @56:2
+  v76 = const i32 1 @56:3
+  v77 = add v75, v76 @56:3
+  store s2, v77 @56:2
+  v78 = load s2 @57:10
+  println v78 @57:2
+  ret @58:1
+
+func tint64(i64, i64) @testdata/check/s2_i01_integer_tables.go:60:6
+  slot s0 x i64 @60:13
+  slot s1 y i64 @60:16
+  slot s2 z i64 @63:2
+b0:
+  v0 = param 0 @60:13
+  store s0, v0 @60:13
+  v1 = param 1 @60:16
+  store s1, v1 @60:16
+  v2 = load s0 @61:10
+  v3 = load s1 @61:12
+  v4 = add v2, v3 @61:11
+  v5 = load s0 @61:15
+  v6 = load s1 @61:17
+  v7 = sub v5, v6 @61:16
+  v8 = load s0 @61:20
+  v9 = load s1 @61:22
+  v10 = mul v8, v9 @61:21
+  v11 = load s0 @61:25
+  v12 = load s1 @61:27
+  v13 = and v11, v12 @61:26
+  v14 = load s0 @61:30
+  v15 = load s1 @61:32
+  v16 = or v14, v15 @61:31
+  v17 = load s0 @61:35
+  v18 = load s1 @61:37
+  v19 = xor v17, v18 @61:36
+  v20 = load s0 @61:40
+  v21 = load s1 @61:43
+  v22 = andnot v20, v21 @61:41
+  v23 = load s0 @61:47
+  v24 = neg v23 @61:46
+  v25 = load s0 @61:51
+  v26 = com v25 @61:50
+  v27 = load s1 @61:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @61:2
+  v28 = load s0 @62:10
+  v29 = load s1 @62:15
+  v30 = eq v28, v29 @62:12
+  v31 = load s0 @62:18
+  v32 = load s1 @62:23
+  v33 = ne v31, v32 @62:20
+  v34 = load s0 @62:26
+  v35 = load s1 @62:30
+  v36 = lt v34, v35 @62:28
+  v37 = load s0 @62:33
+  v38 = load s1 @62:38
+  v39 = le v37, v38 @62:35
+  v40 = load s0 @62:41
+  v41 = load s1 @62:45
+  v42 = gt v40, v41 @62:43
+  v43 = load s0 @62:48
+  v44 = load s1 @62:53
+  v45 = ge v43, v44 @62:50
+  println v30, v33, v36, v39, v42, v45 @62:2
+  v46 = load s0 @63:7
+  store s2, v46 @63:2
+  v47 = load s2 @64:2
+  v48 = load s1 @64:7
+  v49 = add v47, v48 @64:4
+  store s2, v49 @64:2
+  v50 = load s2 @65:2
+  v51 = load s0 @65:7
+  v52 = mul v50, v51 @65:4
+  store s2, v52 @65:2
+  v53 = load s2 @66:2
+  v54 = const 1 @66:7
+  v55 = sub v53, v54 @66:4
+  store s2, v55 @66:2
+  v56 = load s2 @67:2
+  v57 = load s1 @67:8
+  v58 = com v57 @67:7
+  v59 = and v56, v58 @67:4
+  store s2, v59 @67:2
+  v60 = load s2 @68:2
+  v61 = const 5 @68:7
+  v62 = or v60, v61 @68:4
+  store s2, v62 @68:2
+  v63 = load s2 @69:2
+  v64 = load s0 @69:7
+  v65 = xor v63, v64 @69:4
+  store s2, v65 @69:2
+  v66 = load s2 @70:2
+  v67 = const 3 @70:8
+  v68 = andnot v66, v67 @70:4
+  store s2, v68 @70:2
+  v69 = load s2 @71:2
+  v70 = const 1 @71:3
+  v71 = add v69, v70 @71:3
+  store s2, v71 @71:2
+  v72 = load s2 @72:2
+  v73 = const 1 @72:3
+  v74 = sub v72, v73 @72:3
+  store s2, v74 @72:2
+  v75 = load s2 @73:2
+  v76 = const 1 @73:3
+  v77 = add v75, v76 @73:3
+  store s2, v77 @73:2
+  v78 = load s2 @74:10
+  println v78 @74:2
+  ret @75:1
+
+func tuint8(u8, u8) @testdata/check/s2_i01_integer_tables.go:77:6
+  slot s0 x u8 @77:13
+  slot s1 y u8 @77:16
+  slot s2 z u8 @80:2
+b0:
+  v0 = param 0 @77:13
+  store s0, v0 @77:13
+  v1 = param 1 @77:16
+  store s1, v1 @77:16
+  v2 = load s0 @78:10
+  v3 = load s1 @78:12
+  v4 = add v2, v3 @78:11
+  v5 = load s0 @78:15
+  v6 = load s1 @78:17
+  v7 = sub v5, v6 @78:16
+  v8 = load s0 @78:20
+  v9 = load s1 @78:22
+  v10 = mul v8, v9 @78:21
+  v11 = load s0 @78:25
+  v12 = load s1 @78:27
+  v13 = and v11, v12 @78:26
+  v14 = load s0 @78:30
+  v15 = load s1 @78:32
+  v16 = or v14, v15 @78:31
+  v17 = load s0 @78:35
+  v18 = load s1 @78:37
+  v19 = xor v17, v18 @78:36
+  v20 = load s0 @78:40
+  v21 = load s1 @78:43
+  v22 = andnot v20, v21 @78:41
+  v23 = load s0 @78:47
+  v24 = neg v23 @78:46
+  v25 = load s0 @78:51
+  v26 = com v25 @78:50
+  v27 = load s1 @78:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @78:2
+  v28 = load s0 @79:10
+  v29 = load s1 @79:15
+  v30 = eq v28, v29 @79:12
+  v31 = load s0 @79:18
+  v32 = load s1 @79:23
+  v33 = ne v31, v32 @79:20
+  v34 = load s0 @79:26
+  v35 = load s1 @79:30
+  v36 = lt v34, v35 @79:28
+  v37 = load s0 @79:33
+  v38 = load s1 @79:38
+  v39 = le v37, v38 @79:35
+  v40 = load s0 @79:41
+  v41 = load s1 @79:45
+  v42 = gt v40, v41 @79:43
+  v43 = load s0 @79:48
+  v44 = load s1 @79:53
+  v45 = ge v43, v44 @79:50
+  println v30, v33, v36, v39, v42, v45 @79:2
+  v46 = load s0 @80:7
+  store s2, v46 @80:2
+  v47 = load s2 @81:2
+  v48 = load s1 @81:7
+  v49 = add v47, v48 @81:4
+  store s2, v49 @81:2
+  v50 = load s2 @82:2
+  v51 = load s0 @82:7
+  v52 = mul v50, v51 @82:4
+  store s2, v52 @82:2
+  v53 = load s2 @83:2
+  v54 = const u8 1 @83:7
+  v55 = sub v53, v54 @83:4
+  store s2, v55 @83:2
+  v56 = load s2 @84:2
+  v57 = load s1 @84:8
+  v58 = com v57 @84:7
+  v59 = and v56, v58 @84:4
+  store s2, v59 @84:2
+  v60 = load s2 @85:2
+  v61 = const u8 5 @85:7
+  v62 = or v60, v61 @85:4
+  store s2, v62 @85:2
+  v63 = load s2 @86:2
+  v64 = load s0 @86:7
+  v65 = xor v63, v64 @86:4
+  store s2, v65 @86:2
+  v66 = load s2 @87:2
+  v67 = const u8 3 @87:8
+  v68 = andnot v66, v67 @87:4
+  store s2, v68 @87:2
+  v69 = load s2 @88:2
+  v70 = const u8 1 @88:3
+  v71 = add v69, v70 @88:3
+  store s2, v71 @88:2
+  v72 = load s2 @89:2
+  v73 = const u8 1 @89:3
+  v74 = sub v72, v73 @89:3
+  store s2, v74 @89:2
+  v75 = load s2 @90:2
+  v76 = const u8 1 @90:3
+  v77 = add v75, v76 @90:3
+  store s2, v77 @90:2
+  v78 = load s2 @91:10
+  println v78 @91:2
+  ret @92:1
+
+func tuint16(u16, u16) @testdata/check/s2_i01_integer_tables.go:94:6
+  slot s0 x u16 @94:14
+  slot s1 y u16 @94:17
+  slot s2 z u16 @97:2
+b0:
+  v0 = param 0 @94:14
+  store s0, v0 @94:14
+  v1 = param 1 @94:17
+  store s1, v1 @94:17
+  v2 = load s0 @95:10
+  v3 = load s1 @95:12
+  v4 = add v2, v3 @95:11
+  v5 = load s0 @95:15
+  v6 = load s1 @95:17
+  v7 = sub v5, v6 @95:16
+  v8 = load s0 @95:20
+  v9 = load s1 @95:22
+  v10 = mul v8, v9 @95:21
+  v11 = load s0 @95:25
+  v12 = load s1 @95:27
+  v13 = and v11, v12 @95:26
+  v14 = load s0 @95:30
+  v15 = load s1 @95:32
+  v16 = or v14, v15 @95:31
+  v17 = load s0 @95:35
+  v18 = load s1 @95:37
+  v19 = xor v17, v18 @95:36
+  v20 = load s0 @95:40
+  v21 = load s1 @95:43
+  v22 = andnot v20, v21 @95:41
+  v23 = load s0 @95:47
+  v24 = neg v23 @95:46
+  v25 = load s0 @95:51
+  v26 = com v25 @95:50
+  v27 = load s1 @95:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @95:2
+  v28 = load s0 @96:10
+  v29 = load s1 @96:15
+  v30 = eq v28, v29 @96:12
+  v31 = load s0 @96:18
+  v32 = load s1 @96:23
+  v33 = ne v31, v32 @96:20
+  v34 = load s0 @96:26
+  v35 = load s1 @96:30
+  v36 = lt v34, v35 @96:28
+  v37 = load s0 @96:33
+  v38 = load s1 @96:38
+  v39 = le v37, v38 @96:35
+  v40 = load s0 @96:41
+  v41 = load s1 @96:45
+  v42 = gt v40, v41 @96:43
+  v43 = load s0 @96:48
+  v44 = load s1 @96:53
+  v45 = ge v43, v44 @96:50
+  println v30, v33, v36, v39, v42, v45 @96:2
+  v46 = load s0 @97:7
+  store s2, v46 @97:2
+  v47 = load s2 @98:2
+  v48 = load s1 @98:7
+  v49 = add v47, v48 @98:4
+  store s2, v49 @98:2
+  v50 = load s2 @99:2
+  v51 = load s0 @99:7
+  v52 = mul v50, v51 @99:4
+  store s2, v52 @99:2
+  v53 = load s2 @100:2
+  v54 = const u16 1 @100:7
+  v55 = sub v53, v54 @100:4
+  store s2, v55 @100:2
+  v56 = load s2 @101:2
+  v57 = load s1 @101:8
+  v58 = com v57 @101:7
+  v59 = and v56, v58 @101:4
+  store s2, v59 @101:2
+  v60 = load s2 @102:2
+  v61 = const u16 5 @102:7
+  v62 = or v60, v61 @102:4
+  store s2, v62 @102:2
+  v63 = load s2 @103:2
+  v64 = load s0 @103:7
+  v65 = xor v63, v64 @103:4
+  store s2, v65 @103:2
+  v66 = load s2 @104:2
+  v67 = const u16 3 @104:8
+  v68 = andnot v66, v67 @104:4
+  store s2, v68 @104:2
+  v69 = load s2 @105:2
+  v70 = const u16 1 @105:3
+  v71 = add v69, v70 @105:3
+  store s2, v71 @105:2
+  v72 = load s2 @106:2
+  v73 = const u16 1 @106:3
+  v74 = sub v72, v73 @106:3
+  store s2, v74 @106:2
+  v75 = load s2 @107:2
+  v76 = const u16 1 @107:3
+  v77 = add v75, v76 @107:3
+  store s2, v77 @107:2
+  v78 = load s2 @108:10
+  println v78 @108:2
+  ret @109:1
+
+func tuint32(u32, u32) @testdata/check/s2_i01_integer_tables.go:111:6
+  slot s0 x u32 @111:14
+  slot s1 y u32 @111:17
+  slot s2 z u32 @114:2
+b0:
+  v0 = param 0 @111:14
+  store s0, v0 @111:14
+  v1 = param 1 @111:17
+  store s1, v1 @111:17
+  v2 = load s0 @112:10
+  v3 = load s1 @112:12
+  v4 = add v2, v3 @112:11
+  v5 = load s0 @112:15
+  v6 = load s1 @112:17
+  v7 = sub v5, v6 @112:16
+  v8 = load s0 @112:20
+  v9 = load s1 @112:22
+  v10 = mul v8, v9 @112:21
+  v11 = load s0 @112:25
+  v12 = load s1 @112:27
+  v13 = and v11, v12 @112:26
+  v14 = load s0 @112:30
+  v15 = load s1 @112:32
+  v16 = or v14, v15 @112:31
+  v17 = load s0 @112:35
+  v18 = load s1 @112:37
+  v19 = xor v17, v18 @112:36
+  v20 = load s0 @112:40
+  v21 = load s1 @112:43
+  v22 = andnot v20, v21 @112:41
+  v23 = load s0 @112:47
+  v24 = neg v23 @112:46
+  v25 = load s0 @112:51
+  v26 = com v25 @112:50
+  v27 = load s1 @112:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @112:2
+  v28 = load s0 @113:10
+  v29 = load s1 @113:15
+  v30 = eq v28, v29 @113:12
+  v31 = load s0 @113:18
+  v32 = load s1 @113:23
+  v33 = ne v31, v32 @113:20
+  v34 = load s0 @113:26
+  v35 = load s1 @113:30
+  v36 = lt v34, v35 @113:28
+  v37 = load s0 @113:33
+  v38 = load s1 @113:38
+  v39 = le v37, v38 @113:35
+  v40 = load s0 @113:41
+  v41 = load s1 @113:45
+  v42 = gt v40, v41 @113:43
+  v43 = load s0 @113:48
+  v44 = load s1 @113:53
+  v45 = ge v43, v44 @113:50
+  println v30, v33, v36, v39, v42, v45 @113:2
+  v46 = load s0 @114:7
+  store s2, v46 @114:2
+  v47 = load s2 @115:2
+  v48 = load s1 @115:7
+  v49 = add v47, v48 @115:4
+  store s2, v49 @115:2
+  v50 = load s2 @116:2
+  v51 = load s0 @116:7
+  v52 = mul v50, v51 @116:4
+  store s2, v52 @116:2
+  v53 = load s2 @117:2
+  v54 = const u32 1 @117:7
+  v55 = sub v53, v54 @117:4
+  store s2, v55 @117:2
+  v56 = load s2 @118:2
+  v57 = load s1 @118:8
+  v58 = com v57 @118:7
+  v59 = and v56, v58 @118:4
+  store s2, v59 @118:2
+  v60 = load s2 @119:2
+  v61 = const u32 5 @119:7
+  v62 = or v60, v61 @119:4
+  store s2, v62 @119:2
+  v63 = load s2 @120:2
+  v64 = load s0 @120:7
+  v65 = xor v63, v64 @120:4
+  store s2, v65 @120:2
+  v66 = load s2 @121:2
+  v67 = const u32 3 @121:8
+  v68 = andnot v66, v67 @121:4
+  store s2, v68 @121:2
+  v69 = load s2 @122:2
+  v70 = const u32 1 @122:3
+  v71 = add v69, v70 @122:3
+  store s2, v71 @122:2
+  v72 = load s2 @123:2
+  v73 = const u32 1 @123:3
+  v74 = sub v72, v73 @123:3
+  store s2, v74 @123:2
+  v75 = load s2 @124:2
+  v76 = const u32 1 @124:3
+  v77 = add v75, v76 @124:3
+  store s2, v77 @124:2
+  v78 = load s2 @125:10
+  println v78 @125:2
+  ret @126:1
+
+func tuint64(u64, u64) @testdata/check/s2_i01_integer_tables.go:128:6
+  slot s0 x u64 @128:14
+  slot s1 y u64 @128:17
+  slot s2 z u64 @131:2
+b0:
+  v0 = param 0 @128:14
+  store s0, v0 @128:14
+  v1 = param 1 @128:17
+  store s1, v1 @128:17
+  v2 = load s0 @129:10
+  v3 = load s1 @129:12
+  v4 = add v2, v3 @129:11
+  v5 = load s0 @129:15
+  v6 = load s1 @129:17
+  v7 = sub v5, v6 @129:16
+  v8 = load s0 @129:20
+  v9 = load s1 @129:22
+  v10 = mul v8, v9 @129:21
+  v11 = load s0 @129:25
+  v12 = load s1 @129:27
+  v13 = and v11, v12 @129:26
+  v14 = load s0 @129:30
+  v15 = load s1 @129:32
+  v16 = or v14, v15 @129:31
+  v17 = load s0 @129:35
+  v18 = load s1 @129:37
+  v19 = xor v17, v18 @129:36
+  v20 = load s0 @129:40
+  v21 = load s1 @129:43
+  v22 = andnot v20, v21 @129:41
+  v23 = load s0 @129:47
+  v24 = neg v23 @129:46
+  v25 = load s0 @129:51
+  v26 = com v25 @129:50
+  v27 = load s1 @129:55
+  println v4, v7, v10, v13, v16, v19, v22, v24, v26, v27 @129:2
+  v28 = load s0 @130:10
+  v29 = load s1 @130:15
+  v30 = eq v28, v29 @130:12
+  v31 = load s0 @130:18
+  v32 = load s1 @130:23
+  v33 = ne v31, v32 @130:20
+  v34 = load s0 @130:26
+  v35 = load s1 @130:30
+  v36 = lt v34, v35 @130:28
+  v37 = load s0 @130:33
+  v38 = load s1 @130:38
+  v39 = le v37, v38 @130:35
+  v40 = load s0 @130:41
+  v41 = load s1 @130:45
+  v42 = gt v40, v41 @130:43
+  v43 = load s0 @130:48
+  v44 = load s1 @130:53
+  v45 = ge v43, v44 @130:50
+  println v30, v33, v36, v39, v42, v45 @130:2
+  v46 = load s0 @131:7
+  store s2, v46 @131:2
+  v47 = load s2 @132:2
+  v48 = load s1 @132:7
+  v49 = add v47, v48 @132:4
+  store s2, v49 @132:2
+  v50 = load s2 @133:2
+  v51 = load s0 @133:7
+  v52 = mul v50, v51 @133:4
+  store s2, v52 @133:2
+  v53 = load s2 @134:2
+  v54 = const u64 1 @134:7
+  v55 = sub v53, v54 @134:4
+  store s2, v55 @134:2
+  v56 = load s2 @135:2
+  v57 = load s1 @135:8
+  v58 = com v57 @135:7
+  v59 = and v56, v58 @135:4
+  store s2, v59 @135:2
+  v60 = load s2 @136:2
+  v61 = const u64 5 @136:7
+  v62 = or v60, v61 @136:4
+  store s2, v62 @136:2
+  v63 = load s2 @137:2
+  v64 = load s0 @137:7
+  v65 = xor v63, v64 @137:4
+  store s2, v65 @137:2
+  v66 = load s2 @138:2
+  v67 = const u64 3 @138:8
+  v68 = andnot v66, v67 @138:4
+  store s2, v68 @138:2
+  v69 = load s2 @139:2
+  v70 = const u64 1 @139:3
+  v71 = add v69, v70 @139:3
+  store s2, v71 @139:2
+  v72 = load s2 @140:2
+  v73 = const u64 1 @140:3
+  v74 = sub v72, v73 @140:3
+  store s2, v74 @140:2
+  v75 = load s2 @141:2
+  v76 = const u64 1 @141:3
+  v77 = add v75, v76 @141:3
+  store s2, v77 @141:2
+  v78 = load s2 @142:10
+  println v78 @142:2
+  ret @143:1
+
+func main @testdata/check/s2_i01_integer_tables.go:145:6
+  slot s0 i8lo i8 @146:6
+  slot s1 i8hi i8 @146:12
+  slot s2 i6lo i16 @158:6
+  slot s3 i6hi i16 @158:12
+  slot s4 i2lo i32 @170:6
+  slot s5 i2hi i32 @170:12
+  slot s6 i4lo i64 @182:6
+  slot s7 i4hi i64 @182:12
+  slot s8 u8lo u8 @194:6
+  slot s9 u8hi u8 @194:12
+  slot s10 u6lo u16 @206:6
+  slot s11 u6hi u16 @206:12
+  slot s12 u2lo u32 @218:6
+  slot s13 u2hi u32 @218:12
+  slot s14 u4lo u64 @230:6
+  slot s15 u4hi u64 @230:12
+  slot s16 b u8 @244:6
+  slot s17 r i32 @245:6
+  slot s18 u u64 @246:6
+  slot s19 p u64 @247:6
+b0:
+  v0 = const i8 -128 @146:24
+  v1 = const i8 127 @146:30
+  store s0, v0 @146:6
+  store s1, v1 @146:12
+  v2 = const i8 -128 @147:8
+  v3 = const i8 1 @147:14
+  call tint8, v2, v3 @147:2
+  v4 = const i8 127 @148:8
+  v5 = const i8 126 @148:13
+  call tint8, v4, v5 @148:2
+  v6 = const i8 0 @149:8
+  v7 = const i8 2 @149:11
+  call tint8, v6, v7 @149:2
+  v8 = const i8 1 @150:8
+  v9 = const i8 -128 @150:11
+  call tint8, v8, v9 @150:2
+  v10 = const i8 2 @151:8
+  v11 = const i8 7 @151:11
+  call tint8, v10, v11 @151:2
+  v12 = const i8 7 @152:8
+  v13 = const i8 127 @152:11
+  call tint8, v12, v13 @152:2
+  v14 = const i8 -1 @153:8
+  v15 = const i8 -1 @153:12
+  call tint8, v14, v15 @153:2
+  v16 = const i8 -127 @154:8
+  v17 = const i8 0 @154:16
+  call tint8, v16, v17 @154:2
+  v18 = const i8 126 @155:8
+  v19 = const i8 -127 @155:15
+  call tint8, v18, v19 @155:2
+  v20 = load s0 @156:8
+  v21 = load s1 @156:14
+  call tint8, v20, v21 @156:2
+  v22 = load s1 @157:8
+  v23 = load s1 @157:14
+  call tint8, v22, v23 @157:2
+  v24 = const i16 -32768 @158:25
+  v25 = const i16 32767 @158:33
+  store s2, v24 @158:6
+  store s3, v25 @158:12
+  v26 = const i16 -32768 @159:9
+  v27 = const i16 1 @159:17
+  call tint16, v26, v27 @159:2
+  v28 = const i16 32767 @160:9
+  v29 = const i16 32766 @160:16
+  call tint16, v28, v29 @160:2
+  v30 = const i16 0 @161:9
+  v31 = const i16 2 @161:12
+  call tint16, v30, v31 @161:2
+  v32 = const i16 1 @162:9
+  v33 = const i16 -32768 @162:12
+  call tint16, v32, v33 @162:2
+  v34 = const i16 2 @163:9
+  v35 = const i16 7 @163:12
+  call tint16, v34, v35 @163:2
+  v36 = const i16 7 @164:9
+  v37 = const i16 32767 @164:12
+  call tint16, v36, v37 @164:2
+  v38 = const i16 -1 @165:9
+  v39 = const i16 -1 @165:13
+  call tint16, v38, v39 @165:2
+  v40 = const i16 -32767 @166:9
+  v41 = const i16 0 @166:19
+  call tint16, v40, v41 @166:2
+  v42 = const i16 32766 @167:9
+  v43 = const i16 -32767 @167:18
+  call tint16, v42, v43 @167:2
+  v44 = load s2 @168:9
+  v45 = load s3 @168:15
+  call tint16, v44, v45 @168:2
+  v46 = load s3 @169:9
+  v47 = load s3 @169:15
+  call tint16, v46, v47 @169:2
+  v48 = const i32 -2147483648 @170:25
+  v49 = const i32 2147483647 @170:38
+  store s4, v48 @170:6
+  store s5, v49 @170:12
+  v50 = const i32 -2147483648 @171:9
+  v51 = const i32 1 @171:22
+  call tint32, v50, v51 @171:2
+  v52 = const i32 2147483647 @172:9
+  v53 = const i32 2147483646 @172:21
+  call tint32, v52, v53 @172:2
+  v54 = const i32 0 @173:9
+  v55 = const i32 2 @173:12
+  call tint32, v54, v55 @173:2
+  v56 = const i32 1 @174:9
+  v57 = const i32 -2147483648 @174:12
+  call tint32, v56, v57 @174:2
+  v58 = const i32 2 @175:9
+  v59 = const i32 7 @175:12
+  call tint32, v58, v59 @175:2
+  v60 = const i32 7 @176:9
+  v61 = const i32 2147483647 @176:12
+  call tint32, v60, v61 @176:2
+  v62 = const i32 -1 @177:9
+  v63 = const i32 -1 @177:13
+  call tint32, v62, v63 @177:2
+  v64 = const i32 -2147483647 @178:9
+  v65 = const i32 0 @178:24
+  call tint32, v64, v65 @178:2
+  v66 = const i32 2147483646 @179:9
+  v67 = const i32 -2147483647 @179:23
+  call tint32, v66, v67 @179:2
+  v68 = load s4 @180:9
+  v69 = load s5 @180:15
+  call tint32, v68, v69 @180:2
+  v70 = load s5 @181:9
+  v71 = load s5 @181:15
+  call tint32, v70, v71 @181:2
+  v72 = const -9223372036854775808 @182:25
+  v73 = const 9223372036854775807 @182:47
+  store s6, v72 @182:6
+  store s7, v73 @182:12
+  v74 = const -9223372036854775808 @183:9
+  v75 = const 1 @183:31
+  call tint64, v74, v75 @183:2
+  v76 = const 9223372036854775807 @184:9
+  v77 = const 9223372036854775806 @184:30
+  call tint64, v76, v77 @184:2
+  v78 = const 0 @185:9
+  v79 = const 2 @185:12
+  call tint64, v78, v79 @185:2
+  v80 = const 1 @186:9
+  v81 = const -9223372036854775808 @186:12
+  call tint64, v80, v81 @186:2
+  v82 = const 2 @187:9
+  v83 = const 7 @187:12
+  call tint64, v82, v83 @187:2
+  v84 = const 7 @188:9
+  v85 = const 9223372036854775807 @188:12
+  call tint64, v84, v85 @188:2
+  v86 = const -1 @189:9
+  v87 = const -1 @189:13
+  call tint64, v86, v87 @189:2
+  v88 = const -9223372036854775807 @190:9
+  v89 = const 0 @190:33
+  call tint64, v88, v89 @190:2
+  v90 = const 9223372036854775806 @191:9
+  v91 = const -9223372036854775807 @191:32
+  call tint64, v90, v91 @191:2
+  v92 = load s6 @192:9
+  v93 = load s7 @192:15
+  call tint64, v92, v93 @192:2
+  v94 = load s7 @193:9
+  v95 = load s7 @193:15
+  call tint64, v94, v95 @193:2
+  v96 = const u8 0 @194:25
+  v97 = const u8 255 @194:28
+  store s8, v96 @194:6
+  store s9, v97 @194:12
+  v98 = const u8 0 @195:9
+  v99 = const u8 1 @195:12
+  call tuint8, v98, v99 @195:2
+  v100 = const u8 255 @196:9
+  v101 = const u8 128 @196:14
+  call tuint8, v100, v101 @196:2
+  v102 = const u8 0 @197:9
+  v103 = const u8 2 @197:12
+  call tuint8, v102, v103 @197:2
+  v104 = const u8 1 @198:9
+  v105 = const u8 0 @198:12
+  call tuint8, v104, v105 @198:2
+  v106 = const u8 2 @199:9
+  v107 = const u8 7 @199:12
+  call tuint8, v106, v107 @199:2
+  v108 = const u8 7 @200:9
+  v109 = const u8 255 @200:12
+  call tuint8, v108, v109 @200:2
+  v110 = const u8 254 @201:9
+  v111 = const u8 254 @201:16
+  call tuint8, v110, v111 @201:2
+  v112 = const u8 127 @202:9
+  v113 = const u8 0 @202:14
+  call tuint8, v112, v113 @202:2
+  v114 = const u8 128 @203:9
+  v115 = const u8 127 @203:14
+  call tuint8, v114, v115 @203:2
+  v116 = load s8 @204:9
+  v117 = load s9 @204:15
+  call tuint8, v116, v117 @204:2
+  v118 = load s9 @205:9
+  v119 = load s9 @205:15
+  call tuint8, v118, v119 @205:2
+  v120 = const u16 0 @206:26
+  v121 = const u16 65535 @206:29
+  store s10, v120 @206:6
+  store s11, v121 @206:12
+  v122 = const u16 0 @207:10
+  v123 = const u16 1 @207:13
+  call tuint16, v122, v123 @207:2
+  v124 = const u16 65535 @208:10
+  v125 = const u16 32768 @208:17
+  call tuint16, v124, v125 @208:2
+  v126 = const u16 0 @209:10
+  v127 = const u16 2 @209:13
+  call tuint16, v126, v127 @209:2
+  v128 = const u16 1 @210:10
+  v129 = const u16 0 @210:13
+  call tuint16, v128, v129 @210:2
+  v130 = const u16 2 @211:10
+  v131 = const u16 7 @211:13
+  call tuint16, v130, v131 @211:2
+  v132 = const u16 7 @212:10
+  v133 = const u16 65535 @212:13
+  call tuint16, v132, v133 @212:2
+  v134 = const u16 65534 @213:10
+  v135 = const u16 65534 @213:19
+  call tuint16, v134, v135 @213:2
+  v136 = const u16 32767 @214:10
+  v137 = const u16 0 @214:17
+  call tuint16, v136, v137 @214:2
+  v138 = const u16 32768 @215:10
+  v139 = const u16 32767 @215:17
+  call tuint16, v138, v139 @215:2
+  v140 = load s10 @216:10
+  v141 = load s11 @216:16
+  call tuint16, v140, v141 @216:2
+  v142 = load s11 @217:10
+  v143 = load s11 @217:16
+  call tuint16, v142, v143 @217:2
+  v144 = const u32 0 @218:26
+  v145 = const u32 4294967295 @218:29
+  store s12, v144 @218:6
+  store s13, v145 @218:12
+  v146 = const u32 0 @219:10
+  v147 = const u32 1 @219:13
+  call tuint32, v146, v147 @219:2
+  v148 = const u32 4294967295 @220:10
+  v149 = const u32 2147483648 @220:22
+  call tuint32, v148, v149 @220:2
+  v150 = const u32 0 @221:10
+  v151 = const u32 2 @221:13
+  call tuint32, v150, v151 @221:2
+  v152 = const u32 1 @222:10
+  v153 = const u32 0 @222:13
+  call tuint32, v152, v153 @222:2
+  v154 = const u32 2 @223:10
+  v155 = const u32 7 @223:13
+  call tuint32, v154, v155 @223:2
+  v156 = const u32 7 @224:10
+  v157 = const u32 4294967295 @224:13
+  call tuint32, v156, v157 @224:2
+  v158 = const u32 4294967294 @225:10
+  v159 = const u32 4294967294 @225:24
+  call tuint32, v158, v159 @225:2
+  v160 = const u32 2147483647 @226:10
+  v161 = const u32 0 @226:22
+  call tuint32, v160, v161 @226:2
+  v162 = const u32 2147483648 @227:10
+  v163 = const u32 2147483647 @227:22
+  call tuint32, v162, v163 @227:2
+  v164 = load s12 @228:10
+  v165 = load s13 @228:16
+  call tuint32, v164, v165 @228:2
+  v166 = load s13 @229:10
+  v167 = load s13 @229:16
+  call tuint32, v166, v167 @229:2
+  v168 = const u64 0 @230:26
+  v169 = const u64 18446744073709551615 @230:29
+  store s14, v168 @230:6
+  store s15, v169 @230:12
+  v170 = const u64 0 @231:10
+  v171 = const u64 1 @231:13
+  call tuint64, v170, v171 @231:2
+  v172 = const u64 18446744073709551615 @232:10
+  v173 = const u64 9223372036854775808 @232:32
+  call tuint64, v172, v173 @232:2
+  v174 = const u64 0 @233:10
+  v175 = const u64 2 @233:13
+  call tuint64, v174, v175 @233:2
+  v176 = const u64 1 @234:10
+  v177 = const u64 0 @234:13
+  call tuint64, v176, v177 @234:2
+  v178 = const u64 2 @235:10
+  v179 = const u64 7 @235:13
+  call tuint64, v178, v179 @235:2
+  v180 = const u64 7 @236:10
+  v181 = const u64 18446744073709551615 @236:13
+  call tuint64, v180, v181 @236:2
+  v182 = const u64 18446744073709551614 @237:10
+  v183 = const u64 18446744073709551614 @237:34
+  call tuint64, v182, v183 @237:2
+  v184 = const u64 9223372036854775807 @238:10
+  v185 = const u64 0 @238:31
+  call tuint64, v184, v185 @238:2
+  v186 = const u64 9223372036854775808 @239:10
+  v187 = const u64 9223372036854775807 @239:31
+  call tuint64, v186, v187 @239:2
+  v188 = load s14 @240:10
+  v189 = load s15 @240:16
+  call tuint64, v188, v189 @240:2
+  v190 = load s15 @241:10
+  v191 = load s15 @241:16
+  call tuint64, v190, v191 @241:2
+  v192 = const u8 200 @244:15
+  store s16, v192 @244:6
+  v193 = const i32 -5 @245:15
+  store s17, v193 @245:6
+  v194 = const u64 18446744073709551615 @246:15
+  store s18, v194 @246:6
+  v195 = const u64 9223372036854775808 @247:18
+  store s19, v195 @247:6
+  v196 = load s16 @248:10
+  v197 = load s16 @248:12
+  v198 = add v196, v197 @248:11
+  v199 = load s17 @248:15
+  v200 = load s17 @248:17
+  v201 = mul v199, v200 @248:16
+  v202 = load s18 @248:20
+  v203 = const u64 1 @248:22
+  v204 = add v202, v203 @248:21
+  v205 = load s19 @248:25
+  v206 = load s19 @248:27
+  v207 = add v205, v206 @248:26
+  v208 = load s16 @248:31
+  v209 = com v208 @248:30
+  v210 = load s17 @248:35
+  v211 = com v210 @248:34
+  v212 = load s18 @248:39
+  v213 = com v212 @248:38
+  v214 = load s19 @248:43
+  v215 = com v214 @248:42
+  println v198, v201, v204, v207, v209, v211, v213, v215 @248:2
+  ret @249:1

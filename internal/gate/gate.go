@@ -1,7 +1,8 @@
 // Package gate decides whether a Go program is inside Aether's supported
 // subset: S1 (docs/SEMANTICS.md §Subset S1, D-012) plus the functions of
-// Phase 4 increment 4.2 (§Functions) and the bool and control flow of
-// increment 4.1 (§Control flow and bool).
+// Phase 4 increment 4.2 (§Functions), the bool and control flow of
+// increment 4.1 (§Control flow and bool), the multiple results of increment
+// 4.3, and the integer types of increment 4.4 (§Integer types).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -49,7 +50,6 @@ const (
 	FeatAssignTarget  = "assignment-target"
 	FeatMultiValue    = "multi-value-assignment"
 	FeatPrintlnArg    = "println-argument-type"
-	FeatPrint         = "print"
 	FeatBuiltin       = "builtin"
 	FeatCall          = "call"
 	FeatConversion    = "conversion"
@@ -183,7 +183,7 @@ func init() {
 		FeatMultipleFiles, FeatPackageName, FeatImport, FeatCgo, FeatDirective,
 		FeatPackageDecl, FeatInitFunc, FeatFuncDecl, FeatMethod, FeatLocalType,
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
-		FeatMultiValue, FeatPrintlnArg, FeatPrint, FeatBuiltin, FeatCall,
+		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatFloatLit, FeatImagLit,
 		FeatRuneLit, FeatStringLit, FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
@@ -434,12 +434,23 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 	}
 }
 
-// typeExpr allows exactly the predeclared types int and bool, identified by
-// object identity so that a shadowed or redefined name cannot stand in for
-// them.
+// supportedTypeNames are the predeclared types the subset allows: bool and
+// every integer type, with the aliases byte (uint8) and rune (int32).
+var supportedTypeNames = []string{
+	"bool", "int", "int8", "int16", "int32", "int64",
+	"uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "byte", "rune",
+}
+
+// typeExpr allows exactly the predeclared types in supportedTypeNames,
+// identified by object identity so that a shadowed or redefined name cannot
+// stand in for them.
 func (c *checker) typeExpr(e ast.Expr) {
-	if id, ok := e.(*ast.Ident); ok && (c.info.Uses[id] == types.Universe.Lookup("int") || c.info.Uses[id] == types.Universe.Lookup("bool")) {
-		return
+	if id, ok := ast.Unparen(e).(*ast.Ident); ok {
+		for _, name := range supportedTypeNames {
+			if c.info.Uses[id] == types.Universe.Lookup(name) {
+				return
+			}
+		}
 	}
 	c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
 }
@@ -490,7 +501,8 @@ func (c *checker) assign(s *ast.AssignStmt) {
 		if multi {
 			return
 		}
-	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN:
+	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN,
+		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN:
 		c.target(s.Lhs[0])
 	default:
 		op := strings.TrimSuffix(s.Tok.String(), "=")
@@ -541,7 +553,10 @@ func (c *checker) exprStmt(s *ast.ExprStmt) {
 		c.reject(s, FeatStatement, "expression statement")
 		return
 	}
-	if !c.isBuiltin(call.Fun, "println") {
+	name := "println"
+	if c.isBuiltin(call.Fun, "print") {
+		name = "print"
+	} else if !c.isBuiltin(call.Fun, "println") {
 		c.call(call)
 		return
 	}
@@ -561,7 +576,7 @@ func (c *checker) exprStmt(s *ast.ExprStmt) {
 			continue
 		}
 		if !isSupported(tv.Type) {
-			c.reject(a, FeatPrintlnArg, fmt.Sprintf("println argument of type %s", tv.Type))
+			c.reject(a, FeatPrintlnArg, fmt.Sprintf("%s argument of type %s", name, tv.Type))
 			continue
 		}
 		c.expr(a)
@@ -579,22 +594,28 @@ func (c *checker) isBuiltin(e ast.Expr, name string) bool {
 	return ok && b.Name() == name
 }
 
-// call checks a call other than the println statement handled by
-// exprStmt. Only direct calls of the program's functions are allowed; it
-// reports whether the call was. Every other call is rejected by kind.
+// call checks a call other than the print and println statements handled
+// by exprStmt. Only direct calls of the program's functions and
+// conversions to a supported type are allowed; it reports whether the call
+// was. Every other call is rejected by kind.
 func (c *checker) call(call *ast.CallExpr) bool {
 	if tv, ok := c.info.Types[call.Fun]; ok && tv.IsType() {
-		c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
-		return false
+		// go/types has checked that the conversion is valid, so a
+		// supported target type has an integer or bool operand.
+		mark := len(c.ds)
+		c.typeExpr(call.Fun)
+		if len(c.ds) > mark {
+			c.ds = c.ds[:mark]
+			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
+			return false
+		}
+		c.expr(call.Args[0])
+		return true
 	}
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		switch obj := c.info.Uses[id].(type) {
 		case *types.Builtin:
-			if obj.Name() == "print" {
-				c.reject(call, FeatPrint, "builtin print")
-			} else {
-				c.reject(call, FeatBuiltin, "builtin "+obj.Name())
-			}
+			c.reject(call, FeatBuiltin, "builtin "+obj.Name())
 			return false
 		case *types.Func:
 			if obj.Parent() == c.pkg.Types.Scope() {
@@ -682,7 +703,7 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.X)
 		}
 	case *ast.UnaryExpr:
-		if e.Op != token.ADD && e.Op != token.SUB && e.Op != token.NOT {
+		if e.Op != token.ADD && e.Op != token.SUB && e.Op != token.NOT && e.Op != token.XOR {
 			c.reject(e, unaryFeature(e.Op), "unary operator "+e.Op.String())
 			return
 		}
@@ -692,6 +713,7 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.BinaryExpr:
 		switch e.Op {
 		case token.ADD, token.SUB, token.MUL, token.LAND, token.LOR,
+			token.AND, token.OR, token.XOR, token.AND_NOT,
 			token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
 		default:
 			c.reject(e, operatorFeature(e.Op.String()), "operator "+e.Op.String())
@@ -791,7 +813,6 @@ func (c *checker) local(id *ast.Ident, obj types.Object) bool {
 
 var operatorNames = map[string]string{
 	"/": "div", "%": "rem", "<<": "shl", ">>": "shr",
-	"&": "and", "|": "or", "^": "xor", "&^": "and-not",
 }
 
 func operatorFeature(op string) string {
@@ -802,7 +823,7 @@ func operatorFeature(op string) string {
 }
 
 var unaryOperatorNames = map[token.Token]string{
-	token.XOR: "complement", token.AND: "address", token.ARROW: "receive",
+	token.AND: "address", token.ARROW: "receive",
 }
 
 func unaryFeature(op token.Token) string {
@@ -812,12 +833,17 @@ func unaryFeature(op token.Token) string {
 	return featOperatorPrefix + "other"
 }
 
-// isSupported reports whether t is int or bool.
+// isSupported reports whether t is bool or an integer type. Only
+// predeclared types reach here: type declarations are rejected.
 func isSupported(t types.Type) bool {
-	return types.Identical(t, types.Typ[types.Int]) || types.Identical(t, types.Typ[types.Bool])
+	b, ok := t.(*types.Basic)
+	return ok && (b.Kind() == types.Bool || b.Kind() >= types.Int && b.Kind() <= types.Uintptr)
 }
 
-// isSupportedOrUntyped reports whether t is int or bool, typed or untyped.
+// isSupportedOrUntyped reports whether t is bool or an integer type, typed
+// or untyped. An untyped rune constant can only come from a rune literal,
+// which is rejected as such.
 func isSupportedOrUntyped(t types.Type) bool {
-	return isSupported(t) || types.Identical(t, types.Typ[types.UntypedInt]) || types.Identical(t, types.Typ[types.UntypedBool])
+	return isSupported(t) || types.Identical(t, types.Typ[types.UntypedInt]) ||
+		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune])
 }

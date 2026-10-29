@@ -3,6 +3,6 @@
 package main
 
 func main() {
-	x := int(5)
-	println(x)
+	x := 3
+	println(float64(x) > 2)
 }

@@ -1532,9 +1532,12 @@ type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
   - `print`, with the same operands and evaluation rule as `println`, but
     written with no separators and no trailing newline. Evidence: for `int`,
     E1 (`print(1, 2); print(3)` writes `123`); for `bool`, `uint8`, and
-    `int8`, E13 (`true-1false255-128`). The format of the other sized types
-    is not yet observed and is established by the required 4.4 tests against
-    gc.
+    `int8`, E13 (`true-1false255-128`). The other types (`int16`, `int32`,
+    `uint16`, `uint32`, `uint64`, at their extremes) were established in
+    increment 4.4 (2026-10-29): `s2_i02_conversions_print` prints each with
+    `print` and `println`, and the interpreter's and the executable's
+    output equal gc's in `TestDifferentialAgainstGc`: decimal, signed by
+    type, as `println` prints them.
 - **Explicit checks.** Lowering guards division by zero and negative signed
   shift counts with a comparison, a `branch`, and a block ending in
   `panic K`, then converts a checked count to an unsigned type. Every

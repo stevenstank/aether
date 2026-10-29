@@ -1,6 +1,7 @@
 // Package lower translates a type-checked program of S1, the functions of
-// increment 4.2, the bool and control flow of increment 4.1, and the
-// multiple results of increment 4.3 into IR (D-004, D-021, D-023).
+// increment 4.2, the bool and control flow of increment 4.1, the multiple
+// results of increment 4.3, and the integer types of increment 4.4 into IR
+// (D-004, D-021, D-023).
 //
 // IR values are local to their block (D-023). && and || branch, so a value
 // computed before an operand containing them is kept in a temporary slot
@@ -239,7 +240,7 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		id := l.ident(s.X)
 		slot := l.lookup(id)
 		x := l.fn.Load(l.b, slot, l.pos(id, id.Pos()))
-		one := l.fn.Const(l.b, 1, l.pos(s, s.TokPos))
+		one := l.fn.TypedConst(l.b, slot.Type, 1, l.pos(s, s.TokPos))
 		l.fn.Store(l.b, slot, l.fn.Binary(l.b, op, x, one, l.pos(s, s.TokPos)), l.pos(id, id.Pos()))
 	case *ast.ExprStmt:
 		l.exprStmt(s)
@@ -354,13 +355,7 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 		for _, id := range spec.Names {
 			slot := l.define(id)
 			pos := l.pos(id, id.Pos())
-			var zero *ir.Instr
-			if slot.Type == ir.Bool {
-				zero = l.fn.BoolConst(l.b, false, pos)
-			} else {
-				zero = l.fn.Const(l.b, 0, pos)
-			}
-			l.fn.Store(l.b, slot, zero, pos)
+			l.fn.Store(l.b, slot, l.fn.TypedConst(l.b, slot.Type, 0, pos), pos)
 		}
 		return
 	}
@@ -389,11 +384,15 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			}
 			l.fn.Store(l.b, slot, vals[i], l.pos(id, id.Pos()))
 		}
-	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN:
+	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN,
+		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN:
 		if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
 			l.fail(s, "compound assignment with %d targets and %d values", len(s.Lhs), len(s.Rhs))
 		}
-		op := map[token.Token]ir.Op{token.ADD_ASSIGN: ir.Add, token.SUB_ASSIGN: ir.Sub, token.MUL_ASSIGN: ir.Mul}[s.Tok]
+		op := map[token.Token]ir.Op{
+			token.ADD_ASSIGN: ir.Add, token.SUB_ASSIGN: ir.Sub, token.MUL_ASSIGN: ir.Mul,
+			token.AND_ASSIGN: ir.And, token.OR_ASSIGN: ir.Or, token.XOR_ASSIGN: ir.Xor, token.AND_NOT_ASSIGN: ir.AndNot,
+		}[s.Tok]
 		id := l.ident(s.Lhs[0])
 		slot := l.lookup(id)
 		// The right side may branch (a call argument with && or ||), so x
@@ -411,23 +410,28 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 	}
 }
 
-// exprStmt lowers a call statement. For println, the arguments are
-// evaluated left to right, then printed by a single instruction. A call of
-// a function discards its result, if any.
+// exprStmt lowers a call statement. For print and println, the arguments
+// are evaluated left to right, then printed by a single instruction. A call
+// of a function discards its result, if any.
 func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	call, ok := s.X.(*ast.CallExpr)
 	if !ok || call.Ellipsis.IsValid() {
 		l.fail(s, "unexpected expression statement")
 	}
 	if id, ok := call.Fun.(*ast.Ident); ok {
-		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "println" {
+		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && (b.Name() == "println" || b.Name() == "print") {
 			n := len(call.Args)
 			if n == 1 {
 				if t, ok := l.pkg.Info.Types[call.Args[0]].Type.(*types.Tuple); ok {
 					n = t.Len() // println(f()) prints every result of f
 				}
 			}
-			l.fn.Println(l.b, l.valuesOrResults(call.Args, n), l.pos(call, call.Pos()))
+			args, pos := l.valuesOrResults(call.Args, n), l.pos(call, call.Pos())
+			if b.Name() == "print" {
+				l.fn.Print(l.b, args, pos)
+			} else {
+				l.fn.Println(l.b, args, pos)
+			}
 			return
 		}
 	}
@@ -572,11 +576,24 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		if t == ir.Bool {
 			return l.fn.BoolConst(l.b, constant.BoolVal(tv.Value), pos)
 		}
-		n, exact := constant.Int64Val(tv.Value)
-		if tv.Value.Kind() != constant.Int || !exact {
-			l.fail(e, "constant %s does not fit in 64 bits", tv.Value)
+		// go/types has checked that the value is representable in its
+		// type, so it is already in canonical form: unsigned values above
+		// the int64 range keep their 64-bit pattern.
+		var n int64
+		exact := false
+		if tv.Value.Kind() == constant.Int {
+			if t.Signed() {
+				n, exact = constant.Int64Val(tv.Value)
+			} else {
+				var u uint64
+				u, exact = constant.Uint64Val(tv.Value)
+				n = int64(u)
+			}
 		}
-		return l.fn.Const(l.b, n, pos)
+		if !exact || t.Canonical(n) != n {
+			l.fail(e, "constant %s is not representable as %s", tv.Value, t)
+		}
+		return l.fn.TypedConst(l.b, t, n, pos)
 	}
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -584,6 +601,18 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	case *ast.ParenExpr:
 		return l.expr(e.X)
 	case *ast.CallExpr:
+		if l.pkg.Info.Types[e.Fun].IsType() {
+			// A conversion: between integer types a conv, and between
+			// identical types, such as bool(b), nothing.
+			x := l.expr(e.Args[0])
+			if x.Type == t {
+				return x
+			}
+			if !x.Type.IsInteger() || !t.IsInteger() {
+				l.fail(e, "conversion from %s to %s", x.Type, t)
+			}
+			return l.fn.Conv(l.b, t, x, l.pos(e, e.Pos()))
+		}
 		v := l.call(e)
 		if v.Type != t {
 			l.fail(e, "call of type %s used as a value of type %s", v.Type, t)
@@ -597,6 +626,8 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			return l.fn.Neg(l.b, l.expr(e.X), l.pos(e, e.OpPos))
 		case token.NOT:
 			return l.fn.Not(l.b, l.expr(e.X), l.pos(e, e.OpPos))
+		case token.XOR:
+			return l.fn.Com(l.b, l.expr(e.X), l.pos(e, e.OpPos))
 		}
 	case *ast.BinaryExpr:
 		pos := l.pos(e, e.OpPos)
@@ -618,6 +649,7 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 
 var binaryOps = map[token.Token]ir.Op{
 	token.ADD: ir.Add, token.SUB: ir.Sub, token.MUL: ir.Mul,
+	token.AND: ir.And, token.OR: ir.Or, token.XOR: ir.Xor, token.AND_NOT: ir.AndNot,
 	token.EQL: ir.Eq, token.NEQ: ir.Ne, token.LSS: ir.Lt, token.LEQ: ir.Le, token.GTR: ir.Gt, token.GEQ: ir.Ge,
 }
 
@@ -641,13 +673,23 @@ func (l *lowerer) logical(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
 	return l.fn.Load(l.b, tmp, pos)
 }
 
-// irType returns the IR type of an int or bool Go type, typed or untyped.
+// irTypes maps the predeclared bool and integer types to IR types. int,
+// uint, and uintptr are 64 bits wide (types.SizesFor("gc", "amd64")). An
+// untyped constant that keeps its untyped type has its default type.
+var irTypes = map[types.BasicKind]ir.Type{
+	types.Bool: ir.Bool, types.UntypedBool: ir.Bool,
+	types.Int: ir.I64, types.Int64: ir.I64, types.UntypedInt: ir.I64,
+	types.Int8: ir.I8, types.Int16: ir.I16, types.Int32: ir.I32, types.UntypedRune: ir.I32,
+	types.Uint: ir.U64, types.Uint64: ir.U64, types.Uintptr: ir.U64,
+	types.Uint8: ir.U8, types.Uint16: ir.U16, types.Uint32: ir.U32,
+}
+
+// irType returns the IR type of a bool or integer Go type.
 func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
-	switch {
-	case types.Identical(t, types.Typ[types.Int]) || types.Identical(t, types.Typ[types.UntypedInt]):
-		return ir.I64
-	case types.Identical(t, types.Typ[types.Bool]) || types.Identical(t, types.Typ[types.UntypedBool]):
-		return ir.Bool
+	if b, ok := t.(*types.Basic); ok {
+		if it, ok := irTypes[b.Kind()]; ok {
+			return it
+		}
 	}
 	l.fail(n, "unexpected type %s", t)
 	return ir.NoType
