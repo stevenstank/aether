@@ -124,7 +124,7 @@ func TestDifferentialAgainstGc(t *testing.T) {
 		if _, ds, _ := interpret("gen.go", src); len(ds) > 0 {
 			// Only an overflowing constant expression is expected, which
 			// makes the program invalid Go; gc must agree (below).
-			if diag.ExitCode(ds) != diag.ExitInvalid || !strings.Contains(ds[0].Message, "overflows") {
+			if diag.ExitCode(ds) != diag.ExitInvalid || !strings.Contains(ds[0].Message, "overflow") {
 				t.Errorf("generated program %d rejected:\n%s\n%s", seed, ds[0], src)
 			}
 			rejected[fmt.Sprintf("bad%04d", seed)] = src
@@ -201,10 +201,13 @@ func gcRejects(t *testing.T, gobin string, progs map[string][]byte) {
 	if err == nil {
 		t.Fatal("gc accepted programs Aether classified as invalid")
 	}
-	// Errors are grouped under a "# bad/NAME" header per package.
+	// Errors are grouped under a "# bad/NAME" header per package. gc says
+	// "overflows" for a constant that does not fit int, and "constant
+	// multiplication overflow" for one beyond its untyped precision limit
+	// (seen 2026-10-29 for a generated product of many large literals).
 	for _, part := range strings.Split(string(out), "# bad/")[1:] {
 		name, body, _ := strings.Cut(part, "\n")
-		if progs[name] != nil && strings.Contains(body, "overflows") {
+		if progs[name] != nil && strings.Contains(body, "overflow") {
 			delete(progs, name)
 		}
 	}

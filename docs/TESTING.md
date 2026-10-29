@@ -179,11 +179,23 @@ derives a random S1 program from a seed. It uses every S1 construct and
 literals that make arithmetic wrap. `TestDifferentialAgainstGc` runs the
 first 200 generated programs that type-check. A generated constant expression
 may overflow `int`: Aether must classify such a program `invalid` with an
-"overflows" message, and one `go build` of all of them must show gc rejecting
-each for the same reason. Any other rejection fails the test. Negative
+overflow message, and one `go build` of all of them must show gc rejecting
+each for the same reason ("overflows", or "constant multiplication overflow"
+for a constant beyond gc's untyped precision limit). Any other rejection fails the test. Negative
 controls confirmed that it detects a wrong `neg` of the minimum in the
 interpreter, tuple assignments lowered with reversed or non-simultaneous
 stores, and a backend multiply truncated to 32 bits.
+
+Since increment 4.1 the generator also emits `bool` variables and
+constants, comparisons with negated and boundary operands, `!`, `&&`, `||`,
+`if`/`else` chains, and loops in all three `for` forms with `break` and
+`continue`. Every loop runs at most 3 times: its counter is never assigned,
+and it advances before the body or in the post statement. About 40% of
+seeds give a program with an overflowing constant (20% before 4.1, since
+programs are now longer); the test tries at most 600 seeds. Negative
+controls confirmed that it detects `||` lowered as `&&`, and a `continue`
+that skips the post statement, which the interpreter's step budget stops
+instead of hanging.
 
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs

@@ -345,9 +345,10 @@ repeated in each phase below:
      every gc-built and Aether-built program in the differential and build
      tests, and 4.2's last two tests: recursion 50,000 calls deep and
      short-circuit side effects through calls (`s2_c02_bool`,
-     `s2_c03_recursion`). Part 3, not done: the generator and the remaining
-     controls (`||` lowered as `&&`, a `continue` that skips the post
-     statement).
+     `s2_c03_recursion`). Part 3 done: the generator (`TESTING.md`) and
+     the last two controls: `||` lowered as `&&` fails the gc comparison,
+     and a `continue` that skips the post statement is stopped by the step
+     budget.
   2. **4.2: functions.** `int` parameters, one `int` result, recursion,
      ABI-S0 with the prologue bound check, and the runtime stack of at least
      256 MiB (`aether.stacklimit`, `aether.stackoverflow`). The interpreter
