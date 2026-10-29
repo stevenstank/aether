@@ -40,8 +40,12 @@ func (f *Func) write(b *strings.Builder) {
 	b.WriteString("func " + f.Name)
 	if len(f.Params)+len(f.Results) > 0 {
 		b.WriteString("(" + types(f.Params) + ")")
-		if len(f.Results) > 0 {
+		switch len(f.Results) {
+		case 0:
+		case 1:
 			b.WriteString(" " + types(f.Results))
+		default:
+			b.WriteString(" (" + types(f.Results) + ")")
 		}
 	}
 	fmt.Fprintf(b, " @%s:%s\n", f.File, f.Pos)
@@ -80,7 +84,7 @@ func (in *Instr) String() string {
 		} else {
 			ops = append(ops, "s?")
 		}
-	case Param:
+	case Param, Extract:
 		ops = append(ops, fmt.Sprint(in.Index))
 	case Call:
 		if in.Callee != nil {

@@ -185,7 +185,6 @@ func TestVerifyCalls(t *testing.T) {
 		want   string
 	}{
 		{"main with a parameter", func(p *Program) { p.Funcs[0].Params = []Type{I64} }, "func main: main has parameters or results"},
-		{"two results", func(p *Program) { p.Funcs[1].Results = []Type{I64, I64} }, "func f: 2 results; at most 1 is supported"},
 		{"parameter type", func(p *Program) { p.Funcs[1].Params[0] = NoType }, "func f: parameter 0 has invalid type none"},
 		{"result type", func(p *Program) { p.Funcs[1].Results[0] = Type(9) }, "func f: result 0 has invalid type Type(9)"},
 		{"param index", func(p *Program) { f(p, 0).Index = 1 }, "param 1 of a function with 1 parameters"},
@@ -328,6 +327,92 @@ func TestVerifyControlFlow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := loop()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors do not mention %q:\n%s", tt.want, all)
+			}
+		})
+	}
+}
+
+// tupleSample builds the IR for
+//
+//	func main() { a, b := f(); println(a, b) }
+//	func f() (int, bool) { return 1, true }
+func tupleSample() *Program {
+	p := &Program{}
+	m := p.NewFunc("main", "p.go", Pos{1, 6})
+	f := p.NewFunc("f", "p.go", Pos{2, 6})
+	f.Results = []Type{I64, Bool}
+	fb := f.Entry()
+	f.Ret(fb, Pos{2, 24}, f.Const(fb, 1, Pos{2, 31}), f.BoolConst(fb, true, Pos{2, 34}))
+	mb := m.Entry()
+	t := m.Call(mb, f, nil, Pos{1, 23})
+	m.Println(mb, []*Instr{m.Extract(mb, t, 0, Pos{1, 23}), m.Extract(mb, t, 1, Pos{1, 23})}, Pos{1, 28})
+	m.Ret(mb, Pos{1, 43})
+	return p
+}
+
+func TestPrintTuple(t *testing.T) {
+	want := `func main @p.go:1:6
+b0:
+  v0 = call f @1:23
+  v1 = extract 0, v0 @1:23
+  v2 = extract 1, v0 @1:23
+  println v1, v2 @1:28
+  ret @1:43
+
+func f() (i64, bool) @p.go:2:6
+b0:
+  v0 = const 1 @2:31
+  v1 = const true @2:34
+  ret v0, v1 @2:24
+`
+	if got := tupleSample().String(); got != want {
+		t.Errorf("String():\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifyTuples checks the tuple-storage rule of D-023 (increment 4.3).
+func TestVerifyTuples(t *testing.T) {
+	if errs := Verify(tupleSample()); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	main := func(p *Program, i int) *Instr { return p.Funcs[0].Blocks[0].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		{"index out of range", func(p *Program) { main(p, 2).Index = 2 }, "extract 2 of a call with 2 results"},
+		{"wrong result type", func(p *Program) { main(p, 2).Type = I64 }, "extract has result type i64, want bool"},
+		{"extract of a value", func(p *Program) { main(p, 2).Args[0] = main(p, 1) }, "extract operand is not a call"},
+		{"tuple used by println", func(p *Program) { main(p, 3).Args[0] = main(p, 0) }, "tuple v0 used by println; only extract may use a tuple"},
+		{"call type", func(p *Program) { main(p, 0).Type = I64 }, "call has result type i64, want tuple"},
+		{"too few results", func(p *Program) {
+			r := p.Funcs[1].Blocks[0].Instrs[2]
+			r.Args = r.Args[:1]
+		}, "ret has 1 operands, want 2"},
+		{"result of the wrong type", func(p *Program) {
+			r := p.Funcs[1].Blocks[0].Instrs[2]
+			r.Args[0], r.Args[1] = r.Args[1], r.Args[0]
+		}, "operand v1 has type bool, want i64"},
+		{"extract in another block", func(p *Program) {
+			m := p.Funcs[0]
+			b1 := m.NewBlock()
+			b0 := m.Blocks[0]
+			rest := b0.Instrs[1:]
+			b0.Instrs = []*Instr{b0.Instrs[0], {Op: Jump, ID: -1, Targets: []*Block{b1}, Pos: Pos{1, 1}}}
+			b1.Instrs = rest
+		}, "b1: instr 0 (v1 = extract 0, v0): operand v0 is not defined earlier in this block"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := tupleSample()
 			tt.break_(p)
 			var msgs []string
 			for _, e := range Verify(p) {

@@ -1,6 +1,6 @@
 // Package lower translates a type-checked program of S1, the functions of
-// increment 4.2, and the bool and control flow of increment 4.1 into IR
-// (D-004, D-021, D-023).
+// increment 4.2, the bool and control flow of increment 4.1, and the
+// multiple results of increment 4.3 into IR (D-004, D-021, D-023).
 //
 // IR values are local to their block (D-023). && and || branch, so a value
 // computed before an operand containing them is kept in a temporary slot
@@ -114,14 +114,14 @@ func (l *lowerer) pos(n ast.Node, p token.Pos) ir.Pos {
 }
 
 // declare creates the IR function for fd, with its signature: int or bool
-// parameters and at most one int or bool result.
+// parameters and unnamed results.
 func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 	obj, ok := l.pkg.Info.Defs[fd.Name].(*types.Func)
 	if !ok {
 		l.fail(fd, "no function object for %s", fd.Name.Name)
 	}
 	sig := obj.Type().(*types.Signature)
-	if sig.Variadic() || sig.Results().Len() > 1 {
+	if sig.Variadic() {
 		l.fail(fd, "unexpected signature for %s", fd.Name.Name)
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
@@ -245,7 +245,7 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.exprStmt(s)
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
-		l.fn.Ret(l.b, l.pos(s, s.Return), l.values(s.Results)...)
+		l.fn.Ret(l.b, l.pos(s, s.Return), l.valuesOrResults(s.Results, len(l.fn.Results))...)
 		l.done = true
 	case *ast.IfStmt:
 		l.ifStmt(s)
@@ -364,10 +364,7 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 		}
 		return
 	}
-	if len(spec.Values) != len(spec.Names) {
-		l.fail(spec, "%d names but %d values", len(spec.Names), len(spec.Values))
-	}
-	vals := l.values(spec.Values)
+	vals := l.valuesOrResults(spec.Values, len(spec.Names))
 	for i, id := range spec.Names {
 		l.fn.Store(l.b, l.define(id), vals[i], l.pos(id, id.Pos()))
 	}
@@ -381,10 +378,7 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 func (l *lowerer) assign(s *ast.AssignStmt) {
 	switch s.Tok {
 	case token.ASSIGN, token.DEFINE:
-		if len(s.Lhs) != len(s.Rhs) {
-			l.fail(s, "%d targets but %d values", len(s.Lhs), len(s.Rhs))
-		}
-		vals := l.values(s.Rhs)
+		vals := l.valuesOrResults(s.Rhs, len(s.Lhs))
 		for i, e := range s.Lhs {
 			id := l.ident(e)
 			var slot *ir.Slot
@@ -427,7 +421,13 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	}
 	if id, ok := call.Fun.(*ast.Ident); ok {
 		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "println" {
-			l.fn.Println(l.b, l.values(call.Args), l.pos(call, call.Pos()))
+			n := len(call.Args)
+			if n == 1 {
+				if t, ok := l.pkg.Info.Types[call.Args[0]].Type.(*types.Tuple); ok {
+					n = t.Len() // println(f()) prints every result of f
+				}
+			}
+			l.fn.Println(l.b, l.valuesOrResults(call.Args, n), l.pos(call, call.Pos()))
 			return
 		}
 	}
@@ -445,7 +445,31 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 	if !ok || l.funcs[obj] == nil {
 		l.fail(call, "unexpected call of %s", id.Name)
 	}
-	return l.fn.Call(l.b, l.funcs[obj], l.values(call.Args), l.pos(call, call.Pos()))
+	f := l.funcs[obj]
+	return l.fn.Call(l.b, f, l.valuesOrResults(call.Args, len(f.Params)), l.pos(call, call.Pos()))
+}
+
+// valuesOrResults lowers list, which supplies n values: either n
+// expressions (values), or a single call with n results, as in "return
+// f()", "a, b := f()", and "g(f())". The results are extracted right after
+// the call, in its block.
+func (l *lowerer) valuesOrResults(list []ast.Expr, n int) []*ir.Instr {
+	if len(list) == n {
+		return l.values(list)
+	}
+	call, ok := list[0].(*ast.CallExpr)
+	if len(list) != 1 || !ok || n < 2 {
+		l.fail(list[0], "%d values where %d are needed", len(list), n)
+	}
+	t := l.call(call)
+	if t.Type != ir.Tuple || len(t.Callee.Results) != n {
+		l.fail(call, "call does not have %d results", n)
+	}
+	vals := make([]*ir.Instr, n)
+	for i := range vals {
+		vals[i] = l.fn.Extract(l.b, t, i, l.pos(call, call.Pos()))
+	}
+	return vals
 }
 
 // ident returns e as the identifier of an assignment target.

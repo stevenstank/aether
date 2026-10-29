@@ -116,7 +116,7 @@ func TestLowerUnexpected(t *testing.T) {
 		{"statement", "func main() { x := 1; switch x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.SwitchStmt"},
 		{"operator", "func main() { x := 1; println(x / 2) }", "p.go:2:31: internal: lowering: unexpected expression x / 2"},
 		{"type", "func main() { var s string; println(s) }", "p.go:2:19: internal: lowering: unexpected type string"},
-		{"two results", "func f() (int, int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected signature for f"},
+		{"named results", "func f() (a, b int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected result var a int"},
 		{"function value", "func f() {}\nfunc main() { g := f; g() }", "p.go:3:20: internal: lowering: unexpected type func()"},
 		{"package variable", "var g int\nfunc main() { println(g) }", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 		{"blank target", "func main() { _ = 1 }", "p.go:2:15: internal: lowering: unexpected assignment target _"},

@@ -1,1 +1,1 @@
-testdata/check/unsupported_function_declaration.go:5:10: unsupported: function f with 2 results is not supported in subset S1 [function-declaration]
+testdata/check/unsupported_function_declaration.go:5:10: unsupported: function f with named results is not supported in subset S1 [function-declaration]

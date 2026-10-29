@@ -536,6 +536,16 @@ not listed. The feature names `if`, `for`, `break`, `continue`, `comparison`,
 `operator-not`, `operator-logical-and`, and `operator-logical-or` no longer
 exist.
 
+## Multiple results (Phase 4 increment 4.3)
+
+Functions may have two or more unnamed `int` or `bool` results. A call of
+such a function may supply all the values of a `return`, of an assignment
+or `var` declaration of as many variables (`a, b := f()`, `a, b = f()`,
+`var a, b = f()`), of the arguments of a call (`g(f())`), and of `println`
+(`println(f())`), or be a statement on its own. Still `unsupported`: named
+results (`function-declaration`) and the blank identifier as a target
+(`blank-identifier`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -554,6 +564,7 @@ exist.
 | Functions with `int` parameters and at most one `int` result, `return`, direct calls | Function declarations, Calls, Return statements | S2 / 4.2 | Supported (native) | `s2_f01_functions`; `TestNativeCalls`; gate and lowering tests |
 | `bool`, comparisons, `!`, `&&`, `\|\|` with short-circuit evaluation | Boolean types, Comparison operators, Logical operators | S2 / 4.1 | Supported (native) | `s2_c02_bool`; `TestNativeControlFlow`; gate and lowering tests |
 | `if`/`else`, the three `for` forms, unlabeled `break`/`continue` | If statements, For statements, Break and Continue statements | S2 / 4.1 | Supported (native) | `s2_c01_control_flow`, `s2_c03_recursion` |
+| Multiple results and multi-value calls | Function types, Return statements, Assignment statements, Calls | S2 / 4.3 | Supported (native) | `s2_t01_multiple_results`; `TestNativeTuples`; `TestVerifyTuples`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

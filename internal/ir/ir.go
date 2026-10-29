@@ -6,7 +6,8 @@
 // that a backend or interpreter can consume it without consulting Go source.
 //
 // The instruction set covers subset S1 (docs/SEMANTICS.md), the calls of
-// D-023 increment 4.2, and the control flow and bool of increment 4.1. A program is a set of functions; a function owns its local variable slots
+// D-023 increment 4.2, the control flow and bool of increment 4.1, and the
+// multiple results of increment 4.3. A program is a set of functions; a function owns its local variable slots
 // and a list of basic blocks; a block is a sequence of instructions ending in
 // one terminator. An instruction that produces a value is that value:
 // operands refer to such instructions directly.
@@ -25,6 +26,9 @@ const (
 	I64
 	// Bool is a boolean, held as 0 (false) or 1 (true).
 	Bool
+	// Tuple is the type of a call of a function with two or more results,
+	// whose types are the callee's Results. Only Extract uses a tuple.
+	Tuple
 )
 
 func (t Type) String() string {
@@ -35,6 +39,8 @@ func (t Type) String() string {
 		return "i64"
 	case Bool:
 		return "bool"
+	case Tuple:
+		return "tuple"
 	}
 	return fmt.Sprintf("Type(%d)", uint8(t))
 }
@@ -89,12 +95,16 @@ const (
 	Ge
 	// Not produces the negation of args[0], a Bool.
 	Not
+	// Extract produces result Index of args[0], a Tuple call in the same
+	// block.
+	Extract
 	// Param produces the value of parameter Index of the function. No
 	// args. It appears only in the entry block.
 	Param
 	// Call calls Callee, a function of the program, with args, one per
 	// entry of Callee.Params and of the same type, and produces its result:
-	// the type is Callee's single result type, or NoType if it has none.
+	// the type is Callee's single result type, NoType if it has none, or
+	// Tuple if it has several.
 	// Each call has a fresh set of slots.
 	Call
 )
@@ -104,6 +114,7 @@ var opNames = [...]string{
 	Add: "add", Sub: "sub", Mul: "mul", Neg: "neg", Println: "println", Ret: "ret",
 	Param: "param", Call: "call", Jump: "jump", Branch: "branch",
 	Eq: "eq", Ne: "ne", Lt: "lt", Le: "le", Gt: "gt", Ge: "ge", Not: "not",
+	Extract: "extract",
 }
 
 func (op Op) String() string {
@@ -136,8 +147,7 @@ type Func struct {
 	Name string
 	File string // source file of every position in the function
 	Pos  Pos
-	// Params and Results are the types of the parameters and results. A
-	// function has at most one result (D-023, increment 4.2).
+	// Params and Results are the types of the parameters and results.
 	Params, Results []Type
 	// Slots are the function's local variables. A slot has no defined
 	// contents until it is stored to.
@@ -172,7 +182,7 @@ type Instr struct {
 	Args    []*Instr
 	Slot    *Slot    // for Load and Store
 	Const   int64    // for Const
-	Index   int      // for Param
+	Index   int      // for Param and Extract
 	Callee  *Func    // for Call
 	Targets []*Block // for Jump and Branch
 	Pos     Pos
@@ -288,9 +298,21 @@ func (f *Func) Param(b *Block, i int, pos Pos) *Instr {
 
 // Call appends a call of callee with args.
 func (f *Func) Call(b *Block, callee *Func, args []*Instr, pos Pos) *Instr {
-	t := NoType
-	if len(callee.Results) == 1 {
-		t = callee.Results[0]
+	return f.add(b, &Instr{Op: Call, Type: callType(callee), Args: args, Callee: callee, Pos: pos})
+}
+
+// callType is the type of a call of callee.
+func callType(callee *Func) Type {
+	switch len(callee.Results) {
+	case 0:
+		return NoType
+	case 1:
+		return callee.Results[0]
 	}
-	return f.add(b, &Instr{Op: Call, Type: t, Args: args, Callee: callee, Pos: pos})
+	return Tuple
+}
+
+// Extract appends result i of call, a Tuple call.
+func (f *Func) Extract(b *Block, call *Instr, i int, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Extract, Type: call.Callee.Results[i], Args: []*Instr{call}, Index: i, Pos: pos})
 }

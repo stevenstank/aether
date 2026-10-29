@@ -293,6 +293,9 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 - **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
   checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
   error, so offsets always fit a 32-bit displacement.
+- **Tuples (increment 4.3).** A call with several results has one extra
+  value cell per result, after the ordinary values' cells; they are filled
+  from the outgoing area right after the call, and `extract` copies one.
 - **Blocks (increment 4.1).** Blocks are emitted in order, each under the
   local label `.L<function index>.b<block ID>`. A comparison is `cmpq` and
   a signed `setcc` into a 0-or-1 cell; `branch` tests its cell and jumps

@@ -63,7 +63,8 @@ type frame struct {
 	pc     int     // index of the next instruction in blk
 	args   []int64 // the parameters
 	slots  []int64
-	values []int64 // indexed by value number
+	values []int64         // indexed by value number
+	tuples map[int][]int64 // the results of Tuple calls, by value number
 }
 
 // run executes main and every call it makes on an explicit frame stack in
@@ -147,18 +148,27 @@ func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 			}
 			stack = append(stack, newFrame(in.Callee, args))
 		case ir.Ret:
-			var result int64
-			if len(in.Args) > 0 {
-				result = arg(0)
+			results := make([]int64, len(in.Args))
+			for i := range results {
+				results[i] = arg(i)
 			}
 			stack = stack[:len(stack)-1]
 			if len(stack) == 0 {
 				return 0, nil
 			}
 			caller := &stack[len(stack)-1]
-			if call := caller.blk.Instrs[caller.pc-1]; call.Type != ir.NoType {
-				caller.values[call.ID] = result
+			switch call := caller.blk.Instrs[caller.pc-1]; call.Type {
+			case ir.NoType:
+			case ir.Tuple:
+				if caller.tuples == nil {
+					caller.tuples = map[int][]int64{}
+				}
+				caller.tuples[call.ID] = results
+			default:
+				caller.values[call.ID] = results[0]
 			}
+		case ir.Extract:
+			fr.values[in.ID] = fr.tuples[in.Args[0].ID][in.Index]
 		default:
 			return 0, fmt.Errorf("interp: func %s: cannot execute %s", fr.f.Name, in)
 		}

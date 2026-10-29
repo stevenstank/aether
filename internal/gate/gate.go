@@ -257,8 +257,8 @@ func (c *checker) topDecl(d ast.Decl) {
 }
 
 // funcDecl checks a function declaration: main, or a function whose
-// parameters are int and which has at most one unnamed int result. Blank and
-// unnamed parameters are allowed. The body is checked only if the signature
+// parameters and unnamed results are int or bool. Blank and unnamed
+// parameters are allowed. The body is checked only if the signature
 // is supported, so one problem yields one diagnostic.
 func (c *checker) funcDecl(d *ast.FuncDecl) {
 	name := d.Name.Name
@@ -286,13 +286,13 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	// An empty result list, "func f() ()", means no result. Precheck has
 	// rejected it on main and init.
 	if results := d.Type.Results; results.NumFields() > 0 {
-		switch {
-		case results.NumFields() > 1:
-			c.reject(results, FeatFuncDecl, fmt.Sprintf("function %s with %d results", name, results.NumFields()))
-		case len(results.List[0].Names) > 0:
-			c.reject(results, FeatFuncDecl, "function "+name+" with a named result")
-		default:
-			c.typeExpr(results.List[0].Type)
+		// Results are either all named or all unnamed.
+		if len(results.List[0].Names) > 0 {
+			c.reject(results, FeatFuncDecl, "function "+name+" with named results")
+		} else {
+			for _, field := range results.List {
+				c.typeExpr(field.Type)
+			}
 		}
 	}
 	if len(c.ds) > mark {
@@ -356,8 +356,10 @@ func (c *checker) stmt(s ast.Stmt) {
 		c.reject(s, "defer", "defer statement")
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
-		for _, r := range s.Results {
-			c.expr(r)
+		if !c.multiValue(s.Results) {
+			for _, r := range s.Results {
+				c.expr(r)
+			}
 		}
 	case *ast.BranchStmt:
 		switch {
@@ -397,7 +399,8 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 		c.reject(spec, FeatConstImplicit, "constant declaration without a value")
 		return
 	}
-	if tok == token.VAR && len(spec.Values) != 0 && len(spec.Values) != len(spec.Names) {
+	multi := len(spec.Names) > 1 && c.multiValue(spec.Values)
+	if tok == token.VAR && !multi && len(spec.Values) != 0 && len(spec.Values) != len(spec.Names) {
 		c.reject(spec, FeatMultiValue, "multi-value initialization")
 		return
 	}
@@ -405,8 +408,10 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 	if spec.Type != nil {
 		c.typeExpr(spec.Type)
 	}
-	for _, v := range spec.Values {
-		c.expr(v)
+	if !multi {
+		for _, v := range spec.Values {
+			c.expr(v)
+		}
 	}
 	// A declared name's type follows from its type or initializer. Report it
 	// only if those were not already reported, to avoid restating one
@@ -442,13 +447,16 @@ func (c *checker) typeExpr(e ast.Expr) {
 func (c *checker) assign(s *ast.AssignStmt) {
 	switch s.Tok {
 	case token.DEFINE:
-		if len(s.Lhs) != len(s.Rhs) {
+		multi := len(s.Lhs) > 1 && c.multiValue(s.Rhs)
+		if !multi && len(s.Lhs) != len(s.Rhs) {
 			c.reject(s, FeatMultiValue, "multi-value assignment")
 			return
 		}
 		mark := len(c.ds)
-		for _, r := range s.Rhs {
-			c.expr(r)
+		if !multi {
+			for _, r := range s.Rhs {
+				c.expr(r)
+			}
 		}
 		explained := len(c.ds) > mark
 		for _, l := range s.Lhs {
@@ -471,12 +479,16 @@ func (c *checker) assign(s *ast.AssignStmt) {
 		}
 		return
 	case token.ASSIGN:
-		if len(s.Lhs) != len(s.Rhs) {
+		multi := len(s.Lhs) > 1 && c.multiValue(s.Rhs)
+		if !multi && len(s.Lhs) != len(s.Rhs) {
 			c.reject(s, FeatMultiValue, "multi-value assignment")
 			return
 		}
 		for _, l := range s.Lhs {
 			c.target(l)
+		}
+		if multi {
+			return
 		}
 	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN:
 		c.target(s.Lhs[0])
@@ -537,6 +549,11 @@ func (c *checker) exprStmt(s *ast.ExprStmt) {
 		c.reject(call, FeatVariadic, "variadic call")
 		return
 	}
+	// println(f()) prints every result of f, whose types its declaration
+	// has checked.
+	if c.multiValue(call.Args) {
+		return
+	}
 	for _, a := range call.Args {
 		tv, ok := c.info.Types[a]
 		if !ok {
@@ -587,8 +604,10 @@ func (c *checker) call(call *ast.CallExpr) bool {
 					c.reject(call, FeatVariadic, "variadic call")
 					return false
 				}
-				for _, a := range call.Args {
-					c.expr(a)
+				if !c.multiValue(call.Args) {
+					for _, a := range call.Args {
+						c.expr(a)
+					}
 				}
 				return true
 			}
@@ -596,6 +615,30 @@ func (c *checker) call(call *ast.CallExpr) bool {
 	}
 	c.reject(call, FeatCall, "function call")
 	return false
+}
+
+// multiValue reports whether list is a single call with several results,
+// used where Go allows one: as all the values of a return, of an
+// assignment or declaration of as many names, or of the arguments of a
+// call. It checks the call if so.
+func (c *checker) multiValue(list []ast.Expr) bool {
+	if len(list) != 1 {
+		return false
+	}
+	call, ok := list[0].(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	if tv, ok := c.info.Types[call]; !ok || !isTuple(tv.Type) {
+		return false
+	}
+	c.call(call)
+	return true
+}
+
+func isTuple(t types.Type) bool {
+	_, ok := t.(*types.Tuple)
+	return ok
 }
 
 // expr checks an expression used as a value. Allowed forms are integer

@@ -118,6 +118,7 @@ func TestAccepted(t *testing.T) {
 		"return in a block":         "func f() int { { return 1 } }\nfunc main() { println(f()) }",
 		"empty result list":         "func f() () { return }\nfunc main() { f() }",
 		"bool parameter and result": "func f(b bool, x int) bool { return !b && x > 0 }\nfunc main() { println(f(true, 1)) }",
+		"multiple results":          "func f(x int) (int, bool, int) { return x, x > 0, -x }\nfunc g() (int, bool, int) { return f(2) }\nfunc h(a int, b bool, c int) { println(a, b, c) }\nfunc main() { a, b, c := g(); var d, e, f2 = f(1); a, b, c = f(3); h(g()); f(4); println(a, b, c, d, e, f2); println(f(5)) }",
 	}
 	for name, src := range files {
 		t.Run(name, func(t *testing.T) {
@@ -214,8 +215,10 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"empty result list on init", "package main\n\nfunc init() () {}\n\nfunc main() {}\n", []string{"empty-result-list"}},
 		{"package var", "package main\n\nvar g int\n\nfunc main() { g = 1 }\n", []string{"package-level-declaration"}},
 		{"package const", "package main\n\nconst k = 1\n\nfunc main() { println(k) }\n", []string{"package-level-declaration"}},
-		{"two results", "package main\n\nfunc f() (int, int) { return 1, 2 }\n\nfunc main() { a, b := f(); println(a, b) }\n", []string{"function-declaration", "multi-value-assignment"}},
 		{"named result", "package main\n\nfunc f() (r int) { return }\n\nfunc main() { println(f()) }\n", []string{"function-declaration"}},
+		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { x, y := f(); println(x, y) }\n", []string{"function-declaration"}},
+		{"blank result target", "package main\n\nfunc f() (int, int) { return 1, 2 }\n\nfunc main() { x, _ := f(); println(x) }\n", []string{"blank-identifier"}},
+		{"byte result", "package main\n\nfunc f() (int, byte) { return 1, 2 }\n\nfunc main() { x, y := f(); println(x, y) }\n", []string{"non-int-type", "println-argument-type"}},
 		{"generic function", "package main\n\nfunc f[T any]() {}\n\nfunc main() { f[int]() }\n", []string{"call", "function-declaration"}},
 		{"non-int parameter", "package main\n\nfunc f(b byte) {}\n\nfunc main() { f(1) }\n", []string{"non-int-type"}},
 		{"variadic function", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { f(1, 2) }\n", []string{"non-int-type"}},

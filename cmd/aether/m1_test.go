@@ -374,7 +374,7 @@ func TestMilestone1Rejections(t *testing.T) {
 		{"division", main("x := 6\nprintln(x / 2)"), 3, "operator-div"},
 		{"import", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(1) }\n", 3, "import"},
 		{"switch", main("x := 1\nswitch x {\n}\nprintln(x)"), 3, "switch"},
-		{"two results", "package main\n\nfunc f() (int, int) { return 1, 2 }\n\nfunc main() { f() }\n", 3, "function-declaration"},
+		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { f() }\n", 3, "function-declaration"},
 		{"string argument", main(`println("hi")`), 3, "println-argument-type"},
 		{"float literal", main("var x int = 1.0\nprintln(x)"), 3, "float-literal"},
 		{"package name", "package foo\n\nfunc main() {}\n", 3, "package-name"},

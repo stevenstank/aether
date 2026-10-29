@@ -1,0 +1,268 @@
+func swap(i64, i64) (i64, i64) @testdata/check/s2_t01_multiple_results.go:5:6
+  slot s0 a i64 @5:11
+  slot s1 b i64 @5:14
+b0:
+  v0 = param 0 @5:11
+  store s0, v0 @5:11
+  v1 = param 1 @5:14
+  store s1, v1 @5:14
+  v2 = load s1 @6:9
+  v3 = load s0 @6:12
+  ret v2, v3 @6:2
+
+func divide(i64, i64) (i64, i64, bool) @testdata/check/s2_t01_multiple_results.go:11:6
+  slot s0 a i64 @11:13
+  slot s1 b i64 @11:16
+  slot s2 q i64 @12:2
+b0:
+  v0 = param 0 @11:13
+  store s0, v0 @11:13
+  v1 = param 1 @11:16
+  store s1, v1 @11:16
+  v2 = const 0 @12:7
+  store s2, v2 @12:2
+  jump b1 @13:2
+b1:
+  v3 = load s0 @13:6
+  v4 = load s1 @13:11
+  v5 = ge v3, v4 @13:8
+  branch v5, b2, b3 @13:2
+b2:
+  v6 = load s0 @14:3
+  v7 = load s1 @14:8
+  v8 = sub v6, v7 @14:5
+  store s0, v8 @14:3
+  v9 = load s2 @15:3
+  v10 = const 1 @15:4
+  v11 = add v9, v10 @15:4
+  store s2, v11 @15:3
+  jump b1 @16:2
+b3:
+  v12 = load s2 @17:9
+  v13 = load s0 @17:12
+  v14 = load s0 @17:15
+  v15 = const 0 @17:20
+  v16 = eq v14, v15 @17:17
+  ret v12, v13, v16 @17:2
+
+func fib(i64) (i64, i64) @testdata/check/s2_t01_multiple_results.go:21:6
+  slot s0 n i64 @21:10
+  slot s1 a i64 @25:2
+  slot s2 b i64 @25:5
+b0:
+  v0 = param 0 @21:10
+  store s0, v0 @21:10
+  v1 = load s0 @22:5
+  v2 = const 0 @22:10
+  v3 = eq v1, v2 @22:7
+  branch v3, b1, b2 @22:2
+b1:
+  v4 = const 0 @23:10
+  v5 = const 1 @23:13
+  ret v4, v5 @23:3
+b2:
+  v6 = load s0 @25:14
+  v7 = const 1 @25:18
+  v8 = sub v6, v7 @25:16
+  v9 = call fib, v8 @25:10
+  v10 = extract 0, v9 @25:10
+  v11 = extract 1, v9 @25:10
+  store s1, v10 @25:2
+  store s2, v11 @25:5
+  v12 = load s2 @26:9
+  v13 = load s1 @26:12
+  v14 = load s2 @26:16
+  v15 = add v13, v14 @26:14
+  ret v12, v15 @26:2
+
+func forward() (i64, i64) @testdata/check/s2_t01_multiple_results.go:29:6
+b0:
+  v0 = const 1 @30:14
+  v1 = const 2 @30:17
+  v2 = call swap, v0, v1 @30:9
+  v3 = extract 0, v2 @30:9
+  v4 = extract 1, v2 @30:9
+  ret v3, v4 @30:2
+
+func show(i64, i64, bool) @testdata/check/s2_t01_multiple_results.go:33:6
+  slot s0 q i64 @33:11
+  slot s1 r i64 @33:14
+  slot s2 exact bool @33:21
+b0:
+  v0 = param 0 @33:11
+  store s0, v0 @33:11
+  v1 = param 1 @33:14
+  store s1, v1 @33:14
+  v2 = param 2 @33:21
+  store s2, v2 @33:21
+  v3 = load s0 @34:10
+  v4 = load s1 @34:13
+  v5 = load s2 @34:16
+  println v3, v4, v5 @34:2
+  ret @35:1
+
+func main @testdata/check/s2_t01_multiple_results.go:37:6
+  slot s0 x i64 @38:2
+  slot s1 y i64 @38:5
+  slot s2 q i64 @42:6
+  slot s3 r i64 @42:9
+  slot s4 exact bool @42:12
+  slot s5 a i64 @46:2
+  slot s6 b i64 @46:5
+  slot s7 c i64 @50:2
+  slot s8 d i64 @50:5
+  slot s9 e i64 @51:2
+  slot s10 f i64 @51:5
+  slot s11 g i64 @58:5
+  slot s12 h i64 @58:8
+  slot s13 tmp bool @58:50
+  slot s14 ok bool @63:2
+  slot s15 n i64 @63:6
+  slot s16 tmp i64 @64:16
+  slot s17 tmp bool @64:22
+b0:
+  v0 = const 3 @38:15
+  v1 = const 4 @38:18
+  v2 = call swap, v0, v1 @38:10
+  v3 = extract 0, v2 @38:10
+  v4 = extract 1, v2 @38:10
+  store s0, v3 @38:2
+  store s1, v4 @38:5
+  v5 = load s0 @39:10
+  v6 = load s1 @39:13
+  println v5, v6 @39:2
+  v7 = load s0 @40:14
+  v8 = load s1 @40:17
+  v9 = call swap, v7, v8 @40:9
+  v10 = extract 0, v9 @40:9
+  v11 = extract 1, v9 @40:9
+  store s0, v10 @40:2
+  store s1, v11 @40:5
+  v12 = load s0 @41:10
+  v13 = load s1 @41:13
+  println v12, v13 @41:2
+  v14 = const 17 @42:27
+  v15 = const 5 @42:31
+  v16 = call divide, v14, v15 @42:20
+  v17 = extract 0, v16 @42:20
+  v18 = extract 1, v16 @42:20
+  v19 = extract 2, v16 @42:20
+  store s2, v17 @42:6
+  store s3, v18 @42:9
+  store s4, v19 @42:12
+  v20 = load s2 @43:10
+  v21 = load s3 @43:13
+  v22 = load s4 @43:16
+  println v20, v21, v22 @43:2
+  v23 = const 20 @44:14
+  v24 = const 4 @44:18
+  v25 = call divide, v23, v24 @44:7
+  v26 = extract 0, v25 @44:7
+  v27 = extract 1, v25 @44:7
+  v28 = extract 2, v25 @44:7
+  call show, v26, v27, v28 @44:2
+  v29 = const 90 @45:14
+  v30 = call fib, v29 @45:10
+  v31 = extract 0, v30 @45:10
+  v32 = extract 1, v30 @45:10
+  println v31, v32 @45:2
+  v33 = call forward @46:10
+  v34 = extract 0, v33 @46:10
+  v35 = extract 1, v33 @46:10
+  store s5, v34 @46:2
+  store s6, v35 @46:5
+  v36 = load s5 @47:10
+  v37 = load s6 @47:13
+  println v36, v37 @47:2
+  v38 = const 10 @50:14
+  v39 = call fib, v38 @50:10
+  v40 = extract 0, v39 @50:10
+  v41 = extract 1, v39 @50:10
+  store s7, v40 @50:2
+  store s8, v41 @50:5
+  v42 = const 20 @51:14
+  v43 = call fib, v42 @51:10
+  v44 = extract 0, v43 @51:10
+  v45 = extract 1, v43 @51:10
+  store s9, v44 @51:2
+  store s10, v45 @51:5
+  v46 = load s7 @52:10
+  v47 = load s8 @52:13
+  v48 = load s9 @52:16
+  v49 = load s10 @52:19
+  println v46, v47, v48, v49 @52:2
+  v50 = const 1 @55:9
+  v51 = const 1 @55:12
+  v52 = call divide, v50, v51 @55:2
+  v53 = const -1 @58:18
+  v54 = const 9223372036854775807 @58:22
+  v55 = call swap, v53, v54 @58:13
+  v56 = extract 0, v55 @58:13
+  v57 = extract 1, v55 @58:13
+  store s11, v56 @58:5
+  store s12, v57 @58:8
+  v58 = load s11 @58:44
+  v59 = load s12 @58:48
+  v60 = gt v58, v59 @58:46
+  store s13, v60 @58:50
+  branch v60, b2, b1 @58:50
+b1:
+  v61 = load s11 @58:53
+  v62 = const 0 @58:58
+  v63 = eq v61, v62 @58:55
+  store s13, v63 @58:50
+  jump b2 @58:50
+b2:
+  v64 = load s13 @58:50
+  branch v64, b3, b5 @58:2
+b3:
+  v65 = load s11 @59:11
+  println v65 @59:3
+  jump b4 @60:2
+b4:
+  v67 = const true @63:11
+  v68 = const 0 @63:17
+  store s14, v67 @63:2
+  store s15, v68 @63:6
+  v69 = load s15 @64:16
+  store s16, v69 @64:16
+  v70 = load s14 @64:19
+  store s17, v70 @64:22
+  branch v70, b6, b7 @64:22
+b5:
+  v66 = load s12 @61:11
+  println v66 @61:3
+  jump b4 @62:2
+b6:
+  v71 = load s15 @64:25
+  v72 = const 0 @64:30
+  v73 = eq v71, v72 @64:27
+  store s17, v73 @64:22
+  jump b7 @64:22
+b7:
+  v74 = load s17 @64:22
+  v75 = load s16 @64:16
+  v76 = call swap2, v75, v74 @64:10
+  v77 = extract 0, v76 @64:10
+  v78 = extract 1, v76 @64:10
+  store s15, v77 @64:2
+  store s14, v78 @64:5
+  v79 = load s15 @65:10
+  v80 = load s14 @65:13
+  println v79, v80 @65:2
+  ret @66:1
+
+func swap2(i64, bool) (i64, bool) @testdata/check/s2_t01_multiple_results.go:68:6
+  slot s0 n i64 @68:12
+  slot s1 b bool @68:19
+b0:
+  v0 = param 0 @68:12
+  store s0, v0 @68:12
+  v1 = param 1 @68:19
+  store s1, v1 @68:19
+  v2 = load s0 @69:9
+  v3 = const 1 @69:13
+  v4 = add v2, v3 @69:11
+  v5 = load s1 @69:17
+  v6 = not v5 @69:16
+  ret v4, v6 @69:2

@@ -134,6 +134,17 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 			}
 		}
 	}
+	// A Tuple call has its own cells, one per result, after the values'
+	// cells (D-023 tuple storage); tuples maps it to the first one.
+	tuples := map[*ir.Instr]int{}
+	for _, blk := range f.Blocks {
+		for _, in := range blk.Instrs {
+			if in.Type == ir.Tuple {
+				tuples[in] = values
+				values += len(in.Callee.Results)
+			}
+		}
+	}
 	fr, err := NewFrame(len(f.Slots), values, out)
 	if err != nil {
 		return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
@@ -156,7 +167,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 		fmt.Fprintf(b, "%s:\n", label(blk))
 		for _, in := range blk.Instrs {
 			fmt.Fprintf(b, "\t# %s @%s\n", in, in.Pos)
-			if err := emitInstr(b, fr, f, label, in); err != nil {
+			if err := emitInstr(b, fr, f, label, tuples, in); err != nil {
 				return Frame{}, fmt.Errorf("amd64: func %s: %s: %v", f.Name, in, err)
 			}
 		}
@@ -169,7 +180,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 // condition after "cmpq y, x" (which computes x - y).
 var setcc = map[ir.Op]string{ir.Eq: "sete", ir.Ne: "setne", ir.Lt: "setl", ir.Le: "setle", ir.Gt: "setg", ir.Ge: "setge"}
 
-func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) string, in *ir.Instr) error {
+func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) string, tuples map[*ir.Instr]int, in *ir.Instr) error {
 	val := func(v *ir.Instr) string { return fmt.Sprintf("%d(%%rbp)", fr.ValueOffset(v.ID)) }
 	res := func() string { return val(in) }
 	op := func(format string, args ...any) {
@@ -251,10 +262,22 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 			op("movq\t%%rax, %d(%%rsp)", 8*i)
 		}
 		op("call\t%s", funcSym(in.Callee))
-		if in.Type != ir.NoType {
+		// Results are copied out before any other call can reuse the
+		// outgoing area.
+		switch in.Type {
+		case ir.NoType:
+		case ir.Tuple:
+			for j := range in.Callee.Results {
+				op("movq\t%d(%%rsp), %%rax", 8*(len(in.Args)+j))
+				op("movq\t%%rax, %d(%%rbp)", fr.ValueOffset(tuples[in]+j))
+			}
+		default:
 			op("movq\t%d(%%rsp), %%rax", 8*len(in.Args))
 			op("movq\t%%rax, %s", res())
 		}
+	case ir.Extract:
+		op("movq\t%d(%%rbp), %%rax", fr.ValueOffset(tuples[in.Args[0]]+in.Index))
+		op("movq\t%%rax, %s", res())
 	case ir.Ret:
 		for j, a := range in.Args {
 			op("movq\t%s, %%rax", val(a))

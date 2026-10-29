@@ -2,6 +2,6 @@
 
 package main
 
-func f() (int, int) { return 1, 2 }
+func f() (a, b int) { return 1, 2 }
 
 func main() {}

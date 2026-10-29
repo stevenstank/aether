@@ -85,10 +85,7 @@ func verifyFunc(f *Func, funcs map[*Func]bool) []error {
 			v.errorf(-1, -1, nil, "result %d has invalid type %s", i, t)
 		}
 	}
-	switch {
-	case len(f.Results) > 1:
-		v.errorf(-1, -1, nil, "%d results; at most 1 is supported", len(f.Results))
-	case f.Name == "main" && len(f.Params)+len(f.Results) > 0:
+	if f.Name == "main" && len(f.Params)+len(f.Results) > 0 {
 		v.errorf(-1, -1, nil, "main has parameters or results")
 	}
 	for i, s := range f.Slots {
@@ -337,10 +334,20 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			v.errorf(bi, i, in, "callee is not a function of the program")
 			break
 		}
-		if len(in.Callee.Results) == 1 {
-			want = in.Callee.Results[0]
+		want, args = callType(in.Callee), in.Callee.Params
+	case Extract:
+		// The tuple must be a call in this block (checked with the
+		// operands), so its callee is known.
+		args = []Type{Tuple}
+		if len(in.Args) == 1 && in.Args[0] != nil && in.Args[0].Op == Call && in.Args[0].Callee != nil {
+			if rs := in.Args[0].Callee.Results; in.Index >= 0 && in.Index < len(rs) {
+				want = rs[in.Index]
+			} else {
+				v.errorf(bi, i, in, "extract %d of a call with %d results", in.Index, len(rs))
+			}
+		} else {
+			v.errorf(bi, i, in, "extract operand is not a call")
 		}
-		args = in.Callee.Params
 	default:
 		v.errorf(bi, i, in, "invalid operation %s", in.Op)
 		return
@@ -357,6 +364,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	for j, a := range in.Args {
 		switch {
 		case a == nil:
+		case a.Type == Tuple && in.Op != Extract:
+			v.errorf(bi, i, in, "tuple v%d used by %s; only extract may use a tuple", a.ID, in.Op)
 		case anyArgs && !validType(a.Type):
 			v.errorf(bi, i, in, "operand v%d has invalid type %s", a.ID, a.Type)
 		case !anyArgs && j < len(args) && a.Type != args[j]:
@@ -377,7 +386,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != Load && in.Op != Store && in.Slot != nil {
 		v.errorf(bi, i, in, "%s has a slot operand", in.Op)
 	}
-	if in.Op != Param && in.Index != 0 {
+	if in.Op != Param && in.Op != Extract && in.Index != 0 {
 		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
 	}
 	if in.Op != Call && in.Callee != nil {

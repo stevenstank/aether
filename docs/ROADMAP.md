@@ -366,6 +366,12 @@ repeated in each phase below:
      comparison. Without 4.1 every recursion is unbounded, so tests of
      bounded recursion wait for 4.1.
   3. **4.3: multiple results** (`tuple`, `extract`).
+     **Status (2026-10-29):** done in one part: the IR, verifier, printer,
+     interpreter, backend (tuple cells filled right after the call), gate,
+     and lowering, with `s2_t01_multiple_results` run against gc. Negative
+     control run by hand and reverted: an `extract` that reads the
+     outgoing area instead of the tuple's cells fails `TestNativeTuples`,
+     because a second call overwrites the area first.
   4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`, and
      `print` (no separators, no newline) of every integer type and `bool`.
      Observed in gc so far: `int` (E1), and `bool`, `uint8`, `int8` (E13);

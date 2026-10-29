@@ -730,3 +730,68 @@ func TestNativeControlFlow(t *testing.T) {
 		t.Errorf("loop output: %q", got[max(0, len(got)-40):])
 	}
 }
+
+// TestNativeTuples checks multiple results (D-023 tuple storage) natively
+// against the interpreter: 2 to 4 results of mixed types, a second call
+// made before the first call's results are extracted, so that its outgoing
+// area is reused, and a recursive function returning a pair.
+func TestNativeTuples(t *testing.T) {
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	mb := m.Entry()
+	for n := 2; n <= 4; n++ {
+		// fn(x) returns x, x < 0, x*n, ... alternating int and bool.
+		f := p.NewFunc(fmt.Sprintf("f%d", n), "p.go", p1)
+		f.Params = []ir.Type{ir.I64}
+		fb := f.Entry()
+		x := f.Param(fb, 0, p1)
+		var rs []*ir.Instr
+		for j := range n {
+			if j%2 == 1 {
+				f.Results = append(f.Results, ir.Bool)
+				rs = append(rs, f.Compare(fb, ir.Lt, x, f.Const(fb, int64(j), p1), p1))
+			} else {
+				f.Results = append(f.Results, ir.I64)
+				rs = append(rs, f.Binary(fb, ir.Mul, x, f.Const(fb, int64(j+n), p1), p1))
+			}
+		}
+		f.Ret(fb, p1, rs...)
+		t1 := m.Call(mb, f, []*ir.Instr{m.Const(mb, -7, p1)}, p1)
+		t2 := m.Call(mb, f, []*ir.Instr{m.Const(mb, math.MaxInt64, p1)}, p1)
+		var vs []*ir.Instr
+		for j := range n {
+			vs = append(vs, m.Extract(mb, t1, j, p1), m.Extract(mb, t2, n-1-j, p1))
+		}
+		m.Println(mb, vs, p1)
+	}
+	// pair(n) = (n, n+1) when n == 0, else (b, a+b) of pair(n-1): fib.
+	pair := p.NewFunc("pair", "p.go", p1)
+	pair.Params, pair.Results = []ir.Type{ir.I64}, []ir.Type{ir.I64, ir.I64}
+	b0, base, rec := pair.Entry(), pair.NewBlock(), pair.NewBlock()
+	n := pair.Param(b0, 0, p1)
+	ns := pair.NewSlot("n", ir.I64, p1)
+	pair.Store(b0, ns, n, p1)
+	pair.Branch(b0, pair.Compare(b0, ir.Eq, n, pair.Const(b0, 0, p1), p1), base, rec, p1)
+	pair.Ret(base, p1, pair.Const(base, 0, p1), pair.Const(base, 1, p1))
+	prev := pair.Call(rec, pair, []*ir.Instr{pair.Binary(rec, ir.Sub, pair.Load(rec, ns, p1), pair.Const(rec, 1, p1), p1)}, p1)
+	a, b := pair.Extract(rec, prev, 0, p1), pair.Extract(rec, prev, 1, p1)
+	pair.Ret(rec, p1, b, pair.Binary(rec, ir.Add, a, b, p1))
+	fib := m.Call(mb, pair, []*ir.Instr{m.Const(mb, 90, p1)}, p1)
+	m.Println(mb, []*ir.Instr{m.Extract(mb, fib, 0, p1), m.Extract(mb, fib, 1, p1)}, p1)
+	m.Ret(mb, p1)
+	var want bytes.Buffer
+	if code, err := interp.Run(p, &want); err != nil || code != 0 {
+		t.Fatalf("interpreter: exit %d, %v", code, err)
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil)
+	if code != 0 || got != want.String() {
+		t.Errorf("exit %d; native output differs from the interpreter's\nnative:\n%s\ninterpreter:\n%s", code, got, want.String())
+	}
+	if !strings.HasSuffix(got, "2880067194370816120 4660046610375530309\n") {
+		t.Errorf("fib(90), fib(91): %q", got)
+	}
+}
