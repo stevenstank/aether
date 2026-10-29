@@ -219,11 +219,14 @@ has a defined normalization in the test harness.
 | ID | Area | Divergence | Since | Normalization in tests |
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
+| V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
-Planned (Phase 4; each row is added when its increment is implemented):
+Planned (Phase 4; a row is added when its increment is implemented):
 - **Panics** print no goroutine traceback. For panicking programs, tests
   require Aether's stderr to equal gc's up to and including the first line
   that begins with `panic: `, and both to exit with status 2.
+
+Implemented (Phase 4 increment 4.2):
 - **V-2, stack overflow** (increment 4.2, D-009). Aether's stack is at least
   256 MiB, larger only when `main`'s own frame needs more
   (`aether.mainstack`), and its frames are larger than gc's, so recursion
@@ -367,7 +370,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `method`, `function-without-body` |
-| Statements | `if`, `for`, `for-range`, `switch`, `type-switch`, `select`, `go`, `defer`, `return`, `break`, `continue`, `goto`, `fallthrough`, `label`, `send`, `statement` |
+| Statements | `if`, `for`, `for-range`, `switch`, `type-switch`, `select`, `go`, `defer`, `break`, `continue`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
 | Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
@@ -494,6 +497,24 @@ The Milestone 1 acceptance test names a further required minimum set
 A test program that contains an import is expected to be `unsupported` even if
 it also has a type error.
 
+## Functions (Phase 4 increment 4.2, in progress)
+
+The gate accepts S1 extended with functions. Every rule of S1 applies
+inside every function. Diagnostics still name subset S1.
+- Top-level `func` declarations other than `init`, with `int` parameters
+  (named, blank, or unnamed) and either no result or one unnamed `int`
+  result. A function named `_`, a generic function, a function without a
+  body, and a function with named or multiple results remain
+  `unsupported`.
+- `return`, with a value in a function with a result, anywhere in a body.
+  Statements after a `return` are not executed (and not lowered).
+- Direct calls `f(args)` of these functions, including `main()`, as
+  statements and, for functions with a result, in expressions. Arguments
+  are evaluated left to right before the call.
+- Recursion. Without `if` (increment 4.1), every recursive call recurses
+  without end and overflows the stack (V-2).
+- The `return` feature name no longer exists: every `return` is accepted.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -509,6 +530,8 @@ it also has a type error.
 | Binary `+ - *`, unary `+ -`, parentheses, with wraparound | Arithmetic operators, Integer overflow | S1 / Phases 2–3 | Supported (native) | S1-03, S1-04; `internal/interp` and `internal/amd64` boundary tests |
 | Nested blocks, shadowing, empty statements | Blocks, Declarations and scope | S1 / Phases 2–3 | Supported (native) | S1-03, S1-08 |
 | `println` with `int` arguments | Bootstrapping | S1 / Phases 2–3 | Supported (native) | S1-02, S1-09 |
+| Functions with `int` parameters and at most one `int` result, `return`, direct calls | Function declarations, Calls, Return statements | S2 / 4.2 | Supported (native) | `s2_f01_functions`; `TestNativeCalls`; gate and lowering tests |
+| Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

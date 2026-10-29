@@ -36,10 +36,34 @@ func interpret(name string, src []byte) (result, []diag.Diagnostic, error) {
 	return result{stderr: stderr.String(), exit: code}, nil, err
 }
 
-// gcRun builds every program with gc in one module outside this one, with
-// the installed toolchain only (go build, never go run: D-014), runs each
-// binary, and returns the results by name.
+// gcRun builds every program with gc (gcBuild), runs each binary, and
+// returns the results by name.
 func gcRun(t *testing.T, gobin string, progs map[string][]byte) map[string]result {
+	t.Helper()
+	bin := gcBuild(t, gobin, progs)
+	results := map[string]result{}
+	for name := range progs {
+		var stdout, stderr bytes.Buffer
+		cmd := exec.Command(filepath.Join(bin, name))
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		r := result{}
+		if err := cmd.Run(); err != nil {
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) {
+				t.Fatalf("%s: %v", name, err)
+			}
+			r.exit = exit.ExitCode()
+		}
+		r.stdout, r.stderr = stdout.String(), stderr.String()
+		results[name] = r
+	}
+	return results
+}
+
+// gcBuild builds every program with gc in one module outside this one, with
+// the installed toolchain only (go build, never go run: D-014), and returns
+// the directory holding the binaries, named after the programs.
+func gcBuild(t *testing.T, gobin string, progs map[string][]byte) string {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module gen\n\ngo 1.26\n"), 0o644); err != nil {
@@ -60,23 +84,7 @@ func gcRun(t *testing.T, gobin string, progs map[string][]byte) map[string]resul
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("gc build failed: %v\n%s", err, out)
 	}
-	results := map[string]result{}
-	for name := range progs {
-		var stdout, stderr bytes.Buffer
-		cmd := exec.Command(filepath.Join(bin, name))
-		cmd.Stdout, cmd.Stderr = &stdout, &stderr
-		r := result{}
-		if err := cmd.Run(); err != nil {
-			var exit *exec.ExitError
-			if !errors.As(err, &exit) {
-				t.Fatalf("%s: %v", name, err)
-			}
-			r.exit = exit.ExitCode()
-		}
-		r.stdout, r.stderr = stdout.String(), stderr.String()
-		results[name] = r
-	}
-	return results
+	return bin
 }
 
 // generatedPrograms is how many generated programs the differential test

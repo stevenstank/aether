@@ -1658,12 +1658,10 @@ used `print` (4.4) leaves no newline before it. S2 programs print only
 integers and `bool`, so P cannot contain D. The rule does not fix gc's limit
 in the diagnostic (1e9 bytes in E14), only its form. The
 test harness already captures each binary's complete stderr and exit status
-(`gcRun` in `cmd/aether/interp_test.go`). The rule has not yet been applied
-to Aether with gc as the reference: the gate does not accept functions yet,
-so no Go program reaches the 4.2 calls. On hand-built IR, the interpreter
-and the native executable both write exactly the earlier output followed by
-`fatal error: stack overflow` and a newline, write nothing to stdout, and
-exit 2 (`TestStackOverflow`, `TestNativeStackOverflow`).
+(`gcRun` in `cmd/aether/interp_test.go`). `TestStackOverflowAgainstGc`
+applies the rule, as `overflowPrefix`, to four programs natively and in the
+interpreter (2026-10-29); `TestOverflowPrefix` checks that it rejects
+malformed, unrelated, and incomplete gc output.
 
 Increment 4.5 adds panics to the same exit-status result: a panic writes
 `panic: runtime error: <message>` and a newline to stderr and exits 2.

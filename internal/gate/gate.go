@@ -1,5 +1,6 @@
 // Package gate decides whether a Go program is inside Aether's supported
-// subset, currently S1 (docs/SEMANTICS.md §Subset S1, D-012).
+// subset: S1 (docs/SEMANTICS.md §Subset S1, D-012) plus the functions of
+// Phase 4 increment 4.2 (§Functions).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -13,7 +14,7 @@
 //     comments, and an empty result list on main or init (which go/types
 //     would wrongly report as an error; E12).
 //   - Check, after successful type checking, walks every declaration,
-//     statement, and expression of main using types.Info.
+//     statement, and expression of every function using types.Info.
 package gate
 
 import (
@@ -189,7 +190,7 @@ func init() {
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"if", "for", "for-range", "switch", "type-switch", "select", "go",
-		"defer", "return", "label", "send",
+		"defer", "label", "send",
 		token.BREAK.String(), token.CONTINUE.String(), token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
 		featureNames[f] = true
@@ -242,30 +243,59 @@ func (c *checker) topDecl(d ast.Decl) {
 		switch {
 		case d.Recv != nil:
 			c.reject(d, FeatMethod, "method "+d.Name.Name)
-		case d.Name.Name == "main":
-			c.mainFunc(d)
 		case d.Name.Name == "init":
 			c.reject(d, FeatInitFunc, "init function")
+		case d.Name.Name == "_":
+			// Several functions may be named _, and none can be called.
+			c.reject(d.Name, FeatBlank, "function named _")
 		default:
-			c.reject(d, FeatFuncDecl, "function declaration "+d.Name.Name)
+			c.funcDecl(d)
 		}
 	default:
 		c.reject(d, FeatPackageDecl, fmt.Sprintf("declaration %T", d))
 	}
 }
 
-func (c *checker) mainFunc(d *ast.FuncDecl) {
+// funcDecl checks a function declaration: main, or a function whose
+// parameters are int and which has at most one unnamed int result. Blank and
+// unnamed parameters are allowed. The body is checked only if the signature
+// is supported, so one problem yields one diagnostic.
+func (c *checker) funcDecl(d *ast.FuncDecl) {
+	name := d.Name.Name
 	// go/types rejects a main with type parameters, parameters, or results,
 	// so a well-typed main has none of them.
-	if d.Type.TypeParams != nil || d.Type.Params.NumFields() != 0 || d.Type.Results.NumFields() != 0 {
+	if name == "main" && (d.Type.TypeParams != nil || d.Type.Params.NumFields() != 0 || d.Type.Results.NumFields() != 0) {
 		c.internal(d, "unexpected signature for main after type checking")
+		return
+	}
+	if d.Type.TypeParams != nil {
+		c.reject(d, FeatFuncDecl, "generic function "+name)
 		return
 	}
 	// A declaration without a body is valid Go: it declares a function
 	// implemented outside Go, such as in assembly (spec §Function
 	// declarations). go/types accepts it; Aether does not support it.
 	if d.Body == nil {
-		c.reject(d, FeatNoBody, "function main without a body (implemented outside Go)")
+		c.reject(d, FeatNoBody, "function "+name+" without a body (implemented outside Go)")
+		return
+	}
+	mark := len(c.ds)
+	for _, field := range d.Type.Params.List {
+		c.typeExpr(field.Type)
+	}
+	// An empty result list, "func f() ()", means no result. Precheck has
+	// rejected it on main and init.
+	if results := d.Type.Results; results.NumFields() > 0 {
+		switch {
+		case results.NumFields() > 1:
+			c.reject(results, FeatFuncDecl, fmt.Sprintf("function %s with %d results", name, results.NumFields()))
+		case len(results.List[0].Names) > 0:
+			c.reject(results, FeatFuncDecl, "function "+name+" with a named result")
+		default:
+			c.typeExpr(results.List[0].Type)
+		}
+	}
+	if len(c.ds) > mark {
 		return
 	}
 	c.stmts(d.Body.List)
@@ -308,7 +338,10 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.DeferStmt:
 		c.reject(s, "defer", "defer statement")
 	case *ast.ReturnStmt:
-		c.reject(s, "return", "return statement")
+		// go/types has checked the results against the signature.
+		for _, r := range s.Results {
+			c.expr(r)
+		}
 	case *ast.BranchStmt:
 		c.reject(s, s.Tok.String(), s.Tok.String()+" statement")
 	case *ast.LabeledStmt:
@@ -444,7 +477,7 @@ func (c *checker) target(e ast.Expr) {
 		c.reject(id, FeatBlank, "the blank identifier")
 		return
 	}
-	// Every S1 variable is declared inside main, where its declaration has
+	// Every S1 variable is declared inside a function, where its declaration has
 	// already been checked; a non-int type was reported there.
 	c.intVar(id, c.info.Uses[id], false)
 }
@@ -504,24 +537,40 @@ func (c *checker) isBuiltin(e ast.Expr, name string) bool {
 	return ok && b.Name() == name
 }
 
-// call rejects every call other than the println statement handled by
-// exprStmt, naming the kind of call.
-func (c *checker) call(call *ast.CallExpr) {
+// call checks a call other than the println statement handled by
+// exprStmt. Only direct calls of the program's functions are allowed; it
+// reports whether the call was. Every other call is rejected by kind.
+func (c *checker) call(call *ast.CallExpr) bool {
 	if tv, ok := c.info.Types[call.Fun]; ok && tv.IsType() {
 		c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
-		return
+		return false
 	}
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
-		if b, ok := c.info.Uses[id].(*types.Builtin); ok {
-			if b.Name() == "print" {
+		switch obj := c.info.Uses[id].(type) {
+		case *types.Builtin:
+			if obj.Name() == "print" {
 				c.reject(call, FeatPrint, "builtin print")
 			} else {
-				c.reject(call, FeatBuiltin, "builtin "+b.Name())
+				c.reject(call, FeatBuiltin, "builtin "+obj.Name())
 			}
-			return
+			return false
+		case *types.Func:
+			if obj.Parent() == c.pkg.Types.Scope() {
+				// A function with an unsupported signature is rejected
+				// at its declaration.
+				if call.Ellipsis.IsValid() {
+					c.reject(call, FeatVariadic, "variadic call")
+					return false
+				}
+				for _, a := range call.Args {
+					c.expr(a)
+				}
+				return true
+			}
 		}
 	}
 	c.reject(call, FeatCall, "function call")
+	return false
 }
 
 // expr checks an expression used as a value. Allowed forms are integer
@@ -585,7 +634,9 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.Y)
 		}
 	case *ast.CallExpr:
-		c.call(e)
+		if c.call(e) {
+			c.intTyped(e)
+		}
 	case *ast.FuncLit:
 		c.reject(e, FeatFuncLit, "function literal")
 	case *ast.CompositeLit:
@@ -623,7 +674,7 @@ func (c *checker) intTyped(e ast.Expr) bool {
 }
 
 // valueIdent checks an identifier used as a value. It must denote a variable
-// or constant declared inside main. It reports whether the identifier is
+// or constant declared inside a function. It reports whether the identifier is
 // acceptable so far (its type is checked by the caller).
 func (c *checker) valueIdent(id *ast.Ident) bool {
 	obj := c.info.Uses[id]
@@ -652,7 +703,7 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 	return false
 }
 
-// local reports whether obj, named by id, is declared inside main. A
+// local reports whether obj, named by id, is declared inside a function. A
 // package-level object is reachable here because package-level declarations
 // are rejected but still type-check; uses of one are rejected as well.
 func (c *checker) local(id *ast.Ident, obj types.Object) bool {

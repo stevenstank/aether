@@ -85,10 +85,33 @@ func TestAccepted(t *testing.T) {
 		"println no arguments":      `println()`,
 		"println constant argument": `println(1 + 2)`,
 		"builtin names as vars":     `len := 1; print := 2; int := 3; println(len, print, int)`,
+		"return in main":            `println(1); return`,
+		"recursive main":            `main()`,
 	}
 	for name, body := range tests {
 		t.Run(name, func(t *testing.T) {
 			if got := classify(t, body); len(got) != 0 {
+				t.Errorf("rejected with %v", got)
+			}
+		})
+	}
+	// Functions (increment 4.2).
+	files := map[string]string{
+		"parameters and result": "func f(a, b int, c int) int { return a - b*c }\nfunc main() { println(f(1, 2, 3)) }",
+		"call statement":        "func f(x int) { println(x) }\nfunc main() { f(1) }",
+		"discarded result":      "func f() int { return 1 }\nfunc main() { f() }",
+		"blank and unnamed":     "func f(_ int) int { return 2 }\nfunc g(int, int) {}\nfunc main() { g(f(1), 1) }",
+		"parenthesized callee":  "func f() int { return 1 }\nfunc main() { println((f)()) }",
+		"nested calls":          "func f(x int) int { return x }\nfunc main() { println(f(f(1) + f(2))) }",
+		"recursion":             "func f(x int) int { return f(x-1) + 1 }\nfunc main() { println(f(1)) }",
+		"mutual recursion":      "func f(x int) int { return g(x) }\nfunc g(x int) int { return f(x) }\nfunc main() { f(0) }",
+		"code after return":     "func f() { return; println(2) }\nfunc main() { f() }",
+		"return in a block":     "func f() int { { return 1 } }\nfunc main() { println(f()) }",
+		"empty result list":     "func f() () { return }\nfunc main() { f() }",
+	}
+	for name, src := range files {
+		t.Run(name, func(t *testing.T) {
+			if got := classifyFile(t, "package main\n\n"+src+"\n"); len(got) != 0 {
 				t.Errorf("rejected with %v", got)
 			}
 		})
@@ -152,7 +175,6 @@ func TestRejected(t *testing.T) {
 		{"select", `select {}`, []string{"select"}},
 		{"go", `go println()`, []string{"go"}},
 		{"defer", `defer println()`, []string{"defer"}},
-		{"return", `return`, []string{"return"}},
 		{"goto and label", "goto L\nL:", []string{"goto", "label"}},
 		{"break", `for { break }`, []string{"for"}},
 		{"address and deref", `x := 1; p := &x; println(*p)`, []string{"operator-address", "pointer-dereference"}},
@@ -187,7 +209,15 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"empty result list on init", "package main\n\nfunc init() () {}\n\nfunc main() {}\n", []string{"empty-result-list"}},
 		{"package var", "package main\n\nvar g int\n\nfunc main() { g = 1 }\n", []string{"package-level-declaration"}},
 		{"package const", "package main\n\nconst k = 1\n\nfunc main() { println(k) }\n", []string{"package-level-declaration"}},
-		{"function", "package main\n\nfunc f() {}\n\nfunc main() { f() }\n", []string{"call", "function-declaration"}},
+		{"two results", "package main\n\nfunc f() (int, int) { return 1, 2 }\n\nfunc main() { a, b := f(); println(a, b) }\n", []string{"function-declaration", "multi-value-assignment"}},
+		{"named result", "package main\n\nfunc f() (r int) { return }\n\nfunc main() { println(f()) }\n", []string{"function-declaration"}},
+		{"generic function", "package main\n\nfunc f[T any]() {}\n\nfunc main() { f[int]() }\n", []string{"call", "function-declaration"}},
+		{"non-int parameter", "package main\n\nfunc f(b bool) {}\n\nfunc main() { f(true) }\n", []string{"non-int-type", "predeclared-identifier"}},
+		{"variadic function", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { f(1, 2) }\n", []string{"non-int-type"}},
+		{"function without body", "package main\n\nfunc f()\n\nfunc main() { f() }\n", []string{"function-without-body"}},
+		{"function named _", "package main\n\nfunc _() {}\n\nfunc main() {}\n", []string{"blank-identifier"}},
+		{"function value", "package main\n\nfunc f() {}\n\nfunc main() { g := f; g() }\n", []string{"call"}},
+		{"local of another function", "package main\n\nfunc f() int { const k = 1; return k }\n\nfunc main() { println(f()) }\n", nil},
 		{"init", "package main\n\nfunc init() {}\n\nfunc main() {}\n", []string{"init-function"}},
 		{"method", "package main\n\ntype T int\n\nfunc (T) m() {}\n\nfunc main() {}\n", []string{"method", "package-level-declaration"}},
 		{"main without body", "package main\n\nfunc main()\n", []string{"function-without-body"}},

@@ -343,11 +343,11 @@ repeated in each phase below:
      **Status (2026-10-29):** started before 4.1, because calls do not
      depend on control flow. Done: the IR, verifier, and printer parts; the
      interpreter's frame stack, exit status, and depth limit (value proposed
-     in D-023); ABI-S0 in the backend; the 256 MiB stack, `aether.stacklimit`,
-     and `aether.stackoverflow`. All are tested on hand-built IR only. Not
-     done: the gate and lowering still reject functions, so the gc overflow
-     comparison has not run. Without 4.1 every recursion is unbounded, so
-     tests of bounded recursion wait for 4.1.
+     in D-023, pending owner approval); ABI-S0 in the backend; the 256 MiB
+     stack, `aether.stacklimit`, and `aether.stackoverflow`; the gate and
+     lowering of functions (`SEMANTICS.md` §Functions); the gc overflow
+     comparison. Without 4.1 every recursion is unbounded, so tests of
+     bounded recursion wait for 4.1.
   3. **4.3: multiple results** (`tuple`, `extract`).
   4. **4.4: sized integer types**, conversions, `& | ^ &^`, unary `^`, and
      `print` (no separators, no newline) of every integer type and `bool`.
@@ -386,14 +386,17 @@ repeated in each phase below:
     stdout and exit with status 2. If any of these checks fails, the test fails.
     A program that overflows in Aether but not under gc shows the V-2 depth
     difference and is not compared with gc by this rule.
-- **Required tests.** Run so far, on hand-built IR (2026-10-29): the 4.2
-  boundary test, the reserve test for the helpers at `L`, unbounded
-  recursion end to end, the interpreter depth limit with its low-Go-stack
-  subprocess, argument offsets for 0 to 4 parameters, the `NewFrame` bound,
-  the updated `TestRuntimeStackGuard`, and the two negative controls (run by
-  hand and reverted: without the `jb` or without storing `L`, the overflow
-  and boundary tests die with a signal). Not yet run: everything else
-  below.
+- **Required tests.** Run so far (2026-10-29), for 4.2: the overflow
+  comparison with gc (`TestStackOverflowAgainstGc`, four programs, serial,
+  2-minute timeout, skipped only under `-short`; about 17 s here); on
+  hand-built IR, the boundary test, the reserve test for the helpers at `L`,
+  unbounded recursion end to end, the interpreter depth limit with its
+  low-Go-stack subprocess, argument offsets for 0 to 4 parameters, the
+  `NewFrame` bound, and the updated `TestRuntimeStackGuard`. Negative
+  controls run by hand and reverted: without the `jb` or without storing
+  `L`, the overflow and boundary tests die with a signal; with a changed
+  overflow message, the gc comparison fails natively and in the
+  interpreter. Not yet run: everything else below.
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
       tests runs **with a timeout**. Today they run without one

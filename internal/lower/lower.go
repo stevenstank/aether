@@ -1,4 +1,5 @@
-// Package lower translates a type-checked S1 program into IR (D-004, D-021).
+// Package lower translates a type-checked program of S1 and the functions
+// of increment 4.2 into IR (D-004, D-021, D-023).
 //
 // Lowering runs only on programs the subset gate has accepted, so every
 // construct it meets should be in S1. It nevertheless checks each assumption
@@ -29,7 +30,7 @@ import (
 // returns either a program or Internal diagnostics, never both. It does not
 // verify the program; the caller runs ir.Verify.
 func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
-	l := &lowerer{pkg: pkg, slots: map[*types.Var]*ir.Slot{}}
+	l := &lowerer{pkg: pkg, slots: map[*types.Var]*ir.Slot{}, funcs: map[*types.Func]*ir.Func{}}
 	defer func() {
 		if r := recover(); r != nil {
 			b, ok := r.(bailout)
@@ -40,17 +41,30 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		}
 	}()
 	prog = &ir.Program{}
+	// Every function is created before any body is lowered, so that a call
+	// can refer to a function declared later.
+	var decls []*ast.FuncDecl
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
-			if !ok || fd.Name.Name != "main" || fd.Recv != nil || fd.Body == nil {
+			if !ok || fd.Recv != nil || fd.Body == nil || fd.Type.TypeParams != nil {
 				l.fail(d, "unexpected top-level declaration")
 			}
-			l.function(prog, fd)
+			l.declare(prog, fd)
+			decls = append(decls, fd)
 		}
 	}
-	if len(prog.Funcs) != 1 {
-		l.fail(nil, "found %d main functions, want 1", len(prog.Funcs))
+	for _, fd := range decls {
+		l.function(fd)
+	}
+	mains := 0
+	for _, f := range prog.Funcs {
+		if f.Name == "main" {
+			mains++
+		}
+	}
+	if mains != 1 {
+		l.fail(nil, "found %d main functions, want 1", mains)
 	}
 	return prog, nil
 }
@@ -62,7 +76,9 @@ type lowerer struct {
 	pkg   *frontend.Package
 	fn    *ir.Func
 	b     *ir.Block // the block instructions are appended to
+	done  bool      // the block has its terminator: the rest is unreachable
 	slots map[*types.Var]*ir.Slot
+	funcs map[*types.Func]*ir.Func
 }
 
 func (l *lowerer) fail(n ast.Node, format string, args ...any) {
@@ -83,22 +99,73 @@ func (l *lowerer) pos(n ast.Node, p token.Pos) ir.Pos {
 	return ir.Pos{Line: dp.Line, Col: dp.Col}
 }
 
-func (l *lowerer) function(prog *ir.Program, fd *ast.FuncDecl) {
-	if fd.Type.TypeParams != nil || fd.Type.Params.NumFields() != 0 || fd.Type.Results.NumFields() != 0 {
-		l.fail(fd, "unexpected signature for main")
+// declare creates the IR function for fd, with its signature: int
+// parameters and at most one int result.
+func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
+	obj, ok := l.pkg.Info.Defs[fd.Name].(*types.Func)
+	if !ok {
+		l.fail(fd, "no function object for %s", fd.Name.Name)
+	}
+	sig := obj.Type().(*types.Signature)
+	if sig.Variadic() || sig.Results().Len() > 1 {
+		l.fail(fd, "unexpected signature for %s", fd.Name.Name)
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
-	l.fn = prog.NewFunc("main", file, l.pos(fd.Name, fd.Name.Pos()))
+	f := prog.NewFunc(fd.Name.Name, file, l.pos(fd.Name, fd.Name.Pos()))
+	for v := range sig.Params().Variables() {
+		if !isInt(v.Type()) {
+			l.fail(fd, "parameter of type %s", v.Type())
+		}
+		f.Params = append(f.Params, ir.I64)
+	}
+	for v := range sig.Results().Variables() {
+		if !isInt(v.Type()) || v.Name() != "" {
+			l.fail(fd, "unexpected result %s", v)
+		}
+		f.Results = append(f.Results, ir.I64)
+	}
+	l.funcs[obj] = f
+}
+
+// function lowers fd's body. Each named parameter gets a slot, stored from
+// its param at entry; blank and unnamed parameters are never read.
+func (l *lowerer) function(fd *ast.FuncDecl) {
+	l.fn = l.funcs[l.pkg.Info.Defs[fd.Name].(*types.Func)]
 	l.b = l.fn.Entry()
+	l.done = false
+	i := 0
+	for _, field := range fd.Type.Params.List {
+		if len(field.Names) == 0 {
+			i++
+		}
+		for _, id := range field.Names {
+			if id.Name != "_" {
+				p := l.fn.Param(l.b, i, l.pos(id, id.Pos()))
+				l.fn.Store(l.b, l.define(id), p, l.pos(id, id.Pos()))
+			}
+			i++
+		}
+	}
 	l.stmts(fd.Body.List)
-	// Falling off the end of main's body returns; the closing brace is the
-	// return's position, as in gc's line tables.
-	l.fn.Ret(l.b, l.pos(fd.Body, fd.Body.Rbrace))
+	if !l.done {
+		// Falling off the end of a body returns; the closing brace is the
+		// return's position, as in gc's line tables. go/types has checked
+		// that a function with a result cannot fall off its end.
+		if len(l.fn.Results) > 0 {
+			l.fail(fd.Body, "function %s falls off its end", fd.Name.Name)
+		}
+		l.fn.Ret(l.b, l.pos(fd.Body, fd.Body.Rbrace))
+	}
 	l.fn = nil
 }
 
+// stmts lowers a statement list up to its first return. What follows a
+// return is unreachable and is not lowered (D-023 invariant 1).
 func (l *lowerer) stmts(list []ast.Stmt) {
 	for _, s := range list {
+		if l.done {
+			return
+		}
 		l.stmt(s)
 	}
 }
@@ -134,7 +201,11 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		one := l.fn.Const(l.b, 1, l.pos(s, s.TokPos))
 		l.fn.Store(l.b, slot, l.fn.Binary(l.b, op, x, one, l.pos(s, s.TokPos)), l.pos(id, id.Pos()))
 	case *ast.ExprStmt:
-		l.println(s)
+		l.exprStmt(s)
+	case *ast.ReturnStmt:
+		// go/types has checked the results against the signature.
+		l.fn.Ret(l.b, l.pos(s, s.Return), l.exprs(s.Results)...)
+		l.done = true
 	case *ast.BlockStmt:
 		// A block only scopes names, which go/types has resolved: each
 		// declaration already denotes its own object and gets its own slot.
@@ -203,21 +274,35 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 	}
 }
 
-// println lowers a println call statement: the arguments are evaluated left
-// to right, then printed by a single instruction.
-func (l *lowerer) println(s *ast.ExprStmt) {
+// exprStmt lowers a call statement. For println, the arguments are
+// evaluated left to right, then printed by a single instruction. A call of
+// a function discards its result, if any.
+func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	call, ok := s.X.(*ast.CallExpr)
 	if !ok || call.Ellipsis.IsValid() {
 		l.fail(s, "unexpected expression statement")
 	}
-	id, ok := call.Fun.(*ast.Ident)
-	if !ok {
+	if id, ok := call.Fun.(*ast.Ident); ok {
+		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "println" {
+			l.fn.Println(l.b, l.exprs(call.Args), l.pos(call, call.Pos()))
+			return
+		}
+	}
+	l.call(call)
+}
+
+// call lowers a direct call of a function of the program: the arguments are
+// evaluated left to right, then the function is called.
+func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
+	id, ok := ast.Unparen(call.Fun).(*ast.Ident)
+	if !ok || call.Ellipsis.IsValid() {
 		l.fail(call, "unexpected call")
 	}
-	if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); !ok || b.Name() != "println" {
+	obj, ok := l.pkg.Info.Uses[id].(*types.Func)
+	if !ok || l.funcs[obj] == nil {
 		l.fail(call, "unexpected call of %s", id.Name)
 	}
-	l.fn.Println(l.b, l.exprs(call.Args), l.pos(call, call.Pos()))
+	return l.fn.Call(l.b, l.funcs[obj], l.exprs(call.Args), l.pos(call, call.Pos()))
 }
 
 // ident returns e as the identifier of an assignment target.
@@ -247,7 +332,7 @@ func (l *lowerer) define(id *ast.Ident) *ir.Slot {
 func (l *lowerer) lookup(id *ast.Ident) *ir.Slot {
 	v, ok := l.pkg.Info.Uses[id].(*types.Var)
 	if !ok || l.slots[v] == nil {
-		l.fail(id, "%s does not denote a local variable of main", id.Name)
+		l.fail(id, "%s does not denote a local variable", id.Name)
 	}
 	return l.slots[v]
 }
@@ -284,6 +369,12 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return l.fn.Load(l.b, l.lookup(e), l.pos(e, e.Pos()))
 	case *ast.ParenExpr:
 		return l.expr(e.X)
+	case *ast.CallExpr:
+		v := l.call(e)
+		if v.Type != ir.I64 {
+			l.fail(e, "call of a function without a result used as a value")
+		}
+		return v
 	case *ast.UnaryExpr:
 		switch e.Op {
 		case token.ADD:
