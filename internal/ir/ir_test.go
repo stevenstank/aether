@@ -104,7 +104,7 @@ func TestVerifyRejects(t *testing.T) {
 		{"wrong result type", func(p *Program) { instr(p, 2).Type = NoType }, "load has result type none, want i64"},
 		{"result type on store", func(p *Program) { instr(p, 1).Type = I64 }, "store has result type i64, want none"},
 		{"duplicate value number", func(p *Program) { instr(p, 4).ID = 2 }, "value number v2 defined twice"},
-		{"operand of wrong type", func(p *Program) { instr(p, 0).Type = Type(9) }, "operand v0 has type Type(9), want i64"},
+		{"operand of wrong type", func(p *Program) { instr(p, 0).Type = Type(99) }, "operand v0 has type Type(99), want i64"},
 		{"invalid operation", func(p *Program) { instr(p, 2).Op = Op(77) }, "instr 2 (v1 = Op(77)): invalid operation Op(77)"},
 		{"load before store", func(p *Program) { p.Funcs[0].Blocks[0].Instrs[1] = instr(p, 0) }, "load of s0 (x) before any store to it"},
 		{"foreign slot", func(p *Program) { instr(p, 2).Slot = &Slot{ID: 0, Name: "x", Type: I64, Pos: Pos{1, 1}} }, "instr 2 (v1 = load s0): slot operand is not a slot of this function"},
@@ -186,7 +186,7 @@ func TestVerifyCalls(t *testing.T) {
 	}{
 		{"main with a parameter", func(p *Program) { p.Funcs[0].Params = []Type{I64} }, "func main: main has parameters or results"},
 		{"parameter type", func(p *Program) { p.Funcs[1].Params[0] = NoType }, "func f: parameter 0 has invalid type none"},
-		{"result type", func(p *Program) { p.Funcs[1].Results[0] = Type(9) }, "func f: result 0 has invalid type Type(9)"},
+		{"result type", func(p *Program) { p.Funcs[1].Results[0] = Type(99) }, "func f: result 0 has invalid type Type(99)"},
 		{"param index", func(p *Program) { f(p, 0).Index = 1 }, "param 1 of a function with 1 parameters"},
 		{"param type", func(p *Program) { f(p, 0).Type = NoType }, "param has result type none, want i64"},
 		{"param outside entry", func(p *Program) {
@@ -422,5 +422,79 @@ func TestVerifyTuples(t *testing.T) {
 				t.Errorf("errors do not mention %q:\n%s", tt.want, all)
 			}
 		})
+	}
+}
+
+// sizedSample builds main { x := u8(255); println(int8(x) + -1, ^x &^ 1) }.
+func sizedSample() *Program {
+	p := &Program{}
+	f := p.NewFunc("main", "p.go", Pos{1, 1})
+	b := f.Entry()
+	x := f.TypedConst(b, U8, 255, Pos{2, 2})
+	sum := f.Binary(b, Add, f.Conv(b, I8, x, Pos{3, 3}), f.TypedConst(b, I8, -1, Pos{3, 4}), Pos{3, 5})
+	f.Print(b, []*Instr{sum, f.Binary(b, AndNot, f.Com(b, x, Pos{4, 4}), f.TypedConst(b, U8, 1, Pos{4, 6}), Pos{4, 5})}, Pos{3, 1})
+	f.Ret(b, Pos{5, 1})
+	return p
+}
+
+func TestPrintSized(t *testing.T) {
+	want := `func main @p.go:1:1
+b0:
+  v0 = const u8 255 @2:2
+  v1 = conv i8, v0 @3:3
+  v2 = const i8 -1 @3:4
+  v3 = add v1, v2 @3:5
+  v4 = com v0 @4:4
+  v5 = const u8 1 @4:6
+  v6 = andnot v4, v5 @4:5
+  print v3, v6 @3:1
+  ret @5:1
+`
+	if got := sizedSample().String(); got != want {
+		t.Errorf("String():\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifySized checks the type rules and constant ranges of the sized
+// integer types (D-023 invariants 3 and 5).
+func TestVerifySized(t *testing.T) {
+	if errs := Verify(sizedSample()); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	at := func(p *Program, i int) *Instr { return p.Funcs[0].Blocks[0].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		{"u8 out of range", func(p *Program) { at(p, 0).Const = 256 }, "u8 constant 256 is not in canonical form"},
+		{"i8 not sign-extended", func(p *Program) { at(p, 2).Const = 255 }, "i8 constant 255 is not in canonical form"},
+		{"mixed operand types", func(p *Program) { at(p, 3).Args[1] = at(p, 0) }, "instr 3 (v3 = add v1, v0): operand v0 has type u8, want i8"},
+		{"result type", func(p *Program) { at(p, 3).Type = I64 }, "add has result type i64, want i8"},
+		{"conv to bool", func(p *Program) { at(p, 1).Type = Bool }, "conv to bool, not an integer type"},
+		{"conv of a bool", func(p *Program) { at(p, 1).Args[0] = &Instr{Op: Const, Type: Bool, ID: 0} }, "operand v0 has type bool, want i64"},
+		{"com of a bool", func(p *Program) { at(p, 4).Type, at(p, 4).Args[0].Type = Bool, Bool }, "com has result type bool"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := sizedSample()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors do not mention %q:\n%s", tt.want, all)
+			}
+		})
+	}
+	for _, tt := range []struct {
+		t    Type
+		v    int64
+		want int64
+	}{{I8, 128, -128}, {I8, -129, 127}, {U8, -1, 255}, {I16, 1 << 15, -1 << 15}, {U16, 1 << 16, 0}, {I32, 1 << 31, -1 << 31}, {U32, -1, 1<<32 - 1}, {U64, -1, -1}, {I64, 5, 5}} {
+		if got := tt.t.Canonical(tt.v); got != tt.want {
+			t.Errorf("%s.Canonical(%d) = %d, want %d", tt.t, tt.v, got, tt.want)
+		}
 	}
 }

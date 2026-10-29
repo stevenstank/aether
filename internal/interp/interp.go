@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 
 	"github.com/stevenstank/aether/internal/ir"
@@ -104,36 +105,54 @@ func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 		case ir.Store:
 			fr.slots[in.Slot.ID] = arg(0)
 		// Go's int64 arithmetic wraps in two's complement (spec §Integer
-		// overflow), which is exactly the IR's semantics.
+		// overflow), so the low width bits of each result are exact, and
+		// Canonical reduces them to the instruction's type.
 		case ir.Add:
-			fr.values[in.ID] = arg(0) + arg(1)
+			fr.values[in.ID] = in.Type.Canonical(arg(0) + arg(1))
 		case ir.Sub:
-			fr.values[in.ID] = arg(0) - arg(1)
+			fr.values[in.ID] = in.Type.Canonical(arg(0) - arg(1))
 		case ir.Mul:
-			fr.values[in.ID] = arg(0) * arg(1)
+			fr.values[in.ID] = in.Type.Canonical(arg(0) * arg(1))
 		case ir.Neg:
-			fr.values[in.ID] = -arg(0)
+			fr.values[in.ID] = in.Type.Canonical(-arg(0))
+		case ir.And:
+			fr.values[in.ID] = in.Type.Canonical(arg(0) & arg(1))
+		case ir.Or:
+			fr.values[in.ID] = in.Type.Canonical(arg(0) | arg(1))
+		case ir.Xor:
+			fr.values[in.ID] = in.Type.Canonical(arg(0) ^ arg(1))
+		case ir.AndNot:
+			fr.values[in.ID] = in.Type.Canonical(arg(0) &^ arg(1))
+		case ir.Com:
+			fr.values[in.ID] = in.Type.Canonical(^arg(0))
+		case ir.Conv:
+			fr.values[in.ID] = in.Type.Canonical(arg(0))
 		case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
-			fr.values[in.ID] = b2i(compare(in.Op, arg(0), arg(1)))
+			fr.values[in.ID] = b2i(compare(in.Op, in.Args[0].Type, arg(0), arg(1)))
 		case ir.Not:
 			fr.values[in.ID] = 1 - arg(0)
 		case ir.Jump:
 			fr.blk, fr.pc = in.Targets[0], 0
 		case ir.Branch:
 			fr.blk, fr.pc = in.Targets[1-arg(0)], 0
-		case ir.Println:
+		case ir.Println, ir.Print:
 			var line []byte
 			for i, a := range in.Args {
-				if i > 0 {
+				if i > 0 && in.Op == ir.Println {
 					line = append(line, ' ')
 				}
-				if a.Type == ir.Bool {
+				switch {
+				case a.Type == ir.Bool:
 					line = strconv.AppendBool(line, arg(i) == 1)
-				} else {
+				case a.Type.Signed():
 					line = strconv.AppendInt(line, arg(i), 10)
+				default:
+					line = strconv.AppendUint(line, uint64(arg(i)), 10)
 				}
 			}
-			line = append(line, '\n')
+			if in.Op == ir.Println {
+				line = append(line, '\n')
+			}
 			_, _ = stderr.Write(line)
 		case ir.Param:
 			fr.values[in.ID] = fr.args[in.Index]
@@ -175,9 +194,14 @@ func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 	}
 }
 
-// compare applies a comparison to canonical values: signed for I64, and
-// 0 or 1 for Bool, where only Eq and Ne apply.
-func compare(op ir.Op, x, y int64) bool {
+// compare applies a comparison to canonical values of type t: as signed or
+// unsigned numbers by t, or as 0 or 1 for Bool, where only Eq and Ne apply.
+func compare(op ir.Op, t ir.Type, x, y int64) bool {
+	if t.IsInteger() && !t.Signed() {
+		// Zero-extended values compare as unsigned 64-bit numbers; flipping
+		// the sign bit maps that order onto int64's.
+		x, y = x^math.MinInt64, y^math.MinInt64
+	}
 	switch op {
 	case ir.Eq:
 		return x == y

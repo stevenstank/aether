@@ -376,6 +376,17 @@ repeated in each phase below:
      `print` (no separators, no newline) of every integer type and `bool`.
      Observed in gc so far: `int` (E1), and `bool`, `uint8`, `int8` (E13);
      the other types' formats are established by the 4.4 tests.
+     **Status (2026-10-29):** part 1 done: the eight integer types in
+     canonical form, `and or xor andnot com conv print` in the IR, verifier
+     (canonical constants), printer, interpreter, and backend (a
+     canonicalizing move after each narrow operation, unsigned condition
+     codes), and `aether.printuint`. Tested on hand-built IR against Go's
+     own typed arithmetic: every operation on every type's edge values,
+     and every conversion. Negative controls run by hand and reverted:
+     no canonicalization, signed condition codes for unsigned types,
+     `printint` for unsigned values, and a signed comparison in the
+     interpreter each fail a test. Not done: the gate and lowering, the
+     corpus, `print` against gc, and the generator.
   5. **4.5: `/ % << >>`** with the panic path.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).

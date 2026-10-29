@@ -25,6 +25,7 @@ import (
 // and %r12-%r15.
 const (
 	symPrintInt   = "aether.printint"
+	symPrintUint  = "aether.printuint"
 	symPrintBool  = "aether.printbool"
 	symPrintSpace = "aether.printsp"
 	symPrintNL    = "aether.printnl"
@@ -177,8 +178,22 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 }
 
 // setcc maps a comparison to the set instruction that tests its signed
-// condition after "cmpq y, x" (which computes x - y).
-var setcc = map[ir.Op]string{ir.Eq: "sete", ir.Ne: "setne", ir.Lt: "setl", ir.Le: "setle", ir.Gt: "setg", ir.Ge: "setge"}
+// condition after "cmpq y, x" (which computes x - y), and setccUnsigned
+// to the one that tests its unsigned condition. Canonical values of an
+// unsigned type are zero-extended, so a 64-bit unsigned comparison is
+// exact for every width; sign-extended values make the signed one exact.
+var (
+	setcc         = map[ir.Op]string{ir.Eq: "sete", ir.Ne: "setne", ir.Lt: "setl", ir.Le: "setle", ir.Gt: "setg", ir.Ge: "setge"}
+	setccUnsigned = map[ir.Op]string{ir.Eq: "sete", ir.Ne: "setne", ir.Lt: "setb", ir.Le: "setbe", ir.Gt: "seta", ir.Ge: "setae"}
+)
+
+// canonical maps an integer type narrower than 64 bits to the instruction
+// that puts %rax in its canonical form (D-023): the low bits sign- or
+// zero-extended. A 32-bit move to %eax zeroes the upper half.
+var canonical = map[ir.Type]string{
+	ir.I8: "movsbq\t%al, %rax", ir.I16: "movswq\t%ax, %rax", ir.I32: "movslq\t%eax, %rax",
+	ir.U8: "movzbl\t%al, %eax", ir.U16: "movzwl\t%ax, %eax", ir.U32: "movl\t%eax, %eax",
+}
 
 func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) string, tuples map[*ir.Instr]int, in *ir.Instr) error {
 	val := func(v *ir.Instr) string { return fmt.Sprintf("%d(%%rbp)", fr.ValueOffset(v.ID)) }
@@ -203,25 +218,45 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 	case ir.Store:
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("movq\t%%rax, %d(%%rbp)", fr.SlotOffset(in.Slot.ID))
-	case ir.Add, ir.Sub, ir.Mul:
+	case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor:
 		// addq, subq, and the two-operand imulq keep the low 64 bits of
-		// the result, which is the IR's wrapping semantics; the flags they
-		// set are not used.
-		mnemonic := map[ir.Op]string{ir.Add: "addq", ir.Sub: "subq", ir.Mul: "imulq"}[in.Op]
+		// the result, whose low width bits are exact, and so do the bitwise
+		// operations; canonicalizing then gives the IR's wrapping
+		// semantics at every width. The flags they set are not used.
+		mnemonic := map[ir.Op]string{ir.Add: "addq", ir.Sub: "subq", ir.Mul: "imulq", ir.And: "andq", ir.Or: "orq", ir.Xor: "xorq"}[in.Op]
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("%s\t%s, %%rax", mnemonic, val(in.Args[1]))
+		canon(op, in.Type)
 		op("movq\t%%rax, %s", res())
-	case ir.Neg:
-		// negq maps the minimum to itself, as the IR requires.
+	case ir.AndNot:
+		op("movq\t%s, %%rcx", val(in.Args[1]))
+		op("notq\t%%rcx")
 		op("movq\t%s, %%rax", val(in.Args[0]))
-		op("negq\t%%rax")
+		op("andq\t%%rcx, %%rax")
+		canon(op, in.Type)
+		op("movq\t%%rax, %s", res())
+	case ir.Neg, ir.Com, ir.Conv:
+		// negq maps the minimum to itself, as the IR requires; a conversion
+		// is only the canonicalization to the new type.
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		switch in.Op {
+		case ir.Neg:
+			op("negq\t%%rax")
+		case ir.Com:
+			op("notq\t%%rax")
+		}
+		canon(op, in.Type)
 		op("movq\t%%rax, %s", res())
 	case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
 		// Bool operands are 0 or 1, so the same signed test is exact for
 		// Eq and Ne on them.
+		cc := setcc[in.Op]
+		if t := in.Args[0].Type; t.IsInteger() && !t.Signed() {
+			cc = setccUnsigned[in.Op]
+		}
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("cmpq\t%s, %%rax", val(in.Args[1]))
-		op("%s\t%%al", setcc[in.Op])
+		op("%s\t%%al", cc)
 		op("movzbl\t%%al, %%eax")
 		op("movq\t%%rax, %s", res())
 	case ir.Not:
@@ -235,20 +270,26 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 		op("testq\t%%rax, %%rax")
 		op("jnz\t%s", label(in.Targets[0]))
 		op("jmp\t%s", label(in.Targets[1]))
-	case ir.Println:
+	case ir.Println, ir.Print:
 		// The operands are already in the frame, which the helpers do not
 		// touch, so they survive the calls. Each call is made with %rsp
-		// aligned (see Frame).
+		// aligned (see Frame). Print has no separators and no newline.
 		for i, a := range in.Args {
-			if i > 0 {
+			if i > 0 && in.Op == ir.Println {
 				op("call\t%s", symPrintSpace)
 			}
 			op("movq\t%s, %%rdi", val(a))
-			if a.Type == ir.Bool {
+			switch {
+			case a.Type == ir.Bool:
 				op("call\t%s", symPrintBool)
-			} else {
+			case a.Type.Signed():
 				op("call\t%s", symPrintInt)
+			default:
+				op("call\t%s", symPrintUint)
 			}
+		}
+		if in.Op == ir.Print {
+			break
 		}
 		op("call\t%s", symPrintNL)
 	case ir.Param:
@@ -290,4 +331,12 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 		return fmt.Errorf("no instruction selection for %s", in.Op)
 	}
 	return nil
+}
+
+// canon emits the canonicalization of %rax to the integer type t, if t is
+// narrower than 64 bits.
+func canon(op func(string, ...any), t ir.Type) {
+	if c, ok := canonical[t]; ok {
+		op("%s", c)
+	}
 }

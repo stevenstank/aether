@@ -292,7 +292,7 @@ func checkELF(t *testing.T, out, ref string) {
 		}
 	}
 	slices.Sort(defined)
-	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.mainstack", "aether.printbool", "aether.printint", "aether.printnl", "aether.printsp", "aether.stacklimit", "aether.stackoverflow", "aether.write", "main.main"}
+	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.mainstack", "aether.printbool", "aether.printint", "aether.printnl", "aether.printsp", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.write", "main.main"}
 	if !slices.Equal(defined, want) {
 		t.Errorf("nm: defined symbols %v, want %v", defined, want)
 	}

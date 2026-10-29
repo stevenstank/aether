@@ -272,6 +272,13 @@ func (v *verifier) block(b *Block, bi int, stored []bool) {
 func (v *verifier) signature(bi, i int, in *Instr) {
 	var want Type
 	var args []Type // the operand types; nil with anyArgs for println
+	// integer is the type of the first operand if it is an integer type,
+	// for operations whose operands share any integer type; I64 otherwise,
+	// so that a wrong operand is reported against i64.
+	integer := I64
+	if len(in.Args) > 0 && in.Args[0] != nil && in.Args[0].Type.IsInteger() {
+		integer = in.Args[0].Type
+	}
 	anyArgs, targets := false, 0
 	switch in.Op {
 	case Const:
@@ -281,6 +288,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			v.errorf(bi, i, in, "const has invalid type %s", in.Type)
 		case in.Type == Bool && in.Const != 0 && in.Const != 1:
 			v.errorf(bi, i, in, "bool constant %d is not 0 or 1", in.Const)
+		case in.Type.Canonical(in.Const) != in.Const:
+			v.errorf(bi, i, in, "%s constant %d is not in canonical form", in.Type, in.Const)
 		}
 	case Load:
 		want = I64
@@ -292,21 +301,26 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if v.isSlot(in.Slot) {
 			args[0] = in.Slot.Type
 		}
-	case Add, Sub, Mul:
-		want, args = I64, []Type{I64, I64}
-	case Neg:
-		want, args = I64, []Type{I64}
+	case Add, Sub, Mul, And, Or, Xor, AndNot:
+		want, args = integer, []Type{integer, integer}
+	case Neg, Com:
+		want, args = integer, []Type{integer}
+	case Conv:
+		want, args = in.Type, []Type{integer}
+		if !in.Type.IsInteger() {
+			v.errorf(bi, i, in, "conv to %s, not an integer type", in.Type)
+		}
 	case Eq, Ne:
-		t := I64
+		t := integer
 		if len(in.Args) > 0 && in.Args[0] != nil && in.Args[0].Type == Bool {
 			t = Bool
 		}
 		want, args = Bool, []Type{t, t}
 	case Lt, Le, Gt, Ge:
-		want, args = Bool, []Type{I64, I64}
+		want, args = Bool, []Type{integer, integer}
 	case Not:
 		want, args = Bool, []Type{Bool}
-	case Println:
+	case Println, Print:
 		anyArgs = true
 	case Ret:
 		args = v.f.Results
@@ -415,6 +429,6 @@ func (v *verifier) slotRef(bi, i int, in *Instr, stored []bool) {
 	}
 }
 
-func validType(t Type) bool { return t == I64 || t == Bool }
+func validType(t Type) bool { return t == Bool || t.IsInteger() }
 
 func validPos(p Pos) bool { return p.Line > 0 && p.Col > 0 }

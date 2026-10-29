@@ -6,8 +6,9 @@
 // that a backend or interpreter can consume it without consulting Go source.
 //
 // The instruction set covers subset S1 (docs/SEMANTICS.md), the calls of
-// D-023 increment 4.2, the control flow and bool of increment 4.1, and the
-// multiple results of increment 4.3. A program is a set of functions; a function owns its local variable slots
+// D-023 increment 4.2, the control flow and bool of increment 4.1, the
+// multiple results of increment 4.3, and the sized integer types,
+// conversions, bit operations, and print of increment 4.4. A program is a set of functions; a function owns its local variable slots
 // and a list of basic blocks; a block is a sequence of instructions ending in
 // one terminator. An instruction that produces a value is that value:
 // operands refer to such instructions directly.
@@ -29,20 +30,62 @@ const (
 	// Tuple is the type of a call of a function with two or more results,
 	// whose types are the callee's Results. Only Extract uses a tuple.
 	Tuple
+	// I8, I16, and I32 are signed and U8, U16, U32, and U64 unsigned
+	// integers of their width. Every integer value is held in 64 bits in
+	// canonical form (D-023): sign-extended from its width if signed,
+	// zero-extended if unsigned.
+	I8
+	I16
+	I32
+	U8
+	U16
+	U32
+	U64
 )
 
+var typeNames = [...]string{
+	NoType: "none", I64: "i64", Bool: "bool", Tuple: "tuple",
+	I8: "i8", I16: "i16", I32: "i32", U8: "u8", U16: "u16", U32: "u32", U64: "u64",
+}
+
 func (t Type) String() string {
-	switch t {
-	case NoType:
-		return "none"
-	case I64:
-		return "i64"
-	case Bool:
-		return "bool"
-	case Tuple:
-		return "tuple"
+	if int(t) < len(typeNames) && typeNames[t] != "" {
+		return typeNames[t]
 	}
 	return fmt.Sprintf("Type(%d)", uint8(t))
+}
+
+// IsInteger reports whether t is one of the integer types.
+func (t Type) IsInteger() bool { return t == I64 || t >= I8 && t <= U64 }
+
+// Signed reports whether t is a signed integer type.
+func (t Type) Signed() bool { return t == I64 || t >= I8 && t <= I32 }
+
+// Width returns the width of an integer type in bits.
+func (t Type) Width() int {
+	switch t {
+	case I8, U8:
+		return 8
+	case I16, U16:
+		return 16
+	case I32, U32:
+		return 32
+	}
+	return 64
+}
+
+// Canonical returns the canonical form of v reduced modulo 2^width for
+// the integer type t: its low width bits, sign-extended if t is signed and
+// zero-extended if not. For a Bool or I64 it returns v unchanged.
+func (t Type) Canonical(v int64) int64 {
+	w := t.Width()
+	if !t.IsInteger() || w == 64 {
+		return v
+	}
+	if t.Signed() {
+		return v << (64 - w) >> (64 - w)
+	}
+	return int64(uint64(v) << (64 - w) >> (64 - w))
 }
 
 // Op is an instruction's operation. The meaning of each operation is given
@@ -51,26 +94,42 @@ type Op uint8
 
 const (
 	invalidOp Op = iota
-	// Const produces the constant Const of its type: any value for I64, 0
-	// or 1 for Bool. No args.
+	// Const produces the constant Const of its type, in canonical form:
+	// 0 or 1 for Bool. No args.
 	Const
 	// Load produces the current contents of Slot. No args. The slot must
 	// have been stored to earlier on every path to the load.
 	Load
 	// Store writes args[0] to Slot. It produces no value.
 	Store
-	// Add, Sub, and Mul produce args[0] op args[1], wrapping modulo 2^64
-	// in two's complement: the low 64 bits of the exact result. They never
-	// trap.
+	// Add, Sub, and Mul produce args[0] op args[1], whose integer type
+	// they share, wrapping at its width: the canonical form of the exact
+	// result reduced modulo 2^width. They never trap.
 	Add
 	Sub
 	Mul
-	// Neg produces 0 - args[0], wrapping; Neg of the minimum I64 is the
-	// minimum I64.
+	// Neg produces 0 - args[0], wrapping; Neg of a signed type's minimum
+	// is that minimum.
 	Neg
-	// Println writes its args to standard error, I64 in signed decimal
-	// and Bool as true or false, separated by single spaces and followed
-	// by a newline, in that order.
+	// And, Or, Xor, and AndNot (x &^ y) produce the bitwise result of
+	// args[0] and args[1], whose integer type they share; Com (unary ^)
+	// produces the complement of args[0]. All are in canonical form.
+	And
+	Or
+	Xor
+	AndNot
+	Com
+	// Conv produces args[0], of any integer type, converted to the
+	// instruction's integer type: the canonical form of its value reduced
+	// modulo 2^width of the new type.
+	Conv
+	// Print writes its args as Println does, but with no separators and no
+	// trailing newline.
+	Print
+	// Println writes its args to standard error, signed types in signed
+	// decimal, unsigned types in unsigned decimal, and Bool as true or
+	// false, separated by single spaces and followed by a newline, in that
+	// order.
 	// The args are already-evaluated values, so all of them are computed
 	// before any output. Write errors are ignored (D-009). It produces no
 	// value.
@@ -85,8 +144,8 @@ const (
 	// Targets[1] otherwise. It is a terminator.
 	Branch
 	// Eq, Ne, Lt, Le, Gt, and Ge produce the Bool result of comparing
-	// args[0] with args[1], which have the same type: signed for I64; only
-	// Eq and Ne for Bool.
+	// args[0] with args[1], which have the same type, as signed or
+	// unsigned numbers by that type; only Eq and Ne for Bool.
 	Eq
 	Ne
 	Lt
@@ -114,7 +173,8 @@ var opNames = [...]string{
 	Add: "add", Sub: "sub", Mul: "mul", Neg: "neg", Println: "println", Ret: "ret",
 	Param: "param", Call: "call", Jump: "jump", Branch: "branch",
 	Eq: "eq", Ne: "ne", Lt: "lt", Le: "le", Gt: "gt", Ge: "ge", Not: "not",
-	Extract: "extract",
+	Extract: "extract", And: "and", Or: "or", Xor: "xor", AndNot: "andnot", Com: "com",
+	Conv: "conv", Print: "print",
 }
 
 func (op Op) String() string {
@@ -232,6 +292,21 @@ func (f *Func) Const(b *Block, v int64, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Const, Type: I64, Const: v, Pos: pos})
 }
 
+// TypedConst appends a constant of type t; v must be in canonical form.
+func (f *Func) TypedConst(b *Block, t Type, v int64, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Const, Type: t, Const: v, Pos: pos})
+}
+
+// Conv appends the conversion of x to t.
+func (f *Func) Conv(b *Block, t Type, x *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Conv, Type: t, Args: []*Instr{x}, Pos: pos})
+}
+
+// Print appends a print of args.
+func (f *Func) Print(b *Block, args []*Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Print, Args: args, Pos: pos})
+}
+
 // BoolConst appends a Bool constant.
 func (f *Func) BoolConst(b *Block, v bool, pos Pos) *Instr {
 	in := &Instr{Op: Const, Type: Bool, Pos: pos}
@@ -271,14 +346,20 @@ func (f *Func) Store(b *Block, s *Slot, v *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Store, Args: []*Instr{v}, Slot: s, Pos: pos})
 }
 
-// Binary appends Add, Sub, or Mul of x and y.
+// Binary appends Add, Sub, Mul, And, Or, Xor, or AndNot of x and y, of
+// x's type.
 func (f *Func) Binary(b *Block, op Op, x, y *Instr, pos Pos) *Instr {
-	return f.add(b, &Instr{Op: op, Type: I64, Args: []*Instr{x, y}, Pos: pos})
+	return f.add(b, &Instr{Op: op, Type: x.Type, Args: []*Instr{x, y}, Pos: pos})
 }
 
 // Neg appends the negation of x.
 func (f *Func) Neg(b *Block, x *Instr, pos Pos) *Instr {
-	return f.add(b, &Instr{Op: Neg, Type: I64, Args: []*Instr{x}, Pos: pos})
+	return f.add(b, &Instr{Op: Neg, Type: x.Type, Args: []*Instr{x}, Pos: pos})
+}
+
+// Com appends the complement of x.
+func (f *Func) Com(b *Block, x *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Com, Type: x.Type, Args: []*Instr{x}, Pos: pos})
 }
 
 // Println appends a println of args.

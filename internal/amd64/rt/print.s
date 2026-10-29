@@ -1,6 +1,7 @@
 # Aether runtime: println support (D-009, D-021).
 #
-# aether.printint writes the signed decimal form of %rdi, aether.printbool
+# aether.printint writes the signed decimal form of %rdi, aether.printuint
+# its unsigned decimal form, aether.printbool
 # "true" if %rdi is 1 and "false" if it is 0, aether.printsp a space, and
 # aether.printnl a newline, to file descriptor 2. Each requires
 # %rsp to be 16-byte aligned at the call, returns nothing, preserves %rbx,
@@ -44,6 +45,27 @@ aether.printint:
 	addq	$40, %rsp
 	ret
 	.size	aether.printint, .-aether.printint
+
+	.globl	aether.printuint
+	.type	aether.printuint, @function
+aether.printuint:
+	subq	$40, %rsp		# 32-byte digit buffer at 0(%rsp)
+	movq	%rdi, %rax
+	movl	$10, %ecx
+	leaq	32(%rsp), %rsi		# one past the last digit
+1:	xorl	%edx, %edx
+	divq	%rcx			# unsigned: %rax = x / 10, %rdx = x % 10
+	addl	$48, %edx		# '0' + remainder
+	decq	%rsi
+	movb	%dl, (%rsi)
+	testq	%rax, %rax
+	jnz	1b
+	leaq	32(%rsp), %rdx
+	subq	%rsi, %rdx		# length
+	call	aether.write
+	addq	$40, %rsp
+	ret
+	.size	aether.printuint, .-aether.printuint
 
 	.globl	aether.printbool
 	.type	aether.printbool, @function

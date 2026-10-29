@@ -75,9 +75,15 @@ func (in *Instr) String() string {
 			ops = append(ops, "false")
 		case in.Type == Bool && in.Const == 1:
 			ops = append(ops, "true")
-		default:
+		case in.Type == I64:
 			ops = append(ops, fmt.Sprint(in.Const))
+		case in.Type.IsInteger() && !in.Type.Signed():
+			ops = append(ops, fmt.Sprintf("%s %d", in.Type, uint64(in.Const)))
+		default:
+			ops = append(ops, fmt.Sprintf("%s %d", in.Type, in.Const))
 		}
+	case Conv:
+		ops = append(ops, in.Type.String())
 	case Load, Store:
 		if in.Slot != nil {
 			ops = append(ops, fmt.Sprintf("s%d", in.Slot.ID))

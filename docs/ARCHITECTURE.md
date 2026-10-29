@@ -293,6 +293,11 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 - **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
   checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
   error, so offsets always fit a 32-bit displacement.
+- **Sized integers (increment 4.4).** Every value cell holds 64 bits in
+  canonical form (D-023). An operation on a narrower type computes in 64
+  bits, then canonicalizes `%rax` (`movsbq`, `movswq`, `movslq`, or
+  `movzbl`, `movzwl`, `movl`); a conversion is only that move. Comparisons
+  of unsigned types use the unsigned condition codes.
 - **Tuples (increment 4.3).** A call with several results has one extra
   value cell per result, after the ordinary values' cells; they are filled
   from the outgoing area right after the call, and `extract` copies one.
@@ -502,6 +507,7 @@ that interface is:
 | `aether.stacklimit` | runtime | Writable 8-byte word: the stack limit `L` every prologue checks against (D-009, D-011). |
 | `aether.stackoverflow` | runtime | Entered by `jb` from a prologue, with `%rsp` at least `L` − 8. Writes `fatal error: stack overflow` to fd 2 and exits 2; uses at most 24 bytes below `L`. |
 | `aether.printint`, `aether.printsp`, `aether.printnl` | runtime | Print one `int64` (in `%rdi`) in decimal / a space / a newline to fd 2. No result; `%rsp` 16-byte aligned before `call`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15` and may clobber every other general-purpose register (a subset of the System V convention). Write errors other than `EINTR` are ignored. This interface covers only runtime helpers. It does not decide D-011 (D-022). |
+| `aether.printuint` | runtime | Prints `%rdi` as an unsigned decimal number, under the same interface and the same 56-byte stack bound as `aether.printint`. |
 | `aether.printbool` | runtime | Prints `true` if `%rdi` is 1 and `false` if it is 0, to fd 2, under the same interface as `aether.printint`. Uses 8 bytes below `%rsp` (its return address). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
 

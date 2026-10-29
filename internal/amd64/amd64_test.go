@@ -59,6 +59,17 @@ func sample() *ir.Program {
 	t := f.Not(b, f.BoolConst(b, false, p1), p1)
 	cmps = append(cmps, t, f.Compare(b, ir.Eq, t, cmps[0], p1))
 	f.Println(b, cmps, p1)
+	// Sized integers: bit operations, a conversion with each kind of
+	// canonicalization, an unsigned comparison, print, and println of an
+	// unsigned value.
+	u := f.Conv(b, ir.U8, lx, p1)
+	bits := []*ir.Instr{u, f.Com(b, u, p1)}
+	for _, op := range []ir.Op{ir.And, ir.Or, ir.Xor, ir.AndNot} {
+		bits = append(bits, f.Binary(b, op, u, bits[1], p1))
+	}
+	bits = append(bits, f.Conv(b, ir.I16, big, p1), f.Conv(b, ir.U32, big, p1), f.Compare(b, ir.Lt, u, bits[1], p1))
+	f.Print(b, bits, p1)
+	f.Println(b, []*ir.Instr{f.TypedConst(b, ir.U64, -1, p1)}, p1)
 	b1, b2 := f.NewBlock(), f.NewBlock()
 	f.Branch(b, cmps[2], b1, b2, p1)
 	f.Println(b1, nil, p1)
