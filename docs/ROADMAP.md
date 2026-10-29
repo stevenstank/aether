@@ -392,11 +392,18 @@ repeated in each phase below:
   hand-built IR, the boundary test, the reserve test for the helpers at `L`,
   unbounded recursion end to end, the interpreter depth limit with its
   low-Go-stack subprocess, argument offsets for 0 to 4 parameters, the
-  `NewFrame` bound, and the updated `TestRuntimeStackGuard`. Negative
-  controls run by hand and reverted: without the `jb` or without storing
-  `L`, the overflow and boundary tests die with a signal; with a changed
-  overflow message, the gc comparison fails natively and in the
-  interpreter. Not yet run: everything else below.
+  `NewFrame` bound, and the updated `TestRuntimeStackGuard`; the mapping
+  test (`TestStackMapping`), the overflow handler entered at `L` − 8 with
+  stderr open and closed (`TestOverflowHandlerReserve`), a frame larger than
+  S (`TestFrameLargerThanStack`, its size enlarged in the assembly), and
+  `ulimit -v` at 128 MiB and 1 GiB (`TestRuntimeStack`). Negative controls
+  run by hand and reverted: without the `jb` or without storing `L`, the
+  overflow, boundary, and large-frame tests die with a signal; with flags
+  `0x24022`, the mapping test fails on `nr`; with a changed overflow
+  message, the gc comparison fails natively and in the interpreter. Of
+  4.2, only the tests that need bounded recursion (4.1) are not yet run:
+  depth within the limit and short-circuit side effects. Not yet run for
+  the other increments: everything else below.
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
       tests runs **with a timeout**. Today they run without one

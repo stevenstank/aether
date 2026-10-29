@@ -636,8 +636,12 @@ kill, so it is not used.
 - Out-of-memory termination while the stack is in use cannot be made clean.
 - A guard-page fault means a defect, and produces no diagnostic.
 - With a stack of at least 256 MiB, a small `ulimit -v` makes every program
-  fail at startup with V-1. Phase 3 programs ran under such limits. The exact
-  threshold (estimated at about 260 MiB) has not been measured.
+  fail at startup with V-1. Phase 3 programs ran under such limits. Measured
+  on 2026-10-29 by bisection on this host, for the 9,240-byte executable of
+  `s1_03_milestone1`: it runs with `ulimit -v 262328` (KiB) and fails with
+  V-1 at 262327, a threshold of 256 MiB plus 184 KiB. Other programs and
+  hosts can differ slightly. `TestRuntimeStack` checks a failure at 128 MiB
+  and a run at 1 GiB.
 - Runaway recursion uses up to S bytes of memory before it overflows.
 - Aether frames are larger than gc's, so Aether overflows at a smaller
   recursion depth than gc does at its 1e9-byte limit. The limit is stated in

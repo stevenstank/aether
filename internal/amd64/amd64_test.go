@@ -426,6 +426,10 @@ func TestRuntimeStack(t *testing.T) {
 		{"64 MiB frame, 1 MiB stack limit", 64 << 20, []string{"-s 1024"}, "-5\n", 0},
 		{"maximum frame, 1 MiB stack limit", maxFrame, []string{"-s 1024"}, "-5\n", 0},
 		{"no address space for the stack", 256 << 20, []string{"-v 65536"}, fatal, 2},
+		// The stack is at least 256 MiB (D-009), so a small program fails
+		// cleanly under a 128 MiB address-space limit and runs under 1 GiB.
+		{"small frame, 128 MiB address space", 64, []string{"-v 131072"}, fatal, 2},
+		{"small frame, 1 GiB address space", 64, []string{"-v 1048576"}, "-5\n", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
