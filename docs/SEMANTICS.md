@@ -231,7 +231,7 @@ Planned (Phase 4; each row is added when its increment is implemented):
   Aether prints only `fatal error: stack overflow` and exits 2; gc prints a
   `runtime: goroutine stack exceeds …` line, a `runtime: sp=…` line, the same
   `fatal error` line, and a traceback, and also exits 2 (E14).
-  Normalization:
+  Overflow comparison rule:
   The rule applies to test programs whose recursion never ends, so that the
   gc-built binary, the Aether-built executable, and the interpreter all
   overflow. The program prints nothing during its recursion. Let D be the
@@ -239,18 +239,20 @@ Planned (Phase 4; each row is added when its increment is implemented):
   diagnostic. Let P be the exact byte prefix of the gc-built binary's stderr
   before the first occurrence of D. P holds everything the program printed
   before the recursion and is compared exactly; it need not end in a newline,
-  because `print` writes none. The gc-built binary's stderr must contain D,
-  and its bytes from that occurrence on must begin with D, a space, a decimal
-  number, the text `-byte limit`, and a newline, and must contain a later
-  line that is exactly `fatal error: stack overflow`. The rest of gc's stderr
-  after P, including the `runtime: sp=` line and the traceback, is not
-  compared. The stderr of the Aether-built executable and the stderr of the
+  because `print` writes none. The gc-built binary's stderr must contain D.
+  Its bytes from that occurrence on must begin with the stack-limit line: D,
+  one space, one or more ASCII digits, the text `-byte limit`, and a newline.
+  After the stack-limit line, the first newline-terminated line that begins
+  with `fatal error: ` must exist and must be exactly
+  `fatal error: stack overflow`. Beyond P and these checks, gc's stderr is
+  not compared: the `runtime: sp=` line, the traceback, and any other lines
+  are ignored. The stderr of the Aether-built executable and the stderr of the
   interpreter must each be exactly P followed by `fatal error: stack overflow`
-  and one newline, with nothing after it. The gc-built binary, the
-  Aether-built executable, and the interpreter must each exit with status 2.
-  If any of these checks fails, the test fails. A program that overflows in
-  Aether but not under gc shows the V-2 depth difference and is not compared
-  with gc by this rule.
+  and one newline, with nothing after it. The gc-built binary, the Aether-built
+  executable, and the interpreter must each write nothing to stdout and exit
+  with status 2. If any of these checks fails, the test fails. A program that
+  overflows in Aether but not under gc shows the V-2 depth difference and is not
+  compared with gc by this rule.
 - **Stack limitations** (D-009): running out of memory while the stack is in
   use can end the program by a signal with no message, and a small
   `ulimit -v` makes every program fail at startup with V-1.
