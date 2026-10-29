@@ -5,8 +5,8 @@
 // meaning is specified here and in docs/ARCHITECTURE.md §4, precisely enough
 // that a backend or interpreter can consume it without consulting Go source.
 //
-// The instruction set covers subset S1 (docs/SEMANTICS.md) and the calls
-// of D-023 increment 4.2. A program is a set of functions; a function owns its local variable slots
+// The instruction set covers subset S1 (docs/SEMANTICS.md), the calls of
+// D-023 increment 4.2, and the control flow and bool of increment 4.1. A program is a set of functions; a function owns its local variable slots
 // and a list of basic blocks; a block is a sequence of instructions ending in
 // one terminator. An instruction that produces a value is that value:
 // operands refer to such instructions directly.
@@ -23,6 +23,8 @@ const (
 	// I64 is a 64-bit two's-complement integer. Go's int lowers to I64
 	// (types.SizesFor("gc", "amd64")).
 	I64
+	// Bool is a boolean, held as 0 (false) or 1 (true).
+	Bool
 )
 
 func (t Type) String() string {
@@ -31,6 +33,8 @@ func (t Type) String() string {
 		return "none"
 	case I64:
 		return "i64"
+	case Bool:
+		return "bool"
 	}
 	return fmt.Sprintf("Type(%d)", uint8(t))
 }
@@ -41,7 +45,8 @@ type Op uint8
 
 const (
 	invalidOp Op = iota
-	// Const produces the I64 constant Const. No args.
+	// Const produces the constant Const of its type: any value for I64, 0
+	// or 1 for Bool. No args.
 	Const
 	// Load produces the current contents of Slot. No args. The slot must
 	// have been stored to earlier on every path to the load.
@@ -57,8 +62,9 @@ const (
 	// Neg produces 0 - args[0], wrapping; Neg of the minimum I64 is the
 	// minimum I64.
 	Neg
-	// Println writes its args to standard error in signed decimal,
-	// separated by single spaces and followed by a newline, in that order.
+	// Println writes its args to standard error, I64 in signed decimal
+	// and Bool as true or false, separated by single spaces and followed
+	// by a newline, in that order.
 	// The args are already-evaluated values, so all of them are computed
 	// before any output. Write errors are ignored (D-009). It produces no
 	// value.
@@ -67,6 +73,22 @@ const (
 	// results: one arg per entry of Results, of the same type. It is a
 	// terminator and produces no value.
 	Ret
+	// Jump continues at Targets[0]. It is a terminator. No args.
+	Jump
+	// Branch continues at Targets[0] if args[0], a Bool, is true, and at
+	// Targets[1] otherwise. It is a terminator.
+	Branch
+	// Eq, Ne, Lt, Le, Gt, and Ge produce the Bool result of comparing
+	// args[0] with args[1], which have the same type: signed for I64; only
+	// Eq and Ne for Bool.
+	Eq
+	Ne
+	Lt
+	Le
+	Gt
+	Ge
+	// Not produces the negation of args[0], a Bool.
+	Not
 	// Param produces the value of parameter Index of the function. No
 	// args. It appears only in the entry block.
 	Param
@@ -80,7 +102,8 @@ const (
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",
 	Add: "add", Sub: "sub", Mul: "mul", Neg: "neg", Println: "println", Ret: "ret",
-	Param: "param", Call: "call",
+	Param: "param", Call: "call", Jump: "jump", Branch: "branch",
+	Eq: "eq", Ne: "ne", Lt: "lt", Le: "le", Gt: "gt", Ge: "ge", Not: "not",
 }
 
 func (op Op) String() string {
@@ -91,7 +114,10 @@ func (op Op) String() string {
 }
 
 // IsTerminator reports whether op ends a block.
-func (op Op) IsTerminator() bool { return op == Ret }
+func (op Op) IsTerminator() bool { return op == Ret || op == Jump || op == Branch }
+
+// IsComparison reports whether op is one of Eq through Ge.
+func (op Op) IsComparison() bool { return op >= Eq && op <= Ge }
 
 // Pos is a source position, 1-based, in the file of the enclosing function.
 type Pos struct {
@@ -140,15 +166,16 @@ type Block struct {
 // Instr is an instruction. If its Type is not NoType it produces a value,
 // numbered ID, and other instructions may use it as an argument.
 type Instr struct {
-	Op     Op
-	Type   Type
-	ID     int // value number, unique in the function; -1 if no value
-	Args   []*Instr
-	Slot   *Slot // for Load and Store
-	Const  int64 // for Const
-	Index  int   // for Param
-	Callee *Func // for Call
-	Pos    Pos
+	Op      Op
+	Type    Type
+	ID      int // value number, unique in the function; -1 if no value
+	Args    []*Instr
+	Slot    *Slot    // for Load and Store
+	Const   int64    // for Const
+	Index   int      // for Param
+	Callee  *Func    // for Call
+	Targets []*Block // for Jump and Branch
+	Pos     Pos
 }
 
 // NewFunc returns an empty function with an entry block.
@@ -157,6 +184,13 @@ func (p *Program) NewFunc(name, file string, pos Pos) *Func {
 	f.Blocks = []*Block{{ID: 0}}
 	p.Funcs = append(p.Funcs, f)
 	return f
+}
+
+// NewBlock adds an empty block to f.
+func (f *Func) NewBlock() *Block {
+	b := &Block{ID: len(f.Blocks)}
+	f.Blocks = append(f.Blocks, b)
+	return b
 }
 
 // NewSlot adds a local variable slot to f.
@@ -183,9 +217,38 @@ func (f *Func) add(b *Block, in *Instr) *Instr {
 	return in
 }
 
-// Const appends a constant.
+// Const appends an I64 constant.
 func (f *Func) Const(b *Block, v int64, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Const, Type: I64, Const: v, Pos: pos})
+}
+
+// BoolConst appends a Bool constant.
+func (f *Func) BoolConst(b *Block, v bool, pos Pos) *Instr {
+	in := &Instr{Op: Const, Type: Bool, Pos: pos}
+	if v {
+		in.Const = 1
+	}
+	return f.add(b, in)
+}
+
+// Compare appends the comparison op of x and y.
+func (f *Func) Compare(b *Block, op Op, x, y *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: op, Type: Bool, Args: []*Instr{x, y}, Pos: pos})
+}
+
+// Not appends the negation of x.
+func (f *Func) Not(b *Block, x *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Not, Type: Bool, Args: []*Instr{x}, Pos: pos})
+}
+
+// Jump appends a jump to target.
+func (f *Func) Jump(b, target *Block, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Jump, Targets: []*Block{target}, Pos: pos})
+}
+
+// Branch appends a branch on cond to t or e.
+func (f *Func) Branch(b *Block, cond *Instr, t, e *Block, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Branch, Args: []*Instr{cond}, Targets: []*Block{t, e}, Pos: pos})
 }
 
 // Load appends a load of s.

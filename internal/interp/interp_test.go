@@ -239,3 +239,71 @@ func TestStackOverflowLowGoStack(t *testing.T) {
 		t.Fatalf("subprocess with a 64 KiB Go stack: %v\n%s", err, out)
 	}
 }
+
+// countdown builds: n := start; for { println(n, n > 0, !(n > 0)); if
+// !(n > 0) { break }; n-- }. With start < 0 it never ends.
+func countdown(start int64, loop bool) *ir.Program {
+	p := &ir.Program{}
+	f := p.NewFunc("main", "p.go", p1)
+	n := f.NewSlot("n", ir.I64, p1)
+	b0, head, body, exit := f.Entry(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+	f.Store(b0, n, f.Const(b0, start, p1), p1)
+	f.Jump(b0, head, p1)
+	pos := f.Compare(head, ir.Gt, f.Load(head, n, p1), f.Const(head, 0, p1), p1)
+	f.Println(head, []*ir.Instr{f.Load(head, n, p1), pos, f.Not(head, pos, p1)}, p1)
+	if loop {
+		pos = f.Compare(head, ir.Ne, f.Load(head, n, p1), f.Const(head, 0, p1), p1)
+	}
+	f.Branch(head, pos, body, exit, p1)
+	f.Store(body, n, f.Binary(body, ir.Sub, f.Load(body, n, p1), f.Const(body, 1, p1), p1), p1)
+	f.Jump(body, head, p1)
+	f.Ret(exit, p1)
+	return p
+}
+
+func TestControlFlow(t *testing.T) {
+	want := "2 true false\n1 true false\n0 false true\n"
+	if got := output(t, countdown(2, false)); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestComparisons(t *testing.T) {
+	edges := []int64{math.MinInt64, -1, 0, 1, math.MaxInt64}
+	var want strings.Builder
+	got := output(t, program(func(f *ir.Func, b *ir.Block) {
+		for _, x := range edges {
+			for _, y := range edges {
+				var args []*ir.Instr
+				for _, op := range []ir.Op{ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge} {
+					args = append(args, f.Compare(b, op, f.Const(b, x, p1), f.Const(b, y, p1), p1))
+				}
+				f.Println(b, args, p1)
+				fmt.Fprintln(&want, x == y, x != y, x < y, x <= y, x > y, x >= y)
+			}
+		}
+		for _, x := range []bool{false, true} {
+			for _, y := range []bool{false, true} {
+				bx, by := f.BoolConst(b, x, p1), f.BoolConst(b, y, p1)
+				f.Println(b, []*ir.Instr{f.Compare(b, ir.Eq, bx, by, p1), f.Compare(b, ir.Ne, bx, by, p1), f.Not(b, bx, p1)}, p1)
+				fmt.Fprintln(&want, x == y, x != y, !x)
+			}
+		}
+	}))
+	if got != want.String() {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want.String())
+	}
+}
+
+// TestStepBudget checks that a program that never ends stops with ErrSteps,
+// and that the budget does not affect a program that ends within it.
+func TestStepBudget(t *testing.T) {
+	var stderr bytes.Buffer
+	if code, err := RunSteps(countdown(-1, true), &stderr, 1000); !errors.Is(err, ErrSteps) || code != 0 {
+		t.Errorf("endless loop: exit %d, %v; want ErrSteps", code, err)
+	}
+	stderr.Reset()
+	if code, err := RunSteps(countdown(2, false), &stderr, 1000); err != nil || code != 0 || stderr.String() != "2 true false\n1 true false\n0 false true\n" {
+		t.Errorf("bounded loop: exit %d, %v, %q", code, err, stderr.String())
+	}
+}

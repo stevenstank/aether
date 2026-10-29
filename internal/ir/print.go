@@ -66,7 +66,14 @@ func (in *Instr) String() string {
 	var ops []string
 	switch in.Op {
 	case Const:
-		ops = append(ops, fmt.Sprint(in.Const))
+		switch {
+		case in.Type == Bool && in.Const == 0:
+			ops = append(ops, "false")
+		case in.Type == Bool && in.Const == 1:
+			ops = append(ops, "true")
+		default:
+			ops = append(ops, fmt.Sprint(in.Const))
+		}
 	case Load, Store:
 		if in.Slot != nil {
 			ops = append(ops, fmt.Sprintf("s%d", in.Slot.ID))
@@ -87,6 +94,13 @@ func (in *Instr) String() string {
 			ops = append(ops, "v?")
 		} else {
 			ops = append(ops, fmt.Sprintf("v%d", a.ID))
+		}
+	}
+	for _, t := range in.Targets {
+		if t == nil {
+			ops = append(ops, "b?")
+		} else {
+			ops = append(ops, fmt.Sprintf("b%d", t.ID))
 		}
 	}
 	if len(ops) > 0 {

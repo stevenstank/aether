@@ -50,7 +50,20 @@ func sample() *ir.Program {
 	f.Println(b, []*ir.Instr{lx, prod}, p1)
 	f.Println(b, nil, p1)
 	f.Println(b, []*ir.Instr{f.Call(b, sub, []*ir.Instr{lx, big}, p1)}, p1)
-	f.Ret(b, p1)
+	// Comparisons, not, bool println, and both terminators: b0 branches
+	// to b1 or b2, and b1 jumps to b2.
+	var cmps []*ir.Instr
+	for _, op := range []ir.Op{ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge} {
+		cmps = append(cmps, f.Compare(b, op, lx, big, p1))
+	}
+	t := f.Not(b, f.BoolConst(b, false, p1), p1)
+	cmps = append(cmps, t, f.Compare(b, ir.Eq, t, cmps[0], p1))
+	f.Println(b, cmps, p1)
+	b1, b2 := f.NewBlock(), f.NewBlock()
+	f.Branch(b, cmps[2], b1, b2, p1)
+	f.Println(b1, nil, p1)
+	f.Jump(b1, b2, p1)
+	f.Ret(b2, p1)
 	return p
 }
 
@@ -629,7 +642,7 @@ func TestStackBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(asm, fmt.Appendf(nil, "\taddq\t$%d, %%rax\n\tcmpq\t%%rax, %%rsp\n\tjb\taether.stackoverflow\n\tpushq\t%%rbp\n\tmovq\t%%rsp, %%rbp\n\tsubq\t$%d, %%rsp\n\t# v0 = const", fr.Size+8, fr.Size)) {
+	if !bytes.Contains(asm, fmt.Appendf(nil, "\taddq\t$%d, %%rax\n\tcmpq\t%%rax, %%rsp\n\tjb\taether.stackoverflow\n\tpushq\t%%rbp\n\tmovq\t%%rsp, %%rbp\n\tsubq\t$%d, %%rsp\n.L1.b0:\n\t# v0 = const", fr.Size+8, fr.Size)) {
 		t.Fatalf("leaf's frame is not %d bytes:\n%s", fr.Size, asm)
 	}
 	compiled := bytes.ReplaceAll(asm, []byte("main.main"), []byte("main.compiled"))
@@ -663,5 +676,57 @@ main.main:
 		if got != tt.want || code != tt.code {
 			t.Errorf("%s: exit %d, stderr %q; want exit %d, %q", tt.name, code, got, tt.code, tt.want)
 		}
+	}
+}
+
+// TestNativeControlFlow runs every comparison on the integer and bool
+// boundaries, not, and a loop with a conditional exit, natively and in the
+// interpreter, and requires identical output. Signed and unsigned
+// comparisons differ on these operands, so an unsigned condition code fails
+// it.
+func TestNativeControlFlow(t *testing.T) {
+	edges := []int64{math.MinInt64, math.MinInt32, -1, 0, 1, math.MaxInt32, math.MaxInt64}
+	p := &ir.Program{}
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	for _, x := range edges {
+		for _, y := range edges {
+			var args []*ir.Instr
+			for _, op := range []ir.Op{ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge} {
+				args = append(args, f.Compare(b, op, f.Const(b, x, p1), f.Const(b, y, p1), p1))
+			}
+			f.Println(b, args, p1)
+		}
+	}
+	for _, x := range []bool{false, true} {
+		for _, y := range []bool{false, true} {
+			bx, by := f.BoolConst(b, x, p1), f.BoolConst(b, y, p1)
+			f.Println(b, []*ir.Instr{f.Compare(b, ir.Eq, bx, by, p1), f.Compare(b, ir.Ne, bx, by, p1), f.Not(b, bx, p1)}, p1)
+		}
+	}
+	// n := 3; for n > -3 { println(n, n < 0); n-- }
+	n := f.NewSlot("n", ir.I64, p1)
+	head, body, exit := f.NewBlock(), f.NewBlock(), f.NewBlock()
+	f.Store(b, n, f.Const(b, 3, p1), p1)
+	f.Jump(b, head, p1)
+	f.Branch(head, f.Compare(head, ir.Gt, f.Load(head, n, p1), f.Const(head, -3, p1), p1), body, exit, p1)
+	f.Println(body, []*ir.Instr{f.Load(body, n, p1), f.Compare(body, ir.Lt, f.Load(body, n, p1), f.Const(body, 0, p1), p1)}, p1)
+	f.Store(body, n, f.Binary(body, ir.Sub, f.Load(body, n, p1), f.Const(body, 1, p1), p1), p1)
+	f.Jump(body, head, p1)
+	f.Ret(exit, p1)
+	var want bytes.Buffer
+	if code, err := interp.Run(p, &want); err != nil || code != 0 {
+		t.Fatalf("interpreter: exit %d, %v", code, err)
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil)
+	if code != 0 || got != want.String() {
+		t.Errorf("exit %d; native output differs from the interpreter's\nnative:\n%s\ninterpreter:\n%s", code, got, want.String())
+	}
+	if !strings.HasSuffix(got, "-1 true\n-2 true\n") {
+		t.Errorf("loop output: %q", got[max(0, len(got)-40):])
 	}
 }

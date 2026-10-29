@@ -34,12 +34,23 @@ const stackOverflow = "fatal error: stack overflow\n"
 // The program is verified first. Malformed IR is an error, and nothing is
 // executed. Errors writing to stderr are ignored, as the IR requires.
 func Run(prog *ir.Program, stderr io.Writer) (int, error) {
+	return RunSteps(prog, stderr, 0)
+}
+
+// ErrSteps reports that a program exceeded its step budget.
+var ErrSteps = errors.New("interp: step budget exhausted")
+
+// RunSteps is Run with a step budget, for tests (D-023): if the program
+// executes more than steps instructions, it stops with ErrSteps, so a
+// lowering bug that loops fails instead of hanging. A budget of 0 means
+// none.
+func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
 	if errs := ir.Verify(prog); len(errs) > 0 {
 		return 0, fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, stderr)
+			return run(f, stderr, steps)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
@@ -48,7 +59,8 @@ func Run(prog *ir.Program, stderr io.Writer) (int, error) {
 // frame is one active call.
 type frame struct {
 	f      *ir.Func
-	pc     int     // index of the next instruction in the entry block
+	blk    *ir.Block
+	pc     int     // index of the next instruction in blk
 	args   []int64 // the parameters
 	slots  []int64
 	values []int64 // indexed by value number
@@ -57,25 +69,30 @@ type frame struct {
 // run executes main and every call it makes on an explicit frame stack in
 // one loop, never with a Go call per IR call, so the interpreter's own Go
 // stack does not grow with the IR call depth (D-023).
-func run(main *ir.Func, stderr io.Writer) (int, error) {
+func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
 		if !ok {
-			for _, in := range f.Entry().Instrs {
-				n = max(n, in.ID+1)
+			for _, b := range f.Blocks {
+				for _, in := range b.Instrs {
+					n = max(n, in.ID+1)
+				}
 			}
 			nvalues[f] = n
 		}
-		return frame{f: f, args: args, slots: make([]int64, len(f.Slots)), values: make([]int64, n)}
+		return frame{f: f, blk: f.Entry(), args: args, slots: make([]int64, len(f.Slots)), values: make([]int64, n)}
 	}
 	stack := []frame{newFrame(main, nil)}
-	for {
+	for executed := int64(0); ; executed++ {
+		if steps > 0 && executed == steps {
+			return 0, ErrSteps
+		}
 		fr := &stack[len(stack)-1]
 		// Verify guarantees that every operand was computed earlier in
-		// the block and every slot was stored before it is loaded, and a
-		// single block ending in ret: the IR has no branches.
-		in := fr.f.Entry().Instrs[fr.pc]
+		// the block, that every slot is stored on every path before it is
+		// loaded, and that every block ends in a terminator.
+		in := fr.blk.Instrs[fr.pc]
 		fr.pc++
 		arg := func(i int) int64 { return fr.values[in.Args[i].ID] }
 		switch in.Op {
@@ -95,13 +112,25 @@ func run(main *ir.Func, stderr io.Writer) (int, error) {
 			fr.values[in.ID] = arg(0) * arg(1)
 		case ir.Neg:
 			fr.values[in.ID] = -arg(0)
+		case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
+			fr.values[in.ID] = b2i(compare(in.Op, arg(0), arg(1)))
+		case ir.Not:
+			fr.values[in.ID] = 1 - arg(0)
+		case ir.Jump:
+			fr.blk, fr.pc = in.Targets[0], 0
+		case ir.Branch:
+			fr.blk, fr.pc = in.Targets[1-arg(0)], 0
 		case ir.Println:
 			var line []byte
-			for i := range in.Args {
+			for i, a := range in.Args {
 				if i > 0 {
 					line = append(line, ' ')
 				}
-				line = strconv.AppendInt(line, arg(i), 10)
+				if a.Type == ir.Bool {
+					line = strconv.AppendBool(line, arg(i) == 1)
+				} else {
+					line = strconv.AppendInt(line, arg(i), 10)
+				}
 			}
 			line = append(line, '\n')
 			_, _ = stderr.Write(line)
@@ -127,11 +156,36 @@ func run(main *ir.Func, stderr io.Writer) (int, error) {
 				return 0, nil
 			}
 			caller := &stack[len(stack)-1]
-			if call := caller.f.Entry().Instrs[caller.pc-1]; call.Type != ir.NoType {
+			if call := caller.blk.Instrs[caller.pc-1]; call.Type != ir.NoType {
 				caller.values[call.ID] = result
 			}
 		default:
 			return 0, fmt.Errorf("interp: func %s: cannot execute %s", fr.f.Name, in)
 		}
 	}
+}
+
+// compare applies a comparison to canonical values: signed for I64, and
+// 0 or 1 for Bool, where only Eq and Ne apply.
+func compare(op ir.Op, x, y int64) bool {
+	switch op {
+	case ir.Eq:
+		return x == y
+	case ir.Ne:
+		return x != y
+	case ir.Lt:
+		return x < y
+	case ir.Le:
+		return x <= y
+	case ir.Gt:
+		return x > y
+	}
+	return x >= y // ir.Ge
+}
+
+func b2i(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }

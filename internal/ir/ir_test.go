@@ -216,3 +216,126 @@ func TestVerifyCalls(t *testing.T) {
 		})
 	}
 }
+
+// loop builds the IR for
+//
+//	func main() {
+//		i := 0          // b0
+//		for i < 3 {     // b1
+//			i++     // b2
+//		}
+//		println(i, true) // b3
+//	}
+func loop() *Program {
+	p := &Program{}
+	f := p.NewFunc("main", "p.go", Pos{1, 6})
+	i := f.NewSlot("i", I64, Pos{2, 2})
+	b0, b1, b2, b3 := f.Entry(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+	f.Store(b0, i, f.Const(b0, 0, Pos{2, 7}), Pos{2, 2})
+	f.Jump(b0, b1, Pos{3, 2})
+	f.Branch(b1, f.Compare(b1, Lt, f.Load(b1, i, Pos{3, 6}), f.Const(b1, 3, Pos{3, 10}), Pos{3, 8}), b2, b3, Pos{3, 2})
+	f.Store(b2, i, f.Binary(b2, Add, f.Load(b2, i, Pos{4, 3}), f.Const(b2, 1, Pos{4, 4}), Pos{4, 4}), Pos{4, 3})
+	f.Jump(b2, b1, Pos{5, 2})
+	f.Println(b3, []*Instr{f.Load(b3, i, Pos{6, 10}), f.BoolConst(b3, true, Pos{6, 13})}, Pos{6, 2})
+	f.Ret(b3, Pos{7, 1})
+	return p
+}
+
+func TestPrintBlocks(t *testing.T) {
+	want := `func main @p.go:1:6
+  slot s0 i i64 @2:2
+b0:
+  v0 = const 0 @2:7
+  store s0, v0 @2:2
+  jump b1 @3:2
+b1:
+  v1 = load s0 @3:6
+  v2 = const 3 @3:10
+  v3 = lt v1, v2 @3:8
+  branch v3, b2, b3 @3:2
+b2:
+  v4 = load s0 @4:3
+  v5 = const 1 @4:4
+  v6 = add v4, v5 @4:4
+  store s0, v6 @4:3
+  jump b1 @5:2
+b3:
+  v7 = load s0 @6:10
+  v8 = const true @6:13
+  println v7, v8 @6:2
+  ret @7:1
+`
+	if got := loop().String(); got != want {
+		t.Errorf("String():\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifyControlFlow checks D-023 invariants 1-5. The loop header reads
+// a slot stored before the loop, which only the greatest fixed point of the
+// definite-assignment dataflow accepts.
+func TestVerifyControlFlow(t *testing.T) {
+	if errs := Verify(loop()); len(errs) != 0 {
+		t.Fatalf("valid loop rejected: %v", errs)
+	}
+	at := func(p *Program, b, i int) *Instr { return p.Funcs[0].Blocks[b].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		// A slot stored on only one path before a load: in the loop, i is
+		// first stored in b2, so the load in b1 (reached from b0) and the
+		// one in b3 have a path without a store.
+		{"store on one path only", func(p *Program) { p.Funcs[0].Blocks[0].Instrs = p.Funcs[0].Blocks[0].Instrs[2:] },
+			"b1: instr 0 (v1 = load s0): load of s0 (i) before any store to it on every path"},
+		{"store only inside the loop body, load after", func(p *Program) {
+			f := p.Funcs[0]
+			j := f.NewSlot("j", I64, Pos{1, 1})
+			b2 := f.Blocks[2]
+			b2.Instrs = append([]*Instr{{Op: Store, ID: -1, Slot: j, Args: []*Instr{at(p, 2, 1)}, Pos: Pos{1, 1}}}, b2.Instrs...)
+			b2.Instrs[0], b2.Instrs[2] = b2.Instrs[2], b2.Instrs[0] // after v5 is defined
+			f.Blocks[3].Instrs = append([]*Instr{{Op: Load, Type: I64, ID: 20, Slot: j, Pos: Pos{1, 1}}}, f.Blocks[3].Instrs...)
+		}, "b3: instr 0 (v20 = load s1): load of s1 (j) before any store to it on every path"},
+		{"unreachable block", func(p *Program) { at(p, 0, 2).Targets[0] = p.Funcs[0].Blocks[3] }, "b1: unreachable block"},
+		{"foreign target", func(p *Program) { at(p, 2, 4).Targets[0] = &Block{ID: 1} }, "b2: instr 4 (jump b1): target is not a block of this function"},
+		{"missing target", func(p *Program) { at(p, 1, 3).Targets = at(p, 1, 3).Targets[:1] }, "branch has 1 targets, want 2"},
+		{"target on another operation", func(p *Program) { at(p, 3, 2).Targets = []*Block{p.Funcs[0].Blocks[0]} }, "println has 1 targets, want 0"},
+		{"jump not last", func(p *Program) {
+			b := p.Funcs[0].Blocks[0]
+			b.Instrs = append(b.Instrs, &Instr{Op: Ret, ID: -1, Pos: Pos{1, 1}})
+		}, "b0: instr 2 (jump b1): terminator before the end of the block"},
+		{"branch on an integer", func(p *Program) { at(p, 1, 3).Args[0] = at(p, 1, 1) }, "instr 3 (branch v2, b2, b3): operand v2 has type i64, want bool"},
+		{"lt on bools", func(p *Program) {
+			b3 := p.Funcs[0].Blocks[3]
+			lt := &Instr{Op: Lt, Type: Bool, ID: 21, Args: []*Instr{b3.Instrs[1], b3.Instrs[1]}, Pos: Pos{1, 1}}
+			b3.Instrs = append(b3.Instrs[:2], append([]*Instr{lt}, b3.Instrs[2:]...)...)
+		}, "instr 2 (v21 = lt v8, v8): operand v8 has type bool, want i64"},
+		{"eq of mixed types", func(p *Program) {
+			b3 := p.Funcs[0].Blocks[3]
+			eq := &Instr{Op: Eq, Type: Bool, ID: 21, Args: []*Instr{b3.Instrs[1], b3.Instrs[0]}, Pos: Pos{1, 1}}
+			b3.Instrs = append(b3.Instrs[:2], append([]*Instr{eq}, b3.Instrs[2:]...)...)
+		}, "instr 2 (v21 = eq v8, v7): operand v7 has type i64, want bool"},
+		{"not of an integer", func(p *Program) {
+			b3 := p.Funcs[0].Blocks[3]
+			not := &Instr{Op: Not, Type: Bool, ID: 21, Args: []*Instr{b3.Instrs[0]}, Pos: Pos{1, 1}}
+			b3.Instrs = append(b3.Instrs[:1], append([]*Instr{not}, b3.Instrs[1:]...)...)
+		}, "instr 1 (v21 = not v7): operand v7 has type i64, want bool"},
+		{"comparison result type", func(p *Program) { at(p, 1, 2).Type = I64 }, "lt has result type i64, want bool"},
+		{"bool constant out of range", func(p *Program) { at(p, 3, 1).Const = 2 }, "bool constant 2 is not 0 or 1"},
+		{"store of the wrong type", func(p *Program) { at(p, 0, 0).Type = Bool }, "instr 1 (store s0, v0): operand v0 has type bool, want i64"},
+		{"value across blocks", func(p *Program) { at(p, 3, 2).Args[0] = at(p, 1, 0) }, "b3: instr 2 (println v1, v8): operand v1 is not defined earlier in this block"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := loop()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors do not mention %q:\n%s", tt.want, all)
+			}
+		})
+	}
+}

@@ -25,6 +25,7 @@ import (
 // and %r12-%r15.
 const (
 	symPrintInt   = "aether.printint"
+	symPrintBool  = "aether.printbool"
 	symPrintSpace = "aether.printsp"
 	symPrintNL    = "aether.printnl"
 )
@@ -102,8 +103,8 @@ func Emit(prog *ir.Program) ([]byte, error) {
 	b.WriteString("\t.text\n")
 	// Verify guarantees exactly one main function.
 	var stack int
-	for _, f := range prog.Funcs {
-		fr, err := emitFunc(&b, f)
+	for fi, f := range prog.Funcs {
+		fr, err := emitFunc(&b, fi, f)
 		if err != nil {
 			return nil, err
 		}
@@ -121,8 +122,9 @@ func Emit(prog *ir.Program) ([]byte, error) {
 // funcSym is the symbol of an Aether-compiled function (D-011).
 func funcSym(f *ir.Func) string { return "main." + f.Name }
 
-// emitFunc emits f and returns its frame.
-func emitFunc(b *bytes.Buffer, f *ir.Func) (Frame, error) {
+// emitFunc emits f, the program's function number fi, and returns its
+// frame.
+func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 	values, out := 0, 0
 	for _, blk := range f.Blocks {
 		for _, in := range blk.Instrs {
@@ -147,18 +149,27 @@ func emitFunc(b *bytes.Buffer, f *ir.Func) (Frame, error) {
 	if fr.Size > 0 {
 		fmt.Fprintf(b, "\tsubq\t$%d, %%rsp\n", fr.Size)
 	}
-	// Verify guarantees a single block.
-	for _, in := range f.Entry().Instrs {
-		fmt.Fprintf(b, "\t# %s @%s\n", in, in.Pos)
-		if err := emitInstr(b, fr, f, in); err != nil {
-			return Frame{}, fmt.Errorf("amd64: func %s: %s: %v", f.Name, in, err)
+	// Blocks are emitted in order, each under a local label; the entry
+	// block follows the prologue.
+	label := func(blk *ir.Block) string { return fmt.Sprintf(".L%d.b%d", fi, blk.ID) }
+	for _, blk := range f.Blocks {
+		fmt.Fprintf(b, "%s:\n", label(blk))
+		for _, in := range blk.Instrs {
+			fmt.Fprintf(b, "\t# %s @%s\n", in, in.Pos)
+			if err := emitInstr(b, fr, f, label, in); err != nil {
+				return Frame{}, fmt.Errorf("amd64: func %s: %s: %v", f.Name, in, err)
+			}
 		}
 	}
 	fmt.Fprintf(b, "\t.size\t%s, .-%s\n", sym, sym)
 	return fr, nil
 }
 
-func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, in *ir.Instr) error {
+// setcc maps a comparison to the set instruction that tests its signed
+// condition after "cmpq y, x" (which computes x - y).
+var setcc = map[ir.Op]string{ir.Eq: "sete", ir.Ne: "setne", ir.Lt: "setl", ir.Le: "setle", ir.Gt: "setg", ir.Ge: "setge"}
+
+func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) string, in *ir.Instr) error {
 	val := func(v *ir.Instr) string { return fmt.Sprintf("%d(%%rbp)", fr.ValueOffset(v.ID)) }
 	res := func() string { return val(in) }
 	op := func(format string, args ...any) {
@@ -194,6 +205,25 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, in *ir.Instr) error {
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("negq\t%%rax")
 		op("movq\t%%rax, %s", res())
+	case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
+		// Bool operands are 0 or 1, so the same signed test is exact for
+		// Eq and Ne on them.
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		op("cmpq\t%s, %%rax", val(in.Args[1]))
+		op("%s\t%%al", setcc[in.Op])
+		op("movzbl\t%%al, %%eax")
+		op("movq\t%%rax, %s", res())
+	case ir.Not:
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		op("xorq\t$1, %%rax")
+		op("movq\t%%rax, %s", res())
+	case ir.Jump:
+		op("jmp\t%s", label(in.Targets[0]))
+	case ir.Branch:
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		op("testq\t%%rax, %%rax")
+		op("jnz\t%s", label(in.Targets[0]))
+		op("jmp\t%s", label(in.Targets[1]))
 	case ir.Println:
 		// The operands are already in the frame, which the helpers do not
 		// touch, so they survive the calls. Each call is made with %rsp
@@ -203,7 +233,11 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, in *ir.Instr) error {
 				op("call\t%s", symPrintSpace)
 			}
 			op("movq\t%s, %%rdi", val(a))
-			op("call\t%s", symPrintInt)
+			if a.Type == ir.Bool {
+				op("call\t%s", symPrintBool)
+			} else {
+				op("call\t%s", symPrintInt)
+			}
 		}
 		op("call\t%s", symPrintNL)
 	case ir.Param:

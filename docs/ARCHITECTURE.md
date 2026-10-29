@@ -293,6 +293,10 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 - **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
   checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
   error, so offsets always fit a 32-bit displacement.
+- **Blocks (increment 4.1).** Blocks are emitted in order, each under the
+  local label `.L<function index>.b<block ID>`. A comparison is `cmpq` and
+  a signed `setcc` into a 0-or-1 cell; `branch` tests its cell and jumps
+  to either target.
 - **Calls (increment 4.2, ABI-S0, D-011).** A function with calls also
   reserves an outgoing area of `8*max(P+R)` bytes at the bottom of its frame,
   included in Size; its own arguments and result are at `16+8*i(%rbp)`.
@@ -495,6 +499,7 @@ that interface is:
 | `aether.stacklimit` | runtime | Writable 8-byte word: the stack limit `L` every prologue checks against (D-009, D-011). |
 | `aether.stackoverflow` | runtime | Entered by `jb` from a prologue, with `%rsp` at least `L` − 8. Writes `fatal error: stack overflow` to fd 2 and exits 2; uses at most 24 bytes below `L`. |
 | `aether.printint`, `aether.printsp`, `aether.printnl` | runtime | Print one `int64` (in `%rdi`) in decimal / a space / a newline to fd 2. No result; `%rsp` 16-byte aligned before `call`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15` and may clobber every other general-purpose register (a subset of the System V convention). Write errors other than `EINTR` are ignored. This interface covers only runtime helpers. It does not decide D-011 (D-022). |
+| `aether.printbool` | runtime | Prints `true` if `%rdi` is 1 and `false` if it is 0, to fd 2, under the same interface as `aether.printint`. Uses 8 bytes below `%rsp` (its return address). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
 
 Rules:

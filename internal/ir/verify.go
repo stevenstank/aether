@@ -76,12 +76,12 @@ func verifyFunc(f *Func, funcs map[*Func]bool) []error {
 		v.errorf(-1, -1, nil, "missing source position")
 	}
 	for i, t := range f.Params {
-		if t != I64 {
+		if !validType(t) {
 			v.errorf(-1, -1, nil, "parameter %d has invalid type %s", i, t)
 		}
 	}
 	for i, t := range f.Results {
-		if t != I64 {
+		if !validType(t) {
 			v.errorf(-1, -1, nil, "result %d has invalid type %s", i, t)
 		}
 	}
@@ -97,7 +97,7 @@ func verifyFunc(f *Func, funcs map[*Func]bool) []error {
 			v.errorf(-1, -1, nil, "slot %d is nil", i)
 		case s.ID != i:
 			v.errorf(-1, -1, nil, "slot %d has ID %d", i, s.ID)
-		case s.Type != I64:
+		case !validType(s.Type):
 			v.errorf(-1, -1, nil, "slot s%d has invalid type %s", i, s.Type)
 		case !validPos(s.Pos):
 			v.errorf(-1, -1, nil, "slot s%d has no source position", i)
@@ -107,35 +107,131 @@ func verifyFunc(f *Func, funcs map[*Func]bool) []error {
 		v.errorf(-1, -1, nil, "no blocks")
 		return v.errs
 	}
-	// The IR has no branch instructions, so no block can transfer control
-	// to another: every block except the entry is unreachable.
+	malformed := false
 	for i, b := range f.Blocks {
-		if b == nil {
+		switch {
+		case b == nil:
 			v.errorf(i, -1, nil, "nil block")
+		case b.ID != i:
+			v.errorf(i, -1, nil, "block has ID %d", b.ID)
+		default:
 			continue
 		}
-		if b.ID != i {
-			v.errorf(i, -1, nil, "block has ID %d", b.ID)
+		malformed = true
+	}
+	if malformed {
+		return v.errs // the checks below index blocks by ID
+	}
+	reachable := v.reachable()
+	in := v.definitelyStored(reachable)
+	for i, b := range f.Blocks {
+		if !reachable[i] {
+			v.errorf(i, -1, nil, "unreachable block: no path from the entry reaches it")
 		}
-		if i > 0 {
-			v.errorf(i, -1, nil, "unreachable block: no instruction branches to it")
-		}
-		v.block(b, i)
+		v.block(b, i, in[i])
 	}
 	return v.errs
 }
 
-// block checks one block. Because the IR has no branches, the instructions
-// before a use are exactly those that execute before it, so "defined
-// earlier in the block" and "stored earlier in the block" are exact
-// dominance and definite-assignment checks.
-func (v *verifier) block(b *Block, bi int) {
+// successors returns the blocks b's terminator may continue at, ignoring
+// targets that are not blocks of the function (reported by block).
+func (v *verifier) successors(b *Block) []int {
+	if len(b.Instrs) == 0 {
+		return nil
+	}
+	var succ []int
+	if t := b.Instrs[len(b.Instrs)-1]; t != nil && (t.Op == Jump || t.Op == Branch) {
+		for _, target := range t.Targets {
+			if v.isBlock(target) {
+				succ = append(succ, target.ID)
+			}
+		}
+	}
+	return succ
+}
+
+func (v *verifier) isBlock(b *Block) bool {
+	return b != nil && b.ID >= 0 && b.ID < len(v.f.Blocks) && v.f.Blocks[b.ID] == b
+}
+
+// reachable returns which blocks a path from the entry reaches (D-023
+// invariant 1).
+func (v *verifier) reachable() []bool {
+	seen := make([]bool, len(v.f.Blocks))
+	work := []int{0}
+	seen[0] = true
+	for len(work) > 0 {
+		b := work[len(work)-1]
+		work = work[:len(work)-1]
+		for _, s := range v.successors(v.f.Blocks[b]) {
+			if !seen[s] {
+				seen[s] = true
+				work = append(work, s)
+			}
+		}
+	}
+	return seen
+}
+
+// definitelyStored computes, for each block, the slots stored on every path
+// from the entry to its start (D-023 invariant 4): in(entry) is empty,
+// every other block starts with all slots, out(b) is in(b) plus the slots
+// b stores, and in(b) is the intersection of out over b's reachable
+// predecessors. Iterating to the greatest fixed point accepts loops whose
+// header reads a slot stored before the loop.
+func (v *verifier) definitelyStored(reachable []bool) [][]bool {
+	n, ns := len(v.f.Blocks), len(v.f.Slots)
+	in := make([][]bool, n)
+	stores := make([][]bool, n)
+	preds := make([][]int, n)
+	for i, b := range v.f.Blocks {
+		in[i] = make([]bool, ns)
+		stores[i] = make([]bool, ns)
+		for j := range in[i] {
+			in[i][j] = i != 0
+		}
+		for _, inst := range b.Instrs {
+			if inst != nil && inst.Op == Store && v.isSlot(inst.Slot) {
+				stores[i][inst.Slot.ID] = true
+			}
+		}
+		if reachable[i] {
+			for _, s := range v.successors(b) {
+				preds[s] = append(preds[s], i)
+			}
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for i := 1; i < n; i++ {
+			if !reachable[i] {
+				continue
+			}
+			for j := range ns {
+				all := true
+				for _, p := range preds[i] {
+					all = all && (in[p][j] || stores[p][j])
+				}
+				if in[i][j] && !all {
+					in[i][j] = false
+					changed = true
+				}
+			}
+		}
+	}
+	return in
+}
+
+// block checks one block, starting with the slots definitely stored on
+// entry. Operands must be defined earlier in the same block (D-023), so
+// "defined earlier in the block" is an exact dominance check.
+func (v *verifier) block(b *Block, bi int, stored []bool) {
 	if len(b.Instrs) == 0 {
 		v.errorf(bi, -1, nil, "empty block: missing terminator")
 		return
 	}
+	stored = append([]bool(nil), stored...)
 	defined := map[*Instr]bool{}
-	stored := map[*Slot]bool{}
 	ids := map[int]bool{}
 	for i, in := range b.Instrs {
 		if in == nil {
@@ -147,22 +243,20 @@ func (v *verifier) block(b *Block, bi int) {
 		case in.Op.IsTerminator() && !last:
 			v.errorf(bi, i, in, "terminator before the end of the block")
 		case !in.Op.IsTerminator() && last:
-			v.errorf(bi, i, in, "missing terminator: block does not end in ret")
+			v.errorf(bi, i, in, "missing terminator: block does not end in ret, jump, or branch")
 		}
 		if !validPos(in.Pos) {
 			v.errorf(bi, i, in, "missing source position")
 		}
-		v.signature(bi, i, in)
 		for _, a := range in.Args {
 			switch {
 			case a == nil:
 				v.errorf(bi, i, in, "nil operand")
 			case !defined[a]:
 				v.errorf(bi, i, in, "operand v%d is not defined earlier in this block", a.ID)
-			case a.Type != I64:
-				v.errorf(bi, i, in, "operand v%d has type %s, want i64", a.ID, a.Type)
 			}
 		}
+		v.signature(bi, i, in)
 		if in.Op == Load || in.Op == Store {
 			v.slotRef(bi, i, in, stored)
 		}
@@ -176,26 +270,54 @@ func (v *verifier) block(b *Block, bi int) {
 	}
 }
 
-// signature checks an instruction's result type, value number, and operand
-// count against its operation.
+// signature checks an instruction's result type, value number, operand
+// count and types, and targets against its operation.
 func (v *verifier) signature(bi, i int, in *Instr) {
 	var want Type
-	var nargs int // -1: any number
+	var args []Type // the operand types; nil with anyArgs for println
+	anyArgs, targets := false, 0
 	switch in.Op {
-	case Const, Load:
-		want, nargs = I64, 0
+	case Const:
+		want = in.Type
+		switch {
+		case !validType(in.Type):
+			v.errorf(bi, i, in, "const has invalid type %s", in.Type)
+		case in.Type == Bool && in.Const != 0 && in.Const != 1:
+			v.errorf(bi, i, in, "bool constant %d is not 0 or 1", in.Const)
+		}
+	case Load:
+		want = I64
+		if v.isSlot(in.Slot) {
+			want = in.Slot.Type
+		}
 	case Store:
-		want, nargs = NoType, 1
+		args = []Type{I64}
+		if v.isSlot(in.Slot) {
+			args[0] = in.Slot.Type
+		}
 	case Add, Sub, Mul:
-		want, nargs = I64, 2
+		want, args = I64, []Type{I64, I64}
 	case Neg:
-		want, nargs = I64, 1
+		want, args = I64, []Type{I64}
+	case Eq, Ne:
+		t := I64
+		if len(in.Args) > 0 && in.Args[0] != nil && in.Args[0].Type == Bool {
+			t = Bool
+		}
+		want, args = Bool, []Type{t, t}
+	case Lt, Le, Gt, Ge:
+		want, args = Bool, []Type{I64, I64}
+	case Not:
+		want, args = Bool, []Type{Bool}
 	case Println:
-		want, nargs = NoType, -1
+		anyArgs = true
 	case Ret:
-		want, nargs = NoType, len(v.f.Results)
+		args = v.f.Results
+	case Jump:
+		targets = 1
+	case Branch:
+		args, targets = []Type{Bool}, 2
 	case Param:
-		want, nargs = NoType, 0
 		switch {
 		case bi != 0:
 			v.errorf(bi, i, in, "param outside the entry block")
@@ -205,7 +327,12 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			want = v.f.Params[in.Index]
 		}
 	case Call:
-		want, nargs = NoType, len(in.Args)
+		args = make([]Type, len(in.Args))
+		for j, a := range in.Args {
+			if a != nil {
+				args[j] = a.Type
+			}
+		}
 		if in.Callee == nil || !v.funcs[in.Callee] {
 			v.errorf(bi, i, in, "callee is not a function of the program")
 			break
@@ -213,7 +340,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if len(in.Callee.Results) == 1 {
 			want = in.Callee.Results[0]
 		}
-		nargs = len(in.Callee.Params)
+		args = in.Callee.Params
 	default:
 		v.errorf(bi, i, in, "invalid operation %s", in.Op)
 		return
@@ -224,8 +351,25 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if (in.Type == NoType) != (in.ID == -1) {
 		v.errorf(bi, i, in, "value number %d inconsistent with result type %s", in.ID, in.Type)
 	}
-	if nargs >= 0 && len(in.Args) != nargs {
-		v.errorf(bi, i, in, "%s has %d operands, want %d", in.Op, len(in.Args), nargs)
+	if !anyArgs && len(in.Args) != len(args) {
+		v.errorf(bi, i, in, "%s has %d operands, want %d", in.Op, len(in.Args), len(args))
+	}
+	for j, a := range in.Args {
+		switch {
+		case a == nil:
+		case anyArgs && !validType(a.Type):
+			v.errorf(bi, i, in, "operand v%d has invalid type %s", a.ID, a.Type)
+		case !anyArgs && j < len(args) && a.Type != args[j]:
+			v.errorf(bi, i, in, "operand v%d has type %s, want %s", a.ID, a.Type, args[j])
+		}
+	}
+	if len(in.Targets) != targets {
+		v.errorf(bi, i, in, "%s has %d targets, want %d", in.Op, len(in.Targets), targets)
+	}
+	for _, t := range in.Targets {
+		if !v.isBlock(t) {
+			v.errorf(bi, i, in, "target is not a block of this function")
+		}
 	}
 	if in.Op != Const && in.Const != 0 {
 		v.errorf(bi, i, in, "%s has a constant operand", in.Op)
@@ -241,21 +385,27 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	}
 }
 
+func (v *verifier) isSlot(s *Slot) bool {
+	return s != nil && s.ID >= 0 && s.ID < len(v.f.Slots) && v.f.Slots[s.ID] == s
+}
+
 // slotRef checks a Load or Store's slot: it must belong to the function,
-// and a load must follow a store to the same slot.
-func (v *verifier) slotRef(bi, i int, in *Instr, stored map[*Slot]bool) {
+// and a load must follow a store to the same slot on every path.
+func (v *verifier) slotRef(bi, i int, in *Instr, stored []bool) {
 	s := in.Slot
-	if s == nil || s.ID < 0 || s.ID >= len(v.f.Slots) || v.f.Slots[s.ID] != s {
+	if !v.isSlot(s) {
 		v.errorf(bi, i, in, "slot operand is not a slot of this function")
 		return
 	}
 	if in.Op == Store {
-		stored[s] = true
+		stored[s.ID] = true
 		return
 	}
-	if !stored[s] {
-		v.errorf(bi, i, in, "load of s%d (%s) before any store to it", s.ID, s.Name)
+	if !stored[s.ID] {
+		v.errorf(bi, i, in, "load of s%d (%s) before any store to it on every path", s.ID, s.Name)
 	}
 }
+
+func validType(t Type) bool { return t == I64 || t == Bool }
 
 func validPos(p Pos) bool { return p.Line > 0 && p.Col > 0 }

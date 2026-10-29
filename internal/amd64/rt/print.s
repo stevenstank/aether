@@ -1,7 +1,8 @@
 # Aether runtime: println support (D-009, D-021).
 #
-# aether.printint writes the signed decimal form of %rdi, aether.printsp a
-# space, and aether.printnl a newline, to file descriptor 2. Each requires
+# aether.printint writes the signed decimal form of %rdi, aether.printbool
+# "true" if %rdi is 1 and "false" if it is 0, aether.printsp a space, and
+# aether.printnl a newline, to file descriptor 2. Each requires
 # %rsp to be 16-byte aligned at the call, returns nothing, preserves %rbx,
 # %rbp, and %r12-%r15, and may clobber every other general-purpose register.
 #
@@ -44,6 +45,18 @@ aether.printint:
 	ret
 	.size	aether.printint, .-aether.printint
 
+	.globl	aether.printbool
+	.type	aether.printbool, @function
+aether.printbool:
+	leaq	.Ltrue(%rip), %rsi
+	movl	$4, %edx
+	testq	%rdi, %rdi
+	jnz	aether.write
+	leaq	.Lfalse(%rip), %rsi
+	movl	$5, %edx
+	jmp	aether.write
+	.size	aether.printbool, .-aether.printbool
+
 	.globl	aether.printsp
 	.type	aether.printsp, @function
 aether.printsp:
@@ -83,5 +96,9 @@ aether.write:
 	.byte	32
 .Lnewline:
 	.byte	10
+.Ltrue:
+	.ascii	"true"
+.Lfalse:
+	.ascii	"false"
 
 	.section	.note.GNU-stack,"",@progbits

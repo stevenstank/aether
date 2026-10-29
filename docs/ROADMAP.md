@@ -332,6 +332,16 @@ repeated in each phase below:
      `bool`. Runtime: `aether.printbool`. Still unsupported: functions,
      `switch`, labels, `goto`, `for range`, sized types, `/ % << >>`,
      `print`.
+     **Status (2026-10-29):** part 1 done: `bool`, the comparisons, `not`,
+     `jump`, and `branch` in the IR, the verifier (invariants 1–5, with
+     definite assignment as a greatest fixed point), the printer, the
+     interpreter (with the step budget, `interp.RunSteps`), the backend,
+     and `aether.printbool`, all tested on hand-built IR. Negative controls
+     run by hand and reverted: swapped branch targets, `setb` for signed
+     `<`, `printbool` printing `1`, and definite assignment accepting a
+     store on any path each fail a test. Part 2, not done: the gate and
+     lowering (still rejecting `bool`, comparisons, `if`, and `for`), the
+     corpus, the generator, and the `continue` control.
   2. **4.2: functions.** `int` parameters, one `int` result, recursion,
      ABI-S0 with the prologue bound check, and the runtime stack of at least
      256 MiB (`aether.stacklimit`, `aether.stackoverflow`). The interpreter
