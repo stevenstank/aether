@@ -222,6 +222,20 @@ confirmed that generated programs detect `shrq` for signed `>>` in the
 backend, a missing negative-count check in lowering, and unsigned values
 divided as signed in the interpreter.
 
+Since increment 4.6 a program may also begin with up to four package-level
+`var` and `const` declarations, generated like local ones. Each initializer
+may use the declarations generated before it, so there is no cycle, and the
+declarations are then printed in shuffled order, so that the
+initialization order (`InitOrder`) can differ from the declaration order.
+`main` assigns globals like locals, local declarations may shadow them, and
+`main` prints every global at its end. There is no other function, so no
+call assigns a global that an expression is reading (V-4). Of seeds 1 to
+600, 379 were valid (37% invalid, 32% before), 257 of them with globals
+and 27 initializing in an order other than the declaration order; 35
+panicked. Negative controls confirmed that generated programs detect an
+initialization order reversed in lowering (11 programs) and globals that
+share one word in the backend (85 programs).
+
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
 come from running gc.

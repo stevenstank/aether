@@ -422,7 +422,8 @@ repeated in each phase below:
      global, initialization order through calls, a panic during
      initialization, and globals in recursion). gc reads a global after a
      call in the same expression where Aether reads it before; both are
-     allowed (`SEMANTICS.md` V-4). Not done: the generator.
+     allowed (`SEMANTICS.md` V-4). Part 3 done: the generator
+     (`TESTING.md`), with two negative controls.
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.

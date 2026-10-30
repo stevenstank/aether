@@ -18,7 +18,13 @@ import (
 // those of increment 4.5 (/ % << >> with their compound assignments).
 // Literals include values that make run-time arithmetic wrap. A
 // non-constant divisor or signed shift count may be zero or negative, so
-// some programs panic.
+// some programs panic. Since increment 4.6, a program may begin with
+// package-level var and const declarations, whose initializers refer to
+// other ones; they are printed in shuffled order, so the initialization
+// order (types.Info.InitOrder) differs from the declaration order. There is
+// no function besides main, so no call assigns a global while an
+// expression reads it (SEMANTICS.md V-4). main assigns globals like locals
+// and prints them all at its end.
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -29,8 +35,29 @@ func generate(seed uint64) string {
 	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed))}
 	g.line(0, "package main")
 	g.line(0, "")
+	// The package scope. Each declaration may use the ones generated
+	// before it, which makes a cycle impossible in any order.
+	g.scopes, g.order = []map[string]entry{{}}, [][]string{nil}
+	var decls []string
+	for n := g.r.IntN(5); n > 0; n-- {
+		decls = append(decls, g.capture(func() {
+			if g.r.IntN(3) == 0 {
+				g.constDecl(0)
+			} else {
+				g.varDecl(0)
+			}
+		}))
+	}
+	g.r.Shuffle(len(decls), func(i, j int) { decls[i], decls[j] = decls[j], decls[i] })
+	for _, d := range decls {
+		g.b.WriteString(d)
+		g.line(0, "")
+	}
 	g.line(0, "func main() {")
 	g.block(1)
+	if globals := g.visible(entry.isVar); len(globals) > 0 {
+		g.line(1, "println(%s)", strings.Join(globals, ", "))
+	}
 	g.line(0, "}")
 	return g.b.String()
 }
@@ -95,6 +122,16 @@ type generator struct {
 	order  [][]string // declaration order, per scope
 	names  int
 	loops  int // enclosing loops
+}
+
+// capture returns what emit writes, instead of writing it.
+func (g *generator) capture(emit func()) string {
+	saved := g.b
+	g.b = strings.Builder{}
+	emit()
+	out := g.b.String()
+	g.b = saved
+	return out
 }
 
 func (g *generator) line(depth int, format string, args ...any) {
@@ -243,40 +280,9 @@ func (g *generator) stmt(depth int) {
 	case k == 2:
 		g.line(depth, ";")
 	case k == 3:
-		name := g.newName(nil)
-		if g.r.IntN(3) == 0 {
-			g.line(depth, "const %s = %s", name, g.boolExpr(2, false))
-			g.declare(name, entry{k: boolConst})
-		} else {
-			e, _ := g.intExpr(2, false, "int")
-			g.line(depth, "const %s = %s", name, e)
-			g.declare(name, entry{k: intConst})
-		}
+		g.constDecl(depth)
 	case k <= 5:
-		// var declaration with or without values, and with or without a
-		// type. Without one, the type is bool or int, which the values'
-		// untyped constants default to.
-		n := 1 + g.r.IntN(2)
-		names := g.newNames(n)
-		t := "bool"
-		if g.r.IntN(3) > 0 {
-			t = g.intType()
-		}
-		var vals []string
-		for range n {
-			vals = append(vals, g.typed(t, true))
-		}
-		switch r := g.r.IntN(3); {
-		case r == 0:
-			g.line(depth, "var %s %s", strings.Join(names, ", "), t)
-		case r == 1 || t != "bool" && t != "int":
-			g.line(depth, "var %s %s = %s", strings.Join(names, ", "), t, strings.Join(vals, ", "))
-		default:
-			g.line(depth, "var %s = %s", strings.Join(names, ", "), strings.Join(vals, ", "))
-		}
-		for _, name := range names {
-			g.declare(name, entry{k: variable, t: t})
-		}
+		g.varDecl(depth)
 	case k <= 7 || len(assignable) == 0:
 		// := with one or two names, redeclaring a variable of this scope
 		// alongside a new one where possible.
@@ -342,6 +348,46 @@ func (g *generator) stmt(depth int) {
 			args = append(args, v)
 		}
 		g.line(depth, "%s(%s)", g.pick([]string{"println", "println", "print"}), strings.Join(args, ", "))
+	}
+}
+
+// constDecl emits an untyped bool or integer constant declaration.
+func (g *generator) constDecl(depth int) {
+	name := g.newName(nil)
+	if g.r.IntN(3) == 0 {
+		g.line(depth, "const %s = %s", name, g.boolExpr(2, false))
+		g.declare(name, entry{k: boolConst})
+	} else {
+		e, _ := g.intExpr(2, false, "int")
+		g.line(depth, "const %s = %s", name, e)
+		g.declare(name, entry{k: intConst})
+	}
+}
+
+// varDecl emits a var declaration with or without values, and with or
+// without a type. Without one, the type is bool or int, which the values'
+// untyped constants default to.
+func (g *generator) varDecl(depth int) {
+	n := 1 + g.r.IntN(2)
+	names := g.newNames(n)
+	t := "bool"
+	if g.r.IntN(3) > 0 {
+		t = g.intType()
+	}
+	var vals []string
+	for range n {
+		vals = append(vals, g.typed(t, true))
+	}
+	switch r := g.r.IntN(3); {
+	case r == 0:
+		g.line(depth, "var %s %s", strings.Join(names, ", "), t)
+	case r == 1 || t != "bool" && t != "int":
+		g.line(depth, "var %s %s = %s", strings.Join(names, ", "), t, strings.Join(vals, ", "))
+	default:
+		g.line(depth, "var %s = %s", strings.Join(names, ", "), strings.Join(vals, ", "))
+	}
+	for _, name := range names {
+		g.declare(name, entry{k: variable, t: t})
 	}
 }
 
