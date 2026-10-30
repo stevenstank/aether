@@ -402,21 +402,28 @@ repeated in each phase below:
      amount`, exit 2). Negative controls run by hand and reverted:
      `idivq` for every divisor (SIGFPE), no width check on shifts, zero
      instead of the sign fill, and an interpreter dividing unsigned values
-     as signed each fail a test. Not done: the gate and lowering with the
-     explicit checks, the corpus against gc, and the generator. gc writes
-     `1panic: …` after `print(1)`, so the panic comparison rule, which
-     expects a line beginning with `panic: `, needs the same correction as
-     the overflow rule; it is made with the panic tests in part 2.
+     as signed each fail a test. Part 2 done: the gate and lowering with the
+     explicit checks (a divisor compared with 0, a signed count with 0,
+     each branching to `panic`), the corrected panic comparison rule
+     (acceptance criteria above), and division tables for every type and
+     five panicking programs run against gc. Not done: the generator.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
-  - Panicking programs: Aether's stderr equals gc's stderr up to and
-    including the first line that begins with `panic: `, and both exit with
-    status 2. (Comparing only the first stderr line is wrong whenever the
-    program printed before panicking.) The missing traceback is a documented
-    divergence.
+  - Panicking programs (divergence V-3; corrected in 4.5, since gc writes
+    `1panic: …` after `print(1)`):
+    For a program that panics with a run-time error, let Q be the exact
+    bytes of the gc-built binary's stderr up to and including the first
+    newline after the first occurrence of the text `panic: `; the line from
+    that occurrence must be `panic: runtime error: ` and a message. The text is
+    found anywhere, not at a line start, because a program that last used
+    `print` leaves no newline before it. The stderr of the Aether-built
+    executable and of the interpreter must each be exactly Q, with nothing
+    after it, and the gc-built binary, the Aether-built executable, and the
+    interpreter must each write nothing to stdout and exit with status 2.
+    gc's traceback after Q is not compared.
   - Stack overflow (planned divergence V-2):
     The rule applies to test programs whose recursion never ends, so that the
     gc-built binary, the Aether-built executable, and the interpreter all

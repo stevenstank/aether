@@ -222,12 +222,22 @@ has a defined normalization in the test harness.
 | ID | Area | Divergence | Since | Normalization in tests |
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
+| V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
-Planned (Phase 4; a row is added when its increment is implemented):
-- **Panics** print no goroutine traceback. For panicking programs, tests
-  require Aether's stderr to equal gc's up to and including the first line
-  that begins with `panic: `, and both to exit with status 2.
+Implemented (Phase 4 increment 4.5):
+- **V-3, panics.** The run-time errors are `integer divide by zero` (for
+  `/` and `%`) and `negative shift amount`. Panic comparison rule:
+  For a program that panics with a run-time error, let Q be the exact
+  bytes of the gc-built binary's stderr up to and including the first
+  newline after the first occurrence of the text `panic: `; the line from
+  that occurrence must be `panic: runtime error: ` and a message. The text is
+  found anywhere, not at a line start, because a program that last used
+  `print` leaves no newline before it. The stderr of the Aether-built
+  executable and of the interpreter must each be exactly Q, with nothing
+  after it, and the gc-built binary, the Aether-built executable, and the
+  interpreter must each write nothing to stdout and exit with status 2.
+  gc's traceback after Q is not compared.
 
 Implemented (Phase 4 increment 4.2):
 - **V-2, stack overflow** (increment 4.2, D-009). Aether's stack is at least
@@ -377,7 +387,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
 | Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
-| Operators | `operator-div`, `operator-rem`, `operator-shl`, `operator-shr`, `operator-address`, `operator-receive`, `operator-other` |
+| Operators | `operator-address`, `operator-receive`, `operator-other` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
 
@@ -562,6 +572,17 @@ rune literals, and conversions to other types (`conversion`). The feature
 names `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`,
 `operator-complement`, and `print` no longer exist.
 
+## Division and shifts (Phase 4 increment 4.5)
+
+The gate also accepts `/`, `%`, `<<`, `>>`, and their compound
+assignments, on every integer type. Division truncates toward zero; the
+minimum of a signed type divided by -1 is that minimum, with remainder 0.
+A shift count may be of any integer type; a count at or above the width
+gives 0, or the sign fill for `>>` of a signed value. A zero divisor
+panics with `integer divide by zero` and a negative count with `negative
+shift amount` (V-3). The feature names `operator-div`, `operator-rem`,
+`operator-shl`, and `operator-shr` no longer exist.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -582,6 +603,7 @@ names `operator-and`, `operator-or`, `operator-xor`, `operator-and-not`,
 | `if`/`else`, the three `for` forms, unlabeled `break`/`continue` | If statements, For statements, Break and Continue statements | S2 / 4.1 | Supported (native) | `s2_c01_control_flow`, `s2_c03_recursion` |
 | Multiple results and multi-value calls | Function types, Return statements, Assignment statements, Calls | S2 / 4.3 | Supported (native) | `s2_t01_multiple_results`; `TestNativeTuples`; `TestVerifyTuples`; gate tests |
 | Every integer type, conversions, `& \| ^ &^`, unary `^`, `print` | Numeric types, Conversions, Arithmetic operators | S2 / 4.4 | Supported (native) | `s2_i01_integer_tables`, `s2_i02_conversions_print`; `TestIntegerTypes`, `TestConversions` |
+| `/ % << >>` with the run-time panics (V-3) | Arithmetic operators, Run-time panics | S2 / 4.5 | Supported (native), with divergence V-3 | `s2_d01_division_shifts` to `s2_d06_panic_in_loop`; `TestIntegerTypes`, `TestPanics`, `TestPanicPrefix` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

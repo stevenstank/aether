@@ -110,7 +110,7 @@ func TestBinary(t *testing.T) {
 	}{
 		{"s1_03_milestone1.go", diag.ExitOK},
 		{"s1_n05_missing_main.go", diag.ExitInvalid},
-		{"unsupported_operator_div.go", diag.ExitUnsupported},
+		{"unsupported_defer.go", diag.ExitUnsupported},
 	}
 	for _, c := range cases {
 		data, err := os.ReadFile(filepath.Join("testdata", "check", c.file))

@@ -2,7 +2,8 @@
 // subset: S1 (docs/SEMANTICS.md §Subset S1, D-012) plus the functions of
 // Phase 4 increment 4.2 (§Functions), the bool and control flow of
 // increment 4.1 (§Control flow and bool), the multiple results of increment
-// 4.3, and the integer types of increment 4.4 (§Integer types).
+// 4.3, the integer types of increment 4.4 (§Integer types), and the division
+// and shifts of increment 4.5.
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -73,8 +74,8 @@ const (
 	FeatNoBody        = "function-without-body"
 )
 
-// Operator features are "operator-" followed by a name from operatorNames
-// or unaryFeature, for example "operator-div".
+// Operator features are "operator-" followed by a name from unaryFeature,
+// for example "operator-address", or "other".
 const featOperatorPrefix = "operator-"
 
 // Files rejects programs consisting of more than one source file.
@@ -194,9 +195,6 @@ func init() {
 		token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
 		featureNames[f] = true
-	}
-	for _, name := range operatorNames {
-		featureNames[featOperatorPrefix+name] = true
 	}
 	for _, name := range unaryOperatorNames {
 		featureNames[featOperatorPrefix+name] = true
@@ -501,12 +499,11 @@ func (c *checker) assign(s *ast.AssignStmt) {
 		if multi {
 			return
 		}
-	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN,
-		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN:
+	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN,
+		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
 		c.target(s.Lhs[0])
 	default:
-		op := strings.TrimSuffix(s.Tok.String(), "=")
-		c.reject(s, operatorFeature(op), "compound assignment "+s.Tok.String())
+		c.reject(s, featOperatorPrefix+"other", "compound assignment "+s.Tok.String())
 		return
 	}
 	for _, r := range s.Rhs {
@@ -712,11 +709,11 @@ func (c *checker) expr(e ast.Expr) {
 		}
 	case *ast.BinaryExpr:
 		switch e.Op {
-		case token.ADD, token.SUB, token.MUL, token.LAND, token.LOR,
-			token.AND, token.OR, token.XOR, token.AND_NOT,
+		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.LAND, token.LOR,
+			token.AND, token.OR, token.XOR, token.AND_NOT, token.SHL, token.SHR,
 			token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
 		default:
-			c.reject(e, operatorFeature(e.Op.String()), "operator "+e.Op.String())
+			c.reject(e, featOperatorPrefix+"other", "operator "+e.Op.String())
 			return
 		}
 		if c.typed(e) {
@@ -809,17 +806,6 @@ func (c *checker) local(id *ast.Ident, obj types.Object) bool {
 		return false
 	}
 	return true
-}
-
-var operatorNames = map[string]string{
-	"/": "div", "%": "rem", "<<": "shl", ">>": "shr",
-}
-
-func operatorFeature(op string) string {
-	if name, ok := operatorNames[op]; ok {
-		return featOperatorPrefix + name
-	}
-	return featOperatorPrefix + "other"
 }
 
 var unaryOperatorNames = map[token.Token]string{

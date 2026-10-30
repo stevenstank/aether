@@ -12,7 +12,8 @@ representation and backend.
 > blocks, and `println`. Phase 4 is in progress: functions with `int`
 > parameters and results, stack-overflow detection (increment 4.2), `bool`,
 > `if`, and `for` (increment 4.1), multiple results (4.3), and every integer
-> type with conversions and bit operators (4.4) are implemented.
+> type with conversions and bit operators (4.4), and `/ % << >>` with
+> run-time panics (4.5) are implemented.
 
 ## What works today
 
@@ -110,8 +111,8 @@ potentially long-term dependencies. The exact ownership boundaries are in
 ## Current limitations
 
 - Only S1, functions, `bool`, `if`, `for`, and the integer types are
-  supported: no `switch`, no `/ % << >>`, no package-level declarations,
-  and no types other than the integer types and `bool`. The generated code is unoptimized: every value
+  supported: no `switch`, no package-level declarations, and no types
+  other than the integer types and `bool`. Panics print no traceback. The generated code is unoptimized: every value
   goes through memory.
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S1 is **rejected with an explicit diagnostic**.

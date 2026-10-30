@@ -1,0 +1,2065 @@
+func dint8(i8, i8, u64, i8) @testdata/check/s2_d01_division_shifts.go:9:6
+  slot s0 x i8 @9:12
+  slot s1 y i8 @9:15
+  slot s2 c u64 @9:23
+  slot s3 s i8 @9:31
+  slot s4 tmp i8 @10:11
+  slot s5 tmp i8 @10:11
+  slot s6 tmp i8 @10:10
+  slot s7 tmp i8 @10:16
+  slot s8 tmp i8 @10:16
+  slot s9 tmp i8 @10:15
+  slot s10 tmp i8 @10:20
+  slot s11 tmp i8 @10:26
+  slot s12 tmp i8 @10:33
+  slot s13 tmp i8 @10:33
+  slot s14 tmp i8 @10:32
+  slot s15 tmp i8 @10:39
+  slot s16 tmp i8 @10:39
+  slot s17 z i8 @11:2
+  slot s18 tmp i8 @12:4
+  slot s19 tmp i8 @12:4
+  slot s20 tmp i8 @15:4
+  slot s21 tmp i8 @15:4
+b0:
+  v0 = param 0 @9:12
+  store s0, v0 @9:12
+  v1 = param 1 @9:15
+  store s1, v1 @9:15
+  v2 = param 2 @9:23
+  store s2, v2 @9:23
+  v3 = param 3 @9:31
+  store s3, v3 @9:31
+  v4 = load s0 @10:10
+  v5 = load s1 @10:12
+  v6 = const i8 0 @10:11
+  v7 = eq v5, v6 @10:11
+  store s4, v4 @10:11
+  store s5, v5 @10:11
+  branch v7, b1, b2 @10:11
+b1:
+  panic divide @10:11
+b2:
+  v8 = load s4 @10:11
+  v9 = load s5 @10:11
+  v10 = div v8, v9 @10:11
+  store s6, v10 @10:10
+  v11 = load s0 @10:15
+  v12 = load s1 @10:17
+  v13 = const i8 0 @10:16
+  v14 = eq v12, v13 @10:16
+  store s7, v11 @10:16
+  store s8, v12 @10:16
+  branch v14, b3, b4 @10:16
+b3:
+  panic divide @10:16
+b4:
+  v15 = load s7 @10:16
+  v16 = load s8 @10:16
+  v17 = rem v15, v16 @10:16
+  store s9, v17 @10:15
+  v18 = load s0 @10:20
+  v19 = load s2 @10:23
+  v20 = shl v18, v19 @10:21
+  store s10, v20 @10:20
+  v21 = load s0 @10:26
+  v22 = load s2 @10:29
+  v23 = shr v21, v22 @10:27
+  store s11, v23 @10:26
+  v24 = load s0 @10:32
+  v25 = load s3 @10:35
+  v26 = const i8 0 @10:33
+  v27 = lt v25, v26 @10:33
+  store s12, v24 @10:33
+  store s13, v25 @10:33
+  branch v27, b5, b6 @10:33
+b5:
+  panic shift @10:33
+b6:
+  v28 = load s12 @10:33
+  v29 = load s13 @10:33
+  v30 = conv u64, v29 @10:33
+  v31 = shl v28, v30 @10:33
+  store s14, v31 @10:32
+  v32 = load s0 @10:38
+  v33 = load s3 @10:41
+  v34 = const i8 0 @10:39
+  v35 = lt v33, v34 @10:39
+  store s15, v32 @10:39
+  store s16, v33 @10:39
+  branch v35, b7, b8 @10:39
+b7:
+  panic shift @10:39
+b8:
+  v36 = load s15 @10:39
+  v37 = load s16 @10:39
+  v38 = conv u64, v37 @10:39
+  v39 = shr v36, v38 @10:39
+  v40 = load s6 @10:10
+  v41 = load s9 @10:15
+  v42 = load s10 @10:20
+  v43 = load s11 @10:26
+  v44 = load s14 @10:32
+  println v40, v41, v42, v43, v44, v39 @10:2
+  v45 = load s0 @11:7
+  store s17, v45 @11:2
+  v46 = load s17 @12:2
+  v47 = load s1 @12:7
+  v48 = const i8 0 @12:4
+  v49 = eq v47, v48 @12:4
+  store s18, v46 @12:4
+  store s19, v47 @12:4
+  branch v49, b9, b10 @12:4
+b9:
+  panic divide @12:4
+b10:
+  v50 = load s18 @12:4
+  v51 = load s19 @12:4
+  v52 = div v50, v51 @12:4
+  store s17, v52 @12:2
+  v53 = load s17 @13:2
+  v54 = const i8 7 @13:7
+  v55 = rem v53, v54 @13:4
+  store s17, v55 @13:2
+  v56 = load s17 @14:2
+  v57 = load s2 @14:8
+  v58 = shl v56, v57 @14:4
+  store s17, v58 @14:2
+  v59 = load s17 @15:2
+  v60 = load s3 @15:8
+  v61 = const i8 0 @15:4
+  v62 = lt v60, v61 @15:4
+  store s20, v59 @15:4
+  store s21, v60 @15:4
+  branch v62, b11, b12 @15:4
+b11:
+  panic shift @15:4
+b12:
+  v63 = load s20 @15:4
+  v64 = load s21 @15:4
+  v65 = conv u64, v64 @15:4
+  v66 = shr v63, v65 @15:4
+  store s17, v66 @15:2
+  v67 = load s17 @16:10
+  println v67 @16:2
+  ret @17:1
+
+func dint16(i16, i16, u64, i8) @testdata/check/s2_d01_division_shifts.go:19:6
+  slot s0 x i16 @19:13
+  slot s1 y i16 @19:16
+  slot s2 c u64 @19:25
+  slot s3 s i8 @19:33
+  slot s4 tmp i16 @20:11
+  slot s5 tmp i16 @20:11
+  slot s6 tmp i16 @20:10
+  slot s7 tmp i16 @20:16
+  slot s8 tmp i16 @20:16
+  slot s9 tmp i16 @20:15
+  slot s10 tmp i16 @20:20
+  slot s11 tmp i16 @20:26
+  slot s12 tmp i16 @20:33
+  slot s13 tmp i8 @20:33
+  slot s14 tmp i16 @20:32
+  slot s15 tmp i16 @20:39
+  slot s16 tmp i8 @20:39
+  slot s17 z i16 @21:2
+  slot s18 tmp i16 @22:4
+  slot s19 tmp i16 @22:4
+  slot s20 tmp i16 @25:4
+  slot s21 tmp i8 @25:4
+b0:
+  v0 = param 0 @19:13
+  store s0, v0 @19:13
+  v1 = param 1 @19:16
+  store s1, v1 @19:16
+  v2 = param 2 @19:25
+  store s2, v2 @19:25
+  v3 = param 3 @19:33
+  store s3, v3 @19:33
+  v4 = load s0 @20:10
+  v5 = load s1 @20:12
+  v6 = const i16 0 @20:11
+  v7 = eq v5, v6 @20:11
+  store s4, v4 @20:11
+  store s5, v5 @20:11
+  branch v7, b1, b2 @20:11
+b1:
+  panic divide @20:11
+b2:
+  v8 = load s4 @20:11
+  v9 = load s5 @20:11
+  v10 = div v8, v9 @20:11
+  store s6, v10 @20:10
+  v11 = load s0 @20:15
+  v12 = load s1 @20:17
+  v13 = const i16 0 @20:16
+  v14 = eq v12, v13 @20:16
+  store s7, v11 @20:16
+  store s8, v12 @20:16
+  branch v14, b3, b4 @20:16
+b3:
+  panic divide @20:16
+b4:
+  v15 = load s7 @20:16
+  v16 = load s8 @20:16
+  v17 = rem v15, v16 @20:16
+  store s9, v17 @20:15
+  v18 = load s0 @20:20
+  v19 = load s2 @20:23
+  v20 = shl v18, v19 @20:21
+  store s10, v20 @20:20
+  v21 = load s0 @20:26
+  v22 = load s2 @20:29
+  v23 = shr v21, v22 @20:27
+  store s11, v23 @20:26
+  v24 = load s0 @20:32
+  v25 = load s3 @20:35
+  v26 = const i8 0 @20:33
+  v27 = lt v25, v26 @20:33
+  store s12, v24 @20:33
+  store s13, v25 @20:33
+  branch v27, b5, b6 @20:33
+b5:
+  panic shift @20:33
+b6:
+  v28 = load s12 @20:33
+  v29 = load s13 @20:33
+  v30 = conv u64, v29 @20:33
+  v31 = shl v28, v30 @20:33
+  store s14, v31 @20:32
+  v32 = load s0 @20:38
+  v33 = load s3 @20:41
+  v34 = const i8 0 @20:39
+  v35 = lt v33, v34 @20:39
+  store s15, v32 @20:39
+  store s16, v33 @20:39
+  branch v35, b7, b8 @20:39
+b7:
+  panic shift @20:39
+b8:
+  v36 = load s15 @20:39
+  v37 = load s16 @20:39
+  v38 = conv u64, v37 @20:39
+  v39 = shr v36, v38 @20:39
+  v40 = load s6 @20:10
+  v41 = load s9 @20:15
+  v42 = load s10 @20:20
+  v43 = load s11 @20:26
+  v44 = load s14 @20:32
+  println v40, v41, v42, v43, v44, v39 @20:2
+  v45 = load s0 @21:7
+  store s17, v45 @21:2
+  v46 = load s17 @22:2
+  v47 = load s1 @22:7
+  v48 = const i16 0 @22:4
+  v49 = eq v47, v48 @22:4
+  store s18, v46 @22:4
+  store s19, v47 @22:4
+  branch v49, b9, b10 @22:4
+b9:
+  panic divide @22:4
+b10:
+  v50 = load s18 @22:4
+  v51 = load s19 @22:4
+  v52 = div v50, v51 @22:4
+  store s17, v52 @22:2
+  v53 = load s17 @23:2
+  v54 = const i16 7 @23:7
+  v55 = rem v53, v54 @23:4
+  store s17, v55 @23:2
+  v56 = load s17 @24:2
+  v57 = load s2 @24:8
+  v58 = shl v56, v57 @24:4
+  store s17, v58 @24:2
+  v59 = load s17 @25:2
+  v60 = load s3 @25:8
+  v61 = const i8 0 @25:4
+  v62 = lt v60, v61 @25:4
+  store s20, v59 @25:4
+  store s21, v60 @25:4
+  branch v62, b11, b12 @25:4
+b11:
+  panic shift @25:4
+b12:
+  v63 = load s20 @25:4
+  v64 = load s21 @25:4
+  v65 = conv u64, v64 @25:4
+  v66 = shr v63, v65 @25:4
+  store s17, v66 @25:2
+  v67 = load s17 @26:10
+  println v67 @26:2
+  ret @27:1
+
+func dint32(i32, i32, u64, i8) @testdata/check/s2_d01_division_shifts.go:29:6
+  slot s0 x i32 @29:13
+  slot s1 y i32 @29:16
+  slot s2 c u64 @29:25
+  slot s3 s i8 @29:33
+  slot s4 tmp i32 @30:11
+  slot s5 tmp i32 @30:11
+  slot s6 tmp i32 @30:10
+  slot s7 tmp i32 @30:16
+  slot s8 tmp i32 @30:16
+  slot s9 tmp i32 @30:15
+  slot s10 tmp i32 @30:20
+  slot s11 tmp i32 @30:26
+  slot s12 tmp i32 @30:33
+  slot s13 tmp i8 @30:33
+  slot s14 tmp i32 @30:32
+  slot s15 tmp i32 @30:39
+  slot s16 tmp i8 @30:39
+  slot s17 z i32 @31:2
+  slot s18 tmp i32 @32:4
+  slot s19 tmp i32 @32:4
+  slot s20 tmp i32 @35:4
+  slot s21 tmp i8 @35:4
+b0:
+  v0 = param 0 @29:13
+  store s0, v0 @29:13
+  v1 = param 1 @29:16
+  store s1, v1 @29:16
+  v2 = param 2 @29:25
+  store s2, v2 @29:25
+  v3 = param 3 @29:33
+  store s3, v3 @29:33
+  v4 = load s0 @30:10
+  v5 = load s1 @30:12
+  v6 = const i32 0 @30:11
+  v7 = eq v5, v6 @30:11
+  store s4, v4 @30:11
+  store s5, v5 @30:11
+  branch v7, b1, b2 @30:11
+b1:
+  panic divide @30:11
+b2:
+  v8 = load s4 @30:11
+  v9 = load s5 @30:11
+  v10 = div v8, v9 @30:11
+  store s6, v10 @30:10
+  v11 = load s0 @30:15
+  v12 = load s1 @30:17
+  v13 = const i32 0 @30:16
+  v14 = eq v12, v13 @30:16
+  store s7, v11 @30:16
+  store s8, v12 @30:16
+  branch v14, b3, b4 @30:16
+b3:
+  panic divide @30:16
+b4:
+  v15 = load s7 @30:16
+  v16 = load s8 @30:16
+  v17 = rem v15, v16 @30:16
+  store s9, v17 @30:15
+  v18 = load s0 @30:20
+  v19 = load s2 @30:23
+  v20 = shl v18, v19 @30:21
+  store s10, v20 @30:20
+  v21 = load s0 @30:26
+  v22 = load s2 @30:29
+  v23 = shr v21, v22 @30:27
+  store s11, v23 @30:26
+  v24 = load s0 @30:32
+  v25 = load s3 @30:35
+  v26 = const i8 0 @30:33
+  v27 = lt v25, v26 @30:33
+  store s12, v24 @30:33
+  store s13, v25 @30:33
+  branch v27, b5, b6 @30:33
+b5:
+  panic shift @30:33
+b6:
+  v28 = load s12 @30:33
+  v29 = load s13 @30:33
+  v30 = conv u64, v29 @30:33
+  v31 = shl v28, v30 @30:33
+  store s14, v31 @30:32
+  v32 = load s0 @30:38
+  v33 = load s3 @30:41
+  v34 = const i8 0 @30:39
+  v35 = lt v33, v34 @30:39
+  store s15, v32 @30:39
+  store s16, v33 @30:39
+  branch v35, b7, b8 @30:39
+b7:
+  panic shift @30:39
+b8:
+  v36 = load s15 @30:39
+  v37 = load s16 @30:39
+  v38 = conv u64, v37 @30:39
+  v39 = shr v36, v38 @30:39
+  v40 = load s6 @30:10
+  v41 = load s9 @30:15
+  v42 = load s10 @30:20
+  v43 = load s11 @30:26
+  v44 = load s14 @30:32
+  println v40, v41, v42, v43, v44, v39 @30:2
+  v45 = load s0 @31:7
+  store s17, v45 @31:2
+  v46 = load s17 @32:2
+  v47 = load s1 @32:7
+  v48 = const i32 0 @32:4
+  v49 = eq v47, v48 @32:4
+  store s18, v46 @32:4
+  store s19, v47 @32:4
+  branch v49, b9, b10 @32:4
+b9:
+  panic divide @32:4
+b10:
+  v50 = load s18 @32:4
+  v51 = load s19 @32:4
+  v52 = div v50, v51 @32:4
+  store s17, v52 @32:2
+  v53 = load s17 @33:2
+  v54 = const i32 7 @33:7
+  v55 = rem v53, v54 @33:4
+  store s17, v55 @33:2
+  v56 = load s17 @34:2
+  v57 = load s2 @34:8
+  v58 = shl v56, v57 @34:4
+  store s17, v58 @34:2
+  v59 = load s17 @35:2
+  v60 = load s3 @35:8
+  v61 = const i8 0 @35:4
+  v62 = lt v60, v61 @35:4
+  store s20, v59 @35:4
+  store s21, v60 @35:4
+  branch v62, b11, b12 @35:4
+b11:
+  panic shift @35:4
+b12:
+  v63 = load s20 @35:4
+  v64 = load s21 @35:4
+  v65 = conv u64, v64 @35:4
+  v66 = shr v63, v65 @35:4
+  store s17, v66 @35:2
+  v67 = load s17 @36:10
+  println v67 @36:2
+  ret @37:1
+
+func dint64(i64, i64, u64, i8) @testdata/check/s2_d01_division_shifts.go:39:6
+  slot s0 x i64 @39:13
+  slot s1 y i64 @39:16
+  slot s2 c u64 @39:25
+  slot s3 s i8 @39:33
+  slot s4 tmp i64 @40:11
+  slot s5 tmp i64 @40:11
+  slot s6 tmp i64 @40:10
+  slot s7 tmp i64 @40:16
+  slot s8 tmp i64 @40:16
+  slot s9 tmp i64 @40:15
+  slot s10 tmp i64 @40:20
+  slot s11 tmp i64 @40:26
+  slot s12 tmp i64 @40:33
+  slot s13 tmp i8 @40:33
+  slot s14 tmp i64 @40:32
+  slot s15 tmp i64 @40:39
+  slot s16 tmp i8 @40:39
+  slot s17 z i64 @41:2
+  slot s18 tmp i64 @42:4
+  slot s19 tmp i64 @42:4
+  slot s20 tmp i64 @45:4
+  slot s21 tmp i8 @45:4
+b0:
+  v0 = param 0 @39:13
+  store s0, v0 @39:13
+  v1 = param 1 @39:16
+  store s1, v1 @39:16
+  v2 = param 2 @39:25
+  store s2, v2 @39:25
+  v3 = param 3 @39:33
+  store s3, v3 @39:33
+  v4 = load s0 @40:10
+  v5 = load s1 @40:12
+  v6 = const 0 @40:11
+  v7 = eq v5, v6 @40:11
+  store s4, v4 @40:11
+  store s5, v5 @40:11
+  branch v7, b1, b2 @40:11
+b1:
+  panic divide @40:11
+b2:
+  v8 = load s4 @40:11
+  v9 = load s5 @40:11
+  v10 = div v8, v9 @40:11
+  store s6, v10 @40:10
+  v11 = load s0 @40:15
+  v12 = load s1 @40:17
+  v13 = const 0 @40:16
+  v14 = eq v12, v13 @40:16
+  store s7, v11 @40:16
+  store s8, v12 @40:16
+  branch v14, b3, b4 @40:16
+b3:
+  panic divide @40:16
+b4:
+  v15 = load s7 @40:16
+  v16 = load s8 @40:16
+  v17 = rem v15, v16 @40:16
+  store s9, v17 @40:15
+  v18 = load s0 @40:20
+  v19 = load s2 @40:23
+  v20 = shl v18, v19 @40:21
+  store s10, v20 @40:20
+  v21 = load s0 @40:26
+  v22 = load s2 @40:29
+  v23 = shr v21, v22 @40:27
+  store s11, v23 @40:26
+  v24 = load s0 @40:32
+  v25 = load s3 @40:35
+  v26 = const i8 0 @40:33
+  v27 = lt v25, v26 @40:33
+  store s12, v24 @40:33
+  store s13, v25 @40:33
+  branch v27, b5, b6 @40:33
+b5:
+  panic shift @40:33
+b6:
+  v28 = load s12 @40:33
+  v29 = load s13 @40:33
+  v30 = conv u64, v29 @40:33
+  v31 = shl v28, v30 @40:33
+  store s14, v31 @40:32
+  v32 = load s0 @40:38
+  v33 = load s3 @40:41
+  v34 = const i8 0 @40:39
+  v35 = lt v33, v34 @40:39
+  store s15, v32 @40:39
+  store s16, v33 @40:39
+  branch v35, b7, b8 @40:39
+b7:
+  panic shift @40:39
+b8:
+  v36 = load s15 @40:39
+  v37 = load s16 @40:39
+  v38 = conv u64, v37 @40:39
+  v39 = shr v36, v38 @40:39
+  v40 = load s6 @40:10
+  v41 = load s9 @40:15
+  v42 = load s10 @40:20
+  v43 = load s11 @40:26
+  v44 = load s14 @40:32
+  println v40, v41, v42, v43, v44, v39 @40:2
+  v45 = load s0 @41:7
+  store s17, v45 @41:2
+  v46 = load s17 @42:2
+  v47 = load s1 @42:7
+  v48 = const 0 @42:4
+  v49 = eq v47, v48 @42:4
+  store s18, v46 @42:4
+  store s19, v47 @42:4
+  branch v49, b9, b10 @42:4
+b9:
+  panic divide @42:4
+b10:
+  v50 = load s18 @42:4
+  v51 = load s19 @42:4
+  v52 = div v50, v51 @42:4
+  store s17, v52 @42:2
+  v53 = load s17 @43:2
+  v54 = const 7 @43:7
+  v55 = rem v53, v54 @43:4
+  store s17, v55 @43:2
+  v56 = load s17 @44:2
+  v57 = load s2 @44:8
+  v58 = shl v56, v57 @44:4
+  store s17, v58 @44:2
+  v59 = load s17 @45:2
+  v60 = load s3 @45:8
+  v61 = const i8 0 @45:4
+  v62 = lt v60, v61 @45:4
+  store s20, v59 @45:4
+  store s21, v60 @45:4
+  branch v62, b11, b12 @45:4
+b11:
+  panic shift @45:4
+b12:
+  v63 = load s20 @45:4
+  v64 = load s21 @45:4
+  v65 = conv u64, v64 @45:4
+  v66 = shr v63, v65 @45:4
+  store s17, v66 @45:2
+  v67 = load s17 @46:10
+  println v67 @46:2
+  ret @47:1
+
+func duint8(u8, u8, u64, i8) @testdata/check/s2_d01_division_shifts.go:49:6
+  slot s0 x u8 @49:13
+  slot s1 y u8 @49:16
+  slot s2 c u64 @49:25
+  slot s3 s i8 @49:33
+  slot s4 tmp u8 @50:11
+  slot s5 tmp u8 @50:11
+  slot s6 tmp u8 @50:10
+  slot s7 tmp u8 @50:16
+  slot s8 tmp u8 @50:16
+  slot s9 tmp u8 @50:15
+  slot s10 tmp u8 @50:20
+  slot s11 tmp u8 @50:26
+  slot s12 tmp u8 @50:33
+  slot s13 tmp i8 @50:33
+  slot s14 tmp u8 @50:32
+  slot s15 tmp u8 @50:39
+  slot s16 tmp i8 @50:39
+  slot s17 z u8 @51:2
+  slot s18 tmp u8 @52:4
+  slot s19 tmp u8 @52:4
+  slot s20 tmp u8 @55:4
+  slot s21 tmp i8 @55:4
+b0:
+  v0 = param 0 @49:13
+  store s0, v0 @49:13
+  v1 = param 1 @49:16
+  store s1, v1 @49:16
+  v2 = param 2 @49:25
+  store s2, v2 @49:25
+  v3 = param 3 @49:33
+  store s3, v3 @49:33
+  v4 = load s0 @50:10
+  v5 = load s1 @50:12
+  v6 = const u8 0 @50:11
+  v7 = eq v5, v6 @50:11
+  store s4, v4 @50:11
+  store s5, v5 @50:11
+  branch v7, b1, b2 @50:11
+b1:
+  panic divide @50:11
+b2:
+  v8 = load s4 @50:11
+  v9 = load s5 @50:11
+  v10 = div v8, v9 @50:11
+  store s6, v10 @50:10
+  v11 = load s0 @50:15
+  v12 = load s1 @50:17
+  v13 = const u8 0 @50:16
+  v14 = eq v12, v13 @50:16
+  store s7, v11 @50:16
+  store s8, v12 @50:16
+  branch v14, b3, b4 @50:16
+b3:
+  panic divide @50:16
+b4:
+  v15 = load s7 @50:16
+  v16 = load s8 @50:16
+  v17 = rem v15, v16 @50:16
+  store s9, v17 @50:15
+  v18 = load s0 @50:20
+  v19 = load s2 @50:23
+  v20 = shl v18, v19 @50:21
+  store s10, v20 @50:20
+  v21 = load s0 @50:26
+  v22 = load s2 @50:29
+  v23 = shr v21, v22 @50:27
+  store s11, v23 @50:26
+  v24 = load s0 @50:32
+  v25 = load s3 @50:35
+  v26 = const i8 0 @50:33
+  v27 = lt v25, v26 @50:33
+  store s12, v24 @50:33
+  store s13, v25 @50:33
+  branch v27, b5, b6 @50:33
+b5:
+  panic shift @50:33
+b6:
+  v28 = load s12 @50:33
+  v29 = load s13 @50:33
+  v30 = conv u64, v29 @50:33
+  v31 = shl v28, v30 @50:33
+  store s14, v31 @50:32
+  v32 = load s0 @50:38
+  v33 = load s3 @50:41
+  v34 = const i8 0 @50:39
+  v35 = lt v33, v34 @50:39
+  store s15, v32 @50:39
+  store s16, v33 @50:39
+  branch v35, b7, b8 @50:39
+b7:
+  panic shift @50:39
+b8:
+  v36 = load s15 @50:39
+  v37 = load s16 @50:39
+  v38 = conv u64, v37 @50:39
+  v39 = shr v36, v38 @50:39
+  v40 = load s6 @50:10
+  v41 = load s9 @50:15
+  v42 = load s10 @50:20
+  v43 = load s11 @50:26
+  v44 = load s14 @50:32
+  println v40, v41, v42, v43, v44, v39 @50:2
+  v45 = load s0 @51:7
+  store s17, v45 @51:2
+  v46 = load s17 @52:2
+  v47 = load s1 @52:7
+  v48 = const u8 0 @52:4
+  v49 = eq v47, v48 @52:4
+  store s18, v46 @52:4
+  store s19, v47 @52:4
+  branch v49, b9, b10 @52:4
+b9:
+  panic divide @52:4
+b10:
+  v50 = load s18 @52:4
+  v51 = load s19 @52:4
+  v52 = div v50, v51 @52:4
+  store s17, v52 @52:2
+  v53 = load s17 @53:2
+  v54 = const u8 7 @53:7
+  v55 = rem v53, v54 @53:4
+  store s17, v55 @53:2
+  v56 = load s17 @54:2
+  v57 = load s2 @54:8
+  v58 = shl v56, v57 @54:4
+  store s17, v58 @54:2
+  v59 = load s17 @55:2
+  v60 = load s3 @55:8
+  v61 = const i8 0 @55:4
+  v62 = lt v60, v61 @55:4
+  store s20, v59 @55:4
+  store s21, v60 @55:4
+  branch v62, b11, b12 @55:4
+b11:
+  panic shift @55:4
+b12:
+  v63 = load s20 @55:4
+  v64 = load s21 @55:4
+  v65 = conv u64, v64 @55:4
+  v66 = shr v63, v65 @55:4
+  store s17, v66 @55:2
+  v67 = load s17 @56:10
+  println v67 @56:2
+  ret @57:1
+
+func duint16(u16, u16, u64, i8) @testdata/check/s2_d01_division_shifts.go:59:6
+  slot s0 x u16 @59:14
+  slot s1 y u16 @59:17
+  slot s2 c u64 @59:27
+  slot s3 s i8 @59:35
+  slot s4 tmp u16 @60:11
+  slot s5 tmp u16 @60:11
+  slot s6 tmp u16 @60:10
+  slot s7 tmp u16 @60:16
+  slot s8 tmp u16 @60:16
+  slot s9 tmp u16 @60:15
+  slot s10 tmp u16 @60:20
+  slot s11 tmp u16 @60:26
+  slot s12 tmp u16 @60:33
+  slot s13 tmp i8 @60:33
+  slot s14 tmp u16 @60:32
+  slot s15 tmp u16 @60:39
+  slot s16 tmp i8 @60:39
+  slot s17 z u16 @61:2
+  slot s18 tmp u16 @62:4
+  slot s19 tmp u16 @62:4
+  slot s20 tmp u16 @65:4
+  slot s21 tmp i8 @65:4
+b0:
+  v0 = param 0 @59:14
+  store s0, v0 @59:14
+  v1 = param 1 @59:17
+  store s1, v1 @59:17
+  v2 = param 2 @59:27
+  store s2, v2 @59:27
+  v3 = param 3 @59:35
+  store s3, v3 @59:35
+  v4 = load s0 @60:10
+  v5 = load s1 @60:12
+  v6 = const u16 0 @60:11
+  v7 = eq v5, v6 @60:11
+  store s4, v4 @60:11
+  store s5, v5 @60:11
+  branch v7, b1, b2 @60:11
+b1:
+  panic divide @60:11
+b2:
+  v8 = load s4 @60:11
+  v9 = load s5 @60:11
+  v10 = div v8, v9 @60:11
+  store s6, v10 @60:10
+  v11 = load s0 @60:15
+  v12 = load s1 @60:17
+  v13 = const u16 0 @60:16
+  v14 = eq v12, v13 @60:16
+  store s7, v11 @60:16
+  store s8, v12 @60:16
+  branch v14, b3, b4 @60:16
+b3:
+  panic divide @60:16
+b4:
+  v15 = load s7 @60:16
+  v16 = load s8 @60:16
+  v17 = rem v15, v16 @60:16
+  store s9, v17 @60:15
+  v18 = load s0 @60:20
+  v19 = load s2 @60:23
+  v20 = shl v18, v19 @60:21
+  store s10, v20 @60:20
+  v21 = load s0 @60:26
+  v22 = load s2 @60:29
+  v23 = shr v21, v22 @60:27
+  store s11, v23 @60:26
+  v24 = load s0 @60:32
+  v25 = load s3 @60:35
+  v26 = const i8 0 @60:33
+  v27 = lt v25, v26 @60:33
+  store s12, v24 @60:33
+  store s13, v25 @60:33
+  branch v27, b5, b6 @60:33
+b5:
+  panic shift @60:33
+b6:
+  v28 = load s12 @60:33
+  v29 = load s13 @60:33
+  v30 = conv u64, v29 @60:33
+  v31 = shl v28, v30 @60:33
+  store s14, v31 @60:32
+  v32 = load s0 @60:38
+  v33 = load s3 @60:41
+  v34 = const i8 0 @60:39
+  v35 = lt v33, v34 @60:39
+  store s15, v32 @60:39
+  store s16, v33 @60:39
+  branch v35, b7, b8 @60:39
+b7:
+  panic shift @60:39
+b8:
+  v36 = load s15 @60:39
+  v37 = load s16 @60:39
+  v38 = conv u64, v37 @60:39
+  v39 = shr v36, v38 @60:39
+  v40 = load s6 @60:10
+  v41 = load s9 @60:15
+  v42 = load s10 @60:20
+  v43 = load s11 @60:26
+  v44 = load s14 @60:32
+  println v40, v41, v42, v43, v44, v39 @60:2
+  v45 = load s0 @61:7
+  store s17, v45 @61:2
+  v46 = load s17 @62:2
+  v47 = load s1 @62:7
+  v48 = const u16 0 @62:4
+  v49 = eq v47, v48 @62:4
+  store s18, v46 @62:4
+  store s19, v47 @62:4
+  branch v49, b9, b10 @62:4
+b9:
+  panic divide @62:4
+b10:
+  v50 = load s18 @62:4
+  v51 = load s19 @62:4
+  v52 = div v50, v51 @62:4
+  store s17, v52 @62:2
+  v53 = load s17 @63:2
+  v54 = const u16 7 @63:7
+  v55 = rem v53, v54 @63:4
+  store s17, v55 @63:2
+  v56 = load s17 @64:2
+  v57 = load s2 @64:8
+  v58 = shl v56, v57 @64:4
+  store s17, v58 @64:2
+  v59 = load s17 @65:2
+  v60 = load s3 @65:8
+  v61 = const i8 0 @65:4
+  v62 = lt v60, v61 @65:4
+  store s20, v59 @65:4
+  store s21, v60 @65:4
+  branch v62, b11, b12 @65:4
+b11:
+  panic shift @65:4
+b12:
+  v63 = load s20 @65:4
+  v64 = load s21 @65:4
+  v65 = conv u64, v64 @65:4
+  v66 = shr v63, v65 @65:4
+  store s17, v66 @65:2
+  v67 = load s17 @66:10
+  println v67 @66:2
+  ret @67:1
+
+func duint32(u32, u32, u64, i8) @testdata/check/s2_d01_division_shifts.go:69:6
+  slot s0 x u32 @69:14
+  slot s1 y u32 @69:17
+  slot s2 c u64 @69:27
+  slot s3 s i8 @69:35
+  slot s4 tmp u32 @70:11
+  slot s5 tmp u32 @70:11
+  slot s6 tmp u32 @70:10
+  slot s7 tmp u32 @70:16
+  slot s8 tmp u32 @70:16
+  slot s9 tmp u32 @70:15
+  slot s10 tmp u32 @70:20
+  slot s11 tmp u32 @70:26
+  slot s12 tmp u32 @70:33
+  slot s13 tmp i8 @70:33
+  slot s14 tmp u32 @70:32
+  slot s15 tmp u32 @70:39
+  slot s16 tmp i8 @70:39
+  slot s17 z u32 @71:2
+  slot s18 tmp u32 @72:4
+  slot s19 tmp u32 @72:4
+  slot s20 tmp u32 @75:4
+  slot s21 tmp i8 @75:4
+b0:
+  v0 = param 0 @69:14
+  store s0, v0 @69:14
+  v1 = param 1 @69:17
+  store s1, v1 @69:17
+  v2 = param 2 @69:27
+  store s2, v2 @69:27
+  v3 = param 3 @69:35
+  store s3, v3 @69:35
+  v4 = load s0 @70:10
+  v5 = load s1 @70:12
+  v6 = const u32 0 @70:11
+  v7 = eq v5, v6 @70:11
+  store s4, v4 @70:11
+  store s5, v5 @70:11
+  branch v7, b1, b2 @70:11
+b1:
+  panic divide @70:11
+b2:
+  v8 = load s4 @70:11
+  v9 = load s5 @70:11
+  v10 = div v8, v9 @70:11
+  store s6, v10 @70:10
+  v11 = load s0 @70:15
+  v12 = load s1 @70:17
+  v13 = const u32 0 @70:16
+  v14 = eq v12, v13 @70:16
+  store s7, v11 @70:16
+  store s8, v12 @70:16
+  branch v14, b3, b4 @70:16
+b3:
+  panic divide @70:16
+b4:
+  v15 = load s7 @70:16
+  v16 = load s8 @70:16
+  v17 = rem v15, v16 @70:16
+  store s9, v17 @70:15
+  v18 = load s0 @70:20
+  v19 = load s2 @70:23
+  v20 = shl v18, v19 @70:21
+  store s10, v20 @70:20
+  v21 = load s0 @70:26
+  v22 = load s2 @70:29
+  v23 = shr v21, v22 @70:27
+  store s11, v23 @70:26
+  v24 = load s0 @70:32
+  v25 = load s3 @70:35
+  v26 = const i8 0 @70:33
+  v27 = lt v25, v26 @70:33
+  store s12, v24 @70:33
+  store s13, v25 @70:33
+  branch v27, b5, b6 @70:33
+b5:
+  panic shift @70:33
+b6:
+  v28 = load s12 @70:33
+  v29 = load s13 @70:33
+  v30 = conv u64, v29 @70:33
+  v31 = shl v28, v30 @70:33
+  store s14, v31 @70:32
+  v32 = load s0 @70:38
+  v33 = load s3 @70:41
+  v34 = const i8 0 @70:39
+  v35 = lt v33, v34 @70:39
+  store s15, v32 @70:39
+  store s16, v33 @70:39
+  branch v35, b7, b8 @70:39
+b7:
+  panic shift @70:39
+b8:
+  v36 = load s15 @70:39
+  v37 = load s16 @70:39
+  v38 = conv u64, v37 @70:39
+  v39 = shr v36, v38 @70:39
+  v40 = load s6 @70:10
+  v41 = load s9 @70:15
+  v42 = load s10 @70:20
+  v43 = load s11 @70:26
+  v44 = load s14 @70:32
+  println v40, v41, v42, v43, v44, v39 @70:2
+  v45 = load s0 @71:7
+  store s17, v45 @71:2
+  v46 = load s17 @72:2
+  v47 = load s1 @72:7
+  v48 = const u32 0 @72:4
+  v49 = eq v47, v48 @72:4
+  store s18, v46 @72:4
+  store s19, v47 @72:4
+  branch v49, b9, b10 @72:4
+b9:
+  panic divide @72:4
+b10:
+  v50 = load s18 @72:4
+  v51 = load s19 @72:4
+  v52 = div v50, v51 @72:4
+  store s17, v52 @72:2
+  v53 = load s17 @73:2
+  v54 = const u32 7 @73:7
+  v55 = rem v53, v54 @73:4
+  store s17, v55 @73:2
+  v56 = load s17 @74:2
+  v57 = load s2 @74:8
+  v58 = shl v56, v57 @74:4
+  store s17, v58 @74:2
+  v59 = load s17 @75:2
+  v60 = load s3 @75:8
+  v61 = const i8 0 @75:4
+  v62 = lt v60, v61 @75:4
+  store s20, v59 @75:4
+  store s21, v60 @75:4
+  branch v62, b11, b12 @75:4
+b11:
+  panic shift @75:4
+b12:
+  v63 = load s20 @75:4
+  v64 = load s21 @75:4
+  v65 = conv u64, v64 @75:4
+  v66 = shr v63, v65 @75:4
+  store s17, v66 @75:2
+  v67 = load s17 @76:10
+  println v67 @76:2
+  ret @77:1
+
+func duint64(u64, u64, u64, i8) @testdata/check/s2_d01_division_shifts.go:79:6
+  slot s0 x u64 @79:14
+  slot s1 y u64 @79:17
+  slot s2 c u64 @79:27
+  slot s3 s i8 @79:35
+  slot s4 tmp u64 @80:11
+  slot s5 tmp u64 @80:11
+  slot s6 tmp u64 @80:10
+  slot s7 tmp u64 @80:16
+  slot s8 tmp u64 @80:16
+  slot s9 tmp u64 @80:15
+  slot s10 tmp u64 @80:20
+  slot s11 tmp u64 @80:26
+  slot s12 tmp u64 @80:33
+  slot s13 tmp i8 @80:33
+  slot s14 tmp u64 @80:32
+  slot s15 tmp u64 @80:39
+  slot s16 tmp i8 @80:39
+  slot s17 z u64 @81:2
+  slot s18 tmp u64 @82:4
+  slot s19 tmp u64 @82:4
+  slot s20 tmp u64 @85:4
+  slot s21 tmp i8 @85:4
+b0:
+  v0 = param 0 @79:14
+  store s0, v0 @79:14
+  v1 = param 1 @79:17
+  store s1, v1 @79:17
+  v2 = param 2 @79:27
+  store s2, v2 @79:27
+  v3 = param 3 @79:35
+  store s3, v3 @79:35
+  v4 = load s0 @80:10
+  v5 = load s1 @80:12
+  v6 = const u64 0 @80:11
+  v7 = eq v5, v6 @80:11
+  store s4, v4 @80:11
+  store s5, v5 @80:11
+  branch v7, b1, b2 @80:11
+b1:
+  panic divide @80:11
+b2:
+  v8 = load s4 @80:11
+  v9 = load s5 @80:11
+  v10 = div v8, v9 @80:11
+  store s6, v10 @80:10
+  v11 = load s0 @80:15
+  v12 = load s1 @80:17
+  v13 = const u64 0 @80:16
+  v14 = eq v12, v13 @80:16
+  store s7, v11 @80:16
+  store s8, v12 @80:16
+  branch v14, b3, b4 @80:16
+b3:
+  panic divide @80:16
+b4:
+  v15 = load s7 @80:16
+  v16 = load s8 @80:16
+  v17 = rem v15, v16 @80:16
+  store s9, v17 @80:15
+  v18 = load s0 @80:20
+  v19 = load s2 @80:23
+  v20 = shl v18, v19 @80:21
+  store s10, v20 @80:20
+  v21 = load s0 @80:26
+  v22 = load s2 @80:29
+  v23 = shr v21, v22 @80:27
+  store s11, v23 @80:26
+  v24 = load s0 @80:32
+  v25 = load s3 @80:35
+  v26 = const i8 0 @80:33
+  v27 = lt v25, v26 @80:33
+  store s12, v24 @80:33
+  store s13, v25 @80:33
+  branch v27, b5, b6 @80:33
+b5:
+  panic shift @80:33
+b6:
+  v28 = load s12 @80:33
+  v29 = load s13 @80:33
+  v30 = conv u64, v29 @80:33
+  v31 = shl v28, v30 @80:33
+  store s14, v31 @80:32
+  v32 = load s0 @80:38
+  v33 = load s3 @80:41
+  v34 = const i8 0 @80:39
+  v35 = lt v33, v34 @80:39
+  store s15, v32 @80:39
+  store s16, v33 @80:39
+  branch v35, b7, b8 @80:39
+b7:
+  panic shift @80:39
+b8:
+  v36 = load s15 @80:39
+  v37 = load s16 @80:39
+  v38 = conv u64, v37 @80:39
+  v39 = shr v36, v38 @80:39
+  v40 = load s6 @80:10
+  v41 = load s9 @80:15
+  v42 = load s10 @80:20
+  v43 = load s11 @80:26
+  v44 = load s14 @80:32
+  println v40, v41, v42, v43, v44, v39 @80:2
+  v45 = load s0 @81:7
+  store s17, v45 @81:2
+  v46 = load s17 @82:2
+  v47 = load s1 @82:7
+  v48 = const u64 0 @82:4
+  v49 = eq v47, v48 @82:4
+  store s18, v46 @82:4
+  store s19, v47 @82:4
+  branch v49, b9, b10 @82:4
+b9:
+  panic divide @82:4
+b10:
+  v50 = load s18 @82:4
+  v51 = load s19 @82:4
+  v52 = div v50, v51 @82:4
+  store s17, v52 @82:2
+  v53 = load s17 @83:2
+  v54 = const u64 7 @83:7
+  v55 = rem v53, v54 @83:4
+  store s17, v55 @83:2
+  v56 = load s17 @84:2
+  v57 = load s2 @84:8
+  v58 = shl v56, v57 @84:4
+  store s17, v58 @84:2
+  v59 = load s17 @85:2
+  v60 = load s3 @85:8
+  v61 = const i8 0 @85:4
+  v62 = lt v60, v61 @85:4
+  store s20, v59 @85:4
+  store s21, v60 @85:4
+  branch v62, b11, b12 @85:4
+b11:
+  panic shift @85:4
+b12:
+  v63 = load s20 @85:4
+  v64 = load s21 @85:4
+  v65 = conv u64, v64 @85:4
+  v66 = shr v63, v65 @85:4
+  store s17, v66 @85:2
+  v67 = load s17 @86:10
+  println v67 @86:2
+  ret @87:1
+
+func main @testdata/check/s2_d01_division_shifts.go:89:6
+  slot s0 u8 u8 @257:6
+  slot s1 c16 i16 @258:6
+  slot s2 tmp i64 @259:10
+  slot s3 tmp i64 @259:13
+  slot s4 tmp i64 @259:19
+  slot s5 tmp u8 @259:27
+  slot s6 tmp i16 @259:27
+  slot s7 tmp u8 @259:25
+  slot s8 tmp u8 @259:36
+  slot s9 tmp i16 @259:36
+  slot s10 tmp u8 @259:34
+  slot s11 tmp i64 @259:44
+  slot s12 tmp i16 @259:44
+b0:
+  v0 = const i8 127 @90:8
+  v1 = const i8 1 @90:13
+  v2 = const u64 0 @90:16
+  v3 = const i8 0 @90:19
+  call dint8, v0, v1, v2, v3 @90:2
+  v4 = const i8 -128 @91:8
+  v5 = const i8 2 @91:14
+  v6 = const u64 1 @91:17
+  v7 = const i8 1 @91:20
+  call dint8, v4, v5, v6, v7 @91:2
+  v8 = const i8 127 @92:8
+  v9 = const i8 127 @92:13
+  v10 = const u64 7 @92:18
+  v11 = const i8 3 @92:21
+  call dint8, v8, v9, v10, v11 @92:2
+  v12 = const i8 7 @93:8
+  v13 = const i8 3 @93:11
+  v14 = const u64 8 @93:14
+  v15 = const i8 8 @93:17
+  call dint8, v12, v13, v14, v15 @93:2
+  v16 = const i8 0 @94:8
+  v17 = const i8 5 @94:11
+  v18 = const u64 15 @94:14
+  v19 = const i8 15 @94:18
+  call dint8, v16, v17, v18, v19 @94:2
+  v20 = const i8 -128 @95:8
+  v21 = const i8 -1 @95:14
+  v22 = const u64 16 @95:18
+  v23 = const i8 16 @95:22
+  call dint8, v20, v21, v22, v23 @95:2
+  v24 = const i8 -7 @96:8
+  v25 = const i8 2 @96:12
+  v26 = const u64 31 @96:15
+  v27 = const i8 31 @96:19
+  call dint8, v24, v25, v26, v27 @96:2
+  v28 = const i8 7 @97:8
+  v29 = const i8 -2 @97:11
+  v30 = const u64 32 @97:15
+  v31 = const i8 32 @97:19
+  call dint8, v28, v29, v30, v31 @97:2
+  v32 = const i8 -7 @98:8
+  v33 = const i8 -2 @98:12
+  v34 = const u64 63 @98:16
+  v35 = const i8 63 @98:20
+  call dint8, v32, v33, v34, v35 @98:2
+  v36 = const i8 -128 @99:8
+  v37 = const i8 -128 @99:14
+  v38 = const u64 64 @99:20
+  v39 = const i8 64 @99:24
+  call dint8, v36, v37, v38, v39 @99:2
+  v40 = const i8 127 @100:8
+  v41 = const i8 3 @100:13
+  v42 = const u64 0 @100:16
+  v43 = const i8 0 @100:19
+  call dint8, v40, v41, v42, v43 @100:2
+  v44 = const i8 127 @101:8
+  v45 = const i8 3 @101:13
+  v46 = const u64 1 @101:16
+  v47 = const i8 1 @101:19
+  call dint8, v44, v45, v46, v47 @101:2
+  v48 = const i8 127 @102:8
+  v49 = const i8 3 @102:13
+  v50 = const u64 7 @102:16
+  v51 = const i8 3 @102:19
+  call dint8, v48, v49, v50, v51 @102:2
+  v52 = const i8 127 @103:8
+  v53 = const i8 3 @103:13
+  v54 = const u64 8 @103:16
+  v55 = const i8 8 @103:19
+  call dint8, v52, v53, v54, v55 @103:2
+  v56 = const i8 127 @104:8
+  v57 = const i8 3 @104:13
+  v58 = const u64 15 @104:16
+  v59 = const i8 15 @104:20
+  call dint8, v56, v57, v58, v59 @104:2
+  v60 = const i8 127 @105:8
+  v61 = const i8 3 @105:13
+  v62 = const u64 16 @105:16
+  v63 = const i8 16 @105:20
+  call dint8, v60, v61, v62, v63 @105:2
+  v64 = const i8 127 @106:8
+  v65 = const i8 3 @106:13
+  v66 = const u64 31 @106:16
+  v67 = const i8 31 @106:20
+  call dint8, v64, v65, v66, v67 @106:2
+  v68 = const i8 127 @107:8
+  v69 = const i8 3 @107:13
+  v70 = const u64 32 @107:16
+  v71 = const i8 32 @107:20
+  call dint8, v68, v69, v70, v71 @107:2
+  v72 = const i8 127 @108:8
+  v73 = const i8 3 @108:13
+  v74 = const u64 63 @108:16
+  v75 = const i8 63 @108:20
+  call dint8, v72, v73, v74, v75 @108:2
+  v76 = const i8 127 @109:8
+  v77 = const i8 3 @109:13
+  v78 = const u64 64 @109:16
+  v79 = const i8 64 @109:20
+  call dint8, v76, v77, v78, v79 @109:2
+  v80 = const i8 127 @110:8
+  v81 = const i8 3 @110:13
+  v82 = const u64 65 @110:16
+  v83 = const i8 127 @110:20
+  call dint8, v80, v81, v82, v83 @110:2
+  v84 = const i8 127 @111:8
+  v85 = const i8 3 @111:13
+  v86 = const u64 18446744073709551615 @111:16
+  v87 = const i8 100 @111:38
+  call dint8, v84, v85, v86, v87 @111:2
+  v88 = const i16 32767 @112:9
+  v89 = const i16 1 @112:16
+  v90 = const u64 0 @112:19
+  v91 = const i8 0 @112:22
+  call dint16, v88, v89, v90, v91 @112:2
+  v92 = const i16 -32768 @113:9
+  v93 = const i16 2 @113:17
+  v94 = const u64 1 @113:20
+  v95 = const i8 1 @113:23
+  call dint16, v92, v93, v94, v95 @113:2
+  v96 = const i16 32767 @114:9
+  v97 = const i16 32767 @114:16
+  v98 = const u64 7 @114:23
+  v99 = const i8 3 @114:26
+  call dint16, v96, v97, v98, v99 @114:2
+  v100 = const i16 7 @115:9
+  v101 = const i16 3 @115:12
+  v102 = const u64 8 @115:15
+  v103 = const i8 8 @115:18
+  call dint16, v100, v101, v102, v103 @115:2
+  v104 = const i16 0 @116:9
+  v105 = const i16 5 @116:12
+  v106 = const u64 15 @116:15
+  v107 = const i8 15 @116:19
+  call dint16, v104, v105, v106, v107 @116:2
+  v108 = const i16 -32768 @117:9
+  v109 = const i16 -1 @117:17
+  v110 = const u64 16 @117:21
+  v111 = const i8 16 @117:25
+  call dint16, v108, v109, v110, v111 @117:2
+  v112 = const i16 -7 @118:9
+  v113 = const i16 2 @118:13
+  v114 = const u64 31 @118:16
+  v115 = const i8 31 @118:20
+  call dint16, v112, v113, v114, v115 @118:2
+  v116 = const i16 7 @119:9
+  v117 = const i16 -2 @119:12
+  v118 = const u64 32 @119:16
+  v119 = const i8 32 @119:20
+  call dint16, v116, v117, v118, v119 @119:2
+  v120 = const i16 -7 @120:9
+  v121 = const i16 -2 @120:13
+  v122 = const u64 63 @120:17
+  v123 = const i8 63 @120:21
+  call dint16, v120, v121, v122, v123 @120:2
+  v124 = const i16 -32768 @121:9
+  v125 = const i16 -32768 @121:17
+  v126 = const u64 64 @121:25
+  v127 = const i8 64 @121:29
+  call dint16, v124, v125, v126, v127 @121:2
+  v128 = const i16 32767 @122:9
+  v129 = const i16 3 @122:16
+  v130 = const u64 0 @122:19
+  v131 = const i8 0 @122:22
+  call dint16, v128, v129, v130, v131 @122:2
+  v132 = const i16 32767 @123:9
+  v133 = const i16 3 @123:16
+  v134 = const u64 1 @123:19
+  v135 = const i8 1 @123:22
+  call dint16, v132, v133, v134, v135 @123:2
+  v136 = const i16 32767 @124:9
+  v137 = const i16 3 @124:16
+  v138 = const u64 7 @124:19
+  v139 = const i8 3 @124:22
+  call dint16, v136, v137, v138, v139 @124:2
+  v140 = const i16 32767 @125:9
+  v141 = const i16 3 @125:16
+  v142 = const u64 8 @125:19
+  v143 = const i8 8 @125:22
+  call dint16, v140, v141, v142, v143 @125:2
+  v144 = const i16 32767 @126:9
+  v145 = const i16 3 @126:16
+  v146 = const u64 15 @126:19
+  v147 = const i8 15 @126:23
+  call dint16, v144, v145, v146, v147 @126:2
+  v148 = const i16 32767 @127:9
+  v149 = const i16 3 @127:16
+  v150 = const u64 16 @127:19
+  v151 = const i8 16 @127:23
+  call dint16, v148, v149, v150, v151 @127:2
+  v152 = const i16 32767 @128:9
+  v153 = const i16 3 @128:16
+  v154 = const u64 31 @128:19
+  v155 = const i8 31 @128:23
+  call dint16, v152, v153, v154, v155 @128:2
+  v156 = const i16 32767 @129:9
+  v157 = const i16 3 @129:16
+  v158 = const u64 32 @129:19
+  v159 = const i8 32 @129:23
+  call dint16, v156, v157, v158, v159 @129:2
+  v160 = const i16 32767 @130:9
+  v161 = const i16 3 @130:16
+  v162 = const u64 63 @130:19
+  v163 = const i8 63 @130:23
+  call dint16, v160, v161, v162, v163 @130:2
+  v164 = const i16 32767 @131:9
+  v165 = const i16 3 @131:16
+  v166 = const u64 64 @131:19
+  v167 = const i8 64 @131:23
+  call dint16, v164, v165, v166, v167 @131:2
+  v168 = const i16 32767 @132:9
+  v169 = const i16 3 @132:16
+  v170 = const u64 65 @132:19
+  v171 = const i8 127 @132:23
+  call dint16, v168, v169, v170, v171 @132:2
+  v172 = const i16 32767 @133:9
+  v173 = const i16 3 @133:16
+  v174 = const u64 18446744073709551615 @133:19
+  v175 = const i8 100 @133:41
+  call dint16, v172, v173, v174, v175 @133:2
+  v176 = const i32 2147483647 @134:9
+  v177 = const i32 1 @134:21
+  v178 = const u64 0 @134:24
+  v179 = const i8 0 @134:27
+  call dint32, v176, v177, v178, v179 @134:2
+  v180 = const i32 -2147483648 @135:9
+  v181 = const i32 2 @135:22
+  v182 = const u64 1 @135:25
+  v183 = const i8 1 @135:28
+  call dint32, v180, v181, v182, v183 @135:2
+  v184 = const i32 2147483647 @136:9
+  v185 = const i32 2147483647 @136:21
+  v186 = const u64 7 @136:33
+  v187 = const i8 3 @136:36
+  call dint32, v184, v185, v186, v187 @136:2
+  v188 = const i32 7 @137:9
+  v189 = const i32 3 @137:12
+  v190 = const u64 8 @137:15
+  v191 = const i8 8 @137:18
+  call dint32, v188, v189, v190, v191 @137:2
+  v192 = const i32 0 @138:9
+  v193 = const i32 5 @138:12
+  v194 = const u64 15 @138:15
+  v195 = const i8 15 @138:19
+  call dint32, v192, v193, v194, v195 @138:2
+  v196 = const i32 -2147483648 @139:9
+  v197 = const i32 -1 @139:22
+  v198 = const u64 16 @139:26
+  v199 = const i8 16 @139:30
+  call dint32, v196, v197, v198, v199 @139:2
+  v200 = const i32 -7 @140:9
+  v201 = const i32 2 @140:13
+  v202 = const u64 31 @140:16
+  v203 = const i8 31 @140:20
+  call dint32, v200, v201, v202, v203 @140:2
+  v204 = const i32 7 @141:9
+  v205 = const i32 -2 @141:12
+  v206 = const u64 32 @141:16
+  v207 = const i8 32 @141:20
+  call dint32, v204, v205, v206, v207 @141:2
+  v208 = const i32 -7 @142:9
+  v209 = const i32 -2 @142:13
+  v210 = const u64 63 @142:17
+  v211 = const i8 63 @142:21
+  call dint32, v208, v209, v210, v211 @142:2
+  v212 = const i32 -2147483648 @143:9
+  v213 = const i32 -2147483648 @143:22
+  v214 = const u64 64 @143:35
+  v215 = const i8 64 @143:39
+  call dint32, v212, v213, v214, v215 @143:2
+  v216 = const i32 2147483647 @144:9
+  v217 = const i32 3 @144:21
+  v218 = const u64 0 @144:24
+  v219 = const i8 0 @144:27
+  call dint32, v216, v217, v218, v219 @144:2
+  v220 = const i32 2147483647 @145:9
+  v221 = const i32 3 @145:21
+  v222 = const u64 1 @145:24
+  v223 = const i8 1 @145:27
+  call dint32, v220, v221, v222, v223 @145:2
+  v224 = const i32 2147483647 @146:9
+  v225 = const i32 3 @146:21
+  v226 = const u64 7 @146:24
+  v227 = const i8 3 @146:27
+  call dint32, v224, v225, v226, v227 @146:2
+  v228 = const i32 2147483647 @147:9
+  v229 = const i32 3 @147:21
+  v230 = const u64 8 @147:24
+  v231 = const i8 8 @147:27
+  call dint32, v228, v229, v230, v231 @147:2
+  v232 = const i32 2147483647 @148:9
+  v233 = const i32 3 @148:21
+  v234 = const u64 15 @148:24
+  v235 = const i8 15 @148:28
+  call dint32, v232, v233, v234, v235 @148:2
+  v236 = const i32 2147483647 @149:9
+  v237 = const i32 3 @149:21
+  v238 = const u64 16 @149:24
+  v239 = const i8 16 @149:28
+  call dint32, v236, v237, v238, v239 @149:2
+  v240 = const i32 2147483647 @150:9
+  v241 = const i32 3 @150:21
+  v242 = const u64 31 @150:24
+  v243 = const i8 31 @150:28
+  call dint32, v240, v241, v242, v243 @150:2
+  v244 = const i32 2147483647 @151:9
+  v245 = const i32 3 @151:21
+  v246 = const u64 32 @151:24
+  v247 = const i8 32 @151:28
+  call dint32, v244, v245, v246, v247 @151:2
+  v248 = const i32 2147483647 @152:9
+  v249 = const i32 3 @152:21
+  v250 = const u64 63 @152:24
+  v251 = const i8 63 @152:28
+  call dint32, v248, v249, v250, v251 @152:2
+  v252 = const i32 2147483647 @153:9
+  v253 = const i32 3 @153:21
+  v254 = const u64 64 @153:24
+  v255 = const i8 64 @153:28
+  call dint32, v252, v253, v254, v255 @153:2
+  v256 = const i32 2147483647 @154:9
+  v257 = const i32 3 @154:21
+  v258 = const u64 65 @154:24
+  v259 = const i8 127 @154:28
+  call dint32, v256, v257, v258, v259 @154:2
+  v260 = const i32 2147483647 @155:9
+  v261 = const i32 3 @155:21
+  v262 = const u64 18446744073709551615 @155:24
+  v263 = const i8 100 @155:46
+  call dint32, v260, v261, v262, v263 @155:2
+  v264 = const 9223372036854775807 @156:9
+  v265 = const 1 @156:30
+  v266 = const u64 0 @156:33
+  v267 = const i8 0 @156:36
+  call dint64, v264, v265, v266, v267 @156:2
+  v268 = const -9223372036854775808 @157:9
+  v269 = const 2 @157:31
+  v270 = const u64 1 @157:34
+  v271 = const i8 1 @157:37
+  call dint64, v268, v269, v270, v271 @157:2
+  v272 = const 9223372036854775807 @158:9
+  v273 = const 9223372036854775807 @158:30
+  v274 = const u64 7 @158:51
+  v275 = const i8 3 @158:54
+  call dint64, v272, v273, v274, v275 @158:2
+  v276 = const 7 @159:9
+  v277 = const 3 @159:12
+  v278 = const u64 8 @159:15
+  v279 = const i8 8 @159:18
+  call dint64, v276, v277, v278, v279 @159:2
+  v280 = const 0 @160:9
+  v281 = const 5 @160:12
+  v282 = const u64 15 @160:15
+  v283 = const i8 15 @160:19
+  call dint64, v280, v281, v282, v283 @160:2
+  v284 = const -9223372036854775808 @161:9
+  v285 = const -1 @161:31
+  v286 = const u64 16 @161:35
+  v287 = const i8 16 @161:39
+  call dint64, v284, v285, v286, v287 @161:2
+  v288 = const -7 @162:9
+  v289 = const 2 @162:13
+  v290 = const u64 31 @162:16
+  v291 = const i8 31 @162:20
+  call dint64, v288, v289, v290, v291 @162:2
+  v292 = const 7 @163:9
+  v293 = const -2 @163:12
+  v294 = const u64 32 @163:16
+  v295 = const i8 32 @163:20
+  call dint64, v292, v293, v294, v295 @163:2
+  v296 = const -7 @164:9
+  v297 = const -2 @164:13
+  v298 = const u64 63 @164:17
+  v299 = const i8 63 @164:21
+  call dint64, v296, v297, v298, v299 @164:2
+  v300 = const -9223372036854775808 @165:9
+  v301 = const -9223372036854775808 @165:31
+  v302 = const u64 64 @165:53
+  v303 = const i8 64 @165:57
+  call dint64, v300, v301, v302, v303 @165:2
+  v304 = const 9223372036854775807 @166:9
+  v305 = const 3 @166:30
+  v306 = const u64 0 @166:33
+  v307 = const i8 0 @166:36
+  call dint64, v304, v305, v306, v307 @166:2
+  v308 = const 9223372036854775807 @167:9
+  v309 = const 3 @167:30
+  v310 = const u64 1 @167:33
+  v311 = const i8 1 @167:36
+  call dint64, v308, v309, v310, v311 @167:2
+  v312 = const 9223372036854775807 @168:9
+  v313 = const 3 @168:30
+  v314 = const u64 7 @168:33
+  v315 = const i8 3 @168:36
+  call dint64, v312, v313, v314, v315 @168:2
+  v316 = const 9223372036854775807 @169:9
+  v317 = const 3 @169:30
+  v318 = const u64 8 @169:33
+  v319 = const i8 8 @169:36
+  call dint64, v316, v317, v318, v319 @169:2
+  v320 = const 9223372036854775807 @170:9
+  v321 = const 3 @170:30
+  v322 = const u64 15 @170:33
+  v323 = const i8 15 @170:37
+  call dint64, v320, v321, v322, v323 @170:2
+  v324 = const 9223372036854775807 @171:9
+  v325 = const 3 @171:30
+  v326 = const u64 16 @171:33
+  v327 = const i8 16 @171:37
+  call dint64, v324, v325, v326, v327 @171:2
+  v328 = const 9223372036854775807 @172:9
+  v329 = const 3 @172:30
+  v330 = const u64 31 @172:33
+  v331 = const i8 31 @172:37
+  call dint64, v328, v329, v330, v331 @172:2
+  v332 = const 9223372036854775807 @173:9
+  v333 = const 3 @173:30
+  v334 = const u64 32 @173:33
+  v335 = const i8 32 @173:37
+  call dint64, v332, v333, v334, v335 @173:2
+  v336 = const 9223372036854775807 @174:9
+  v337 = const 3 @174:30
+  v338 = const u64 63 @174:33
+  v339 = const i8 63 @174:37
+  call dint64, v336, v337, v338, v339 @174:2
+  v340 = const 9223372036854775807 @175:9
+  v341 = const 3 @175:30
+  v342 = const u64 64 @175:33
+  v343 = const i8 64 @175:37
+  call dint64, v340, v341, v342, v343 @175:2
+  v344 = const 9223372036854775807 @176:9
+  v345 = const 3 @176:30
+  v346 = const u64 65 @176:33
+  v347 = const i8 127 @176:37
+  call dint64, v344, v345, v346, v347 @176:2
+  v348 = const 9223372036854775807 @177:9
+  v349 = const 3 @177:30
+  v350 = const u64 18446744073709551615 @177:33
+  v351 = const i8 100 @177:55
+  call dint64, v348, v349, v350, v351 @177:2
+  v352 = const u8 255 @178:9
+  v353 = const u8 1 @178:14
+  v354 = const u64 0 @178:17
+  v355 = const i8 0 @178:20
+  call duint8, v352, v353, v354, v355 @178:2
+  v356 = const u8 255 @179:9
+  v357 = const u8 2 @179:14
+  v358 = const u64 1 @179:17
+  v359 = const i8 1 @179:20
+  call duint8, v356, v357, v358, v359 @179:2
+  v360 = const u8 255 @180:9
+  v361 = const u8 255 @180:14
+  v362 = const u64 7 @180:19
+  v363 = const i8 3 @180:22
+  call duint8, v360, v361, v362, v363 @180:2
+  v364 = const u8 7 @181:9
+  v365 = const u8 3 @181:12
+  v366 = const u64 8 @181:15
+  v367 = const i8 8 @181:18
+  call duint8, v364, v365, v366, v367 @181:2
+  v368 = const u8 0 @182:9
+  v369 = const u8 5 @182:12
+  v370 = const u64 15 @182:15
+  v371 = const i8 15 @182:19
+  call duint8, v368, v369, v370, v371 @182:2
+  v372 = const u8 255 @183:9
+  v373 = const u8 16 @183:14
+  v374 = const u64 16 @183:18
+  v375 = const i8 16 @183:22
+  call duint8, v372, v373, v374, v375 @183:2
+  v376 = const u8 1 @184:9
+  v377 = const u8 255 @184:12
+  v378 = const u64 31 @184:17
+  v379 = const i8 31 @184:21
+  call duint8, v376, v377, v378, v379 @184:2
+  v380 = const u8 255 @185:9
+  v381 = const u8 3 @185:14
+  v382 = const u64 0 @185:17
+  v383 = const i8 0 @185:20
+  call duint8, v380, v381, v382, v383 @185:2
+  v384 = const u8 255 @186:9
+  v385 = const u8 3 @186:14
+  v386 = const u64 1 @186:17
+  v387 = const i8 1 @186:20
+  call duint8, v384, v385, v386, v387 @186:2
+  v388 = const u8 255 @187:9
+  v389 = const u8 3 @187:14
+  v390 = const u64 7 @187:17
+  v391 = const i8 3 @187:20
+  call duint8, v388, v389, v390, v391 @187:2
+  v392 = const u8 255 @188:9
+  v393 = const u8 3 @188:14
+  v394 = const u64 8 @188:17
+  v395 = const i8 8 @188:20
+  call duint8, v392, v393, v394, v395 @188:2
+  v396 = const u8 255 @189:9
+  v397 = const u8 3 @189:14
+  v398 = const u64 15 @189:17
+  v399 = const i8 15 @189:21
+  call duint8, v396, v397, v398, v399 @189:2
+  v400 = const u8 255 @190:9
+  v401 = const u8 3 @190:14
+  v402 = const u64 16 @190:17
+  v403 = const i8 16 @190:21
+  call duint8, v400, v401, v402, v403 @190:2
+  v404 = const u8 255 @191:9
+  v405 = const u8 3 @191:14
+  v406 = const u64 31 @191:17
+  v407 = const i8 31 @191:21
+  call duint8, v404, v405, v406, v407 @191:2
+  v408 = const u8 255 @192:9
+  v409 = const u8 3 @192:14
+  v410 = const u64 32 @192:17
+  v411 = const i8 32 @192:21
+  call duint8, v408, v409, v410, v411 @192:2
+  v412 = const u8 255 @193:9
+  v413 = const u8 3 @193:14
+  v414 = const u64 63 @193:17
+  v415 = const i8 63 @193:21
+  call duint8, v412, v413, v414, v415 @193:2
+  v416 = const u8 255 @194:9
+  v417 = const u8 3 @194:14
+  v418 = const u64 64 @194:17
+  v419 = const i8 64 @194:21
+  call duint8, v416, v417, v418, v419 @194:2
+  v420 = const u8 255 @195:9
+  v421 = const u8 3 @195:14
+  v422 = const u64 65 @195:17
+  v423 = const i8 127 @195:21
+  call duint8, v420, v421, v422, v423 @195:2
+  v424 = const u8 255 @196:9
+  v425 = const u8 3 @196:14
+  v426 = const u64 18446744073709551615 @196:17
+  v427 = const i8 100 @196:39
+  call duint8, v424, v425, v426, v427 @196:2
+  v428 = const u16 65535 @197:10
+  v429 = const u16 1 @197:17
+  v430 = const u64 0 @197:20
+  v431 = const i8 0 @197:23
+  call duint16, v428, v429, v430, v431 @197:2
+  v432 = const u16 65535 @198:10
+  v433 = const u16 2 @198:17
+  v434 = const u64 1 @198:20
+  v435 = const i8 1 @198:23
+  call duint16, v432, v433, v434, v435 @198:2
+  v436 = const u16 65535 @199:10
+  v437 = const u16 65535 @199:17
+  v438 = const u64 7 @199:24
+  v439 = const i8 3 @199:27
+  call duint16, v436, v437, v438, v439 @199:2
+  v440 = const u16 7 @200:10
+  v441 = const u16 3 @200:13
+  v442 = const u64 8 @200:16
+  v443 = const i8 8 @200:19
+  call duint16, v440, v441, v442, v443 @200:2
+  v444 = const u16 0 @201:10
+  v445 = const u16 5 @201:13
+  v446 = const u64 15 @201:16
+  v447 = const i8 15 @201:20
+  call duint16, v444, v445, v446, v447 @201:2
+  v448 = const u16 65535 @202:10
+  v449 = const u16 16 @202:17
+  v450 = const u64 16 @202:21
+  v451 = const i8 16 @202:25
+  call duint16, v448, v449, v450, v451 @202:2
+  v452 = const u16 1 @203:10
+  v453 = const u16 65535 @203:13
+  v454 = const u64 31 @203:20
+  v455 = const i8 31 @203:24
+  call duint16, v452, v453, v454, v455 @203:2
+  v456 = const u16 65535 @204:10
+  v457 = const u16 3 @204:17
+  v458 = const u64 0 @204:20
+  v459 = const i8 0 @204:23
+  call duint16, v456, v457, v458, v459 @204:2
+  v460 = const u16 65535 @205:10
+  v461 = const u16 3 @205:17
+  v462 = const u64 1 @205:20
+  v463 = const i8 1 @205:23
+  call duint16, v460, v461, v462, v463 @205:2
+  v464 = const u16 65535 @206:10
+  v465 = const u16 3 @206:17
+  v466 = const u64 7 @206:20
+  v467 = const i8 3 @206:23
+  call duint16, v464, v465, v466, v467 @206:2
+  v468 = const u16 65535 @207:10
+  v469 = const u16 3 @207:17
+  v470 = const u64 8 @207:20
+  v471 = const i8 8 @207:23
+  call duint16, v468, v469, v470, v471 @207:2
+  v472 = const u16 65535 @208:10
+  v473 = const u16 3 @208:17
+  v474 = const u64 15 @208:20
+  v475 = const i8 15 @208:24
+  call duint16, v472, v473, v474, v475 @208:2
+  v476 = const u16 65535 @209:10
+  v477 = const u16 3 @209:17
+  v478 = const u64 16 @209:20
+  v479 = const i8 16 @209:24
+  call duint16, v476, v477, v478, v479 @209:2
+  v480 = const u16 65535 @210:10
+  v481 = const u16 3 @210:17
+  v482 = const u64 31 @210:20
+  v483 = const i8 31 @210:24
+  call duint16, v480, v481, v482, v483 @210:2
+  v484 = const u16 65535 @211:10
+  v485 = const u16 3 @211:17
+  v486 = const u64 32 @211:20
+  v487 = const i8 32 @211:24
+  call duint16, v484, v485, v486, v487 @211:2
+  v488 = const u16 65535 @212:10
+  v489 = const u16 3 @212:17
+  v490 = const u64 63 @212:20
+  v491 = const i8 63 @212:24
+  call duint16, v488, v489, v490, v491 @212:2
+  v492 = const u16 65535 @213:10
+  v493 = const u16 3 @213:17
+  v494 = const u64 64 @213:20
+  v495 = const i8 64 @213:24
+  call duint16, v492, v493, v494, v495 @213:2
+  v496 = const u16 65535 @214:10
+  v497 = const u16 3 @214:17
+  v498 = const u64 65 @214:20
+  v499 = const i8 127 @214:24
+  call duint16, v496, v497, v498, v499 @214:2
+  v500 = const u16 65535 @215:10
+  v501 = const u16 3 @215:17
+  v502 = const u64 18446744073709551615 @215:20
+  v503 = const i8 100 @215:42
+  call duint16, v500, v501, v502, v503 @215:2
+  v504 = const u32 4294967295 @216:10
+  v505 = const u32 1 @216:22
+  v506 = const u64 0 @216:25
+  v507 = const i8 0 @216:28
+  call duint32, v504, v505, v506, v507 @216:2
+  v508 = const u32 4294967295 @217:10
+  v509 = const u32 2 @217:22
+  v510 = const u64 1 @217:25
+  v511 = const i8 1 @217:28
+  call duint32, v508, v509, v510, v511 @217:2
+  v512 = const u32 4294967295 @218:10
+  v513 = const u32 4294967295 @218:22
+  v514 = const u64 7 @218:34
+  v515 = const i8 3 @218:37
+  call duint32, v512, v513, v514, v515 @218:2
+  v516 = const u32 7 @219:10
+  v517 = const u32 3 @219:13
+  v518 = const u64 8 @219:16
+  v519 = const i8 8 @219:19
+  call duint32, v516, v517, v518, v519 @219:2
+  v520 = const u32 0 @220:10
+  v521 = const u32 5 @220:13
+  v522 = const u64 15 @220:16
+  v523 = const i8 15 @220:20
+  call duint32, v520, v521, v522, v523 @220:2
+  v524 = const u32 4294967295 @221:10
+  v525 = const u32 16 @221:22
+  v526 = const u64 16 @221:26
+  v527 = const i8 16 @221:30
+  call duint32, v524, v525, v526, v527 @221:2
+  v528 = const u32 1 @222:10
+  v529 = const u32 4294967295 @222:13
+  v530 = const u64 31 @222:25
+  v531 = const i8 31 @222:29
+  call duint32, v528, v529, v530, v531 @222:2
+  v532 = const u32 4294967295 @223:10
+  v533 = const u32 3 @223:22
+  v534 = const u64 0 @223:25
+  v535 = const i8 0 @223:28
+  call duint32, v532, v533, v534, v535 @223:2
+  v536 = const u32 4294967295 @224:10
+  v537 = const u32 3 @224:22
+  v538 = const u64 1 @224:25
+  v539 = const i8 1 @224:28
+  call duint32, v536, v537, v538, v539 @224:2
+  v540 = const u32 4294967295 @225:10
+  v541 = const u32 3 @225:22
+  v542 = const u64 7 @225:25
+  v543 = const i8 3 @225:28
+  call duint32, v540, v541, v542, v543 @225:2
+  v544 = const u32 4294967295 @226:10
+  v545 = const u32 3 @226:22
+  v546 = const u64 8 @226:25
+  v547 = const i8 8 @226:28
+  call duint32, v544, v545, v546, v547 @226:2
+  v548 = const u32 4294967295 @227:10
+  v549 = const u32 3 @227:22
+  v550 = const u64 15 @227:25
+  v551 = const i8 15 @227:29
+  call duint32, v548, v549, v550, v551 @227:2
+  v552 = const u32 4294967295 @228:10
+  v553 = const u32 3 @228:22
+  v554 = const u64 16 @228:25
+  v555 = const i8 16 @228:29
+  call duint32, v552, v553, v554, v555 @228:2
+  v556 = const u32 4294967295 @229:10
+  v557 = const u32 3 @229:22
+  v558 = const u64 31 @229:25
+  v559 = const i8 31 @229:29
+  call duint32, v556, v557, v558, v559 @229:2
+  v560 = const u32 4294967295 @230:10
+  v561 = const u32 3 @230:22
+  v562 = const u64 32 @230:25
+  v563 = const i8 32 @230:29
+  call duint32, v560, v561, v562, v563 @230:2
+  v564 = const u32 4294967295 @231:10
+  v565 = const u32 3 @231:22
+  v566 = const u64 63 @231:25
+  v567 = const i8 63 @231:29
+  call duint32, v564, v565, v566, v567 @231:2
+  v568 = const u32 4294967295 @232:10
+  v569 = const u32 3 @232:22
+  v570 = const u64 64 @232:25
+  v571 = const i8 64 @232:29
+  call duint32, v568, v569, v570, v571 @232:2
+  v572 = const u32 4294967295 @233:10
+  v573 = const u32 3 @233:22
+  v574 = const u64 65 @233:25
+  v575 = const i8 127 @233:29
+  call duint32, v572, v573, v574, v575 @233:2
+  v576 = const u32 4294967295 @234:10
+  v577 = const u32 3 @234:22
+  v578 = const u64 18446744073709551615 @234:25
+  v579 = const i8 100 @234:47
+  call duint32, v576, v577, v578, v579 @234:2
+  v580 = const u64 18446744073709551615 @235:10
+  v581 = const u64 1 @235:32
+  v582 = const u64 0 @235:35
+  v583 = const i8 0 @235:38
+  call duint64, v580, v581, v582, v583 @235:2
+  v584 = const u64 18446744073709551615 @236:10
+  v585 = const u64 2 @236:32
+  v586 = const u64 1 @236:35
+  v587 = const i8 1 @236:38
+  call duint64, v584, v585, v586, v587 @236:2
+  v588 = const u64 18446744073709551615 @237:10
+  v589 = const u64 18446744073709551615 @237:32
+  v590 = const u64 7 @237:54
+  v591 = const i8 3 @237:57
+  call duint64, v588, v589, v590, v591 @237:2
+  v592 = const u64 7 @238:10
+  v593 = const u64 3 @238:13
+  v594 = const u64 8 @238:16
+  v595 = const i8 8 @238:19
+  call duint64, v592, v593, v594, v595 @238:2
+  v596 = const u64 0 @239:10
+  v597 = const u64 5 @239:13
+  v598 = const u64 15 @239:16
+  v599 = const i8 15 @239:20
+  call duint64, v596, v597, v598, v599 @239:2
+  v600 = const u64 18446744073709551615 @240:10
+  v601 = const u64 16 @240:32
+  v602 = const u64 16 @240:36
+  v603 = const i8 16 @240:40
+  call duint64, v600, v601, v602, v603 @240:2
+  v604 = const u64 1 @241:10
+  v605 = const u64 18446744073709551615 @241:13
+  v606 = const u64 31 @241:35
+  v607 = const i8 31 @241:39
+  call duint64, v604, v605, v606, v607 @241:2
+  v608 = const u64 18446744073709551615 @242:10
+  v609 = const u64 3 @242:32
+  v610 = const u64 0 @242:35
+  v611 = const i8 0 @242:38
+  call duint64, v608, v609, v610, v611 @242:2
+  v612 = const u64 18446744073709551615 @243:10
+  v613 = const u64 3 @243:32
+  v614 = const u64 1 @243:35
+  v615 = const i8 1 @243:38
+  call duint64, v612, v613, v614, v615 @243:2
+  v616 = const u64 18446744073709551615 @244:10
+  v617 = const u64 3 @244:32
+  v618 = const u64 7 @244:35
+  v619 = const i8 3 @244:38
+  call duint64, v616, v617, v618, v619 @244:2
+  v620 = const u64 18446744073709551615 @245:10
+  v621 = const u64 3 @245:32
+  v622 = const u64 8 @245:35
+  v623 = const i8 8 @245:38
+  call duint64, v620, v621, v622, v623 @245:2
+  v624 = const u64 18446744073709551615 @246:10
+  v625 = const u64 3 @246:32
+  v626 = const u64 15 @246:35
+  v627 = const i8 15 @246:39
+  call duint64, v624, v625, v626, v627 @246:2
+  v628 = const u64 18446744073709551615 @247:10
+  v629 = const u64 3 @247:32
+  v630 = const u64 16 @247:35
+  v631 = const i8 16 @247:39
+  call duint64, v628, v629, v630, v631 @247:2
+  v632 = const u64 18446744073709551615 @248:10
+  v633 = const u64 3 @248:32
+  v634 = const u64 31 @248:35
+  v635 = const i8 31 @248:39
+  call duint64, v632, v633, v634, v635 @248:2
+  v636 = const u64 18446744073709551615 @249:10
+  v637 = const u64 3 @249:32
+  v638 = const u64 32 @249:35
+  v639 = const i8 32 @249:39
+  call duint64, v636, v637, v638, v639 @249:2
+  v640 = const u64 18446744073709551615 @250:10
+  v641 = const u64 3 @250:32
+  v642 = const u64 63 @250:35
+  v643 = const i8 63 @250:39
+  call duint64, v640, v641, v642, v643 @250:2
+  v644 = const u64 18446744073709551615 @251:10
+  v645 = const u64 3 @251:32
+  v646 = const u64 64 @251:35
+  v647 = const i8 64 @251:39
+  call duint64, v644, v645, v646, v647 @251:2
+  v648 = const u64 18446744073709551615 @252:10
+  v649 = const u64 3 @252:32
+  v650 = const u64 65 @252:35
+  v651 = const i8 127 @252:39
+  call duint64, v648, v649, v650, v651 @252:2
+  v652 = const u64 18446744073709551615 @253:10
+  v653 = const u64 3 @253:32
+  v654 = const u64 18446744073709551615 @253:35
+  v655 = const i8 100 @253:57
+  call duint64, v652, v653, v654, v655 @253:2
+  v656 = const u8 200 @257:17
+  store s0, v656 @257:6
+  v657 = const i16 3 @258:18
+  store s1, v657 @258:6
+  v658 = const 1537228672809129300 @259:10
+  store s2, v658 @259:10
+  v659 = const -3 @259:13
+  store s3, v659 @259:13
+  v660 = const -1 @259:19
+  store s4, v660 @259:19
+  v661 = load s0 @259:25
+  v662 = load s1 @259:29
+  v663 = const i16 0 @259:27
+  v664 = lt v662, v663 @259:27
+  store s5, v661 @259:27
+  store s6, v662 @259:27
+  branch v664, b1, b2 @259:27
+b1:
+  panic shift @259:27
+b2:
+  v665 = load s5 @259:27
+  v666 = load s6 @259:27
+  v667 = conv u64, v666 @259:27
+  v668 = shr v665, v667 @259:27
+  store s7, v668 @259:25
+  v669 = load s0 @259:34
+  v670 = load s1 @259:38
+  v671 = const i16 0 @259:36
+  v672 = lt v670, v671 @259:36
+  store s8, v669 @259:36
+  store s9, v670 @259:36
+  branch v672, b3, b4 @259:36
+b3:
+  panic shift @259:36
+b4:
+  v673 = load s8 @259:36
+  v674 = load s9 @259:36
+  v675 = conv u64, v674 @259:36
+  v676 = shl v673, v675 @259:36
+  store s10, v676 @259:34
+  v677 = const 1 @259:43
+  v678 = load s1 @259:46
+  v679 = const i16 0 @259:44
+  v680 = lt v678, v679 @259:44
+  store s11, v677 @259:44
+  store s12, v678 @259:44
+  branch v680, b5, b6 @259:44
+b5:
+  panic shift @259:44
+b6:
+  v681 = load s11 @259:44
+  v682 = load s12 @259:44
+  v683 = conv u64, v682 @259:44
+  v684 = shl v681, v683 @259:44
+  v685 = const u8 128 @259:51
+  v686 = load s2 @259:10
+  v687 = load s3 @259:13
+  v688 = load s4 @259:19
+  v689 = load s7 @259:25
+  v690 = load s10 @259:34
+  println v686, v687, v688, v689, v690, v684, v685 @259:2
+  ret @260:1

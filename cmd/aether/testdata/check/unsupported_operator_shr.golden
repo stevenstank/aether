@@ -1,1 +1,0 @@
-testdata/check/unsupported_operator_shr.go:7:10: unsupported: operator >> is not supported in subset S1 [operator-shr]

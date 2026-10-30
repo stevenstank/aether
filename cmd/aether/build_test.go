@@ -156,7 +156,7 @@ func TestBuildRejects(t *testing.T) {
 	}{
 		{"s1_n01_constant_overflow", diag.ExitInvalid},
 		{"s1_n05_missing_main", diag.ExitInvalid},
-		{"unsupported_operator_div", diag.ExitUnsupported},
+		{"unsupported_defer", diag.ExitUnsupported},
 		{"unsupported_import", diag.ExitUnsupported},
 	}
 	for _, tt := range tests {

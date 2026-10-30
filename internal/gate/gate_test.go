@@ -99,6 +99,7 @@ func TestAccepted(t *testing.T) {
 		"conversions":               `x := 300; println(int8(x), uint8(x), (int16)(x), uint32(-x), int64(uint64(x)), bool(x > 0))`,
 		"bit assignments":           `x := uint32(5); x &= 3; x |= 8; x ^= 1; x &^= 2; println(x)`,
 		"print":                     `print(1, true, uint8(2)); print(); println()`,
+		"division and shifts":       `x, y := 7, 2; var u uint8 = 3; println(x/y, x%y, x<<y, x>>u, 1<<u, -x>>1); x /= y; x %= 3; x <<= u; x >>= 1; const c = 7 / 2 << 3; println(x, c)`,
 		"recursive main":            `main()`,
 	}
 	for name, body := range tests {
@@ -141,13 +142,6 @@ func TestRejected(t *testing.T) {
 		body string
 		want []string
 	}{
-		{"division", `x := 7; println(x / 2)`, []string{"operator-div"}},
-		{"remainder", `x := 7; println(x % 2)`, []string{"operator-rem"}},
-		{"shifts", `x := 7; println(x<<1, x>>1)`, []string{"operator-shl", "operator-shr"}},
-		{"constant division", `const c = 7 / 2; println(c)`, []string{"operator-div"}},
-		{"constant shift", `const c = 1 << 3; println(c)`, []string{"operator-shl"}},
-		{"compound division", `x := 8; x /= 2; println(x)`, []string{"operator-div"}},
-		{"compound shift", `x := 8; x <<= 1; println(x)`, []string{"operator-shl"}},
 		{"float literal as int", `var x int = 1.0; println(x)`, []string{"float-literal"}},
 		{"hex float literal as int", `var x int = 0x1p4; println(x)`, []string{"float-literal"}},
 		// The 3 is an integer literal of type untyped float here, because
@@ -165,7 +159,6 @@ func TestRejected(t *testing.T) {
 		{"float conversion", `x := 1; println(float64(x) > 0)`, []string{"conversion", "non-int-type"}},
 		{"string conversion", `x := 65; println(len(string(rune(x))))`, []string{"builtin"}},
 		{"float32 variable", `var f float32; println(f > 0)`, []string{"non-int-type"}},
-		{"shift of a sized integer", `var x uint8 = 1; println(x << 1)`, []string{"operator-shl"}},
 		{"function literal", `f := func() {}; f()`, []string{"call", "function-literal"}},
 		{"iota", `const c = iota; println(c)`, []string{"predeclared-identifier"}},
 		{"blank assignment", `x := 1; _ = x`, []string{"blank-identifier"}},

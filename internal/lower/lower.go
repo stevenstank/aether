@@ -1,11 +1,12 @@
 // Package lower translates a type-checked program of S1, the functions of
 // increment 4.2, the bool and control flow of increment 4.1, the multiple
-// results of increment 4.3, and the integer types of increment 4.4 into IR
-// (D-004, D-021, D-023).
+// results of increment 4.3, the integer types of increment 4.4, and the
+// division and shifts of increment 4.5 into IR (D-004, D-021, D-023).
 //
-// IR values are local to their block (D-023). && and || branch, so a value
-// computed before an operand containing them is kept in a temporary slot
-// across the branch. Code after a return, break, or continue is not
+// IR values are local to their block (D-023). && and || branch, and so do
+// the checks before a division and a signed shift (D-023 explicit checks),
+// so a value computed before an operand containing them is kept in a
+// temporary slot across the branch. Code after a return, break, or continue is not
 // lowered, and blocks that no path reaches are removed.
 //
 // Lowering runs only on programs the subset gate has accepted, so every
@@ -384,14 +385,15 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			}
 			l.fn.Store(l.b, slot, vals[i], l.pos(id, id.Pos()))
 		}
-	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN,
-		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN:
+	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN,
+		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
 		if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
 			l.fail(s, "compound assignment with %d targets and %d values", len(s.Lhs), len(s.Rhs))
 		}
 		op := map[token.Token]ir.Op{
 			token.ADD_ASSIGN: ir.Add, token.SUB_ASSIGN: ir.Sub, token.MUL_ASSIGN: ir.Mul,
 			token.AND_ASSIGN: ir.And, token.OR_ASSIGN: ir.Or, token.XOR_ASSIGN: ir.Xor, token.AND_NOT_ASSIGN: ir.AndNot,
+			token.QUO_ASSIGN: ir.Div, token.REM_ASSIGN: ir.Rem, token.SHL_ASSIGN: ir.Shl, token.SHR_ASSIGN: ir.Shr,
 		}[s.Tok]
 		id := l.ident(s.Lhs[0])
 		slot := l.lookup(id)
@@ -404,7 +406,7 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			get = l.spill(x, pos)
 		}
 		y := l.expr(s.Rhs[0])
-		l.fn.Store(l.b, slot, l.fn.Binary(l.b, op, get(), y, l.pos(s, s.TokPos)), pos)
+		l.fn.Store(l.b, slot, l.arith(op, get(), y, s.Rhs[0], l.pos(s, s.TokPos)), pos)
 	default:
 		l.fail(s, "unexpected assignment %s", s.Tok)
 	}
@@ -541,8 +543,8 @@ func (l *lowerer) spill(v *ir.Instr, pos ir.Pos) func() *ir.Instr {
 	return func() *ir.Instr { return l.fn.Load(l.b, tmp, pos) }
 }
 
-// branches reports whether lowering any of list would branch: whether it
-// contains a non-constant && or ||.
+// branches reports whether lowering any of list might branch: whether it
+// contains a non-constant &&, ||, division, or shift.
 func (l *lowerer) branches(list []ast.Expr) bool {
 	found := false
 	for _, e := range list {
@@ -552,8 +554,11 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 					return false // a constant: lowered as one const
 				}
 			}
-			if b, ok := n.(*ast.BinaryExpr); ok && (b.Op == token.LAND || b.Op == token.LOR) {
-				found = true
+			if b, ok := n.(*ast.BinaryExpr); ok {
+				switch b.Op {
+				case token.LAND, token.LOR, token.QUO, token.REM, token.SHL, token.SHR:
+					found = true // may branch: a conservative test
+				}
 			}
 			return !found
 		})
@@ -640,7 +645,7 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			if op.IsComparison() {
 				return l.fn.Compare(l.b, op, xy[0], xy[1], pos)
 			}
-			return l.fn.Binary(l.b, op, xy[0], xy[1], pos)
+			return l.arith(op, xy[0], xy[1], e.Y, pos)
 		}
 	}
 	l.fail(e, "unexpected expression %s", types.ExprString(e))
@@ -650,7 +655,57 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 var binaryOps = map[token.Token]ir.Op{
 	token.ADD: ir.Add, token.SUB: ir.Sub, token.MUL: ir.Mul,
 	token.AND: ir.And, token.OR: ir.Or, token.XOR: ir.Xor, token.AND_NOT: ir.AndNot,
+	token.QUO: ir.Div, token.REM: ir.Rem, token.SHL: ir.Shl, token.SHR: ir.Shr,
 	token.EQL: ir.Eq, token.NEQ: ir.Ne, token.LSS: ir.Lt, token.LEQ: ir.Le, token.GTR: ir.Gt, token.GEQ: ir.Ge,
+}
+
+// arith appends the arithmetic operation op of x and y, where y is the
+// value of the expression ye. A division first checks that y is not 0, and
+// a shift by a signed count that it is not negative, branching to a block
+// that panics if it fails (D-023 explicit checks); the count is then
+// converted to u64. A constant y needs no check: go/types rejects a
+// constant divisor of 0 and a negative constant count.
+func (l *lowerer) arith(op ir.Op, x, y *ir.Instr, ye ast.Expr, pos ir.Pos) *ir.Instr {
+	constant := l.pkg.Info.Types[ye].Value != nil
+	switch op {
+	case ir.Div, ir.Rem:
+		if !constant {
+			zero := l.fn.Compare(l.b, ir.Eq, y, l.fn.TypedConst(l.b, y.Type, 0, pos), pos)
+			v := l.guard(zero, ir.PanicDivide, pos, x, y)
+			x, y = v[0], v[1]
+		}
+	case ir.Shl, ir.Shr:
+		if y.Type.Signed() {
+			if !constant {
+				neg := l.fn.Compare(l.b, ir.Lt, y, l.fn.TypedConst(l.b, y.Type, 0, pos), pos)
+				v := l.guard(neg, ir.PanicShift, pos, x, y)
+				x, y = v[0], v[1]
+			}
+			y = l.fn.Conv(l.b, ir.U64, y, pos)
+		}
+		return l.fn.Shift(l.b, op, x, y, pos)
+	}
+	return l.fn.Binary(l.b, op, x, y, pos)
+}
+
+// guard branches to a new block that panics with kind if fail is true, and
+// continues in another block otherwise. vals, computed in the current
+// block, are kept in temporary slots across the branch and returned as
+// loads in the new current block.
+func (l *lowerer) guard(fail *ir.Instr, kind int, pos ir.Pos, vals ...*ir.Instr) []*ir.Instr {
+	get := make([]func() *ir.Instr, len(vals))
+	for i, v := range vals {
+		get[i] = l.spill(v, pos)
+	}
+	panicking, ok := l.fn.NewBlock(), l.fn.NewBlock()
+	l.fn.Branch(l.b, fail, panicking, ok, pos)
+	l.fn.Panic(panicking, kind, pos)
+	l.b = ok
+	out := make([]*ir.Instr, len(vals))
+	for i := range get {
+		out[i] = get[i]()
+	}
+	return out
 }
 
 // logical lowers x && y and x || y: x is stored in a temporary slot, and

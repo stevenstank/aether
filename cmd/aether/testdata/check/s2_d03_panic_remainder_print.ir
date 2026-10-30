@@ -1,0 +1,27 @@
+func main @testdata/check/s2_d03_panic_remainder_print.go:6:6
+  slot s0 x u8 @7:6
+  slot s1 y u8 @7:9
+  slot s2 tmp u8 @9:12
+  slot s3 tmp u8 @9:12
+b0:
+  v0 = const u8 7 @7:19
+  v1 = const u8 0 @7:22
+  store s0, v0 @7:6
+  store s1, v1 @7:9
+  v2 = const 5 @8:8
+  print v2 @8:2
+  v3 = load s0 @9:10
+  v4 = load s1 @9:14
+  v5 = const u8 0 @9:12
+  v6 = eq v4, v5 @9:12
+  store s2, v3 @9:12
+  store s3, v4 @9:12
+  branch v6, b1, b2 @9:12
+b1:
+  panic divide @9:12
+b2:
+  v7 = load s2 @9:12
+  v8 = load s3 @9:12
+  v9 = rem v7, v8 @9:12
+  println v9 @9:2
+  ret @10:1

@@ -371,7 +371,7 @@ func TestMilestone1Rejections(t *testing.T) {
 		code      int
 		feature   string
 	}{
-		{"division", main("x := 6\nprintln(x / 2)"), 3, "operator-div"},
+		{"defer", main("defer println(1)"), 3, "defer"},
 		{"import", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(1) }\n", 3, "import"},
 		{"switch", main("x := 1\nswitch x {\n}\nprintln(x)"), 3, "switch"},
 		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { f() }\n", 3, "function-declaration"},

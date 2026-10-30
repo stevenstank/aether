@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -137,6 +138,14 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)
+	for name, r := range want {
+		// A panicking program is compared by the panic rule.
+		if q, ok, err := panicPrefix(r); err != nil {
+			t.Errorf("%s: gc output does not fit the panic rule: %v\n%+v", name, err, r)
+		} else if ok {
+			want[name] = result{stderr: q, exit: 2}
+		}
+	}
 	native := true
 	if _, err := toolchain.Find("as", nil); err != nil {
 		native = false
@@ -213,5 +222,61 @@ func gcRejects(t *testing.T, gobin string, progs map[string][]byte) {
 	}
 	if len(progs) > 0 {
 		t.Errorf("gc did not reject %d programs Aether classified as invalid\n%s", len(progs), out)
+	}
+}
+
+// panicPrefix applies the panic comparison rule (SEMANTICS.md, V-3) to a
+// gc-built binary's result. A result is a panic if its stderr contains the
+// text "panic: ". Then Q is the exact stderr up to and including the first
+// newline after its first occurrence, the line from there must be
+// "panic: runtime error: " and a message, stdout must be empty, and the
+// exit status 2; Q is what Aether must write, with nothing after it. The
+// traceback after Q is not compared. Programs print only integers and
+// bool, so earlier output cannot contain the text.
+func panicPrefix(gc result) (q string, ok bool, err error) {
+	i := strings.Index(gc.stderr, "panic: ")
+	if i < 0 {
+		return "", false, nil
+	}
+	line, _, found := strings.Cut(gc.stderr[i:], "\n")
+	switch {
+	case !found:
+		return "", false, errors.New("no newline after the panic message")
+	case !strings.HasPrefix(line, "panic: runtime error: ") || len(line) == len("panic: runtime error: "):
+		return "", false, fmt.Errorf("panic line %q is not a run-time error", line)
+	case gc.exit != 2:
+		return "", false, fmt.Errorf("exit status %d, want 2", gc.exit)
+	case gc.stdout != "":
+		return "", false, fmt.Errorf("stdout %q, want none", gc.stdout)
+	}
+	return gc.stderr[:i+len(line)+1], true, nil
+}
+
+func TestPanicPrefix(t *testing.T) {
+	const tb = "\ngoroutine 1 [running]:\nmain.main()\n\t/x/main.go:6 +0x1d\nexit status 2\n"
+	good := []struct{ stderr, q string }{
+		{"7\npanic: runtime error: integer divide by zero\n" + tb, "7\npanic: runtime error: integer divide by zero\n"},
+		{"1panic: runtime error: negative shift amount\n" + tb, "1panic: runtime error: negative shift amount\n"},
+		{"panic: runtime error: integer divide by zero\n", "panic: runtime error: integer divide by zero\n"},
+	}
+	for _, tt := range good {
+		if q, ok, err := panicPrefix(result{stderr: tt.stderr, exit: 2}); err != nil || !ok || q != tt.q {
+			t.Errorf("%q: %q, %v, %v; want %q", tt.stderr, q, ok, err, tt.q)
+		}
+	}
+	if _, ok, err := panicPrefix(result{stderr: "1 2\n"}); ok || err != nil {
+		t.Errorf("no panic: %v, %v", ok, err)
+	}
+	bad := []result{
+		{stderr: "panic: runtime error: integer divide by zero\n" + tb, exit: 1},
+		{stderr: "panic: runtime error: integer divide by zero\n", exit: 2, stdout: "x"},
+		{stderr: "panic: runtime error: integer divide by zero", exit: 2},
+		{stderr: "panic: 1\n" + tb, exit: 2},
+		{stderr: "panic: runtime error: \n", exit: 2},
+	}
+	for _, r := range bad {
+		if q, ok, err := panicPrefix(r); err == nil {
+			t.Errorf("%+v accepted: %q, %v", r, q, ok)
+		}
 	}
 }
