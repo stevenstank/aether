@@ -406,7 +406,8 @@ repeated in each phase below:
      explicit checks (a divisor compared with 0, a signed count with 0,
      each branching to `panic`), the corrected panic comparison rule
      (acceptance criteria above), and division tables for every type and
-     five panicking programs run against gc. Not done: the generator.
+     five panicking programs run against gc. Part 3 done: the generator
+     (`TESTING.md`), with three negative controls.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.

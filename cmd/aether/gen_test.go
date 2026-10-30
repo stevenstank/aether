@@ -14,8 +14,11 @@ import (
 // with negative and boundary operands, ! && ||, if/else trees, and bounded
 // loops in all three for forms with break and continue), and those of
 // increment 4.4 (variables of every integer type, conversions between them,
-// & | ^ &^ and unary ^ with their compound assignments, and print).
-// Literals include values that make run-time arithmetic wrap.
+// & | ^ &^ and unary ^ with their compound assignments, and print), and
+// those of increment 4.5 (/ % << >> with their compound assignments).
+// Literals include values that make run-time arithmetic wrap. A
+// non-constant divisor or signed shift count may be zero or negative, so
+// some programs panic.
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -311,8 +314,17 @@ func (g *generator) stmt(depth int) {
 	case k == 9 && len(ints) > 0:
 		name := g.pick(ints)
 		e, _ := g.lookup(name)
-		rhs, _ := g.intExpr(2, true, e.t)
-		g.line(depth, "%s %s %s", name, g.pick([]string{"+=", "-=", "*=", "&=", "|=", "^=", "&^="}), rhs)
+		op := g.pick([]string{"+=", "-=", "*=", "&=", "|=", "^=", "&^=", "/=", "%=", "<<=", ">>="})
+		var rhs string
+		switch op {
+		case "/=", "%=":
+			rhs, _ = g.divisor(2, true, e.t)
+		case "<<=", ">>=":
+			rhs, _ = g.count(2, true)
+		default:
+			rhs, _ = g.intExpr(2, true, e.t)
+		}
+		g.line(depth, "%s %s %s", name, op, rhs)
 	case k == 10 && len(ints) > 0:
 		g.line(depth, "%s%s", g.pick(ints), g.pick([]string{"++", "--"}))
 	case k <= 12 && depth < 5:
@@ -431,6 +443,26 @@ func (g *generator) intExpr(depth int, useVars bool, t string) (string, bool) {
 		}
 	}
 	x, cx := g.intExpr(depth-1, useVars, t)
+	switch g.r.IntN(7) {
+	case 0:
+		y, cy := g.divisor(depth-1, useVars, t)
+		return x + " " + g.pick([]string{"/", "%"}) + " " + y, cx && cy
+	case 1:
+		// The shifted operand is parenthesized, so that the count applies
+		// to all of it. A constant one is shifted by a small constant
+		// count: with a variable count, its type would come from the
+		// context rather than be t.
+		if cx && !same(t, "int") {
+			break
+		}
+		y, cy := "", true
+		if cx {
+			y = g.pick([]string{"0", "1", "2", "3", "7", "10"})
+		} else {
+			y, cy = g.count(depth-1, useVars)
+		}
+		return "(" + x + ") " + g.pick([]string{"<<", ">>"}) + " " + y, cx && cy
+	}
 	y, cy := g.intExpr(depth-1, useVars, t)
 	ops := []string{"+", "-", "*", "&", "|", "^", "&^"}
 	if cx && cy && !same(t, "int") {
@@ -439,6 +471,45 @@ func (g *generator) intExpr(depth int, useVars bool, t string) (string, bool) {
 		ops = ops[3:]
 	}
 	return x + " " + g.pick(ops) + " " + y, cx && cy
+}
+
+// divisor returns a divisor of type t and whether it is constant. A constant
+// divisor is a nonzero literal, since go/types rejects a constant division
+// by zero. A variable divisor is usually or-ed with 1, so that most programs
+// do not panic, and is otherwise any parenthesized expression of type t,
+// which may be zero.
+func (g *generator) divisor(depth int, useVars bool, t string) (string, bool) {
+	if vars := g.vars(t); useVars && len(vars) > 0 {
+		switch g.r.IntN(4) {
+		case 0:
+			return "(" + g.pick(vars) + " | 1)", false
+		case 1:
+			if e, isConst := g.intExpr(depth, true, t); !isConst && g.r.IntN(2) == 0 {
+				return "(" + e + ")", false
+			}
+		}
+	}
+	lits := []string{"1", "2", "3", "7", "10", "9223372036854775807"}
+	if m, ok := maxLiteral[t]; ok {
+		lits[len(lits)-1] = m
+	}
+	if !unsigned(t) {
+		lits = append(lits, "-1", "-2", "-7")
+	}
+	return g.pick(lits), true
+}
+
+// count returns a shift count and whether it is constant. A constant count
+// is a nonnegative literal, since go/types rejects a negative one. A
+// variable count is a parenthesized expression of any integer type, which
+// may be negative or at least the width of the shifted type.
+func (g *generator) count(depth int, useVars bool) (string, bool) {
+	if useVars && g.r.IntN(2) == 0 {
+		if e, isConst := g.intExpr(depth, true, g.pick(intTypes)); !isConst {
+			return "(" + e + ")", false
+		}
+	}
+	return g.pick([]string{"0", "1", "2", "3", "7", "8", "15", "16", "31", "32", "63", "64", "100"}), true
 }
 
 // boolExpr returns a bool expression of at most the given depth, with every

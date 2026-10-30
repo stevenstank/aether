@@ -208,6 +208,20 @@ would mostly overflow. About 36% of seeds now give an invalid program.
 Negative controls confirmed that it detects conversions lowered as no-ops
 and `&^` lowered as `&`.
 
+Since increment 4.5 it also uses `/`, `%`, `<<`, `>>`, and their compound
+assignments. A constant divisor is a nonzero literal; a variable one is
+usually or-ed with 1 and otherwise any expression, which may be zero. A
+constant shift count is a nonnegative literal; a variable one is an
+expression of any integer type, which may be negative or at least the
+width. A constant is shifted only by a constant, since with a variable
+count its type would come from the context. So some programs panic and are
+compared by the panic rule: of seeds 1 to 600, 409 were valid, 15 of them
+panicking (13 dividing by zero, 2 with a negative shift count), and about
+32% of seeds gave an invalid program (38% before). Negative controls
+confirmed that generated programs detect `shrq` for signed `>>` in the
+backend, a missing negative-count check in lowering, and unsigned values
+divided as signed in the interpreter.
+
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
 come from running gc.
