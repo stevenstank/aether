@@ -125,6 +125,11 @@ tests is not supported.
     is explicitly marked as such and accepts every allowed outcome
     (`docs/TESTING.md`).
 - Package-level initialization follows `types.Info.InitOrder`.
+- With package-level variables (increment 4.6) the unspecified order is
+  observable: in `println(x, f())`, `x + f()`, or `x += f()`, where `f`
+  assigns the global `x`, Aether reads `x` first, left to right. gc
+  (go1.26.1) reads it after the call (observed 2026-10-30). Both are
+  allowed; this is divergence V-4.
 
 ### Scoping and name resolution
 
@@ -223,6 +228,7 @@ has a defined normalization in the test harness.
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 | V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
+| V-4 | Evaluation order | A global read as an operand before a call that assigns it is read before the call in Aether and after it in gc (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never read a global in an expression or assignment with a call that may assign it. `TestGlobalReadOrder` pins Aether's order without gc. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
 Implemented (Phase 4 increment 4.5):
@@ -583,6 +589,17 @@ panics with `integer divide by zero` and a negative count with `negative
 shift amount` (V-3). The feature names `operator-div`, `operator-rem`,
 `operator-shl`, and `operator-shr` no longer exist.
 
+## Package-level variables and constants (Phase 4 increment 4.6)
+
+The gate also accepts package-level `var` and `const` declarations of
+`bool` and the integer types, under the rules for local ones (no blank
+names, no implicit constant values), and their use in every function.
+Variables without an initializer start at zero. Initializers, which may
+call functions, run before `main` in `types.Info.InitOrder` (spec §Package
+initialization); a panic or stack overflow in one ends the program before
+`main` runs. Package-level `type` declarations and `init` functions remain
+`unsupported` (`package-level-declaration`, `init-function`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -604,6 +621,7 @@ shift amount` (V-3). The feature names `operator-div`, `operator-rem`,
 | Multiple results and multi-value calls | Function types, Return statements, Assignment statements, Calls | S2 / 4.3 | Supported (native) | `s2_t01_multiple_results`; `TestNativeTuples`; `TestVerifyTuples`; gate tests |
 | Every integer type, conversions, `& \| ^ &^`, unary `^`, `print` | Numeric types, Conversions, Arithmetic operators | S2 / 4.4 | Supported (native) | `s2_i01_integer_tables`, `s2_i02_conversions_print`; `TestIntegerTypes`, `TestConversions` |
 | `/ % << >>` with the run-time panics (V-3) | Arithmetic operators, Run-time panics | S2 / 4.5 | Supported (native), with divergence V-3 | `s2_d01_division_shifts` to `s2_d06_panic_in_loop`; `TestIntegerTypes`, `TestPanics`, `TestPanicPrefix` |
+| Package-level `var` and `const`, initialization in `InitOrder` | Variable declarations, Constant declarations, Package initialization | S2 / 4.6 | Supported (native), with divergence V-4 | `s2_g01_package_vars` to `s2_g04_globals_recursion`; `TestNativeGlobals`, `TestGlobalsAndInit`, `TestVerifyGlobals`, `TestGlobalReadOrder`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

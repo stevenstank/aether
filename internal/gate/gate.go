@@ -236,7 +236,13 @@ func (c *checker) topDecl(d ast.Decl) {
 			c.internal(d, "import declaration reached the typed check")
 			return
 		}
-		c.reject(d, FeatPackageDecl, "package-level "+d.Tok.String()+" declaration")
+		if d.Tok != token.VAR && d.Tok != token.CONST {
+			c.reject(d, FeatPackageDecl, "package-level "+d.Tok.String()+" declaration")
+			return
+		}
+		// Package-level variables and constants follow the rules of local
+		// ones; their initialization order is go/types' InitOrder.
+		c.declStmt(d)
 	case *ast.FuncDecl:
 		switch {
 		case d.Recv != nil:
@@ -523,12 +529,12 @@ func (c *checker) target(e ast.Expr) {
 		c.reject(id, FeatBlank, "the blank identifier")
 		return
 	}
-	// Every S1 variable is declared inside a function, where its declaration has
-	// already been checked; a non-int type was reported there.
+	// Every variable is declared in the program, where its declaration has
+	// been checked; an unsupported type was reported there.
 	c.intVar(id, c.info.Uses[id], false)
 }
 
-// intVar checks that obj, named by id, is a local variable. If reportType is
+// intVar checks that obj, named by id, is a variable of the program. If reportType is
 // set, it also reports a type other than int.
 func (c *checker) intVar(id *ast.Ident, obj types.Object, reportType bool) {
 	v, ok := obj.(*types.Var)
@@ -536,7 +542,7 @@ func (c *checker) intVar(id *ast.Ident, obj types.Object, reportType bool) {
 		c.internal(id, "%s is not a variable", id.Name)
 		return
 	}
-	if !c.local(id, v) {
+	if !c.declared(id, v) {
 		return
 	}
 	if reportType && !isSupported(v.Type()) {
@@ -761,13 +767,14 @@ func (c *checker) typed(e ast.Expr) bool {
 }
 
 // valueIdent checks an identifier used as a value. It must denote a variable
-// or constant declared inside a function. It reports whether the identifier is
-// acceptable so far (its type is checked by the caller).
+// or constant declared in the program, inside a function or at package
+// level. It reports whether the identifier is acceptable so far (its type
+// is checked by the caller).
 func (c *checker) valueIdent(id *ast.Ident) bool {
 	obj := c.info.Uses[id]
 	switch obj := obj.(type) {
 	case *types.Var:
-		return c.local(id, obj)
+		return c.declared(id, obj)
 	case *types.Const:
 		if obj == types.Universe.Lookup("true") || obj == types.Universe.Lookup("false") {
 			return true
@@ -776,7 +783,7 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 			c.reject(id, FeatPredeclared, "predeclared identifier "+id.Name)
 			return false
 		}
-		return c.local(id, obj)
+		return c.declared(id, obj)
 	case *types.Nil:
 		c.reject(id, FeatPredeclared, "predeclared identifier nil")
 	case *types.TypeName:
@@ -793,15 +800,10 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 	return false
 }
 
-// local reports whether obj, named by id, is declared inside a function. A
-// package-level object is reachable here because package-level declarations
-// are rejected but still type-check; uses of one are rejected as well.
-func (c *checker) local(id *ast.Ident, obj types.Object) bool {
-	switch obj.Parent() {
-	case c.pkg.Types.Scope():
-		c.reject(id, FeatPackageDecl, "use of package-level "+id.Name)
-		return false
-	case types.Universe:
+// declared reports whether obj, named by id, is declared in the program,
+// inside a function or at package level, rather than predeclared.
+func (c *checker) declared(id *ast.Ident, obj types.Object) bool {
+	if obj.Parent() == types.Universe {
 		c.internal(id, "%s is a predeclared variable", id.Name)
 		return false
 	}

@@ -1,7 +1,12 @@
 // Package lower translates a type-checked program of S1, the functions of
 // increment 4.2, the bool and control flow of increment 4.1, the multiple
-// results of increment 4.3, the integer types of increment 4.4, and the
-// division and shifts of increment 4.5 into IR (D-004, D-021, D-023).
+// results of increment 4.3, the integer types of increment 4.4, the
+// division and shifts of increment 4.5, and the package-level variables
+// and constants of increment 4.6 into IR (D-004, D-021, D-023).
+//
+// Each package-level variable is an IR global. Their initializers are
+// lowered, in types.Info.InitOrder, into the program's Init, which runs
+// before main; a program without initializers has no Init.
 //
 // IR values are local to their block (D-023). && and || branch, and so do
 // the checks before a division and a signed shift (D-023 explicit checks),
@@ -38,7 +43,7 @@ import (
 // returns either a program or Internal diagnostics, never both. It does not
 // verify the program; the caller runs ir.Verify.
 func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
-	l := &lowerer{pkg: pkg, slots: map[*types.Var]*ir.Slot{}, funcs: map[*types.Func]*ir.Func{}}
+	l := &lowerer{pkg: pkg, slots: map[*types.Var]*ir.Slot{}, globals: map[*types.Var]*ir.Global{}, funcs: map[*types.Func]*ir.Func{}}
 	defer func() {
 		if r := recover(); r != nil {
 			b, ok := r.(bailout)
@@ -49,11 +54,15 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		}
 	}()
 	prog = &ir.Program{}
-	// Every function is created before any body is lowered, so that a call
-	// can refer to a function declared later.
+	// Every function and global is created before any body is lowered, so
+	// that a use can refer to one declared later.
 	var decls []*ast.FuncDecl
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
+			if gd, ok := d.(*ast.GenDecl); ok {
+				l.global(prog, gd)
+				continue
+			}
 			fd, ok := d.(*ast.FuncDecl)
 			if !ok || fd.Recv != nil || fd.Body == nil || fd.Type.TypeParams != nil {
 				l.fail(d, "unexpected top-level declaration")
@@ -65,6 +74,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 	for _, fd := range decls {
 		l.function(fd)
 	}
+	l.init(prog)
 	mains := 0
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
@@ -81,13 +91,14 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 type bailout diag.Diagnostic
 
 type lowerer struct {
-	pkg   *frontend.Package
-	fn    *ir.Func
-	b     *ir.Block // the block instructions are appended to
-	done  bool      // the block has its terminator: the rest is unreachable
-	slots map[*types.Var]*ir.Slot
-	funcs map[*types.Func]*ir.Func
-	loops []*loop // the enclosing for statements, innermost last
+	pkg     *frontend.Package
+	fn      *ir.Func
+	b       *ir.Block // the block instructions are appended to
+	done    bool      // the block has its terminator: the rest is unreachable
+	slots   map[*types.Var]*ir.Slot
+	globals map[*types.Var]*ir.Global
+	funcs   map[*types.Func]*ir.Func
+	loops   []*loop // the enclosing for statements, innermost last
 }
 
 // loop is a for statement being lowered: break jumps to exit, continue to
@@ -138,6 +149,58 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 		f.Results = append(f.Results, l.irType(fd, v.Type()))
 	}
 	l.funcs[obj] = f
+}
+
+// global creates the IR globals of a package-level var declaration, in
+// source order. A package-level constant, like a local one, has no storage.
+func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
+	switch d.Tok {
+	case token.CONST:
+		return
+	case token.VAR:
+	default:
+		l.fail(d, "unexpected package-level %s declaration", d.Tok)
+	}
+	for _, spec := range d.Specs {
+		for _, id := range spec.(*ast.ValueSpec).Names {
+			v, ok := l.pkg.Info.Defs[id].(*types.Var)
+			if !ok || id.Name == "_" {
+				l.fail(id, "%s does not declare a variable", id.Name)
+			}
+			file := frontend.Position(l.pkg.Fset, id.Pos()).File
+			l.globals[v] = prog.NewGlobal(id.Name, l.irType(id, v.Type()), file, l.pos(id, id.Pos()))
+		}
+	}
+}
+
+// init lowers the package-level variables' initializers into the program's
+// Init, in types.Info.InitOrder (spec §Package initialization): each
+// evaluates its expression, which may call functions, then stores the
+// value, or each result of a call, in its variables. A variable without an
+// initializer keeps its zero value. Init is at the package clause.
+func (l *lowerer) init(prog *ir.Program) {
+	order := l.pkg.Info.InitOrder
+	if len(order) == 0 {
+		return
+	}
+	f := l.pkg.Files[0]
+	file := frontend.Position(l.pkg.Fset, f.Package).File
+	l.fn = prog.NewFunc("init", file, l.pos(f, f.Package))
+	prog.Init = l.fn
+	l.b, l.done = l.fn.Entry(), false
+	for _, init := range order {
+		vals := l.valuesOrResults([]ast.Expr{init.Rhs}, len(init.Lhs))
+		for i, v := range init.Lhs {
+			g := l.globals[v]
+			if g == nil {
+				l.fail(init.Rhs, "initializer of %s, which is not a global", v.Name())
+			}
+			l.fn.GStore(l.b, g, vals[i], l.pos(init.Rhs, v.Pos()))
+		}
+	}
+	l.fn.Ret(l.b, l.fn.Pos)
+	prune(l.fn)
+	l.fn = nil
 }
 
 // function lowers fd's body. Each named parameter gets a slot, stored from
@@ -239,10 +302,10 @@ func (l *lowerer) stmt(s ast.Stmt) {
 			op = ir.Sub
 		}
 		id := l.ident(s.X)
-		slot := l.lookup(id)
-		x := l.fn.Load(l.b, slot, l.pos(id, id.Pos()))
-		one := l.fn.TypedConst(l.b, slot.Type, 1, l.pos(s, s.TokPos))
-		l.fn.Store(l.b, slot, l.fn.Binary(l.b, op, x, one, l.pos(s, s.TokPos)), l.pos(id, id.Pos()))
+		v := l.lookup(id)
+		x := l.load(v, l.pos(id, id.Pos()))
+		one := l.fn.TypedConst(l.b, x.Type, 1, l.pos(s, s.TokPos))
+		l.store(v, l.fn.Binary(l.b, op, x, one, l.pos(s, s.TokPos)), l.pos(id, id.Pos()))
 	case *ast.ExprStmt:
 		l.exprStmt(s)
 	case *ast.ReturnStmt:
@@ -377,13 +440,13 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		vals := l.valuesOrResults(s.Rhs, len(s.Lhs))
 		for i, e := range s.Lhs {
 			id := l.ident(e)
-			var slot *ir.Slot
+			var v variable
 			if s.Tok == token.DEFINE && l.pkg.Info.Defs[id] != nil {
-				slot = l.define(id)
+				v.slot = l.define(id)
 			} else {
-				slot = l.lookup(id)
+				v = l.lookup(id)
 			}
-			l.fn.Store(l.b, slot, vals[i], l.pos(id, id.Pos()))
+			l.store(v, vals[i], l.pos(id, id.Pos()))
 		}
 	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN,
 		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
@@ -396,17 +459,20 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			token.QUO_ASSIGN: ir.Div, token.REM_ASSIGN: ir.Rem, token.SHL_ASSIGN: ir.Shl, token.SHR_ASSIGN: ir.Shr,
 		}[s.Tok]
 		id := l.ident(s.Lhs[0])
-		slot := l.lookup(id)
+		v := l.lookup(id)
 		// The right side may branch (a call argument with && or ||), so x
-		// is kept across it.
+		// is kept across it. If the variable is a global, the right side
+		// may call a function that assigns it; when x is read relative to
+		// that call is unspecified (spec §Order of evaluation), and
+		// lowering reads it first, left to right.
 		pos := l.pos(id, id.Pos())
-		x := l.fn.Load(l.b, slot, pos)
+		x := l.load(v, pos)
 		get := func() *ir.Instr { return x }
 		if l.branches(s.Rhs) {
 			get = l.spill(x, pos)
 		}
 		y := l.expr(s.Rhs[0])
-		l.fn.Store(l.b, slot, l.arith(op, get(), y, s.Rhs[0], l.pos(s, s.TokPos)), pos)
+		l.store(v, l.arith(op, get(), y, s.Rhs[0], l.pos(s, s.TokPos)), pos)
 	default:
 		l.fail(s, "unexpected assignment %s", s.Tok)
 	}
@@ -501,13 +567,40 @@ func (l *lowerer) define(id *ast.Ident) *ir.Slot {
 	return slot
 }
 
-// lookup returns the slot of the variable that id uses.
-func (l *lowerer) lookup(id *ast.Ident) *ir.Slot {
+// variable is the storage of a variable: a slot if it is local, or a
+// global if it is declared at package level.
+type variable struct {
+	slot   *ir.Slot
+	global *ir.Global
+}
+
+// lookup returns the storage of the variable that id uses.
+func (l *lowerer) lookup(id *ast.Ident) variable {
 	v, ok := l.pkg.Info.Uses[id].(*types.Var)
-	if !ok || l.slots[v] == nil {
-		l.fail(id, "%s does not denote a local variable", id.Name)
+	switch {
+	case !ok:
+	case l.slots[v] != nil:
+		return variable{slot: l.slots[v]}
+	case l.globals[v] != nil:
+		return variable{global: l.globals[v]}
 	}
-	return l.slots[v]
+	l.fail(id, "%s does not denote a variable", id.Name)
+	return variable{}
+}
+
+func (l *lowerer) load(v variable, pos ir.Pos) *ir.Instr {
+	if v.global != nil {
+		return l.fn.GLoad(l.b, v.global, pos)
+	}
+	return l.fn.Load(l.b, v.slot, pos)
+}
+
+func (l *lowerer) store(v variable, x *ir.Instr, pos ir.Pos) {
+	if v.global != nil {
+		l.fn.GStore(l.b, v.global, x, pos)
+	} else {
+		l.fn.Store(l.b, v.slot, x, pos)
+	}
 }
 
 // values lowers list left to right. A value computed before a later
@@ -602,7 +695,7 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	}
 	switch e := e.(type) {
 	case *ast.Ident:
-		return l.fn.Load(l.b, l.lookup(e), l.pos(e, e.Pos()))
+		return l.load(l.lookup(e), l.pos(e, e.Pos()))
 	case *ast.ParenExpr:
 		return l.expr(e.X)
 	case *ast.CallExpr:

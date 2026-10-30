@@ -416,8 +416,13 @@ repeated in each phase below:
      interpreter (`Init` runs first, sharing the step budget), and backend
      (globals in `.bss`, `main.init`, a stack covering both entry frames),
      and `_start` calls `main.init`. Tested on hand-built IR, natively and
-     in the interpreter, including a panic in `Init`. Not done: the gate,
-     lowering with `InitOrder`, the corpus, and the generator.
+     in the interpreter, including a panic in `Init`. Part 2 done: the gate
+     and lowering (`Init` built in `InitOrder`, at the package clause), and
+     four programs run against gc (`s2_g01` to `s2_g04`: every kind of
+     global, initialization order through calls, a panic during
+     initialization, and globals in recursion). gc reads a global after a
+     call in the same expression where Aether reads it before; both are
+     allowed (`SEMANTICS.md` V-4). Not done: the generator.
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.

@@ -303,7 +303,7 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   minimum divided by -1 (E10); lowering has already checked the divisor
   against 0. A shift by a count at or above the width selects 0, or the
   sign fill, with `cmovae`, since x86 masks the count (E10).
-- **Globals (increment 4.6, part 1: IR and backend only).** Each global is
+- **Globals (increment 4.6).** Each global is
   an 8-byte `.bss` word in canonical form, under the local symbol
   `main.<name>`, zero at startup; `gload` and `gstore` move it through
   `%rax` with `%rip`-relative addressing. The program's `Init` is emitted as
@@ -496,9 +496,8 @@ so none can be read as an option.
   software stack limit `L` in `aether.stacklimit`, stored by `_start` before
   it calls `main.main`, and `aether.stackoverflow` (D-009 Phase 4
   amendment).
-  From 4.5, the minimal panic exit (status 2); from 4.6 (implemented in
-  the runtime and backend; the gate does not yet accept package-level
-  declarations), `_start` calls `main.init` before `main.main`. Each symbol
+  From 4.5, the minimal panic exit (status 2); from 4.6, `_start` calls
+  `main.init` before `main.main`. Each symbol
   enters the boundary table below when it is implemented.
 - **Source layout:** runtime sources live in `internal/amd64/rt/*.s`, a
   subdirectory with no Go files. They are embedded into the compiler with

@@ -1,1 +1,0 @@
-testdata/check/unsupported_package_const.go:5:1: unsupported: package-level const declaration is not supported in subset S1 [package-level-declaration]

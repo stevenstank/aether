@@ -1,0 +1,42 @@
+global g0 zero i64 @testdata/check/s2_g03_init_panic.go:8:5
+global g1 x i64 @testdata/check/s2_g03_init_panic.go:10:5
+global g2 y i64 @testdata/check/s2_g03_init_panic.go:12:5
+
+func show(i64) i64 @testdata/check/s2_g03_init_panic.go:14:6
+  slot s0 n i64 @14:11
+b0:
+  v0 = param 0 @14:11
+  store s0, v0 @14:11
+  v1 = load s0 @15:8
+  print v1 @15:2
+  v2 = load s0 @16:9
+  ret v2 @16:2
+
+func main @testdata/check/s2_g03_init_panic.go:19:6
+b0:
+  v0 = gload g2 @20:10
+  println v0 @20:2
+  ret @21:1
+
+func init @testdata/check/s2_g03_init_panic.go:3:1
+  slot s0 tmp i64 @12:17
+  slot s1 tmp i64 @12:17
+b0:
+  v0 = const 7 @10:9
+  gstore g1, v0 @10:5
+  v1 = gload g1 @12:14
+  v2 = call show, v1 @12:9
+  v3 = gload g0 @12:19
+  v4 = const 0 @12:17
+  v5 = eq v3, v4 @12:17
+  store s0, v2 @12:17
+  store s1, v3 @12:17
+  branch v5, b1, b2 @12:17
+b1:
+  panic divide @12:17
+b2:
+  v6 = load s0 @12:17
+  v7 = load s1 @12:17
+  v8 = div v6, v7 @12:17
+  gstore g2, v8 @12:5
+  ret @3:1

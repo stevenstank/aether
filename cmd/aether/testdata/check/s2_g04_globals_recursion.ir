@@ -1,0 +1,82 @@
+global g0 calls i64 @testdata/check/s2_g04_globals_recursion.go:8:5
+global g1 depth i64 @testdata/check/s2_g04_globals_recursion.go:8:12
+global g2 deepest i64 @testdata/check/s2_g04_globals_recursion.go:8:19
+global g3 fib10 i64 @testdata/check/s2_g04_globals_recursion.go:10:5
+
+func fib(i64) i64 @testdata/check/s2_g04_globals_recursion.go:12:6
+  slot s0 n i64 @12:10
+  slot s1 r i64 @18:2
+b0:
+  v0 = param 0 @12:10
+  store s0, v0 @12:10
+  v1 = gload g0 @13:2
+  v2 = const 1 @13:7
+  v3 = add v1, v2 @13:7
+  gstore g0, v3 @13:2
+  v4 = gload g1 @14:2
+  v5 = const 1 @14:7
+  v6 = add v4, v5 @14:7
+  gstore g1, v6 @14:2
+  v7 = gload g1 @15:5
+  v8 = gload g2 @15:13
+  v9 = gt v7, v8 @15:11
+  branch v9, b1, b2 @15:2
+b1:
+  v10 = gload g1 @16:13
+  gstore g2, v10 @16:3
+  jump b2 @17:2
+b2:
+  v11 = load s0 @18:7
+  store s1, v11 @18:2
+  v12 = load s0 @19:5
+  v13 = const 2 @19:10
+  v14 = ge v12, v13 @19:7
+  branch v14, b3, b4 @19:2
+b3:
+  v15 = load s0 @20:11
+  v16 = const 1 @20:13
+  v17 = sub v15, v16 @20:12
+  v18 = call fib, v17 @20:7
+  v19 = load s0 @20:22
+  v20 = const 2 @20:24
+  v21 = sub v19, v20 @20:23
+  v22 = call fib, v21 @20:18
+  v23 = add v18, v22 @20:16
+  store s1, v23 @20:3
+  jump b4 @21:2
+b4:
+  v24 = gload g1 @22:2
+  v25 = const 1 @22:7
+  v26 = sub v24, v25 @22:7
+  gstore g1, v26 @22:2
+  v27 = load s1 @23:9
+  ret v27 @23:2
+
+func main @testdata/check/s2_g04_globals_recursion.go:26:6
+  slot s0 v i64 @29:2
+b0:
+  v0 = gload g3 @27:10
+  v1 = gload g0 @27:17
+  v2 = gload g1 @27:24
+  v3 = gload g2 @27:31
+  println v0, v1, v2, v3 @27:2
+  v4 = const 0 @28:19
+  v5 = const 0 @28:22
+  gstore g0, v4 @28:2
+  gstore g2, v5 @28:9
+  v6 = const 20 @29:11
+  v7 = call fib, v6 @29:7
+  store s0, v7 @29:2
+  v8 = load s0 @30:10
+  v9 = gload g0 @30:13
+  v10 = gload g1 @30:20
+  v11 = gload g2 @30:27
+  println v8, v9, v10, v11 @30:2
+  ret @31:1
+
+func init @testdata/check/s2_g04_globals_recursion.go:3:1
+b0:
+  v0 = const 10 @10:17
+  v1 = call fib, v0 @10:13
+  gstore g3, v1 @10:5
+  ret @3:1

@@ -280,3 +280,44 @@ func TestPanicPrefix(t *testing.T) {
 		}
 	}
 }
+
+// TestGlobalReadOrder pins Aether's choice where the order of evaluation is
+// unspecified (spec §Order of evaluation; SEMANTICS.md §Evaluation order):
+// a global read as an operand before a call that assigns it is read first,
+// left to right, in the interpreter and natively. The program is not
+// compared with gc, which may choose differently: go1.26.1 reads x after
+// the call in each case and prints "10 2", "12", "12", "1 2" (observed
+// 2026-10-30). The last line reads a local copy, so both orders agree.
+func TestGlobalReadOrder(t *testing.T) {
+	src := []byte(`package main
+
+var x = 1
+
+func f() int { x = 10; return 2 }
+
+func main() {
+	println(x, f())
+	x = 1
+	println(x + f())
+	x = 1
+	x += f()
+	println(x)
+	x = 1
+	y := x
+	println(y, f())
+}
+`)
+	want := result{stderr: "1 2\n3\n3\n1 2\n"}
+	got, ds, err := interpret("order.go", src)
+	if len(ds) > 0 || err != nil || got != want {
+		t.Errorf("interpreter: %+v %v %v, want %+v", got, ds, err, want)
+	}
+	requireTools(t)
+	exe := filepath.Join(t.TempDir(), "order")
+	if ds, err := build([]source{{"order.go", src}}, buildOptions{out: exe}, io.Discard); len(ds) > 0 || err != nil {
+		t.Fatalf("not built: %v %v", ds, err)
+	}
+	if got := runExe(t, exe); got != want {
+		t.Errorf("native: %+v, want %+v", got, want)
+	}
+}

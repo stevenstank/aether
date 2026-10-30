@@ -1,0 +1,158 @@
+global g0 count i64 @testdata/check/s2_g01_package_vars.go:10:5
+global g1 small i8 @testdata/check/s2_g01_package_vars.go:13:2
+global g2 big u64 @testdata/check/s2_g01_package_vars.go:14:2
+global g3 flag bool @testdata/check/s2_g01_package_vars.go:15:2
+global g4 b u8 @testdata/check/s2_g01_package_vars.go:16:2
+global g5 r i64 @testdata/check/s2_g01_package_vars.go:19:5
+global g6 s u16 @testdata/check/s2_g01_package_vars.go:19:8
+
+func bump @testdata/check/s2_g01_package_vars.go:27:6
+b0:
+  v0 = gload g0 @28:2
+  v1 = const 1 @28:7
+  v2 = add v0, v1 @28:7
+  gstore g0, v2 @28:2
+  v3 = gload g1 @29:2
+  v4 = const i8 1 @29:7
+  v5 = sub v3, v4 @29:7
+  gstore g1, v5 @29:2
+  v6 = gload g2 @30:2
+  v7 = const u64 1 @30:9
+  v8 = sub v6, v7 @30:6
+  gstore g2, v8 @30:2
+  v9 = gload g3 @31:10
+  v10 = not v9 @31:9
+  gstore g3, v10 @31:2
+  ret @32:1
+
+func add(i64) i64 @testdata/check/s2_g01_package_vars.go:34:6
+  slot s0 n i64 @34:10
+b0:
+  v0 = param 0 @34:10
+  store s0, v0 @34:10
+  v1 = gload g0 @35:2
+  v2 = load s0 @35:11
+  v3 = add v1, v2 @35:8
+  gstore g0, v3 @35:2
+  v4 = gload g0 @36:9
+  ret v4 @36:2
+
+func main @testdata/check/s2_g01_package_vars.go:39:6
+  slot s0 x i64 @45:2
+  slot s1 count i64 @51:3
+  slot s2 tmp u16 @59:10
+  slot s3 tmp u8 @59:13
+  slot s4 tmp i64 @59:16
+  slot s5 i i64 @60:6
+b0:
+  v0 = gload g0 @40:10
+  v1 = gload g1 @40:17
+  v2 = gload g2 @40:24
+  v3 = gload g3 @40:29
+  v4 = gload g4 @40:35
+  v5 = gload g5 @40:38
+  v6 = gload g6 @40:41
+  v7 = const 1099511627776 @40:44
+  v8 = const i16 -7 @40:47
+  v9 = const true @40:54
+  println v0, v1, v2, v3, v4, v5, v6, v7, v8, v9 @40:2
+  call bump @41:2
+  v10 = gload g0 @42:10
+  v11 = gload g1 @42:17
+  v12 = gload g2 @42:24
+  v13 = gload g3 @42:29
+  println v10, v11, v12, v13 @42:2
+  call bump @43:2
+  v14 = gload g0 @44:10
+  v15 = gload g1 @44:17
+  v16 = gload g2 @44:24
+  v17 = gload g3 @44:29
+  println v14, v15, v16, v17 @44:2
+  v18 = const 5 @45:11
+  v19 = call add, v18 @45:7
+  store s0, v19 @45:2
+  v20 = load s0 @46:10
+  println v20 @46:2
+  v21 = const 1099511627776 @47:10
+  v22 = call add, v21 @47:6
+  store s0, v22 @47:2
+  v23 = load s0 @48:10
+  v24 = gload g0 @48:13
+  println v23, v24 @48:2
+  v25 = const -1 @51:12
+  store s1, v25 @51:3
+  v26 = load s1 @52:3
+  v27 = const 3 @52:12
+  v28 = mul v26, v27 @52:9
+  store s1, v28 @52:3
+  v29 = load s1 @53:11
+  println v29 @53:3
+  v30 = gload g0 @55:10
+  println v30 @55:2
+  v31 = gload g6 @56:2
+  v32 = const u16 1 @56:3
+  v33 = add v31, v32 @56:3
+  gstore g6, v33 @56:2
+  v34 = gload g4 @57:2
+  v35 = const u8 100 @57:7
+  v36 = add v34, v35 @57:4
+  gstore g4, v36 @57:2
+  v37 = gload g5 @58:2
+  v38 = const 61 @58:8
+  v39 = conv u64, v38 @58:4
+  v40 = shl v37, v39 @58:4
+  gstore g5, v40 @58:2
+  v41 = gload g6 @59:10
+  store s2, v41 @59:10
+  v42 = gload g4 @59:13
+  store s3, v42 @59:13
+  v43 = gload g5 @59:16
+  store s4, v43 @59:16
+  v44 = gload g5 @59:19
+  v45 = const 60 @59:22
+  v46 = conv u64, v45 @59:20
+  v47 = shr v44, v46 @59:20
+  v48 = load s2 @59:10
+  v49 = load s3 @59:13
+  v50 = load s4 @59:16
+  println v48, v49, v50, v47 @59:2
+  v51 = const 0 @60:11
+  store s5, v51 @60:6
+  jump b1 @60:2
+b1:
+  v52 = load s5 @60:14
+  v53 = const 3 @60:18
+  v54 = lt v52, v53 @60:16
+  branch v54, b2, b3 @60:2
+b2:
+  v55 = gload g0 @61:11
+  v56 = const 2 @61:17
+  v57 = div v55, v56 @61:16
+  v58 = load s5 @61:21
+  v59 = add v57, v58 @61:19
+  gstore g0, v59 @61:3
+  jump b4 @62:2
+b3:
+  v63 = gload g0 @63:10
+  println v63 @63:2
+  ret @64:1
+b4:
+  v60 = load s5 @60:21
+  v61 = const 1 @60:22
+  v62 = add v60, v61 @60:22
+  store s5, v62 @60:21
+  jump b1 @60:21
+
+func init @testdata/check/s2_g01_package_vars.go:3:1
+b0:
+  v0 = const i8 -128 @13:15
+  gstore g1, v0 @13:2
+  v1 = const true @15:15
+  gstore g3, v1 @15:2
+  v2 = const u8 200 @16:15
+  gstore g4, v2 @16:2
+  v3 = const 3 @19:12
+  gstore g5, v3 @19:5
+  v4 = const u16 65535 @19:15
+  gstore g6, v4 @19:8
+  ret @3:1

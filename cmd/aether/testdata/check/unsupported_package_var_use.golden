@@ -1,6 +1,0 @@
-testdata/check/unsupported_package_var_use.go:5:1: unsupported: package-level var declaration is not supported in subset S1 [package-level-declaration]
-testdata/check/unsupported_package_var_use.go:7:1: unsupported: package-level const declaration is not supported in subset S1 [package-level-declaration]
-testdata/check/unsupported_package_var_use.go:10:2: unsupported: use of package-level g is not supported in subset S1 [package-level-declaration]
-testdata/check/unsupported_package_var_use.go:11:2: unsupported: use of package-level g is not supported in subset S1 [package-level-declaration]
-testdata/check/unsupported_package_var_use.go:12:7: unsupported: use of package-level g is not supported in subset S1 [package-level-declaration]
-testdata/check/unsupported_package_var_use.go:12:11: unsupported: use of package-level k is not supported in subset S1 [package-level-declaration]
