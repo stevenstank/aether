@@ -84,6 +84,12 @@ func (in *Instr) String() string {
 		}
 	case Conv:
 		ops = append(ops, in.Type.String())
+	case Panic:
+		if in.Index >= 0 && in.Index < len(PanicMessages) {
+			ops = append(ops, panicNames[in.Index])
+		} else {
+			ops = append(ops, fmt.Sprint(in.Index))
+		}
 	case Load, Store:
 		if in.Slot != nil {
 			ops = append(ops, fmt.Sprintf("s%d", in.Slot.ID))
@@ -127,3 +133,6 @@ func types(ts []Type) string {
 	}
 	return strings.Join(s, ", ")
 }
+
+// panicNames are the printed names of the run-time errors.
+var panicNames = [...]string{PanicDivide: "divide", PanicShift: "shift"}

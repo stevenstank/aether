@@ -240,7 +240,7 @@ func (v *verifier) block(b *Block, bi int, stored []bool) {
 		case in.Op.IsTerminator() && !last:
 			v.errorf(bi, i, in, "terminator before the end of the block")
 		case !in.Op.IsTerminator() && last:
-			v.errorf(bi, i, in, "missing terminator: block does not end in ret, jump, or branch")
+			v.errorf(bi, i, in, "missing terminator: block does not end in ret, jump, branch, or panic")
 		}
 		if !validPos(in.Pos) {
 			v.errorf(bi, i, in, "missing source position")
@@ -301,7 +301,16 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if v.isSlot(in.Slot) {
 			args[0] = in.Slot.Type
 		}
-	case Add, Sub, Mul, And, Or, Xor, AndNot:
+	case Shl, Shr:
+		want, args = integer, []Type{integer, U64}
+		if len(in.Args) == 2 && in.Args[1] != nil && in.Args[1].Type.IsInteger() && !in.Args[1].Type.Signed() {
+			args[1] = in.Args[1].Type // any unsigned count
+		}
+	case Panic:
+		if in.Index < 0 || in.Index >= len(PanicMessages) {
+			v.errorf(bi, i, in, "panic of unknown kind %d", in.Index)
+		}
+	case Add, Sub, Mul, And, Or, Xor, AndNot, Div, Rem:
 		want, args = integer, []Type{integer, integer}
 	case Neg, Com:
 		want, args = integer, []Type{integer}
@@ -400,7 +409,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != Load && in.Op != Store && in.Slot != nil {
 		v.errorf(bi, i, in, "%s has a slot operand", in.Op)
 	}
-	if in.Op != Param && in.Op != Extract && in.Index != 0 {
+	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Index != 0 {
 		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
 	}
 	if in.Op != Call && in.Callee != nil {

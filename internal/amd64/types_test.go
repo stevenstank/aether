@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"testing"
 
@@ -41,8 +42,9 @@ func edges[T integer]() []T {
 }
 
 // table returns the IR to print, for every pair of edge values x and y of
-// type t, x+y x-y x*y x&y x|y x^y x&^y -x ^x and the six comparisons, and
-// the same text computed in Go.
+// type t, x+y x-y x*y x&y x|y x^y x&^y -x ^x and the six comparisons, x/y
+// and x%y if y is not 0, and for each x its shifts by counts around the
+// width, and the same text computed in Go.
 func table[T integer](f *ir.Func, b *ir.Block, t ir.Type) string {
 	var want strings.Builder
 	vals := edges[T]()
@@ -60,7 +62,28 @@ func table[T integer](f *ir.Func, b *ir.Block, t ir.Type) string {
 			}
 			f.Println(b, args, p1)
 			fmt.Fprintln(&want, x+y, x-y, x*y, x&y, x|y, x^y, x&^y, -x, ^x, x == y, x != y, x < y, x <= y, x > y, x >= y)
+			if y != 0 {
+				// The minimum divided by -1 is among these: it wraps.
+				f.Println(b, []*ir.Instr{f.Binary(b, ir.Div, cx, cy, p1), f.Binary(b, ir.Rem, cx, cy, p1)}, p1)
+				fmt.Fprintln(&want, x/y, x%y)
+			}
 		}
+		// Shifts by counts around the width, of two unsigned types.
+		var args []*ir.Instr
+		var line []string
+		for _, c := range []uint64{0, 1, 7, 8, 15, 16, 31, 32, 63, 64, 65, 255, math.MaxUint64} {
+			cx := f.TypedConst(b, t, int64(x), p1)
+			for _, ct := range []ir.Type{ir.U64, ir.U8} {
+				if ct == ir.U8 && c > 255 {
+					continue
+				}
+				cc := f.TypedConst(b, ct, int64(c), p1)
+				args = append(args, f.Shift(b, ir.Shl, cx, cc, p1), f.Shift(b, ir.Shr, cx, cc, p1))
+				line = append(line, fmt.Sprint(x<<c), fmt.Sprint(x>>c))
+			}
+		}
+		f.Println(b, args, p1)
+		fmt.Fprintln(&want, strings.Join(line, " "))
 	}
 	return want.String()
 }
@@ -163,4 +186,46 @@ func TestConversions(t *testing.T) {
 	want.WriteString("true18446744073709551615-128255\n")
 	f.Ret(b, p1)
 	runBoth(t, p, want.String())
+}
+
+// TestPanics checks both run-time errors natively and in the interpreter:
+// the message after the earlier output, also when print left no newline,
+// and exit status 2, also when stderr is unwritable.
+func TestPanics(t *testing.T) {
+	for kind, msg := range ir.PanicMessages {
+		for _, newline := range []bool{true, false} {
+			p := &ir.Program{}
+			f := p.NewFunc("main", "p.go", p1)
+			b := f.Entry()
+			if newline {
+				f.Println(b, []*ir.Instr{f.Const(b, 7, p1)}, p1)
+			} else {
+				f.Print(b, []*ir.Instr{f.Const(b, 7, p1)}, p1)
+			}
+			f.Panic(b, kind, p1)
+			want := "7\n"
+			if !newline {
+				want = "7"
+			}
+			want += "panic: runtime error: " + msg + "\n"
+			var got bytes.Buffer
+			if code, err := interp.Run(p, &got); err != nil || code != 2 || got.String() != want {
+				t.Errorf("interpreter: exit %d, %v, stderr %q; want exit 2, %q", code, err, got.String(), want)
+			}
+			asm, err := Emit(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exe := link(t, t.TempDir(), withRuntime(asm))
+			if out, code := execute(t, exe, nil); code != 2 || out != want {
+				t.Errorf("native: exit %d, stderr %q; want exit 2, %q", code, out, want)
+			}
+			if full, err := os.OpenFile("/dev/full", os.O_WRONLY, 0); err == nil {
+				if _, code := execute(t, exe, full); code != 2 {
+					t.Errorf("native with stderr on /dev/full: exit %d, want 2", code)
+				}
+				full.Close()
+			}
+		}
+	}
 }

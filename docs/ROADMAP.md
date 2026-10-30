@@ -392,6 +392,21 @@ repeated in each phase below:
      the generator (`TESTING.md`), with conversions lowered as no-ops and
      `&^` lowered as `&` as negative controls.
   5. **4.5: `/ % << >>`** with the panic path.
+     **Status (2026-10-30):** part 1 done: `div`, `rem`, `shl`, `shr`, and
+     `panic K` in the IR, verifier, printer, interpreter, and backend (a
+     divisor of -1 handled without `idivq`, shift counts compared with the
+     width), and `aether.panicdivide` and `aether.panicshift`. Tested on
+     hand-built IR against Go's own arithmetic for every type, and the
+     panics against the messages gc prints (observed 2026-10-30:
+     `panic: runtime error: integer divide by zero` and `... negative shift
+     amount`, exit 2). Negative controls run by hand and reverted:
+     `idivq` for every divisor (SIGFPE), no width check on shifts, zero
+     instead of the sign fill, and an interpreter dividing unsigned values
+     as signed each fail a test. Not done: the gate and lowering with the
+     explicit checks, the corpus against gc, and the generator. gc writes
+     `1panic: …` after `print(1)`, so the panic comparison rule, which
+     expects a line beginning with `panic: `, needs the same correction as
+     the overflow rule; it is made with the panic tests in part 2.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.

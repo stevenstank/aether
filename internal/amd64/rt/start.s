@@ -81,7 +81,39 @@ aether.stackoverflow:
 	hlt				# not reached
 	.size	aether.stackoverflow, .-aether.stackoverflow
 
+# aether.panicdivide and aether.panicshift end the program with a run-time
+# error (D-023): they write "panic: runtime error: " and the message, and
+# exit with status 2, even if the write fails. They are called from a
+# function body, where %rsp is at least L, and use 16 bytes below it: their
+# return address and aether.write's (D-011 reserve).
+	.globl	aether.panicdivide
+	.type	aether.panicdivide, @function
+aether.panicdivide:
+	leaq	.Lpanicdivide(%rip), %rsi
+	movl	$.Lpanicdividelen, %edx
+	jmp	.Lpanic
+	.size	aether.panicdivide, .-aether.panicdivide
+
+	.globl	aether.panicshift
+	.type	aether.panicshift, @function
+aether.panicshift:
+	leaq	.Lpanicshift(%rip), %rsi
+	movl	$.Lpanicshiftlen, %edx
+.Lpanic:
+	call	aether.write
+	movl	$231, %eax		# exit_group
+	movl	$2, %edi
+	syscall
+	hlt				# not reached
+	.size	aether.panicshift, .-aether.panicshift
+
 	.section	.rodata
+.Lpanicdivide:
+	.ascii	"panic: runtime error: integer divide by zero\n"
+	.set	.Lpanicdividelen, .-.Lpanicdivide
+.Lpanicshift:
+	.ascii	"panic: runtime error: negative shift amount\n"
+	.set	.Lpanicshiftlen, .-.Lpanicshift
 .Lnostack:
 	.ascii	"fatal error: cannot allocate the main stack\n"
 	.set	.Lnostacklen, .-.Lnostack

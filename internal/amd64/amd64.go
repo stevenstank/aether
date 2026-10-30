@@ -31,6 +31,10 @@ const (
 	symPrintNL    = "aether.printnl"
 )
 
+// panicSyms are the runtime's panic helpers, by run-time error (D-023):
+// each writes its message and exits with status 2, and never returns.
+var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift"}
+
 // symMainStack is the read-only 8-byte datum through which the program tells
 // the runtime how many bytes of stack main.main uses below _start's call:
 // the return address, the saved %rbp, and the frame. _start maps a stack
@@ -235,6 +239,61 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 		op("andq\t%%rcx, %%rax")
 		canon(op, in.Type)
 		op("movq\t%%rax, %s", res())
+	case ir.Div, ir.Rem:
+		// Lowering guarantees a nonzero divisor. A signed division by -1
+		// is done without idivq, which faults on the minimum divided by
+		// -1 (E10): the quotient is the negation, wrapping, and the
+		// remainder 0. Numeric local labels keep each sequence's own.
+		op("movq\t%s, %%rcx", val(in.Args[1]))
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		if in.Type.Signed() {
+			op("cmpq\t$-1, %%rcx")
+			op("jne\t1f")
+			if in.Op == ir.Div {
+				op("negq\t%%rax")
+			} else {
+				op("xorl\t%%eax, %%eax")
+			}
+			op("jmp\t2f")
+			b.WriteString("1:\n")
+			op("cqto")
+			op("idivq\t%%rcx")
+		} else {
+			op("xorl\t%%edx, %%edx")
+			op("divq\t%%rcx")
+		}
+		if in.Op == ir.Rem {
+			op("movq\t%%rdx, %%rax")
+		}
+		if in.Type.Signed() {
+			b.WriteString("2:\n")
+		}
+		canon(op, in.Type)
+		op("movq\t%%rax, %s", res())
+	case ir.Shl, ir.Shr:
+		// x86 shifts use the count modulo 64 (E10), so a count at or above
+		// the width selects 0, or for an arithmetic right shift the sign
+		// fill, instead. The count is unsigned, so the comparison is too.
+		op("movq\t%s, %%rcx", val(in.Args[1]))
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		switch {
+		case in.Op == ir.Shl:
+			op("shlq\t%%cl, %%rax")
+			op("xorl\t%%edx, %%edx")
+		case in.Type.Signed():
+			op("movq\t%%rax, %%rdx")
+			op("sarq\t$63, %%rdx")
+			op("sarq\t%%cl, %%rax")
+		default:
+			op("shrq\t%%cl, %%rax")
+			op("xorl\t%%edx, %%edx")
+		}
+		op("cmpq\t$%d, %%rcx", in.Args[0].Type.Width())
+		op("cmovaeq\t%%rdx, %%rax")
+		canon(op, in.Type)
+		op("movq\t%%rax, %s", res())
+	case ir.Panic:
+		op("call\t%s", panicSyms[in.Index])
 	case ir.Neg, ir.Com, ir.Conv:
 		// negq maps the minimum to itself, as the IR requires; a conversion
 		// is only the canonicalization to the new type.

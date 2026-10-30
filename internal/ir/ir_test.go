@@ -498,3 +498,42 @@ func TestVerifySized(t *testing.T) {
 		}
 	}
 }
+
+// TestVerifyDivisionAndShifts checks the types of div, rem, and the shifts,
+// and the closed set of panics (D-023 invariant 9).
+func TestVerifyDivisionAndShifts(t *testing.T) {
+	build := func(count Type, kind int) *Program {
+		p := &Program{}
+		f := p.NewFunc("main", "p.go", Pos{1, 1})
+		b0, b1 := f.Entry(), f.NewBlock()
+		x := f.TypedConst(b0, I32, -7, Pos{1, 1})
+		c := f.TypedConst(b0, count, 3, Pos{1, 1})
+		f.Println(b0, []*Instr{f.Binary(b0, Div, x, x, Pos{1, 1}), f.Binary(b0, Rem, x, x, Pos{1, 1}), f.Shift(b0, Shl, x, c, Pos{1, 1}), f.Shift(b0, Shr, x, c, Pos{1, 1})}, Pos{1, 1})
+		f.Jump(b0, b1, Pos{1, 1})
+		f.Panic(b1, kind, Pos{1, 1})
+		return p
+	}
+	if errs := Verify(build(U8, PanicShift)); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	want := "func main @p.go:1:1\nb0:\n  v0 = const i32 -7 @1:1\n  v1 = const u8 3 @1:1\n  v2 = div v0, v0 @1:1\n  v3 = rem v0, v0 @1:1\n  v4 = shl v0, v1 @1:1\n  v5 = shr v0, v1 @1:1\n  println v2, v3, v4, v5 @1:1\n  jump b1 @1:1\nb1:\n  panic shift @1:1\n"
+	if got := build(U8, PanicShift).String(); got != want {
+		t.Errorf("String():\n%s\nwant:\n%s", got, want)
+	}
+	for _, tt := range []struct {
+		p    *Program
+		want string
+	}{
+		{build(I8, PanicDivide), "operand v1 has type i8, want u64"},
+		{build(U64, 2), "panic of unknown kind 2"},
+		{build(U64, -1), "panic of unknown kind -1"},
+	} {
+		var msgs []string
+		for _, e := range Verify(tt.p) {
+			msgs = append(msgs, e.Error())
+		}
+		if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+			t.Errorf("errors do not mention %q:\n%s", tt.want, all)
+		}
+	}
+}

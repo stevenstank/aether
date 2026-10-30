@@ -7,8 +7,9 @@
 //
 // The instruction set covers subset S1 (docs/SEMANTICS.md), the calls of
 // D-023 increment 4.2, the control flow and bool of increment 4.1, the
-// multiple results of increment 4.3, and the sized integer types,
-// conversions, bit operations, and print of increment 4.4. A program is a set of functions; a function owns its local variable slots
+// multiple results of increment 4.3, the sized integer types, conversions,
+// bit operations, and print of increment 4.4, and the division, shifts, and
+// panics of increment 4.5. A program is a set of functions; a function owns its local variable slots
 // and a list of basic blocks; a block is a sequence of instructions ending in
 // one terminator. An instruction that produces a value is that value:
 // operands refer to such instructions directly.
@@ -119,6 +120,23 @@ const (
 	Xor
 	AndNot
 	Com
+	// Div and Rem produce the quotient, truncated toward zero, and the
+	// remainder of args[0] by args[1], whose integer type they share. The
+	// minimum of a signed type divided by -1 is that minimum, with
+	// remainder 0. Precondition: args[1] is not zero (lowering checks it
+	// first, D-023).
+	Div
+	Rem
+	// Shl and Shr shift args[0], of any integer type, left or right by
+	// args[1], of any unsigned type. A count at or above the width gives
+	// 0, or for Shr of a signed type the sign fill (0 or -1); Shr of a
+	// signed type is arithmetic.
+	Shl
+	Shr
+	// Panic ends the program with the run-time error Index (PanicDivide or
+	// PanicShift): the message and exit status 2. It is a terminator. No
+	// args.
+	Panic
 	// Conv produces args[0], of any integer type, converted to the
 	// instruction's integer type: the canonical form of its value reduced
 	// modulo 2^width of the new type.
@@ -174,7 +192,7 @@ var opNames = [...]string{
 	Param: "param", Call: "call", Jump: "jump", Branch: "branch",
 	Eq: "eq", Ne: "ne", Lt: "lt", Le: "le", Gt: "gt", Ge: "ge", Not: "not",
 	Extract: "extract", And: "and", Or: "or", Xor: "xor", AndNot: "andnot", Com: "com",
-	Conv: "conv", Print: "print",
+	Conv: "conv", Print: "print", Div: "div", Rem: "rem", Shl: "shl", Shr: "shr", Panic: "panic",
 }
 
 func (op Op) String() string {
@@ -185,7 +203,17 @@ func (op Op) String() string {
 }
 
 // IsTerminator reports whether op ends a block.
-func (op Op) IsTerminator() bool { return op == Ret || op == Jump || op == Branch }
+func (op Op) IsTerminator() bool { return op == Ret || op == Jump || op == Branch || op == Panic }
+
+// The run-time errors of Panic (D-023: a closed set), with their messages.
+const (
+	PanicDivide = iota
+	PanicShift
+)
+
+// PanicMessages are the run-time errors' messages, as gc prints them after
+// "panic: runtime error: ".
+var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount"}
 
 // IsComparison reports whether op is one of Eq through Ge.
 func (op Op) IsComparison() bool { return op >= Eq && op <= Ge }
@@ -242,7 +270,7 @@ type Instr struct {
 	Args    []*Instr
 	Slot    *Slot    // for Load and Store
 	Const   int64    // for Const
-	Index   int      // for Param and Extract
+	Index   int      // for Param, Extract, and Panic
 	Callee  *Func    // for Call
 	Targets []*Block // for Jump and Branch
 	Pos     Pos
@@ -355,6 +383,16 @@ func (f *Func) Binary(b *Block, op Op, x, y *Instr, pos Pos) *Instr {
 // Neg appends the negation of x.
 func (f *Func) Neg(b *Block, x *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Neg, Type: x.Type, Args: []*Instr{x}, Pos: pos})
+}
+
+// Shift appends Shl or Shr of x by count.
+func (f *Func) Shift(b *Block, op Op, x, count *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: op, Type: x.Type, Args: []*Instr{x, count}, Pos: pos})
+}
+
+// Panic appends a panic with the run-time error kind.
+func (f *Func) Panic(b *Block, kind int, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Panic, Index: kind, Pos: pos})
 }
 
 // Com appends the complement of x.

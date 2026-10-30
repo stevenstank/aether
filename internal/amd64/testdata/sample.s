@@ -4,12 +4,12 @@
 	.type	main.main, @function
 main.main:
 	movq	aether.stacklimit(%rip), %rax
-	addq	$264, %rax
+	addq	$328, %rax
 	cmpq	%rax, %rsp
 	jb	aether.stackoverflow
 	pushq	%rbp
 	movq	%rsp, %rbp
-	subq	$256, %rsp
+	subq	$320, %rsp
 .L0.b0:
 	# v0 = const 6 @1:1
 	movq	$6, -16(%rbp)
@@ -202,6 +202,94 @@ main.main:
 	movq	-224(%rbp), %rdi
 	call	aether.printuint
 	call	aether.printnl
+	# v27 = div v1, v6 @1:1
+	movq	-64(%rbp), %rcx
+	movq	-24(%rbp), %rax
+	cmpq	$-1, %rcx
+	jne	1f
+	negq	%rax
+	jmp	2f
+1:
+	cqto
+	idivq	%rcx
+2:
+	movq	%rax, -232(%rbp)
+	# v28 = rem v1, v6 @1:1
+	movq	-64(%rbp), %rcx
+	movq	-24(%rbp), %rax
+	cmpq	$-1, %rcx
+	jne	1f
+	xorl	%eax, %eax
+	jmp	2f
+1:
+	cqto
+	idivq	%rcx
+	movq	%rdx, %rax
+2:
+	movq	%rax, -240(%rbp)
+	# v29 = div v17, v18 @1:1
+	movq	-160(%rbp), %rcx
+	movq	-152(%rbp), %rax
+	xorl	%edx, %edx
+	divq	%rcx
+	movzbl	%al, %eax
+	movq	%rax, -248(%rbp)
+	# v30 = rem v17, v18 @1:1
+	movq	-160(%rbp), %rcx
+	movq	-152(%rbp), %rax
+	xorl	%edx, %edx
+	divq	%rcx
+	movq	%rdx, %rax
+	movzbl	%al, %eax
+	movq	%rax, -256(%rbp)
+	# v31 = shl v1, v17 @1:1
+	movq	-152(%rbp), %rcx
+	movq	-24(%rbp), %rax
+	shlq	%cl, %rax
+	xorl	%edx, %edx
+	cmpq	$64, %rcx
+	cmovaeq	%rdx, %rax
+	movq	%rax, -264(%rbp)
+	# v32 = shr v1, v17 @1:1
+	movq	-152(%rbp), %rcx
+	movq	-24(%rbp), %rax
+	movq	%rax, %rdx
+	sarq	$63, %rdx
+	sarq	%cl, %rax
+	cmpq	$64, %rcx
+	cmovaeq	%rdx, %rax
+	movq	%rax, -272(%rbp)
+	# v33 = shr v17, v17 @1:1
+	movq	-152(%rbp), %rcx
+	movq	-152(%rbp), %rax
+	shrq	%cl, %rax
+	xorl	%edx, %edx
+	cmpq	$8, %rcx
+	cmovaeq	%rdx, %rax
+	movzbl	%al, %eax
+	movq	%rax, -280(%rbp)
+	# println v27, v28, v29, v30, v31, v32, v33 @1:1
+	movq	-232(%rbp), %rdi
+	call	aether.printint
+	call	aether.printsp
+	movq	-240(%rbp), %rdi
+	call	aether.printint
+	call	aether.printsp
+	movq	-248(%rbp), %rdi
+	call	aether.printuint
+	call	aether.printsp
+	movq	-256(%rbp), %rdi
+	call	aether.printuint
+	call	aether.printsp
+	movq	-264(%rbp), %rdi
+	call	aether.printint
+	call	aether.printsp
+	movq	-272(%rbp), %rdi
+	call	aether.printint
+	call	aether.printsp
+	movq	-280(%rbp), %rdi
+	call	aether.printuint
+	call	aether.printnl
 	# branch v10, b1, b2 @1:1
 	movq	-96(%rbp), %rax
 	testq	%rax, %rax
@@ -210,13 +298,21 @@ main.main:
 .L0.b1:
 	# println @1:1
 	call	aether.printnl
-	# jump b2 @1:1
-	jmp	.L0.b2
+	# v34 = const true @1:1
+	movq	$1, -288(%rbp)
+	# branch v34, b2, b3 @1:1
+	movq	-288(%rbp), %rax
+	testq	%rax, %rax
+	jnz	.L0.b2
+	jmp	.L0.b3
 .L0.b2:
 	# ret @1:1
 	movq	%rbp, %rsp
 	popq	%rbp
 	ret
+.L0.b3:
+	# panic divide @1:1
+	call	aether.panicdivide
 	.size	main.main, .-main.main
 	.globl	main.sub
 	.type	main.sub, @function
@@ -252,5 +348,5 @@ main.sub:
 	.type	aether.mainstack, @object
 	.size	aether.mainstack, 8
 aether.mainstack:
-	.quad	272
+	.quad	336
 	.section	.note.GNU-stack,"",@progbits

@@ -70,11 +70,18 @@ func sample() *ir.Program {
 	bits = append(bits, f.Conv(b, ir.I16, big, p1), f.Conv(b, ir.U32, big, p1), f.Compare(b, ir.Lt, u, bits[1], p1))
 	f.Print(b, bits, p1)
 	f.Println(b, []*ir.Instr{f.TypedConst(b, ir.U64, -1, p1)}, p1)
-	b1, b2 := f.NewBlock(), f.NewBlock()
+	// Division and shifts, signed and unsigned, and a block that panics.
+	f.Println(b, []*ir.Instr{
+		f.Binary(b, ir.Div, lx, prod, p1), f.Binary(b, ir.Rem, lx, prod, p1),
+		f.Binary(b, ir.Div, u, bits[1], p1), f.Binary(b, ir.Rem, u, bits[1], p1),
+		f.Shift(b, ir.Shl, lx, u, p1), f.Shift(b, ir.Shr, lx, u, p1), f.Shift(b, ir.Shr, u, u, p1),
+	}, p1)
+	b1, b2, b3 := f.NewBlock(), f.NewBlock(), f.NewBlock()
 	f.Branch(b, cmps[2], b1, b2, p1)
 	f.Println(b1, nil, p1)
-	f.Jump(b1, b2, p1)
+	f.Branch(b1, f.BoolConst(b1, true, p1), b2, b3, p1)
 	f.Ret(b2, p1)
+	f.Panic(b3, ir.PanicDivide, p1)
 	return p
 }
 

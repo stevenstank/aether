@@ -127,6 +127,18 @@ func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 			fr.values[in.ID] = in.Type.Canonical(^arg(0))
 		case ir.Conv:
 			fr.values[in.ID] = in.Type.Canonical(arg(0))
+		case ir.Div, ir.Rem:
+			x, y := arg(0), arg(1)
+			if y == 0 {
+				// Lowering checks every divisor first (D-023).
+				return 0, fmt.Errorf("interp: func %s: %s by zero", fr.f.Name, in.Op)
+			}
+			fr.values[in.ID] = in.Type.Canonical(divide(in.Op, in.Type, x, y))
+		case ir.Shl, ir.Shr:
+			fr.values[in.ID] = in.Type.Canonical(shift(in.Op, in.Type, arg(0), uint64(arg(1))))
+		case ir.Panic:
+			_, _ = io.WriteString(stderr, "panic: runtime error: "+ir.PanicMessages[in.Index]+"\n")
+			return 2, nil
 		case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
 			fr.values[in.ID] = b2i(compare(in.Op, in.Args[0].Type, arg(0), arg(1)))
 		case ir.Not:
@@ -222,4 +234,41 @@ func b2i(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// divide applies Div or Rem to canonical values of t, with y not zero. Go's
+// int64 division truncates toward zero, and MinInt64 / -1 is MinInt64 with
+// remainder 0 (spec §Integer operators), as the IR requires; for a narrower
+// signed type the quotient is reduced by the caller.
+func divide(op ir.Op, t ir.Type, x, y int64) int64 {
+	if !t.Signed() {
+		if op == ir.Div {
+			return int64(uint64(x) / uint64(y))
+		}
+		return int64(uint64(x) % uint64(y))
+	}
+	if op == ir.Div {
+		return x / y
+	}
+	return x % y
+}
+
+// shift applies Shl or Shr to a canonical value of t: a count at or above
+// the width gives 0, or the sign fill for Shr of a signed type. Below it,
+// shifting the 64-bit canonical form is exact; Shl's result is reduced by
+// the caller.
+func shift(op ir.Op, t ir.Type, x int64, count uint64) int64 {
+	if count >= uint64(t.Width()) {
+		if op == ir.Shr && t.Signed() && x < 0 {
+			return -1
+		}
+		return 0
+	}
+	switch {
+	case op == ir.Shl:
+		return x << count
+	case t.Signed():
+		return x >> count
+	}
+	return int64(uint64(x) >> count)
 }
