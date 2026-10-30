@@ -537,3 +537,92 @@ func TestVerifyDivisionAndShifts(t *testing.T) {
 		}
 	}
 }
+
+// globalsSample builds the IR for
+//
+//	var x int
+//	var b uint8 = 255
+//
+//	func main() { println(x, b) }
+//
+// whose Init stores b's initial value.
+func globalsSample() *Program {
+	p := &Program{}
+	x := p.NewGlobal("x", I64, "p.go", Pos{3, 5})
+	g := p.NewGlobal("b", U8, "p.go", Pos{4, 5})
+	m := p.NewFunc("main", "p.go", Pos{6, 6})
+	p.Init = p.NewFunc("init", "p.go", Pos{1, 1})
+	ib := p.Init.Entry()
+	p.Init.GStore(ib, g, p.Init.TypedConst(ib, U8, 255, Pos{4, 15}), Pos{4, 5})
+	p.Init.Ret(ib, Pos{1, 1})
+	mb := m.Entry()
+	m.Println(mb, []*Instr{m.GLoad(mb, x, Pos{6, 23}), m.GLoad(mb, g, Pos{6, 26})}, Pos{6, 15})
+	m.Ret(mb, Pos{6, 28})
+	return p
+}
+
+func TestPrintGlobals(t *testing.T) {
+	want := `global g0 x i64 @p.go:3:5
+global g1 b u8 @p.go:4:5
+
+func main @p.go:6:6
+b0:
+  v0 = gload g0 @6:23
+  v1 = gload g1 @6:26
+  println v0, v1 @6:15
+  ret @6:28
+
+func init @p.go:1:1
+b0:
+  v0 = const u8 255 @4:15
+  gstore g1, v0 @4:5
+  ret @1:1
+`
+	if got := globalsSample().String(); got != want {
+		t.Errorf("String():\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifyGlobals checks the globals and Init (D-023 invariants 6 and 8).
+func TestVerifyGlobals(t *testing.T) {
+	if errs := Verify(globalsSample()); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	at := func(p *Program, fi, i int) *Instr { return p.Funcs[fi].Blocks[0].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		{"duplicate name", func(p *Program) { p.Globals[1].Name = "x" }, "duplicate global name x"},
+		{"wrong ID", func(p *Program) { p.Globals[1].ID = 0 }, "global 1 has ID 0"},
+		{"nil global", func(p *Program) { p.Globals[0] = nil }, "global 0 is nil"},
+		{"invalid type", func(p *Program) { p.Globals[0].Type = Tuple }, "global g0 has invalid type tuple"},
+		{"no position", func(p *Program) { p.Globals[0].File = "" }, "global g0 has no source position"},
+		{"foreign global", func(p *Program) { at(p, 0, 0).Global = &Global{Name: "y", Type: I64} }, "instr 0 (v0 = gload g0): global operand is not a global of the program"},
+		{"gload type", func(p *Program) { at(p, 0, 1).Type = I64 }, "gload has result type i64, want u8"},
+		{"gstore type", func(p *Program) { at(p, 1, 0).Type = I64 }, "operand v0 has type i64, want u8"},
+		{"global on store", func(p *Program) { at(p, 0, 2).Global = p.Globals[0] }, "println has a global operand"},
+		{"init not in program", func(p *Program) { p.Funcs = p.Funcs[:1] }, "func init: Init is not a function of the program"},
+		{"init renamed", func(p *Program) { p.Init.Name = "setup" }, "func setup: Init is not named init"},
+		{"init with result", func(p *Program) { p.Init.Results = []Type{I64} }, "func init: init has parameters or results"},
+		{"other init", func(p *Program) { p.Init = nil }, "func init: a function named init that is not the program's Init"},
+		{"call of init", func(p *Program) {
+			m := p.Funcs[0]
+			m.Blocks[0].Instrs = append([]*Instr{{Op: Call, ID: -1, Callee: p.Init, Pos: Pos{1, 1}}}, m.Blocks[0].Instrs...)
+		}, "instr 0 (call init): call of init"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := globalsSample()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors do not mention %q:\n%s", tt.want, all)
+			}
+		})
+	}
+}

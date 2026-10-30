@@ -36,9 +36,10 @@ const (
 var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift"}
 
 // symMainStack is the read-only 8-byte datum through which the program tells
-// the runtime how many bytes of stack main.main uses below _start's call:
-// the return address, the saved %rbp, and the frame. _start maps a stack
-// that large, plus what the runtime helpers need (D-022).
+// the runtime how many bytes of stack main.main or main.init, whichever
+// needs more, uses below _start's call: the return address, the saved %rbp,
+// and the frame. _start maps a stack that large, plus what the runtime
+// helpers need (D-022).
 const symMainStack = "aether.mainstack"
 
 // maxFrame bounds a frame so that its size and every rbp-relative offset fit
@@ -113,8 +114,21 @@ func Emit(prog *ir.Program) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if f.Name == "main" {
-			stack = 16 + fr.Size
+		if f.Name == "main" || f == prog.Init {
+			stack = max(stack, 16+fr.Size)
+		}
+	}
+	if prog.Init == nil {
+		// _start always calls main.init (D-009); without package
+		// initialization it only returns.
+		fmt.Fprintf(&b, "\t.globl\t%s\n\t.type\t%s, @function\n%s:\n\tret\n\t.size\t%s, .-%s\n", symInit, symInit, symInit, symInit, symInit)
+	}
+	if len(prog.Globals) > 0 {
+		// Each global is 8 bytes in canonical form, zero at startup.
+		b.WriteString("\t.bss\n\t.p2align\t3\n")
+		for _, g := range prog.Globals {
+			sym := globalSym(g)
+			fmt.Fprintf(&b, "\t.type\t%s, @object\n\t.size\t%s, 8\n%s:\n\t.zero\t8\n", sym, sym, sym)
 		}
 	}
 	fmt.Fprintf(&b, "\t.section\t.rodata\n\t.p2align\t3\n\t.globl\t%s\n\t.type\t%s, @object\n\t.size\t%s, 8\n%s:\n\t.quad\t%d\n",
@@ -124,8 +138,16 @@ func Emit(prog *ir.Program) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// funcSym is the symbol of an Aether-compiled function (D-011).
+// funcSym is the symbol of an Aether-compiled function (D-011). The
+// program's Init is main.init, which _start calls before main.main.
 func funcSym(f *ir.Func) string { return "main." + f.Name }
+
+const symInit = "main.init"
+
+// globalSym is the symbol of a global variable, local to the program's
+// object file. Go gives package-level variables and functions distinct
+// names, and no variable is named init or main.
+func globalSym(g *ir.Global) string { return "main." + g.Name }
 
 // emitFunc emits f, the program's function number fi, and returns its
 // frame.
@@ -222,6 +244,12 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 	case ir.Store:
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("movq\t%%rax, %d(%%rbp)", fr.SlotOffset(in.Slot.ID))
+	case ir.GLoad:
+		op("movq\t%s(%%rip), %%rax", globalSym(in.Global))
+		op("movq\t%%rax, %s", res())
+	case ir.GStore:
+		op("movq\t%s, %%rax", val(in.Args[0]))
+		op("movq\t%%rax, %s(%%rip)", globalSym(in.Global))
 	case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor:
 		// addq, subq, and the two-operand imulq keep the low 64 bits of
 		// the result, whose low width bits are exact, and so do the bitwise

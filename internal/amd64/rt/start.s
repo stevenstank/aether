@@ -1,14 +1,16 @@
 # Aether runtime: process entry and the stack (D-009, D-011, D-022).
 #
-# _start runs main.main on a stack the runtime maps itself, so no frame
-# depends on the process stack limit (ulimit -s). The program declares in
-# aether.mainstack how many bytes main.main uses below the call. The stack
+# _start runs main.init and then main.main on a stack the runtime maps
+# itself, so no frame depends on the process stack limit (ulimit -s). The
+# program declares in aether.mainstack how many bytes the larger of the two
+# uses below the call. The stack
 # holds S = max(256 MiB, aether.mainstack) bytes, plus .Lreserve below them
 # for the runtime helpers, rounded up to whole pages, with a PROT_NONE guard
 # page below that. If the stack cannot be allocated, _start prints a fatal
 # error and exits with status 2. Otherwise it stores the stack limit L, the
-# lowest address a frame may use, in aether.stacklimit, calls main.main, and
-# exits with status 0 through exit_group.
+# lowest address a frame may use, in aether.stacklimit, calls main.init,
+# which runs package initialization (D-023), then main.main, and exits with
+# status 0 through exit_group.
 #
 # Every function's prologue checks its frame against L and jumps to
 # aether.stackoverflow if it does not fit (D-011).
@@ -48,7 +50,8 @@ _start:
 	syscall
 	testq	%rax, %rax
 	jnz	1f
-	movq	%rbx, %rsp		# 16-byte aligned at the call
+	movq	%rbx, %rsp		# 16-byte aligned at the calls
+	call	main.init		# ABI-S0: no register survives
 	call	main.main
 	movl	$231, %eax		# exit_group
 	xorl	%edi, %edi		# status 0

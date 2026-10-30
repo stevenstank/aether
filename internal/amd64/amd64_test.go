@@ -31,10 +31,16 @@ func program(body func(f *ir.Func, b *ir.Block)) *ir.Program {
 	return p
 }
 
-// sample uses every IR operation: main and sub(a, b int) int { return a - b }.
+// sample uses every IR operation: main, sub(a, b int) int { return a - b },
+// and an Init that stores a global, which main loads.
 func sample() *ir.Program {
 	p := &ir.Program{}
 	f := p.NewFunc("main", "p.go", p1)
+	g := p.NewGlobal("g", ir.I64, "p.go", p1)
+	p.Init = p.NewFunc("init", "p.go", p1)
+	ib := p.Init.Entry()
+	p.Init.GStore(ib, g, p.Init.Const(ib, 9, p1), p1)
+	p.Init.Ret(ib, p1)
 	sub := p.NewFunc("sub", "p.go", p1)
 	sub.Params, sub.Results = []ir.Type{ir.I64, ir.I64}, []ir.Type{ir.I64}
 	sb := sub.Entry()
@@ -49,6 +55,7 @@ func sample() *ir.Program {
 	prod := f.Binary(b, ir.Mul, diff, f.Neg(b, lx, p1), p1)
 	f.Println(b, []*ir.Instr{lx, prod}, p1)
 	f.Println(b, nil, p1)
+	f.Println(b, []*ir.Instr{f.GLoad(b, g, p1)}, p1)
 	f.Println(b, []*ir.Instr{f.Call(b, sub, []*ir.Instr{lx, big}, p1)}, p1)
 	// Comparisons, not, bool println, and both terminators: b0 branches
 	// to b1 or b2, and b1 jumps to b2.
@@ -364,10 +371,12 @@ main.main:
 ` + mainStack(64)
 
 // mainStack declares the stack main.main uses below _start's call, as the
-// backend does (symMainStack), and ends the file.
+// backend does (symMainStack), defines a main.init that only returns, as
+// the backend does for a program without package initialization, and ends
+// the file.
 func mainStack(n int) string {
-	return fmt.Sprintf("\t.section\t.rodata\n\t.globl\t%s\n%s:\n\t.quad\t%d\n\t.section\t.note.GNU-stack,\"\",@progbits\n",
-		symMainStack, symMainStack, n)
+	return fmt.Sprintf("\t.text\n\t.globl\t%s\n%s:\n\tret\n\t.section\t.rodata\n\t.globl\t%s\n%s:\n\t.quad\t%d\n\t.section\t.note.GNU-stack,\"\",@progbits\n",
+		symInit, symInit, symMainStack, symMainStack, n)
 }
 
 // TestRuntimeABI checks the runtime-helper interface: formatting of the
@@ -811,5 +820,79 @@ func TestNativeTuples(t *testing.T) {
 	}
 	if !strings.HasSuffix(got, "2880067194370816120 4660046610375530309\n") {
 		t.Errorf("fib(90), fib(91): %q", got)
+	}
+}
+
+// TestNativeGlobals runs a program with globals and an Init natively and in
+// the interpreter: globals start at zero, Init runs first, and stores in one
+// function are seen by the others. A panic in Init ends the program before
+// main runs.
+//
+//	var x, z int
+//	var b uint8
+//	func double() { x *= 2; b = 255 }
+//	// Init: x = 5; double()
+//	func main() { println(x, b, z); x++; println(x) }
+func TestNativeGlobals(t *testing.T) {
+	p := &ir.Program{}
+	x := p.NewGlobal("x", ir.I64, "p.go", p1)
+	z := p.NewGlobal("z", ir.I64, "p.go", p1)
+	b := p.NewGlobal("b", ir.U8, "p.go", p1)
+	m := p.NewFunc("main", "p.go", p1)
+	d := p.NewFunc("double", "p.go", p1)
+	db := d.Entry()
+	d.GStore(db, x, d.Binary(db, ir.Mul, d.GLoad(db, x, p1), d.Const(db, 2, p1), p1), p1)
+	d.GStore(db, b, d.TypedConst(db, ir.U8, 255, p1), p1)
+	d.Ret(db, p1)
+	p.Init = p.NewFunc("init", "p.go", p1)
+	ib := p.Init.Entry()
+	p.Init.GStore(ib, x, p.Init.Const(ib, 5, p1), p1)
+	p.Init.Call(ib, d, nil, p1)
+	p.Init.Ret(ib, p1)
+	mb := m.Entry()
+	m.Println(mb, []*ir.Instr{m.GLoad(mb, x, p1), m.GLoad(mb, b, p1), m.GLoad(mb, z, p1)}, p1)
+	m.GStore(mb, x, m.Binary(mb, ir.Add, m.GLoad(mb, x, p1), m.Const(mb, 1, p1), p1), p1)
+	m.Println(mb, []*ir.Instr{m.GLoad(mb, x, p1)}, p1)
+	m.Ret(mb, p1)
+	check := func(p *ir.Program, want string, wantCode int) {
+		t.Helper()
+		var interpOut bytes.Buffer
+		if code, err := interp.Run(p, &interpOut); err != nil || code != wantCode || interpOut.String() != want {
+			t.Errorf("interpreter: exit %d, %v, %q; want exit %d, %q", code, err, interpOut.String(), wantCode, want)
+		}
+		asm, err := Emit(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil); code != wantCode || got != want {
+			t.Errorf("native: exit %d, %q; want exit %d, %q", code, got, wantCode, want)
+		}
+	}
+	check(p, "10 255 0\n11\n", 0)
+	ib.Instrs = ib.Instrs[:len(ib.Instrs)-1]
+	p.Init.Print(ib, []*ir.Instr{p.Init.GLoad(ib, x, p1)}, p1)
+	p.Init.Panic(ib, ir.PanicShift, p1)
+	check(p, "10panic: runtime error: negative shift amount\n", 2)
+}
+
+// TestInitStack checks that aether.mainstack covers main.init's frame when
+// it is larger than main.main's: _start calls both from the stack top.
+func TestInitStack(t *testing.T) {
+	p := program(func(*ir.Func, *ir.Block) {})
+	p.Init = p.NewFunc("init", "p.go", p1)
+	ib := p.Init.Entry()
+	for range 100_000 {
+		p.Init.Const(ib, 1, p1)
+	}
+	p.Init.Ret(ib, p1)
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := fmt.Sprintf("%s:\n\t.quad\t%d\n", symMainStack, 16+800_000); !bytes.Contains(asm, []byte(want)) {
+		t.Errorf("assembly does not declare %q", want)
+	}
+	if got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil); code != 0 || got != "" {
+		t.Errorf("exit %d, %q; want exit 0, no output", code, got)
 	}
 }

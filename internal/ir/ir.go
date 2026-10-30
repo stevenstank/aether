@@ -8,8 +8,10 @@
 // The instruction set covers subset S1 (docs/SEMANTICS.md), the calls of
 // D-023 increment 4.2, the control flow and bool of increment 4.1, the
 // multiple results of increment 4.3, the sized integer types, conversions,
-// bit operations, and print of increment 4.4, and the division, shifts, and
-// panics of increment 4.5. A program is a set of functions; a function owns its local variable slots
+// bit operations, and print of increment 4.4, the division, shifts, and
+// panics of increment 4.5, and the package-level variables and package
+// initialization of increment 4.6. A program is a set of functions and
+// global variables; a function owns its local variable slots
 // and a list of basic blocks; a block is a sequence of instructions ending in
 // one terminator. An instruction that produces a value is that value:
 // operands refer to such instructions directly.
@@ -184,6 +186,11 @@ const (
 	// Tuple if it has several.
 	// Each call has a fresh set of slots.
 	Call
+	// GLoad produces the current contents of Global. No args. Globals start
+	// at zero, so a GLoad needs no earlier GStore.
+	GLoad
+	// GStore writes args[0] to Global. It produces no value.
+	GStore
 )
 
 var opNames = [...]string{
@@ -193,6 +200,7 @@ var opNames = [...]string{
 	Eq: "eq", Ne: "ne", Lt: "lt", Le: "le", Gt: "gt", Ge: "ge", Not: "not",
 	Extract: "extract", And: "and", Or: "or", Xor: "xor", AndNot: "andnot", Com: "com",
 	Conv: "conv", Print: "print", Div: "div", Rem: "rem", Shl: "shl", Shr: "shr", Panic: "panic",
+	GLoad: "gload", GStore: "gstore",
 }
 
 func (op Op) String() string {
@@ -226,8 +234,22 @@ type Pos struct {
 func (p Pos) String() string { return fmt.Sprintf("%d:%d", p.Line, p.Col) }
 
 // Program is a whole program. Its entry point is the function named "main".
+// If Init is not nil, it runs before main: it is one of Funcs, named "init",
+// takes no parameters, returns no results, and is never called (D-023).
 type Program struct {
-	Funcs []*Func
+	Funcs   []*Func
+	Globals []*Global
+	Init    *Func
+}
+
+// Global is a package-level variable. It holds the zero value of its type
+// until it is stored to.
+type Global struct {
+	ID   int    // index in Program.Globals
+	Name string // the source name, unique in the program
+	Type Type
+	File string // source file of Pos
+	Pos  Pos
 }
 
 // Func is a function. Main takes no parameters and returns no results.
@@ -272,6 +294,7 @@ type Instr struct {
 	Const   int64    // for Const
 	Index   int      // for Param, Extract, and Panic
 	Callee  *Func    // for Call
+	Global  *Global  // for GLoad and GStore
 	Targets []*Block // for Jump and Branch
 	Pos     Pos
 }
@@ -282,6 +305,13 @@ func (p *Program) NewFunc(name, file string, pos Pos) *Func {
 	f.Blocks = []*Block{{ID: 0}}
 	p.Funcs = append(p.Funcs, f)
 	return f
+}
+
+// NewGlobal adds a global variable to p.
+func (p *Program) NewGlobal(name string, t Type, file string, pos Pos) *Global {
+	g := &Global{ID: len(p.Globals), Name: name, Type: t, File: file, Pos: pos}
+	p.Globals = append(p.Globals, g)
+	return g
 }
 
 // NewBlock adds an empty block to f.
@@ -367,6 +397,16 @@ func (f *Func) Branch(b *Block, cond *Instr, t, e *Block, pos Pos) *Instr {
 // Load appends a load of s.
 func (f *Func) Load(b *Block, s *Slot, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Load, Type: s.Type, Slot: s, Pos: pos})
+}
+
+// GLoad appends a load of g.
+func (f *Func) GLoad(b *Block, g *Global, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: GLoad, Type: g.Type, Global: g, Pos: pos})
+}
+
+// GStore appends a store of v to g.
+func (f *Func) GStore(b *Block, g *Global, v *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: GStore, Args: []*Instr{v}, Global: g, Pos: pos})
 }
 
 // Store appends a store of v to s.

@@ -18,6 +18,10 @@ import (
 //	  println v1 @5:2
 //	  ret @6:1
 //
+// Globals come first, one per line, then the functions:
+//
+//	global g0 x i64 @p.go:3:5
+//
 // A function with parameters or results lists their types:
 //
 //	func f(i64) i64 @p.go:8:6
@@ -27,8 +31,11 @@ import (
 //	  ret v1 @9:2
 func (p *Program) String() string {
 	var b strings.Builder
+	for _, g := range p.Globals {
+		fmt.Fprintf(&b, "global g%d %s %s @%s:%s\n", g.ID, g.Name, g.Type, g.File, g.Pos)
+	}
 	for i, f := range p.Funcs {
-		if i > 0 {
+		if i > 0 || len(p.Globals) > 0 {
 			b.WriteString("\n")
 		}
 		f.write(&b)
@@ -95,6 +102,12 @@ func (in *Instr) String() string {
 			ops = append(ops, fmt.Sprintf("s%d", in.Slot.ID))
 		} else {
 			ops = append(ops, "s?")
+		}
+	case GLoad, GStore:
+		if in.Global != nil {
+			ops = append(ops, fmt.Sprintf("g%d", in.Global.ID))
+		} else {
+			ops = append(ops, "g?")
 		}
 	case Param, Extract:
 		ops = append(ops, fmt.Sprint(in.Index))

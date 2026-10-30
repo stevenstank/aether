@@ -27,10 +27,11 @@ const MaxDepth = 100_000
 // (D-009, SEMANTICS.md V-2).
 const stackOverflow = "fatal error: stack overflow\n"
 
-// Run executes the program's entry function, main, writes the output of
-// println to stderr, and returns the program's exit status: 0 when main
-// returns, 2 after a stack overflow. Nothing is ever written to standard
-// output.
+// Run executes the program's Init function, if it has one, and then its
+// entry function, main, with the globals starting at zero, writes the output
+// of println to stderr, and returns the program's exit status: 0 when main
+// returns, 2 after a stack overflow or a panic. Nothing is ever written to
+// standard output.
 //
 // The program is verified first. Malformed IR is an error, and nothing is
 // executed. Errors writing to stderr are ignored, as the IR requires.
@@ -49,9 +50,16 @@ func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
 	if errs := ir.Verify(prog); len(errs) > 0 {
 		return 0, fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
 	}
+	globals := make([]int64, len(prog.Globals))
+	var executed int64
+	if prog.Init != nil {
+		if code, err := run(prog.Init, globals, stderr, steps, &executed); code != 0 || err != nil {
+			return code, err
+		}
+	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, stderr, steps)
+			return run(f, globals, stderr, steps, &executed)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
@@ -68,10 +76,12 @@ type frame struct {
 	tuples map[int][]int64 // the results of Tuple calls, by value number
 }
 
-// run executes main and every call it makes on an explicit frame stack in
-// one loop, never with a Go call per IR call, so the interpreter's own Go
-// stack does not grow with the IR call depth (D-023).
-func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
+// run executes entry (Init or main) and every call it makes on an explicit
+// frame stack in one loop, never with a Go call per IR call, so the
+// interpreter's own Go stack does not grow with the IR call depth (D-023).
+// It counts the instructions it executes in *executed, against the budget
+// steps.
+func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, executed *int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
@@ -85,11 +95,12 @@ func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 		}
 		return frame{f: f, blk: f.Entry(), args: args, slots: make([]int64, len(f.Slots)), values: make([]int64, n)}
 	}
-	stack := []frame{newFrame(main, nil)}
-	for executed := int64(0); ; executed++ {
-		if steps > 0 && executed == steps {
+	stack := []frame{newFrame(entry, nil)}
+	for {
+		if steps > 0 && *executed == steps {
 			return 0, ErrSteps
 		}
+		*executed++
 		fr := &stack[len(stack)-1]
 		// Verify guarantees that every operand was computed earlier in
 		// the block, that every slot is stored on every path before it is
@@ -104,6 +115,10 @@ func run(main *ir.Func, stderr io.Writer, steps int64) (int, error) {
 			fr.values[in.ID] = fr.slots[in.Slot.ID]
 		case ir.Store:
 			fr.slots[in.Slot.ID] = arg(0)
+		case ir.GLoad:
+			fr.values[in.ID] = globals[in.Global.ID]
+		case ir.GStore:
+			globals[in.Global.ID] = arg(0)
 		// Go's int64 arithmetic wraps in two's complement (spec §Integer
 		// overflow), so the low width bits of each result are exact, and
 		// Canonical reduces them to the instruction's type.

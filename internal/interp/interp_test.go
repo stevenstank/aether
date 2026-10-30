@@ -307,3 +307,62 @@ func TestStepBudget(t *testing.T) {
 		t.Errorf("bounded loop: exit %d, %v, %q", code, err, stderr.String())
 	}
 }
+
+// TestGlobalsAndInit checks that globals start at zero, that Init runs
+// before main, and that stores in one function are seen by the others:
+//
+//	var x, z int
+//	var b uint8
+//	func double() { x *= 2; b = 255 }
+//	// Init: x = 5; double()
+//	func main() { println(x, b, z); x++; println(x) }
+func TestGlobalsAndInit(t *testing.T) {
+	p := &ir.Program{}
+	x := p.NewGlobal("x", ir.I64, "p.go", p1)
+	z := p.NewGlobal("z", ir.I64, "p.go", p1)
+	b := p.NewGlobal("b", ir.U8, "p.go", p1)
+	m := p.NewFunc("main", "p.go", p1)
+	d := p.NewFunc("double", "p.go", p1)
+	db := d.Entry()
+	d.GStore(db, x, d.Binary(db, ir.Mul, d.GLoad(db, x, p1), d.Const(db, 2, p1), p1), p1)
+	d.GStore(db, b, d.TypedConst(db, ir.U8, 255, p1), p1)
+	d.Ret(db, p1)
+	p.Init = p.NewFunc("init", "p.go", p1)
+	ib := p.Init.Entry()
+	p.Init.GStore(ib, x, p.Init.Const(ib, 5, p1), p1)
+	p.Init.Call(ib, d, nil, p1)
+	p.Init.Ret(ib, p1)
+	mb := m.Entry()
+	m.Println(mb, []*ir.Instr{m.GLoad(mb, x, p1), m.GLoad(mb, b, p1), m.GLoad(mb, z, p1)}, p1)
+	m.GStore(mb, x, m.Binary(mb, ir.Add, m.GLoad(mb, x, p1), m.Const(mb, 1, p1), p1), p1)
+	m.Println(mb, []*ir.Instr{m.GLoad(mb, x, p1)}, p1)
+	m.Ret(mb, p1)
+	if got, want := output(t, p), "10 255 0\n11\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// The step budget covers Init and main together: Init executes 11
+	// instructions, double's included, and main 11.
+	if _, err := RunSteps(p, &bytes.Buffer{}, 22); err != nil {
+		t.Errorf("budget of 22: %v", err)
+	}
+	if _, err := RunSteps(p, &bytes.Buffer{}, 21); !errors.Is(err, ErrSteps) {
+		t.Errorf("budget of 21: %v, want ErrSteps", err)
+	}
+}
+
+// TestPanicInInit checks that a panic in Init ends the program before main
+// runs.
+func TestPanicInInit(t *testing.T) {
+	p := program(func(f *ir.Func, b *ir.Block) {
+		f.Println(b, []*ir.Instr{f.Const(b, 2, p1)}, p1)
+	})
+	p.Init = p.NewFunc("init", "p.go", p1)
+	ib := p.Init.Entry()
+	p.Init.Print(ib, []*ir.Instr{p.Init.Const(ib, 1, p1)}, p1)
+	p.Init.Panic(ib, ir.PanicDivide, p1)
+	var stderr bytes.Buffer
+	code, err := Run(p, &stderr)
+	if want := "1panic: runtime error: integer divide by zero\n"; err != nil || code != 2 || stderr.String() != want {
+		t.Errorf("exit %d, %v, stderr %q; want exit 2, %q", code, err, stderr.String(), want)
+	}
+}

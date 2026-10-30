@@ -410,6 +410,14 @@ repeated in each phase below:
      (`TESTING.md`), with three negative controls.
   6. **4.6: package-level `var` and `const`** with `InitOrder`; `_start`
      calls `main.init` before `main.main` (D-009, D-023).
+     **Status (2026-10-30):** part 1 done: `Globals`, `gload`, `gstore`,
+     and `Init` in the IR, verifier (invariant 8; `Init` is named `init`,
+     has no parameters or results, and is never called), printer,
+     interpreter (`Init` runs first, sharing the step budget), and backend
+     (globals in `.bss`, `main.init`, a stack covering both entry frames),
+     and `_start` calls `main.init`. Tested on hand-built IR, natively and
+     in the interpreter, including a panic in `Init`. Not done: the gate,
+     lowering with `InitOrder`, the corpus, and the generator.
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.

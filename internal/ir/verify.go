@@ -35,6 +35,31 @@ func Verify(p *Program) []error {
 	for _, f := range p.Funcs {
 		funcs[f] = true
 	}
+	globals := map[*Global]bool{}
+	gnames := map[string]bool{}
+	for i, g := range p.Globals {
+		e := &VerifyError{Func: "?", Block: -1, Index: -1}
+		switch {
+		case g == nil:
+			e.Msg = fmt.Sprintf("global %d is nil", i)
+		case g.ID != i:
+			e.Msg = fmt.Sprintf("global %d has ID %d", i, g.ID)
+		case gnames[g.Name]:
+			e.Msg = fmt.Sprintf("duplicate global name %s", g.Name)
+		case !validType(g.Type):
+			e.Msg = fmt.Sprintf("global g%d has invalid type %s", i, g.Type)
+		case g.File == "" || !validPos(g.Pos):
+			e.Msg = fmt.Sprintf("global g%d has no source position", i)
+		default:
+			globals[g] = true
+			gnames[g.Name] = true
+			continue
+		}
+		errs = append(errs, e)
+	}
+	if p.Init != nil && !funcs[p.Init] {
+		errs = append(errs, &VerifyError{Func: p.Init.Name, Block: -1, Index: -1, Msg: "Init is not a function of the program"})
+	}
 	mains := 0
 	for _, f := range p.Funcs {
 		if f == nil {
@@ -48,7 +73,7 @@ func Verify(p *Program) []error {
 		if f.Name == "main" {
 			mains++
 		}
-		errs = append(errs, verifyFunc(f, funcs)...)
+		errs = append(errs, verifyFunc(p, f, funcs, globals)...)
 	}
 	if mains == 0 {
 		errs = append(errs, &VerifyError{Func: "main", Block: -1, Index: -1, Msg: "missing entry point: no function named main"})
@@ -57,9 +82,11 @@ func Verify(p *Program) []error {
 }
 
 type verifier struct {
-	f     *Func
-	funcs map[*Func]bool // the functions of the program
-	errs  []error
+	p       *Program
+	f       *Func
+	funcs   map[*Func]bool   // the functions of the program
+	globals map[*Global]bool // its well-formed globals
+	errs    []error
 }
 
 func (v *verifier) errorf(block, index int, in *Instr, format string, args ...any) {
@@ -70,8 +97,8 @@ func (v *verifier) errorf(block, index int, in *Instr, format string, args ...an
 	v.errs = append(v.errs, e)
 }
 
-func verifyFunc(f *Func, funcs map[*Func]bool) []error {
-	v := &verifier{f: f, funcs: funcs}
+func verifyFunc(p *Program, f *Func, funcs map[*Func]bool, globals map[*Global]bool) []error {
+	v := &verifier{p: p, f: f, funcs: funcs, globals: globals}
 	if f.File == "" || !validPos(f.Pos) {
 		v.errorf(-1, -1, nil, "missing source position")
 	}
@@ -87,6 +114,14 @@ func verifyFunc(f *Func, funcs map[*Func]bool) []error {
 	}
 	if f.Name == "main" && len(f.Params)+len(f.Results) > 0 {
 		v.errorf(-1, -1, nil, "main has parameters or results")
+	}
+	switch {
+	case f == p.Init && f.Name != "init":
+		v.errorf(-1, -1, nil, "Init is not named init")
+	case f == p.Init && len(f.Params)+len(f.Results) > 0:
+		v.errorf(-1, -1, nil, "init has parameters or results")
+	case f != p.Init && f.Name == "init":
+		v.errorf(-1, -1, nil, "a function named init that is not the program's Init")
 	}
 	for i, s := range f.Slots {
 		switch {
@@ -357,7 +392,27 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			v.errorf(bi, i, in, "callee is not a function of the program")
 			break
 		}
+		if in.Callee == v.p.Init {
+			v.errorf(bi, i, in, "call of init")
+		}
 		want, args = callType(in.Callee), in.Callee.Params
+	case GLoad, GStore:
+		if !v.globals[in.Global] {
+			// Report only this, not the types it leaves unknown.
+			v.errorf(bi, i, in, "global operand is not a global of the program")
+			want = in.Type
+			for _, a := range in.Args {
+				if a != nil {
+					args = append(args, a.Type)
+				}
+			}
+			break
+		}
+		if in.Op == GLoad {
+			want = in.Global.Type
+		} else {
+			args = []Type{in.Global.Type}
+		}
 	case Extract:
 		// The tuple must be a call in this block (checked with the
 		// operands), so its callee is known.
@@ -414,6 +469,9 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	}
 	if in.Op != Call && in.Callee != nil {
 		v.errorf(bi, i, in, "%s has a callee", in.Op)
+	}
+	if in.Op != GLoad && in.Op != GStore && in.Global != nil {
+		v.errorf(bi, i, in, "%s has a global operand", in.Op)
 	}
 }
 
