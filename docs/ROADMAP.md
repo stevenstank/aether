@@ -433,7 +433,8 @@ repeated in each phase below:
      in a case value). Negative controls run by hand and reverted: `break`
      leaving the enclosing `for`, the tag evaluated again for each case
      value, and `default` taken in source order each fail
-     `TestDifferentialAgainstGc` natively and in the interpreter.
+     `TestDifferentialAgainstGc` natively and in the interpreter. Part 2
+     done: the generator (`TESTING.md`), with three negative controls.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
   - Panicking programs (divergence V-3; corrected in 4.5, since gc writes

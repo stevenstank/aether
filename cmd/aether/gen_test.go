@@ -24,7 +24,11 @@ import (
 // order (types.Info.InitOrder) differs from the declaration order. There is
 // no function besides main, so no call assigns a global while an
 // expression reads it (SEMANTICS.md V-4). main assigns globals like locals
-// and prints them all at its end.
+// and prints them all at its end. Since increment 4.7, a program may
+// contain switch statements on bool and integer tags, or without a tag,
+// with an optional init statement, several values per case, a default
+// clause anywhere, empty clauses, and break in a clause; case values may
+// have side effects only through a panic.
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -122,6 +126,7 @@ type generator struct {
 	order  [][]string // declaration order, per scope
 	names  int
 	loops  int // enclosing loops
+	breaks int // enclosing loops and switches
 }
 
 // capture returns what emit writes, instead of writing it.
@@ -140,11 +145,14 @@ func (g *generator) line(depth int, format string, args ...any) {
 	g.b.WriteString("\n")
 }
 
-// block emits statements in a new scope, then prints its variables.
-func (g *generator) block(depth int) {
+// block emits 2 to 8 statements in a new scope, then prints its variables.
+func (g *generator) block(depth int) { g.stmts(depth, 2+g.r.IntN(7)) }
+
+// stmts emits n statements in a new scope, then prints its variables.
+func (g *generator) stmts(depth, n int) {
 	g.scopes = append(g.scopes, map[string]entry{})
 	g.order = append(g.order, nil)
-	for n := 2 + g.r.IntN(7); n > 0; n-- {
+	for ; n > 0; n-- {
 		g.stmt(depth)
 	}
 	var vars []string
@@ -337,10 +345,16 @@ func (g *generator) stmt(depth int) {
 		g.ifStmt(depth, 0)
 	case k == 13 && depth < 5 && g.loops < 3:
 		g.loop(depth)
-	case k == 14 && g.loops > 0:
+	case k == 14 && g.breaks > 0:
+		jumps := []string{"break"}
+		if g.loops > 0 {
+			jumps = append(jumps, "continue")
+		}
 		g.line(depth, "if %s {", g.boolExpr(2, true))
-		g.line(depth+1, "%s", g.pick([]string{"break", "continue"}))
+		g.line(depth+1, "%s", g.pick(jumps))
 		g.line(depth, "}")
+	case k == 15 && depth < 4:
+		g.switchStmt(depth)
 	default:
 		var args []string
 		for n := g.r.IntN(4); n > 0; n-- {
@@ -423,7 +437,8 @@ func (g *generator) loop(depth int) {
 	i := fmt.Sprintf("i%d", g.names)
 	n := g.r.IntN(4)
 	g.loops++
-	defer func() { g.loops-- }()
+	g.breaks++
+	defer func() { g.loops--; g.breaks-- }()
 	switch g.r.IntN(3) {
 	case 0:
 		g.line(depth, "for %s := 0; %s < %d; %s++ {", i, i, n, i)
@@ -448,6 +463,88 @@ func (g *generator) loop(depth int) {
 		g.line(depth+1, "}")
 	}
 	g.block(depth + 1)
+	g.line(depth, "}")
+}
+
+// switchStmt emits a switch statement: on a bool or integer tag, which
+// may be a variable declared by the init statement, or without a tag. go/types
+// rejects duplicate integer constants among the case values, so a constant
+// integer case value is a literal not used before in the switch, which
+// fits every integer type.
+func (g *generator) switchStmt(depth int) {
+	g.scopes = append(g.scopes, map[string]entry{})
+	g.order = append(g.order, nil)
+	g.breaks++
+	defer func() {
+		g.scopes, g.order = g.scopes[:len(g.scopes)-1], g.order[:len(g.order)-1]
+		g.breaks--
+	}()
+	var head, t string
+	switch g.r.IntN(4) {
+	case 0:
+		head = "switch "
+	case 1:
+		// An init statement declaring the tag, in the switch's scope.
+		name := g.newName(nil)
+		v, vt := g.value()
+		head, t = fmt.Sprintf("switch %s := %s; %s ", name, v, name), vt
+		g.declare(name, entry{k: variable, t: vt})
+	case 2:
+		head, t = "switch "+g.boolExpr(2, true)+" ", "bool"
+	default:
+		t = g.intType()
+		e, isConst := g.intExpr(2, true, t)
+		if isConst {
+			t = "int"
+		}
+		head = "switch " + e + " "
+	}
+	g.line(depth, "%s{", head)
+	// At most 3 clauses besides default, each with at most 3 values, so
+	// the literals never run out.
+	lits := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "100", "127"}
+	if t != "" && t != "bool" && !unsigned(t) {
+		lits = append(lits, "-1")
+	}
+	g.r.Shuffle(len(lits), func(i, j int) { lits[i], lits[j] = lits[j], lits[i] })
+	value := func() string {
+		switch t {
+		case "", "bool":
+			return g.boolExpr(2, true)
+		}
+		if e, isConst := g.intExpr(2, true, t); !isConst && g.r.IntN(2) == 0 {
+			return e
+		}
+		lit := lits[0]
+		lits = lits[1:]
+		return lit
+	}
+	clauses := g.r.IntN(4)
+	dflt := -1
+	if g.r.IntN(2) == 0 {
+		dflt = g.r.IntN(clauses + 1)
+		clauses++
+	}
+	for i := range clauses {
+		if i == dflt {
+			g.line(depth, "default:")
+		} else {
+			var vals []string
+			for n := 1 + g.r.IntN(3); n > 0; n-- {
+				vals = append(vals, value())
+			}
+			g.line(depth, "case %s:", strings.Join(vals, ", "))
+		}
+		// A break here skips the rest of the clause, and leaves only the
+		// switch, not an enclosing loop.
+		if g.r.IntN(4) == 0 {
+			g.line(depth+1, "if %s {", g.boolExpr(2, true))
+			g.line(depth+2, "break")
+			g.line(depth+1, "}")
+		}
+		// A short body, possibly empty, keeps programs small.
+		g.stmts(depth+1, g.r.IntN(4))
+	}
 	g.line(depth, "}")
 }
 

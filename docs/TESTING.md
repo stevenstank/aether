@@ -236,6 +236,22 @@ panicked. Negative controls confirmed that generated programs detect an
 initialization order reversed in lowering (11 programs) and globals that
 share one word in the backend (85 programs).
 
+Since increment 4.7 a statement may be a `switch`: on a `bool` or integer
+tag, on a variable declared by its init statement, or without a tag, with
+up to three case clauses of one to three values, an optional `default` in
+any position, and short bodies of zero to three statements, which may
+begin with a conditional `break`. go/types rejects duplicate integer
+constants among case values, so each constant integer case value is a
+literal not used before in that switch, chosen to fit every integer type.
+Case values may divide by zero, so a panic can depend on which values are
+evaluated. Of seeds 1 to 600, 345 were valid (43% invalid, 37% before, all
+from overflowing constants); 159 of the valid ones contain a switch, 24 of
+those panic. Negative controls in lowering, run by hand and reverted:
+`default` taken in source order (20 generated programs fail), only the
+first value of each case tested (10), and `break` leaving the enclosing
+`for` (2 generated programs give wrong output, and 59 fail lowering with an
+internal error because no loop encloses the switch).
+
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
 come from running gc.
