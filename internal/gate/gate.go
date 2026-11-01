@@ -190,7 +190,7 @@ func init() {
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
 		// Statement kinds, named by the statement keyword (see stmt).
-		"for-range", "switch", "type-switch", "select", "go",
+		"for-range", "type-switch", "select", "go",
 		"defer", "label", "send",
 		token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
@@ -349,7 +349,21 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.RangeStmt:
 		c.reject(s, "for-range", "for-range statement")
 	case *ast.SwitchStmt:
-		c.reject(s, "switch", "switch statement")
+		// go/types has checked that each case value is comparable with the
+		// tag, and converted untyped constants to the tag's type.
+		if s.Init != nil {
+			c.stmt(s.Init)
+		}
+		if s.Tag != nil {
+			c.expr(s.Tag)
+		}
+		for _, cc := range s.Body.List {
+			cc := cc.(*ast.CaseClause)
+			for _, e := range cc.List {
+				c.expr(e)
+			}
+			c.stmts(cc.Body)
+		}
 	case *ast.TypeSwitchStmt:
 		c.reject(s, "type-switch", "type switch statement")
 	case *ast.SelectStmt:
@@ -373,7 +387,7 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.reject(s, "label", "labeled "+s.Tok.String())
 		}
 		// An unlabeled break or continue: every enclosing statement that
-		// could be its target other than for is rejected.
+		// could be its target other than for and switch is rejected.
 	case *ast.LabeledStmt:
 		c.reject(s, "label", "labeled statement")
 	case *ast.SendStmt:

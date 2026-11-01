@@ -1,8 +1,9 @@
 // Package lower translates a type-checked program of S1, the functions of
 // increment 4.2, the bool and control flow of increment 4.1, the multiple
 // results of increment 4.3, the integer types of increment 4.4, the
-// division and shifts of increment 4.5, and the package-level variables
-// and constants of increment 4.6 into IR (D-004, D-021, D-023).
+// division and shifts of increment 4.5, the package-level variables and
+// constants of increment 4.6, and the switch statements of increment 4.7
+// into IR (D-004, D-021, D-023).
 //
 // Each package-level variable is an IR global. Their initializers are
 // lowered, in types.Info.InitOrder, into the program's Init, which runs
@@ -98,12 +99,13 @@ type lowerer struct {
 	slots   map[*types.Var]*ir.Slot
 	globals map[*types.Var]*ir.Global
 	funcs   map[*types.Func]*ir.Func
-	loops   []*loop // the enclosing for statements, innermost last
+	targets []*target // the enclosing for and switch statements, innermost last
 }
 
-// loop is a for statement being lowered: break jumps to exit, continue to
-// next (the post statement, or the condition).
-type loop struct {
+// target is a for or switch statement being lowered: break jumps to exit,
+// and continue, in a for statement, to next (the post statement, or the
+// condition). A switch has no next.
+type target struct {
 	next, exit *ir.Block
 	broken     bool // a break targets exit
 }
@@ -316,16 +318,27 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.ifStmt(s)
 	case *ast.ForStmt:
 		l.forStmt(s)
+	case *ast.SwitchStmt:
+		l.switchStmt(s)
 	case *ast.BranchStmt:
-		if s.Label != nil || len(l.loops) == 0 || s.Tok != token.BREAK && s.Tok != token.CONTINUE {
+		if s.Label != nil || s.Tok != token.BREAK && s.Tok != token.CONTINUE {
 			l.fail(s, "unexpected %s statement", s.Tok)
 		}
-		lp := l.loops[len(l.loops)-1]
-		target := lp.next
-		if s.Tok == token.BREAK {
-			target, lp.broken = lp.exit, true
+		// break leaves the innermost for or switch, continue the innermost
+		// for.
+		var dest *ir.Block
+		for i := len(l.targets) - 1; i >= 0 && dest == nil; i-- {
+			t := l.targets[i]
+			if s.Tok == token.BREAK {
+				dest, t.broken = t.exit, true
+			} else {
+				dest = t.next
+			}
 		}
-		l.fn.Jump(l.b, target, l.pos(s, s.Pos()))
+		if dest == nil {
+			l.fail(s, "%s outside a loop", s.Tok)
+		}
+		l.fn.Jump(l.b, dest, l.pos(s, s.Pos()))
 		l.done = true
 	case *ast.BlockStmt:
 		// A block only scopes names, which go/types has resolved: each
@@ -393,14 +406,14 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 	} else {
 		l.fn.Jump(l.b, body, pos)
 	}
-	lp := &loop{next: next, exit: exit}
-	l.loops = append(l.loops, lp)
+	lp := &target{next: next, exit: exit}
+	l.targets = append(l.targets, lp)
 	l.b, l.done = body, false
 	l.stmts(s.Body.List)
 	if !l.done {
 		l.fn.Jump(l.b, next, l.pos(s.Body, s.Body.Rbrace))
 	}
-	l.loops = l.loops[:len(l.loops)-1]
+	l.targets = l.targets[:len(l.targets)-1]
 	if s.Post != nil {
 		l.b, l.done = next, false
 		l.stmt(s.Post)
@@ -408,6 +421,75 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 	}
 	// Without a condition, only a break reaches the exit.
 	l.b, l.done = exit, s.Cond == nil && !lp.broken
+}
+
+// switchStmt lowers "switch init; tag { case x, y: … default: … }" as a
+// chain of tests. The tag is evaluated once, stored in a temporary slot,
+// and compared for equality with each case value in source order, left to
+// right and top to bottom; each case value is evaluated only if no earlier
+// one matched (Go spec, Switch statements). Without a tag, each case value
+// is itself the condition. If none matches, the default clause runs, wherever
+// it appears, or the statement ends. go/types has converted every case value
+// to the tag's type.
+//
+// The tests are at their case values, and the jump that ends each clause at
+// the next clause's case keyword, or the closing brace. The statement ends unreachably if it has a default
+// clause, every clause ends unreachably, and no break leaves it.
+func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
+	if s.Init != nil {
+		l.stmt(s.Init)
+	}
+	var tag func() *ir.Instr
+	if s.Tag != nil {
+		tag = l.spill(l.expr(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
+	}
+	exit := l.fn.NewBlock()
+	bodies := make([]*ir.Block, len(s.Body.List))
+	var dflt *ast.CaseClause
+	dfltBody := exit
+	for i, c := range s.Body.List {
+		cc := c.(*ast.CaseClause)
+		bodies[i] = l.fn.NewBlock()
+		if cc.List == nil {
+			dflt, dfltBody = cc, bodies[i]
+			continue
+		}
+		for _, e := range cc.List {
+			pos := l.pos(e, e.Pos())
+			cond := l.expr(e)
+			if tag != nil {
+				t := tag()
+				if cond.Type != t.Type {
+					l.fail(e, "case value of type %s for a tag of type %s", cond.Type, t.Type)
+				}
+				cond = l.fn.Compare(l.b, ir.Eq, t, cond, pos)
+			} else if cond.Type != ir.Bool {
+				l.fail(e, "case condition of type %s", cond.Type)
+			}
+			next := l.fn.NewBlock()
+			l.fn.Branch(l.b, cond, bodies[i], next, pos)
+			l.b = next
+		}
+	}
+	l.fn.Jump(l.b, dfltBody, l.pos(s, s.Switch))
+	sw := &target{exit: exit}
+	l.targets = append(l.targets, sw)
+	done := dflt != nil
+	for i, c := range s.Body.List {
+		cc := c.(*ast.CaseClause)
+		l.b, l.done = bodies[i], false
+		l.stmts(cc.Body)
+		if !l.done {
+			end := s.Body.Rbrace
+			if i+1 < len(s.Body.List) {
+				end = s.Body.List[i+1].Pos()
+			}
+			l.fn.Jump(l.b, exit, l.pos(cc, end))
+		}
+		done = done && l.done
+	}
+	l.targets = l.targets[:len(l.targets)-1]
+	l.b, l.done = exit, done && !sw.broken
 }
 
 // varSpec lowers "var a, b T = x, y" and "var a, b T". All values are

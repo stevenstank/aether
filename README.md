@@ -13,8 +13,8 @@ representation and backend.
 > parameters and results, stack-overflow detection (increment 4.2), `bool`,
 > `if`, and `for` (increment 4.1), multiple results (4.3), and every integer
 > type with conversions and bit operators (4.4), `/ % << >>` with
-> run-time panics (4.5), and package-level `var` and `const` (4.6) are
-> implemented.
+> run-time panics (4.5), package-level `var` and `const` (4.6), and
+> `switch` (4.7) are implemented.
 
 ## What works today
 
@@ -112,8 +112,8 @@ potentially long-term dependencies. The exact ownership boundaries are in
 ## Current limitations
 
 - Only S1, functions, `bool`, `if`, `for`, and the integer types are
-  supported, with package-level `var` and `const`: no `switch`, no `type`
-  declarations or `init` functions, and no types other than the integer
+  supported, with package-level `var` and `const` and `switch`: no
+  `fallthrough` or type switches, no `type` declarations or `init` functions, and no types other than the integer
   types and `bool`. Panics print no traceback. The generated code is unoptimized: every value
   goes through memory.
 - Only one source file, `package main`, with no imports, is ever accepted.

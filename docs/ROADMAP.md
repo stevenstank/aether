@@ -425,6 +425,15 @@ repeated in each phase below:
      allowed (`SEMANTICS.md` V-4). Part 3 done: the generator
      (`TESTING.md`), with two negative controls.
   7. **4.7: `switch` on integers**, the S2 suite, Phase 4 acceptance.
+     **Status (2026-10-31):** part 1 done: the gate and lowering (a chain of
+     `eq` and `branch` tests, no new IR; `break` leaves the innermost `for`
+     or `switch`), and two programs run against gc (`s2_s01_switch`,
+     `s2_s02_switch_panic`: case evaluation order, a single tag evaluation,
+     `default` anywhere, `break` and `continue`, nested switches, and a panic
+     in a case value). Negative controls run by hand and reverted: `break`
+     leaving the enclosing `for`, the tag evaluated again for each case
+     value, and `default` taken in source order each fail
+     `TestDifferentialAgainstGc` natively and in the interpreter.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
   - Panicking programs (divergence V-3; corrected in 4.5, since gc writes

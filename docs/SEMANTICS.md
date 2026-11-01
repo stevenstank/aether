@@ -389,7 +389,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `method`, `function-without-body` |
-| Statements | `for-range`, `switch`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
+| Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
 | Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
@@ -550,8 +550,8 @@ The gate also accepts, in every function:
   the subset can observe (it needs closures or pointers).
 
 Still `unsupported`: labeled statements and `break` or `continue` with a
-label (`label`), `goto`, `switch`, `for range`, and every type and operator
-not listed. The feature names `if`, `for`, `break`, `continue`, `comparison`,
+label (`label`), `goto`, `switch` (until 4.7), `for range`, and every type
+and operator not listed. The feature names `if`, `for`, `break`, `continue`, `comparison`,
 `operator-not`, `operator-logical-and`, and `operator-logical-or` no longer
 exist.
 
@@ -600,6 +600,21 @@ initialization); a panic or stack overflow in one ends the program before
 `main` runs. Package-level `type` declarations and `init` functions remain
 `unsupported` (`package-level-declaration`, `init-function`).
 
+## Switch statements (Phase 4 increment 4.7)
+
+The gate also accepts expression `switch` statements, with an optional init
+statement and an optional tag of `bool` or an integer type, and case clauses
+with one or more values and at most one `default`. An unlabeled `break` in a
+clause leaves the switch; `continue` continues the enclosing `for`. As the
+spec requires, the tag is evaluated once, and the case values are evaluated
+and compared with it left to right and top to bottom, only until one
+matches; the `default` clause runs if none does, wherever it appears. A
+switch without a tag tests each case value as a condition. Lowering builds
+the tests from the IR's existing comparisons and branches; the IR is
+unchanged. Still `unsupported`: `fallthrough`, labeled switches (`label`),
+type switches (`type-switch`), and switches on other types. The feature name
+`switch` no longer exists.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -622,6 +637,7 @@ initialization); a panic or stack overflow in one ends the program before
 | Every integer type, conversions, `& \| ^ &^`, unary `^`, `print` | Numeric types, Conversions, Arithmetic operators | S2 / 4.4 | Supported (native) | `s2_i01_integer_tables`, `s2_i02_conversions_print`; `TestIntegerTypes`, `TestConversions` |
 | `/ % << >>` with the run-time panics (V-3) | Arithmetic operators, Run-time panics | S2 / 4.5 | Supported (native), with divergence V-3 | `s2_d01_division_shifts` to `s2_d06_panic_in_loop`; `TestIntegerTypes`, `TestPanics`, `TestPanicPrefix` |
 | Package-level `var` and `const`, initialization in `InitOrder` | Variable declarations, Constant declarations, Package initialization | S2 / 4.6 | Supported (native), with divergence V-4 | `s2_g01_package_vars` to `s2_g04_globals_recursion`; `TestNativeGlobals`, `TestGlobalsAndInit`, `TestVerifyGlobals`, `TestGlobalReadOrder`; gate tests |
+| Expression `switch` on `bool` and integer tags, unlabeled `break` | Switch statements, Break statements | S2 / 4.7 | Supported (native) | `s2_s01_switch`, `s2_s02_switch_panic`; gate tests; `TestLowerSwitch` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

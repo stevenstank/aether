@@ -80,6 +80,56 @@ func TestLowerConstructs(t *testing.T) {
 	}
 }
 
+// TestLowerSwitch checks the chain of tests a switch is lowered to: the tag
+// stored once, each case value compared only if no earlier one matched, and
+// the default clause, wherever it appears, taken when none does.
+func TestLowerSwitch(t *testing.T) {
+	pkg := typeCheck(t, "package main\n\nfunc main() {\n\tx := 1\n\tswitch x {\n\tdefault:\n\t\tprintln(0)\n\tcase 1, x + 1:\n\t\tbreak\n\t}\n}\n")
+	if ds := gate.Check(pkg); len(ds) > 0 {
+		t.Fatalf("gate: %v", ds)
+	}
+	prog, ds := Lower(pkg)
+	if len(ds) > 0 {
+		t.Fatalf("lower: %v", ds)
+	}
+	if errs := ir.Verify(prog); len(errs) > 0 {
+		t.Fatalf("verify: %v", errs)
+	}
+	want := `func main @p.go:3:6
+  slot s0 x i64 @4:2
+  slot s1 tmp i64 @5:9
+b0:
+  v0 = const 1 @4:7
+  store s0, v0 @4:2
+  v1 = load s0 @5:9
+  store s1, v1 @5:9
+  v2 = const 1 @8:7
+  v3 = load s1 @5:9
+  v4 = eq v3, v2 @8:7
+  branch v4, b3, b4 @8:7
+b1:
+  ret @11:1
+b2:
+  v10 = const 0 @7:11
+  println v10 @7:3
+  jump b1 @8:2
+b3:
+  jump b1 @9:3
+b4:
+  v5 = load s0 @8:10
+  v6 = const 1 @8:14
+  v7 = add v5, v6 @8:12
+  v8 = load s1 @5:9
+  v9 = eq v8, v7 @8:10
+  branch v9, b3, b5 @8:10
+b5:
+  jump b2 @5:2
+`
+	if got := prog.String(); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 // TestLowerPositions checks that each instruction carries the position of
 // the source construct it implements.
 func TestLowerPositions(t *testing.T) {
@@ -113,7 +163,8 @@ func TestLowerPositions(t *testing.T) {
 // an internal error at the offending construct instead of emitting IR.
 func TestLowerUnexpected(t *testing.T) {
 	tests := []struct{ name, src, want string }{
-		{"statement", "func main() { x := 1; switch x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.SwitchStmt"},
+		{"statement", "func main() { x := 1; for range x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.RangeStmt"},
+		{"fallthrough", "func main() { switch { case true: fallthrough; default: } }", "p.go:2:35: internal: lowering: unexpected fallthrough statement"},
 		{"operator", "func main() { x := 1; println(x + *&x) }", "p.go:2:35: internal: lowering: unexpected expression *&x"},
 		{"type", "func main() { var s string; println(s) }", "p.go:2:19: internal: lowering: unexpected type string"},
 		{"named results", "func f() (a, b int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected result var a int"},
