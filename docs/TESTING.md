@@ -252,6 +252,40 @@ first value of each case tested (10), and `break` leaving the enclosing
 `for` (2 generated programs give wrong output, and 59 fail lowering with an
 internal error because no loop encloses the switch).
 
+#### The S2 suite
+
+The S2 suite is the evidence for Phase 4's acceptance criteria
+(`ROADMAP.md`). It is the full test run, `go test -count=1 ./...`, without
+`-short`, so that no gc-building test is skipped. Its parts:
+- **Corpus against gc:** every `run` program of the corpus, the 20 `s2_*`
+  programs among them, built by gc and compared with the Aether-built
+  executable and the interpreter (`TestDifferentialAgainstGc`); exit 0
+  programs compare stdout, stderr, and status exactly, and panicking ones by
+  the panic rule (V-3). The `s2_*` programs cover each increment's
+  features, and `s2_a01_algorithms` combines them in an ordinary program.
+- **Generated programs:** 200 programs from `generate`, compared the same
+  way.
+- **Stack overflow:** `TestStackOverflowAgainstGc`, by the overflow rule
+  (V-2).
+- **Goldens and the gate:** the IR goldens of the `run` programs
+  (`TestLowerCorpus`), the classification corpus (`TestCheckCorpus`), and
+  gc's agreement with each file's `valid` or `invalid` header
+  (`TestCorpusAgainstGc`).
+- **Hand-built IR:** the verifier, interpreter, and backend tests in
+  `internal/ir`, `internal/interp`, and `internal/amd64`, including the
+  stack mapping, boundary, and reserve tests (D-009, D-011).
+- **Milestone 1:** P1–P6 (`TestMilestone1`, `TestMilestone1Rejections`,
+  `TestMilestone1Determinism`), rerun because the runtime and the generated
+  code changed.
+
+Fuzzing (`FuzzCheck`, `FuzzGenerated`) is run separately after changes, as
+described below.
+
+Run on 2026-11-01 (go1.26.1, GNU as and ld 2.42, Linux x86-64 under WSL2):
+exit 0 in 46 s, 832 passing tests and subtests, none failing or skipped;
+32 corpus programs and 200 generated programs (148 seeds skipped as
+invalid Go) agreed with gc natively and in the interpreter.
+
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
 come from running gc.

@@ -300,7 +300,7 @@ repeated in each phase below:
   - Reproducibility is shown for one host and one binutils version only.
   - FI-1 (`TESTING.md`) remains open and unexplained.
 
-## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; in progress)
+## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; complete 2026-11-01, pending owner review)
 
 - **Objective:** structured programs with functions run natively.
 - **Scope:**
@@ -435,6 +435,18 @@ repeated in each phase below:
      value, and `default` taken in source order each fail
      `TestDifferentialAgainstGc` natively and in the interpreter. Part 2
      done: the generator (`TESTING.md`), with three negative controls.
+     Part 3 done: the S2 suite (`TESTING.md` §The S2 suite), with a
+     program that combines the features (`s2_a01_algorithms`), passed on
+     2026-11-01.
+- **Acceptance status (2026-11-01):** every criterion below has passing
+  evidence in the S2 suite: differential agreement on 32 corpus and 200
+  generated programs, the panic rule (V-3) on the panicking ones, and the
+  overflow rule (V-2) in `TestStackOverflowAgainstGc`. `SEMANTICS.md`
+  lists V-2, V-3, V-4, and the D-009 stack limitations. Awaiting the
+  owner: acceptance of increments 4.1 to 4.7; the interpreter's depth limit
+  (`MaxDepth` = 100,000, proposed in D-023), on which 4.2's acceptance
+  depends; and divergence V-4, where Aether reads a global before a call in
+  the same expression and gc after it.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
   - Panicking programs (divergence V-3; corrected in 4.5, since gc writes
@@ -486,9 +498,10 @@ repeated in each phase below:
   overflow, boundary, and large-frame tests die with a signal; with flags
   `0x24022`, the mapping test fails on `nr`; with a changed overflow
   message, the gc comparison fails natively and in the interpreter. Of
-  4.2, only the tests that need bounded recursion (4.1) are not yet run:
-  depth within the limit and short-circuit side effects. Not yet run for
-  the other increments: everything else below.
+  4.2, only the tests that need bounded recursion (4.1) were then not yet
+  run: depth within the limit and short-circuit side effects. Those, and
+  the tests below for the other increments, have since been run, as each
+  increment's status records; the S2 suite runs them all (2026-11-01).
   - **All increments:**
     - every gc-built and Aether-built program in the differential and build
       tests runs **with a timeout** (done in 4.1: `runExe`, 2 minutes; the
