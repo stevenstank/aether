@@ -435,11 +435,11 @@ repeated in each phase below:
      value, and `default` taken in source order each fail
      `TestDifferentialAgainstGc` natively and in the interpreter. Part 2
      done: the generator (`TESTING.md`), with three negative controls.
-     Part 3 done: the S2 suite (`TESTING.md` §The S2 suite), with a
-     program that combines the features (`s2_a01_algorithms`), passed on
-     2026-11-01.
+     Part 3 done: the S2 suite (`TESTING.md` §The S2 suite), with two
+     programs that combine the features (`s2_a01_algorithms`, and in part
+     4 `s2_a02_state_machines`), passed on 2026-11-01.
 - **Acceptance status (2026-11-01):** every criterion below has passing
-  evidence in the S2 suite: differential agreement on 32 corpus and 200
+  evidence in the S2 suite: differential agreement on 33 corpus and 200
   generated programs, the panic rule (V-3) on the panicking ones, and the
   overflow rule (V-2) in `TestStackOverflowAgainstGc`. `SEMANTICS.md`
   lists V-2, V-3, V-4, and the D-009 stack limitations. Awaiting the

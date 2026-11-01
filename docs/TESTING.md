@@ -257,12 +257,14 @@ internal error because no loop encloses the switch).
 The S2 suite is the evidence for Phase 4's acceptance criteria
 (`ROADMAP.md`). It is the full test run, `go test -count=1 ./...`, without
 `-short`, so that no gc-building test is skipped. Its parts:
-- **Corpus against gc:** every `run` program of the corpus, the 20 `s2_*`
+- **Corpus against gc:** every `run` program of the corpus, the 21 `s2_*`
   programs among them, built by gc and compared with the Aether-built
   executable and the interpreter (`TestDifferentialAgainstGc`); exit 0
   programs compare stdout, stderr, and status exactly, and panicking ones by
   the panic rule (V-3). The `s2_*` programs cover each increment's
-  features, and `s2_a01_algorithms` combines them in an ordinary program.
+  features, and `s2_a01_algorithms` and `s2_a02_state_machines` (a
+  bytecode interpreter and automata driven by `switch`) combine them in
+  ordinary programs.
 - **Generated programs:** 200 programs from `generate`, compared the same
   way.
 - **Stack overflow:** `TestStackOverflowAgainstGc`, by the overflow rule
@@ -282,8 +284,8 @@ Fuzzing (`FuzzCheck`, `FuzzGenerated`) is run separately after changes, as
 described below.
 
 Run on 2026-11-01 (go1.26.1, GNU as and ld 2.42, Linux x86-64 under WSL2):
-exit 0 in 46 s, 832 passing tests and subtests, none failing or skipped;
-32 corpus programs and 200 generated programs (148 seeds skipped as
+exit 0 in 46 s, 837 passing tests and subtests, none failing or skipped;
+33 corpus programs and 200 generated programs (148 seeds skipped as
 invalid Go) agreed with gc natively and in the interpreter.
 
 From Phase 4 on, **generated differential tests** cover operator × type ×

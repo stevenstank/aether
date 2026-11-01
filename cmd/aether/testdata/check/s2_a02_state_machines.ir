@@ -1,0 +1,555 @@
+global g0 a i64 @testdata/check/s2_a02_state_machines.go:8:5
+global g1 b i64 @testdata/check/s2_a02_state_machines.go:8:8
+global g2 executed i64 @testdata/check/s2_a02_state_machines.go:9:5
+
+func run(u64, i64) i64 @testdata/check/s2_a02_state_machines.go:14:6
+  slot s0 code u64 @14:10
+  slot s1 limit i64 @14:23
+  slot s2 pc i64 @15:2
+  slot s3 op u64 @17:3
+  slot s4 tmp u64 @20:10
+b0:
+  v0 = param 0 @14:10
+  store s0, v0 @14:10
+  v1 = param 1 @14:23
+  store s1, v1 @14:23
+  v2 = const 0 @15:8
+  store s2, v2 @15:2
+  jump b1 @16:2
+b1:
+  v3 = load s2 @16:6
+  v4 = const 16 @16:11
+  v5 = lt v3, v4 @16:9
+  branch v5, b2, b3 @16:2
+b2:
+  v6 = load s0 @17:9
+  v7 = const u64 4 @17:18
+  v8 = load s2 @17:27
+  v9 = conv u64, v8 @17:22
+  v10 = mul v7, v9 @17:20
+  v11 = shr v6, v10 @17:14
+  v12 = const u64 15 @17:34
+  v13 = and v11, v12 @17:32
+  store s3, v13 @17:3
+  v14 = gload g2 @18:3
+  v15 = const 1 @18:11
+  v16 = add v14, v15 @18:11
+  gstore g2, v16 @18:3
+  v17 = load s2 @19:3
+  v18 = const 1 @19:5
+  v19 = add v17, v18 @19:5
+  store s2, v19 @19:3
+  v20 = load s3 @20:10
+  store s4, v20 @20:10
+  v21 = const u64 0 @21:8
+  v22 = load s4 @20:10
+  v23 = eq v22, v21 @21:8
+  branch v23, b5, b6 @21:8
+b3:
+  v81 = load s2 @52:9
+  ret v81 @52:2
+b4:
+  jump b1 @51:2
+b5:
+  v48 = load s2 @22:11
+  v49 = const 1 @22:16
+  v50 = sub v48, v49 @22:14
+  ret v50 @22:4
+b6:
+  v24 = const u64 1 @23:8
+  v25 = load s4 @20:10
+  v26 = eq v25, v24 @23:8
+  branch v26, b7, b8 @23:8
+b7:
+  v51 = gload g0 @24:4
+  v52 = const 1 @24:5
+  v53 = add v51, v52 @24:5
+  gstore g0, v53 @24:4
+  jump b4 @25:3
+b8:
+  v27 = const u64 2 @25:8
+  v28 = load s4 @20:10
+  v29 = eq v28, v27 @25:8
+  branch v29, b9, b10 @25:8
+b9:
+  v54 = gload g0 @26:4
+  v55 = const 2 @26:9
+  v56 = mul v54, v55 @26:6
+  gstore g0, v56 @26:4
+  jump b4 @27:3
+b10:
+  v30 = const u64 3 @27:8
+  v31 = load s4 @20:10
+  v32 = eq v31, v30 @27:8
+  branch v32, b11, b12 @27:8
+b11:
+  v57 = gload g1 @28:11
+  v58 = gload g0 @28:14
+  gstore g0, v57 @28:4
+  gstore g1, v58 @28:7
+  jump b4 @29:3
+b12:
+  v33 = const u64 4 @29:8
+  v34 = load s4 @20:10
+  v35 = eq v34, v33 @29:8
+  branch v35, b13, b14 @29:8
+b13:
+  v59 = gload g1 @30:4
+  v60 = gload g0 @30:9
+  v61 = add v59, v60 @30:6
+  gstore g1, v61 @30:4
+  jump b4 @31:3
+b14:
+  v36 = const u64 5 @31:8
+  v37 = load s4 @20:10
+  v38 = eq v37, v36 @31:8
+  branch v38, b15, b16 @31:8
+b15:
+  v62 = gload g0 @32:4
+  v63 = const 1 @32:5
+  v64 = sub v62, v63 @32:5
+  gstore g0, v64 @32:4
+  jump b4 @33:3
+b16:
+  v39 = const u64 6 @33:8
+  v40 = load s4 @20:10
+  v41 = eq v40, v39 @33:8
+  branch v41, b17, b18 @33:8
+b17:
+  v65 = gload g0 @34:12
+  v66 = gload g1 @34:15
+  println v65, v66 @34:4
+  jump b4 @35:3
+b18:
+  v42 = const u64 7 @35:8
+  v43 = load s4 @20:10
+  v44 = eq v43, v42 @35:8
+  branch v44, b19, b20 @35:8
+b19:
+  v67 = gload g0 @37:7
+  v68 = const 0 @37:12
+  v69 = eq v67, v68 @37:9
+  branch v69, b24, b25 @37:4
+b20:
+  v45 = const u64 8 @40:8
+  v46 = load s4 @20:10
+  v47 = eq v46, v45 @40:8
+  branch v47, b21, b22 @40:8
+b21:
+  v73 = load s1 @42:7
+  v74 = const 0 @42:16
+  v75 = eq v73, v74 @42:13
+  branch v75, b26, b27 @42:4
+b22:
+  jump b23 @20:3
+b23:
+  v80 = load s3 @48:10
+  print v80 @48:4
+  println @49:4
+  jump b4 @50:3
+b24:
+  v70 = load s2 @38:5
+  v71 = const 1 @38:7
+  v72 = add v70, v71 @38:7
+  store s2, v72 @38:5
+  jump b25 @39:4
+b25:
+  jump b4 @40:3
+b26:
+  jump b4 @43:5
+b27:
+  v76 = load s1 @45:4
+  v77 = const 1 @45:9
+  v78 = sub v76, v77 @45:9
+  store s1, v78 @45:4
+  v79 = const 0 @46:9
+  store s2, v79 @46:4
+  jump b4 @47:3
+
+func mod3(u32) i64 @testdata/check/s2_a02_state_machines.go:57:6
+  slot s0 x u32 @57:11
+  slot s1 state i64 @58:2
+  slot s2 i i64 @59:6
+  slot s3 bit i64 @60:3
+  slot s4 tmp i64 @61:10
+  slot s5 tmp i64 @65:11
+b0:
+  v0 = param 0 @57:11
+  store s0, v0 @57:11
+  v1 = const 0 @58:11
+  store s1, v1 @58:2
+  v2 = const 31 @59:11
+  store s2, v2 @59:6
+  jump b1 @59:2
+b1:
+  v3 = load s2 @59:15
+  v4 = const 0 @59:20
+  v5 = ge v3, v4 @59:17
+  branch v5, b2, b3 @59:2
+b2:
+  v6 = load s0 @60:14
+  v7 = load s2 @60:24
+  v8 = conv u64, v7 @60:19
+  v9 = shr v6, v8 @60:16
+  v10 = const u32 1 @60:29
+  v11 = and v9, v10 @60:27
+  v12 = conv i64, v11 @60:10
+  store s3, v12 @60:3
+  v13 = load s1 @61:10
+  store s4, v13 @61:10
+  v14 = const 0 @62:8
+  v15 = load s4 @61:10
+  v16 = eq v15, v14 @62:8
+  branch v16, b6, b7 @62:8
+b3:
+  v40 = load s1 @77:9
+  ret v40 @77:2
+b4:
+  v37 = load s2 @59:23
+  v38 = const 1 @59:24
+  v39 = sub v37, v38 @59:24
+  store s2, v39 @59:23
+  jump b1 @59:23
+b5:
+  jump b4 @76:2
+b6:
+  v23 = load s3 @63:12
+  store s1, v23 @63:4
+  jump b5 @64:3
+b7:
+  v17 = const 1 @64:8
+  v18 = load s4 @61:10
+  v19 = eq v18, v17 @64:8
+  branch v19, b8, b9 @64:8
+b8:
+  v24 = load s3 @65:11
+  store s5, v24 @65:11
+  v25 = const 0 @66:9
+  v26 = load s5 @65:11
+  v27 = eq v26, v25 @66:9
+  branch v27, b13, b14 @66:9
+b9:
+  v20 = const 2 @71:8
+  v21 = load s4 @61:10
+  v22 = eq v21, v20 @71:8
+  branch v22, b10, b11 @71:8
+b10:
+  v33 = load s3 @72:7
+  v34 = const 0 @72:14
+  v35 = eq v33, v34 @72:11
+  branch v35, b17, b18 @72:4
+b11:
+  jump b5 @61:3
+b12:
+  jump b5 @71:3
+b13:
+  v31 = const 2 @67:13
+  store s1, v31 @67:5
+  jump b12 @68:4
+b14:
+  v28 = const 1 @68:9
+  v29 = load s5 @65:11
+  v30 = eq v29, v28 @68:9
+  branch v30, b15, b16 @68:9
+b15:
+  v32 = const 0 @69:13
+  store s1, v32 @69:5
+  jump b12 @70:4
+b16:
+  jump b12 @65:4
+b17:
+  v36 = const 1 @73:13
+  store s1, v36 @73:5
+  jump b18 @74:4
+b18:
+  jump b5 @75:3
+
+func daysIn(i64, i64) i64 @testdata/check/s2_a02_state_machines.go:80:6
+  slot s0 month i64 @80:13
+  slot s1 year i64 @80:20
+  slot s2 tmp i64 @81:9
+b0:
+  v0 = param 0 @80:13
+  store s0, v0 @80:13
+  v1 = param 1 @80:20
+  store s1, v1 @80:20
+  v2 = load s0 @81:9
+  store s2, v2 @81:9
+  v3 = const 4 @82:7
+  v4 = load s2 @81:9
+  v5 = eq v4, v3 @82:7
+  branch v5, b2, b3 @82:7
+b1:
+  v38 = const 31 @95:9
+  ret v38 @95:2
+b2:
+  v18 = const 30 @83:10
+  ret v18 @83:3
+b3:
+  v6 = const 6 @82:10
+  v7 = load s2 @81:9
+  v8 = eq v7, v6 @82:10
+  branch v8, b2, b4 @82:10
+b4:
+  v9 = const 9 @82:13
+  v10 = load s2 @81:9
+  v11 = eq v10, v9 @82:13
+  branch v11, b2, b5 @82:13
+b5:
+  v12 = const 11 @82:16
+  v13 = load s2 @81:9
+  v14 = eq v13, v12 @82:16
+  branch v14, b2, b6 @82:16
+b6:
+  v15 = const 2 @84:7
+  v16 = load s2 @81:9
+  v17 = eq v16, v15 @84:7
+  branch v17, b7, b8 @84:7
+b7:
+  v19 = load s1 @86:8
+  v20 = const 400 @86:13
+  v21 = rem v19, v20 @86:12
+  v22 = const 0 @86:20
+  v23 = eq v21, v22 @86:17
+  branch v23, b10, b11 @86:8
+b8:
+  jump b1 @81:2
+b9:
+  v37 = const 28 @93:10
+  ret v37 @93:3
+b10:
+  v34 = const 29 @87:11
+  ret v34 @87:4
+b11:
+  v24 = load s1 @88:8
+  v25 = const 100 @88:13
+  v26 = rem v24, v25 @88:12
+  v27 = const 0 @88:20
+  v28 = eq v26, v27 @88:17
+  branch v28, b12, b13 @88:8
+b12:
+  v35 = const 28 @89:11
+  ret v35 @89:4
+b13:
+  v29 = load s1 @90:8
+  v30 = const 4 @90:13
+  v31 = rem v29, v30 @90:12
+  v32 = const 0 @90:18
+  v33 = eq v31, v32 @90:15
+  branch v33, b14, b15 @90:8
+b14:
+  v36 = const 29 @91:11
+  ret v36 @91:4
+b15:
+  jump b9 @85:3
+
+func classify(u64) (i64, i64) @testdata/check/s2_a02_state_machines.go:99:6
+  slot s0 n u64 @99:15
+  slot s1 runs i64 @100:2
+  slot s2 longest i64 @100:8
+  slot s3 prev u64 @101:2
+  slot s4 length i64 @101:8
+  slot s5 d u64 @103:3
+  slot s6 tmp u64 @105:10
+b0:
+  v0 = param 0 @99:15
+  store s0, v0 @99:15
+  v1 = const 0 @100:19
+  v2 = const 0 @100:22
+  store s1, v1 @100:2
+  store s2, v2 @100:8
+  v3 = const u64 10 @101:18
+  v4 = const 0 @101:30
+  store s3, v3 @101:2
+  store s4, v4 @101:8
+  jump b1 @102:2
+b1:
+  v5 = load s0 @102:6
+  v6 = const u64 0 @102:10
+  v7 = gt v5, v6 @102:8
+  branch v7, b2, b3 @102:2
+b2:
+  v8 = load s0 @103:8
+  v9 = const u64 10 @103:12
+  v10 = rem v8, v9 @103:10
+  store s5, v10 @103:3
+  v11 = load s0 @104:3
+  v12 = const u64 10 @104:8
+  v13 = div v11, v12 @104:5
+  store s0, v13 @104:3
+  v14 = load s5 @105:10
+  store s6, v14 @105:10
+  v15 = load s3 @106:8
+  v16 = load s6 @105:10
+  v17 = eq v16, v15 @106:8
+  branch v17, b5, b6 @106:8
+b3:
+  v30 = load s1 @117:9
+  v31 = load s2 @117:15
+  ret v30, v31 @117:2
+b4:
+  v26 = load s4 @113:6
+  v27 = load s2 @113:15
+  v28 = gt v26, v27 @113:13
+  branch v28, b8, b9 @113:3
+b5:
+  v18 = load s4 @107:4
+  v19 = const 1 @107:10
+  v20 = add v18, v19 @107:10
+  store s4, v20 @107:4
+  jump b4 @108:3
+b6:
+  jump b7 @105:3
+b7:
+  v21 = load s1 @109:4
+  v22 = const 1 @109:8
+  v23 = add v21, v22 @109:8
+  store s1, v23 @109:4
+  v24 = const 1 @110:13
+  store s4, v24 @110:4
+  v25 = load s5 @111:11
+  store s3, v25 @111:4
+  jump b4 @112:3
+b8:
+  v29 = load s4 @114:14
+  store s2, v29 @114:4
+  jump b9 @115:3
+b9:
+  jump b1 @116:2
+
+func main @testdata/check/s2_a02_state_machines.go:120:6
+  slot s0 ok bool @134:2
+  slot s1 x u32 @135:6
+  slot s2 tmp i64 @136:6
+  slot s3 total i64 @142:2
+  slot s4 m i64 @143:6
+b0:
+  v0 = const u64 0 @122:14
+  v1 = const 0 @122:19
+  v2 = call run, v0, v1 @122:10
+  println v2 @122:2
+  v3 = const u64 6562065 @124:14
+  v4 = const 0 @124:29
+  v5 = call run, v3, v4 @124:10
+  println v5 @124:2
+  v6 = gload g2 @125:10
+  println v6 @125:2
+  v7 = const 0 @126:9
+  v8 = const 0 @126:12
+  gstore g0, v7 @126:2
+  gstore g1, v8 @126:5
+  v9 = const u64 427585 @127:14
+  v10 = const 2 @127:27
+  v11 = call run, v9, v10 @127:10
+  println v11 @127:2
+  v12 = gload g0 @128:10
+  v13 = gload g1 @128:13
+  println v12, v13 @128:2
+  v14 = const 0 @129:9
+  v15 = const 5 @129:12
+  gstore g0, v14 @129:2
+  gstore g1, v15 @129:5
+  v16 = const u64 431971 @130:14
+  v17 = const 0 @130:27
+  v18 = call run, v16, v17 @130:10
+  println v18 @130:2
+  v19 = const u64 6386966 @131:14
+  v20 = const 0 @131:29
+  v21 = call run, v19, v20 @131:10
+  println v21 @131:2
+  v22 = gload g2 @132:10
+  println v22 @132:2
+  v23 = const true @134:8
+  store s0, v23 @134:2
+  v24 = const u32 0 @135:11
+  store s1, v24 @135:6
+  jump b1 @135:2
+b1:
+  v25 = load s1 @135:22
+  v26 = const u32 2000 @135:26
+  v27 = lt v25, v26 @135:24
+  branch v27, b2, b3 @135:2
+b2:
+  v28 = load s1 @136:11
+  v29 = call mod3, v28 @136:6
+  store s2, v29 @136:6
+  v30 = load s1 @136:21
+  v31 = const u32 3 @136:23
+  v32 = rem v30, v31 @136:22
+  v33 = conv i64, v32 @136:17
+  v34 = load s2 @136:6
+  v35 = ne v34, v33 @136:14
+  branch v35, b5, b6 @136:3
+b3:
+  v40 = load s0 @140:10
+  v41 = const u32 4294967295 @140:19
+  v42 = call mod3, v41 @140:14
+  v43 = const u32 4294967294 @140:37
+  v44 = call mod3, v43 @140:32
+  v45 = const u32 2147483648 @140:55
+  v46 = call mod3, v45 @140:50
+  println v40, v42, v44, v46 @140:2
+  v47 = const 0 @142:11
+  store s3, v47 @142:2
+  v48 = const 1 @143:11
+  store s4, v48 @143:6
+  jump b7 @143:2
+b4:
+  v37 = load s1 @135:32
+  v38 = const u32 7 @135:37
+  v39 = add v37, v38 @135:34
+  store s1, v39 @135:32
+  jump b1 @135:32
+b5:
+  v36 = const false @137:9
+  store s0, v36 @137:4
+  jump b6 @138:3
+b6:
+  jump b4 @139:2
+b7:
+  v49 = load s4 @143:14
+  v50 = const 12 @143:19
+  v51 = le v49, v50 @143:16
+  branch v51, b8, b9 @143:2
+b8:
+  v52 = load s3 @144:3
+  v53 = load s4 @144:19
+  v54 = const 2024 @144:22
+  v55 = call daysIn, v53, v54 @144:12
+  v56 = add v52, v55 @144:9
+  store s3, v56 @144:3
+  jump b10 @145:2
+b9:
+  v60 = load s3 @146:10
+  v61 = const 2 @146:24
+  v62 = const 1900 @146:27
+  v63 = call daysIn, v61, v62 @146:17
+  v64 = const 2 @146:41
+  v65 = const 2000 @146:44
+  v66 = call daysIn, v64, v65 @146:34
+  v67 = const 2 @146:58
+  v68 = const 2023 @146:61
+  v69 = call daysIn, v67, v68 @146:51
+  println v60, v63, v66, v69 @146:2
+  v70 = const u64 0 @148:19
+  v71 = call classify, v70 @148:10
+  v72 = extract 0, v71 @148:10
+  v73 = extract 1, v71 @148:10
+  println v72, v73 @148:2
+  v74 = const u64 1122233334 @149:19
+  v75 = call classify, v74 @149:10
+  v76 = extract 0, v75 @149:10
+  v77 = extract 1, v75 @149:10
+  println v76, v77 @149:2
+  v78 = const u64 18446744073709551615 @150:19
+  v79 = call classify, v78 @150:10
+  v80 = extract 0, v79 @150:10
+  v81 = extract 1, v79 @150:10
+  println v80, v81 @150:2
+  ret @151:1
+b10:
+  v57 = load s4 @143:23
+  v58 = const 1 @143:24
+  v59 = add v57, v58 @143:24
+  store s4, v59 @143:23
+  jump b7 @143:23
