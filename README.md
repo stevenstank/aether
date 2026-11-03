@@ -9,7 +9,8 @@ representation and backend.
 > executables. Its own backend selects every instruction and its own runtime
 > provides process start and `println`; GNU `as` and `ld` only assemble and
 > link. S1 is small: one `main` function with `int` variables, `+ - *`, nested
-> blocks, and `println`. Phase 4 is complete and awaiting owner review:
+> blocks, and `println`. Phase 4 is implemented but not yet accepted (owner
+> review 2026-11-03; conditions in the roadmap):
 > functions with `int` parameters and results, stack-overflow detection
 > (increment 4.2), `bool`, `if`, and `for` (increment 4.1), multiple results
 > (4.3), every integer type with conversions and bit operators (4.4),

@@ -33,7 +33,7 @@ benchmarks: none have been run.
 | D-003 | Explicit subset gate and diagnostic classification | Accepted |
 | D-004 | Aether-owned typed CFG IR, non-SSA at first | Accepted |
 | D-005 | Reference interpreter for the IR | Accepted |
-| D-006 | SSA timing and construction method | Proposed |
+| D-006 | SSA timing and construction method | Proposed (experiment authorized 2026-11-03, conditional on Phase 4 acceptance) |
 | D-007 | Executable path: GNU assembler text, `as`, `ld` | Accepted |
 | D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
 | D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only; Phase 4 stack amended 2026-10-26) |
@@ -50,7 +50,8 @@ benchmarks: none have been run.
 | D-020 | `func main()` without a body is `unsupported` | Accepted |
 | D-021 | The S1 IR instruction set and its contract | Accepted |
 | D-022 | The Phase 3 backend, runtime interface, and `aether build` | Accepted |
-| D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26) |
+| D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` 2026-11-03) |
+| D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 
 ## Review log
 
@@ -77,6 +78,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 |---|---|---|
 | 2026-10-24 | Phase 1 implementation (E12): D-018 added; D-003 precedence recorded as implemented; `go.mod` created per D-015; S1 gate edge cases found by tests, the GOROOT sweep, and fuzzing recorded | D-002, D-003, D-012, D-015, D-018 |
 | 2026-10-24 | Phase 1 closure audit: D-019 and D-020 record two implemented classifications; D-018 corrected and implemented for syntax-error positions under `//line`; fuzz incident FI-1 recorded in `TESTING.md` | D-018, D-019, D-020 |
+| 2026-11-03 | Owner Phase 4 review: Phase 4 not accepted yet (conditions in `ROADMAP.md` Phase 4); `MaxDepth` = 100,000 approved and D-023's memory figures corrected; V-4 order retained as D-024; D-006 slot-promotion experiment authorized, conditional on Phase 4 acceptance | D-006, D-023, D-024 |
 
 ---
 
@@ -385,6 +387,15 @@ makes register allocation and most optimizations harder.
 
 **Revisit / resolve when.** Phase 4 is complete. Resolve with a design note
 added to this entry.
+
+**Owner review (2026-11-03).** The status stays Proposed. The owner
+authorized the resolving experiment as the first Phase 5 work, starting only
+after Phase 4 is accepted:
+- It runs on the existing load/store IR and covers dominators, φ placement,
+  renaming, and the verifier invariants of the SSA form.
+- The construction algorithm, and whether SSA lives in the same IR package
+  or a second one, stay open until the experiment gives evidence.
+- No register allocation is part of it.
 
 ---
 
@@ -1555,6 +1566,10 @@ type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
   runs package initializers in `types.Info.InitOrder`. It cannot be inlined
   into `main`, because Go programs may call `main()` recursively (gc accepts
   it, E13). Functions gain `Params` and `Results`.
+  **Open (2026-11-03):** the verifier also lets a program have no `Init`
+  and rejects any `call` of `Init` (`internal/ir/verify.go`). This entry
+  does not state either rule yet; the owner requires it to be resolved
+  before Phase 4 is accepted.
 - **Positions.** Every instruction keeps a line and column, with one file per
   function (programs remain single-file). `branch`: its `if` or `for`
   keyword, or the `&&`/`||` operator. `jump`: its `break` or `continue`, or
@@ -1617,15 +1632,22 @@ Increment 4.2 makes `Run` report an exit status (0 for a normal return from
   the value is fixed, recorded here with the heap bound it implies for the
   largest frame in the 4.2 tests, and the 4.2 interpreter tests pass at that
   value.
-  **Proposed value (2026-10-29, pending owner approval):** `MaxDepth` =
-  100,000 frames. Each frame is an 88-byte entry of the frame stack (a
-  function pointer, a program counter, and three slice headers) plus
+  **Value (proposed 2026-10-29, approved by the owner 2026-11-03):**
+  `MaxDepth` = 100,000 frames. Each frame is a 104-byte entry of the frame
+  stack (`unsafe.Sizeof` of the current `frame` struct: function and block
+  pointers, a program counter, three slice headers, and the tuple map) plus
   8 bytes per parameter, slot, and value, each array rounded up to a Go
   allocation size class. The largest frames run at depth in the 4.2 tests
   are those of `r(n) = r(n+1) + 1` (1 parameter, no slot, 5 values):
-  88 + 8 + 48 = 144 bytes, so about 14.4 MB for 100,000 frames, plus the
-  frame stack's spare capacity from slice growth. This is computed, not
-  measured. `TestStackOverflow` runs at this value: 100,000 frames return
+  104 + 8 + 48 = 160 bytes, so about 16 MB for 100,000 frames, plus the
+  frame stack's spare capacity from slice growth. This is a computed
+  estimate for that frame configuration only, not a maximum for every
+  program: a frame with more slots or values costs more. Measured
+  separately (2026-11-01, memory profile of `TestStackOverflow`, three
+  subtests): 172.8 MB of **cumulative** allocations in `interp.run`,
+  counting every intermediate frame-stack array; this is total allocation,
+  not memory in use at once. **Peak memory (RSS or live heap) has not been
+  measured.** `TestStackOverflow` runs at this value: 100,000 frames return
   normally, 100,001 overflow.
   A `call` that would exceed the limit is not executed: the
   interpreter writes `fatal error: stack overflow` and a newline to stderr,
@@ -1725,6 +1747,44 @@ No Phase 4 code has been written.
 **Revisit when.** Phase 5 introduces SSA (D-006); a construct in S2 cannot be
 lowered to this form; or programs become multi-file, which would need a file
 in every position.
+
+---
+
+## D-024: Strict left-to-right evaluation order
+
+**Status:** Accepted (2026-11-03, owner decision on divergence V-4)
+
+**Context.** The spec leaves unspecified the order of calls relative to
+other operands (§Order of evaluation). Aether's lowering evaluates operands
+strictly left to right. gc (go1.26.1, observed 2026-11-01) evaluates every
+call of a statement first and the remaining operands after them, so a
+global read before a call that assigns it, and a division or shift that
+panics before a call, behave differently (`SEMANTICS.md` §Evaluation order,
+V-4).
+
+**Decision.**
+- Lowering keeps evaluating operands strictly left to right, with side
+  effects (calls, panics, loads of globals) in that order in the IR. `&&`
+  and `||` short-circuit as the spec requires. Lowering is not changed to
+  match gc.
+- The order in the IR is a contract: no later pass, including every Phase 5
+  optimization, may reorder a call, a panic check, or a global load or
+  store relative to another.
+- V-4 remains a documented divergence. Differential tests must not depend
+  on it (`TESTING.md`).
+
+**Alternatives.** Match gc's calls-first order. Rejected: that order is gc's
+implementation behavior, not a spec guarantee, and could change between
+gc versions; a fixed left-to-right order is simple to state and to check.
+
+**Consequences.**
+- Differential tests keep avoiding statements that combine a call with an
+  operand the call can change or with a panicking operation.
+- `TestGlobalReadOrder` pins the order without gc. Phase 5 passes must
+  preserve it, checked by the existing suites at every optimization level.
+
+**Revisit when.** The spec defines the order, or a later subset needs
+gc-identical output for these statements.
 
 ---
 

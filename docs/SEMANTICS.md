@@ -120,7 +120,8 @@ tests is not supported.
 - **Aether policy:**
   - Lowering fixes one deterministic order: operands left to right, with
     side effects serialized into IR instruction order.
-  - That order is recorded in the IR, and later passes may not change it.
+  - That order is recorded in the IR, and later passes may not change it
+    (D-024).
   - Differential tests must not depend on unspecified orderings unless the test
     is explicitly marked as such and accepts every allowed outcome
     (`docs/TESTING.md`).
@@ -130,6 +131,17 @@ tests is not supported.
   assigns the global `x`, Aether reads `x` first, left to right. gc
   (go1.26.1) reads it after the call (observed 2026-10-30). Both are
   allowed; this is divergence V-4.
+- The divergence is broader than globals. gc (go1.26.1, observed
+  2026-11-01 and 2026-11-03) evaluates every call in a statement first and
+  the other operands after them, even `-x` or `x + 0`; `&&` and `||` keep
+  their order. Two observable effects follow:
+  - A global read before a call that assigns it gets the value from after
+    the call: `x + f()`, `g(x, f())`, `a, b := x, f()`, `return x, f()`.
+  - A division or shift that panics before a call runs after the call:
+    `println(1/z, f())` with `z == 0` calls `f` and then panics in gc, and
+    panics without calling `f` in Aether. This holds for a local `z` too.
+- Aether keeps strict left-to-right order and does not match gc (D-024,
+  owner decision 2026-11-03).
 
 ### Scoping and name resolution
 
@@ -228,7 +240,7 @@ has a defined normalization in the test harness.
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 | V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
-| V-4 | Evaluation order | A global read as an operand before a call that assigns it is read before the call in Aether and after it in gc (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never read a global in an expression or assignment with a call that may assign it. `TestGlobalReadOrder` pins Aether's order without gc. |
+| V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, or a division or shift that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc; no test covers the panic case. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
 Implemented (Phase 4 increment 4.5):

@@ -300,7 +300,7 @@ repeated in each phase below:
   - Reproducibility is shown for one host and one binutils version only.
   - FI-1 (`TESTING.md`) remains open and unexplained.
 
-## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; complete 2026-11-01, pending owner review)
+## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; implemented 2026-11-01; not accepted, owner review 2026-11-03)
 
 - **Objective:** structured programs with functions run natively.
 - **Scope:**
@@ -442,11 +442,18 @@ repeated in each phase below:
   evidence in the S2 suite: differential agreement on 33 corpus and 200
   generated programs, the panic rule (V-3) on the panicking ones, and the
   overflow rule (V-2) in `TestStackOverflowAgainstGc`. `SEMANTICS.md`
-  lists V-2, V-3, V-4, and the D-009 stack limitations. Awaiting the
-  owner: acceptance of increments 4.1 to 4.7; the interpreter's depth limit
-  (`MaxDepth` = 100,000, proposed in D-023), on which 4.2's acceptance
-  depends; and divergence V-4, where Aether reads a global before a call in
-  the same expression and gc after it.
+  lists V-2, V-3, V-4, and the D-009 stack limitations.
+- **Owner review (2026-11-03):** Phase 4 is **not accepted yet**.
+  - Decided: `MaxDepth` = 100,000 is approved, with D-023's memory figures
+    corrected; this settles 4.2's depth-limit condition. V-4 is retained:
+    lowering keeps strict left-to-right order (D-024).
+  - Required before acceptance:
+    1. The required negative controls, so far run by hand and reverted,
+       become reproducible automated tests.
+    2. Fuzz incident FI-1 (`TESTING.md`) is investigated, and its
+       resolution or a defensible disposition is documented.
+    3. D-023's unstated `Init` rules (a program may have no `Init`; `Init`
+       is never called) are resolved.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
   - Panicking programs (divergence V-3; corrected in 4.5, since gc writes
@@ -607,7 +614,11 @@ repeated in each phase below:
 
 - **Objective:** better generated code with **no behavior change**.
 - **Scope:**
-  - SSA construction (resolve D-006)
+  - SSA construction (resolve D-006). First step, authorized 2026-11-03 and
+    starting only after Phase 4 is accepted: the D-006 slot-promotion
+    experiment on the existing load/store IR (dominators, φ placement,
+    renaming, verifier invariants), with no register allocation. The
+    algorithm and the one-or-two-IR question stay open until it reports.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
@@ -617,6 +628,7 @@ repeated in each phase below:
   measurements justify them.
 - **Acceptance criteria:**
   - All earlier suites pass at every optimization level.
+  - No pass reorders calls, panic checks, or global loads and stores (D-024).
   - The verifier runs after every pass in tests.
   - `-O0` vs `-O1` cross-check agreement.
   - Benchmark report showing measured effect versus the Phase 4 baseline,
