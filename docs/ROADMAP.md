@@ -438,8 +438,9 @@ repeated in each phase below:
      Part 3 done: the S2 suite (`TESTING.md` §The S2 suite), with two
      programs that combine the features (`s2_a01_algorithms`, and in part
      4 `s2_a02_state_machines`), passed on 2026-11-01.
-- **Acceptance status (2026-11-01):** every criterion below has passing
-  evidence in the S2 suite: differential agreement on 33 corpus and 200
+- **Acceptance status (2026-11-01; rerun 2026-11-03):** every criterion
+  below has passing evidence in the S2 suite: differential agreement on 34
+  corpus and 200
   generated programs, the panic rule (V-3) on the panicking ones, and the
   overflow rule (V-2) in `TestStackOverflowAgainstGc`. `SEMANTICS.md`
   lists V-2, V-3, V-4, and the D-009 stack limitations.
@@ -454,6 +455,17 @@ repeated in each phase below:
        resolution or a defensible disposition is documented.
     3. D-023's unstated `Init` rules (a program may have no `Init`; `Init`
        is never called) are resolved.
+  - Status (2026-11-03), awaiting the owner:
+    1. Done: `TestNegativeControls` runs 29 controls on copies of the
+       module, each detected, with an unmodified baseline (`TESTING.md`
+       §The S2 suite).
+    2. Investigated, not reproduced; a disposition is proposed in
+       `TESTING.md` (FI-1) and needs the owner's decision.
+    3. Tested: `TestLowerInit` (no `Init` without an initializer; none
+       called), `s2_g05_init_calls_main` (an initializer calls `main`),
+       and an overflow during initialization in
+       `TestStackOverflowAgainstGc`. The D-023 wording needs the owner's
+       approval.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
   - Panicking programs (divergence V-3; corrected in 4.5, since gc writes

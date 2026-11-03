@@ -257,7 +257,7 @@ internal error because no loop encloses the switch).
 The S2 suite is the evidence for Phase 4's acceptance criteria
 (`ROADMAP.md`). It is the full test run, `go test -count=1 ./...`, without
 `-short`, so that no gc-building test is skipped. Its parts:
-- **Corpus against gc:** every `run` program of the corpus, the 21 `s2_*`
+- **Corpus against gc:** every `run` program of the corpus, the 22 `s2_*`
   programs among them, built by gc and compared with the Aether-built
   executable and the interpreter (`TestDifferentialAgainstGc`); exit 0
   programs compare stdout, stderr, and status exactly, and panicking ones by
@@ -268,7 +268,22 @@ The S2 suite is the evidence for Phase 4's acceptance criteria
 - **Generated programs:** 200 programs from `generate`, compared the same
   way.
 - **Stack overflow:** `TestStackOverflowAgainstGc`, by the overflow rule
-  (V-2).
+  (V-2), on five programs, one of them overflowing during package
+  initialization.
+- **Negative controls** (`TestNegativeControls`, `cmd/aether/controls_test.go`):
+  the Phase 4 controls first run by hand, 29 of them, each applied as a
+  text replacement to its own copy of the module, never to the working
+  tree. The tests named for each control must fail, with output matching
+  the control's patterns; a copy that does not build fails the control
+  instead of counting as detected. An unmodified copy must pass the same
+  tests. The control text was not recorded when the controls were run by
+  hand; each was rebuilt from its description. Two detect differently than
+  recorded: unsigned comparison as signed in the interpreter is caught by
+  `TestIntegerTypes` in `internal/amd64`, not `TestComparisons`; and
+  unsigned division as signed is the variant that sign-extends each
+  operand at its width (a plain signed division of zero-extended values
+  differs only for 64-bit values with the high bit set, which no generated
+  program divides). Skipped under `-short`; about 2 minutes.
 - **Goldens and the gate:** the IR goldens of the `run` programs
   (`TestLowerCorpus`), the classification corpus (`TestCheckCorpus`), and
   gc's agreement with each file's `valid` or `invalid` header
@@ -283,10 +298,11 @@ The S2 suite is the evidence for Phase 4's acceptance criteria
 Fuzzing (`FuzzCheck`, `FuzzGenerated`) is run separately after changes, as
 described below.
 
-Run on 2026-11-01 (go1.26.1, GNU as and ld 2.42, Linux x86-64 under WSL2):
-exit 0 in 46 s, 837 passing tests and subtests, none failing or skipped;
-33 corpus programs and 200 generated programs (148 seeds skipped as
-invalid Go) agreed with gc natively and in the interpreter.
+Run on 2026-11-03 (go1.26.1, GNU as and ld 2.42, Linux x86-64 under WSL2):
+exit 0 in 2 min 49 s, 880 passing tests and subtests, none failing or
+skipped; 34 corpus programs and 200 generated programs (148 seeds skipped
+as invalid Go) agreed with gc natively and in the interpreter, and every
+negative control was detected.
 
 From Phase 4 on, **generated differential tests** cover operator × type ×
 edge-value tables (0, ±1, min, max, powers of two), and their expected outputs
@@ -319,7 +335,7 @@ replays it.
 recorded. It must never be piped through `head` or `tail` alone. The incident
 below was left unexplained because its output was truncated.
 
-#### Fuzz incident FI-1 (open, unexplained)
+#### Fuzz incident FI-1 (open, unexplained; disposition proposed 2026-11-03)
 
 **What is known:**
 - **The run.** On 2026-10-24 a 180 s run of
@@ -373,6 +389,32 @@ The 8 s runs targeted the end-of-run shutdown phase specifically.
   show the current implementation holds the property under new fuzzing. They
   do **not** explain FI-1.
 - **Closing it requires** a recurrence with full output captured.
+
+**Phase 4 closure investigation (2026-11-03):**
+- **The exact conditions are recoverable.** The session transcript holds
+  the command: `go test ./... -count=3 2>&1 | tail -4 && go test
+  ./cmd/aether/ -run '^$' -fuzz '^FuzzCheck$' -fuzztime 180s 2>&1 | tail
+  -3`, started 2026-10-24 13:02:13 UTC. Its full surviving output is the
+  four `ok` lines of the first command, then `FAIL`, `exit status 1`, and
+  `FAIL github.com/stevenstank/aether/cmd/aether 181.327s`. No Go file
+  changed between the run and commit `83461ef` (only documentation did),
+  so that commit holds the code that was fuzzed.
+- **Replay.** All 2,976 inputs in the fuzz cache, 2,630 of them from
+  2026-10-24 and 433 added during FI-1's own run, passed as seeds on
+  `83461ef` (3,073 inputs with the corpus) and on the current code
+  (3,076).
+- **Rerun under the original conditions:** code of `83461ef`, the same
+  compound command, and a fuzz cache restored to the 494 entries that
+  existed before FI-1 started, with full output. Three runs, each exit 0:
+  10.7 M, 11.1 M, and 9.3 M executions, no failing input written.
+- **Not recoverable:** the failure message, which `tail -3` discarded; the
+  input in flight, if any; and the host state at the time.
+- **Disposition (proposed, pending the owner):** not reproduced. The
+  evidence is consistent with the end-of-run worker failure described
+  above and gives no sign of a property failure, but cannot exclude one
+  on the input in flight. Proposed: record FI-1 as closed *unexplained and
+  not reproduced*, keeping the full-output rule, and reopen it on any
+  recurrence.
 
 ### Regression tests
 

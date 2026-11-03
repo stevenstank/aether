@@ -119,6 +119,12 @@ func main() { println(-3); f(1, 2, 3) }`,
 func g(x int) int { return f(x) }
 func main() { println(9223372036854775807); println(f(5)) }`,
 	"main": `func main() { main() }`,
+	// During package initialization: Init (main.init) overflows before
+	// main runs, after its own output.
+	"init": `var n = g()
+func g() int { println(5); return r(0) }
+func r(x int) int { return r(x+1) + 1 }
+func main() { println(n) }`,
 }
 
 // TestStackOverflowAgainstGc compares unbounded recursion with gc by the

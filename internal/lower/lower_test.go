@@ -158,6 +158,54 @@ func TestLowerPositions(t *testing.T) {
 	}
 }
 
+// TestLowerInit checks when lowering creates the program's Init: only for a
+// package-level variable with an initializer (types.Info.InitOrder is not
+// empty). Zero-valued globals and constants need none, since globals start
+// at zero. An initializer may call main; Init itself is never called.
+func TestLowerInit(t *testing.T) {
+	tests := []struct {
+		name, src string
+		init      bool
+		globals   int
+	}{
+		{"no globals", "func main() { println(1) }", false, 0},
+		{"zero-valued globals", "var x int\nvar b bool\nfunc main() { println(x, b) }", false, 2},
+		{"constant only", "const k = 3\nfunc main() { println(k) }", false, 0},
+		{"initializer", "var x = 2\nvar y int\nfunc main() { println(x, y) }", true, 2},
+		{"initializer calling main", "var n = f()\nfunc f() int { main(); return 1 }\nfunc main() { println(2) }", true, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pkg := typeCheck(t, "package main\n"+tt.src+"\n")
+			if ds := gate.Check(pkg); len(ds) > 0 {
+				t.Fatalf("gate: %v", ds)
+			}
+			prog, ds := Lower(pkg)
+			if len(ds) > 0 {
+				t.Fatalf("lower: %v", ds)
+			}
+			if errs := ir.Verify(prog); len(errs) > 0 {
+				t.Fatalf("verify: %v", errs)
+			}
+			if got := prog.Init != nil; got != tt.init {
+				t.Errorf("Init present: %v, want %v\n%s", got, tt.init, prog)
+			}
+			if len(prog.Globals) != tt.globals {
+				t.Errorf("%d globals, want %d", len(prog.Globals), tt.globals)
+			}
+			for _, f := range prog.Funcs {
+				for _, b := range f.Blocks {
+					for _, in := range b.Instrs {
+						if in.Op == ir.Call && in.Callee == prog.Init {
+							t.Errorf("func %s calls Init: %s", f.Name, in)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
 // TestLowerUnexpected calls Lower on valid Go that the subset gate would
 // reject. Lowering must never see such a program; if it does, it must report
 // an internal error at the offending construct instead of emitting IR.
