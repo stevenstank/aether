@@ -191,6 +191,11 @@ const (
 	GLoad
 	// GStore writes args[0] to Global. It produces no value.
 	GStore
+	// Phi, only in a function in SSA form (D-025), produces args[i] when
+	// control reached its block along Edges[i]. A block's phis come before
+	// its other instructions and take their values together, on entry to
+	// the block.
+	Phi
 )
 
 var opNames = [...]string{
@@ -200,7 +205,7 @@ var opNames = [...]string{
 	Eq: "eq", Ne: "ne", Lt: "lt", Le: "le", Gt: "gt", Ge: "ge", Not: "not",
 	Extract: "extract", And: "and", Or: "or", Xor: "xor", AndNot: "andnot", Com: "com",
 	Conv: "conv", Print: "print", Div: "div", Rem: "rem", Shl: "shl", Shr: "shr", Panic: "panic",
-	GLoad: "gload", GStore: "gstore",
+	GLoad: "gload", GStore: "gstore", Phi: "phi",
 }
 
 func (op Op) String() string {
@@ -264,6 +269,10 @@ type Func struct {
 	Slots []*Slot
 	// Blocks are the function's basic blocks; Blocks[0] is the entry.
 	Blocks []*Block
+	// SSA reports whether the function is in SSA form (D-025): it has no
+	// slots, values may be used in any block their definition dominates,
+	// and phis merge them where control flow joins.
+	SSA bool
 
 	nextValue int
 }
@@ -296,7 +305,16 @@ type Instr struct {
 	Callee  *Func    // for Call
 	Global  *Global  // for GLoad and GStore
 	Targets []*Block // for Jump and Branch
+	Edges   []Edge   // for Phi: the incoming edge of each arg
 	Pos     Pos
+}
+
+// Edge is a control-flow edge: the one from block From to target Index of
+// its terminator. A branch whose two targets are the same block has two
+// edges to it, told apart by Index.
+type Edge struct {
+	From  *Block
+	Index int
 }
 
 // NewFunc returns an empty function with an entry block.
@@ -469,6 +487,25 @@ func callType(callee *Func) Type {
 		return callee.Results[0]
 	}
 	return Tuple
+}
+
+// Phi inserts a phi of type t with no incoming values into b, after b's
+// existing phis. AddIncoming gives it its values.
+func (f *Func) Phi(b *Block, t Type, pos Pos) *Instr {
+	n := 0
+	for n < len(b.Instrs) && b.Instrs[n].Op == Phi {
+		n++
+	}
+	in := f.add(b, &Instr{Op: Phi, Type: t, Pos: pos})
+	copy(b.Instrs[n+1:], b.Instrs[n:])
+	b.Instrs[n] = in
+	return in
+}
+
+// AddIncoming appends v as phi's value along edge e.
+func (phi *Instr) AddIncoming(e Edge, v *Instr) {
+	phi.Edges = append(phi.Edges, e)
+	phi.Args = append(phi.Args, v)
 }
 
 // Extract appends result i of call, a Tuple call.

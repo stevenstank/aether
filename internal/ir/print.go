@@ -29,6 +29,14 @@ import (
 //	  v0 = param 0 @8:8
 //	  v1 = call f, v0 @9:9
 //	  ret v1 @9:2
+//
+// A function in SSA form (D-025) is marked ssa, and a phi lists its type
+// and each incoming edge with its value:
+//
+//	func f(i64) i64 ssa @p.go:8:6
+//	...
+//	b3:
+//	  v7 = phi i64, b1.0: v2, b2.0: v5 @10:3
 func (p *Program) String() string {
 	var b strings.Builder
 	for _, g := range p.Globals {
@@ -54,6 +62,9 @@ func (f *Func) write(b *strings.Builder) {
 		default:
 			b.WriteString(" (" + types(f.Results) + ")")
 		}
+	}
+	if f.SSA {
+		b.WriteString(" ssa")
 	}
 	fmt.Fprintf(b, " @%s:%s\n", f.File, f.Pos)
 	for _, s := range f.Slots {
@@ -118,11 +129,26 @@ func (in *Instr) String() string {
 			ops = append(ops, "?")
 		}
 	}
-	for _, a := range in.Args {
-		if a == nil {
-			ops = append(ops, "v?")
-		} else {
-			ops = append(ops, fmt.Sprintf("v%d", a.ID))
+	if in.Op == Phi {
+		// Each incoming edge with its value; "?" marks a missing one.
+		ops = append(ops, in.Type.String())
+		for i := range max(len(in.Args), len(in.Edges)) {
+			e, v := "b?.?", "v?"
+			if i < len(in.Edges) {
+				e = in.Edges[i].String()
+			}
+			if i < len(in.Args) && in.Args[i] != nil {
+				v = fmt.Sprintf("v%d", in.Args[i].ID)
+			}
+			ops = append(ops, e+": "+v)
+		}
+	} else {
+		for _, a := range in.Args {
+			if a == nil {
+				ops = append(ops, "v?")
+			} else {
+				ops = append(ops, fmt.Sprintf("v%d", a.ID))
+			}
 		}
 	}
 	for _, t := range in.Targets {
@@ -137,6 +163,14 @@ func (in *Instr) String() string {
 		b.WriteString(strings.Join(ops, ", "))
 	}
 	return b.String()
+}
+
+// String returns the edge as bN.I: target I of block N's terminator.
+func (e Edge) String() string {
+	if e.From == nil {
+		return fmt.Sprintf("b?.%d", e.Index)
+	}
+	return fmt.Sprintf("b%d.%d", e.From.ID, e.Index)
 }
 
 func types(ts []Type) string {

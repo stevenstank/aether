@@ -643,8 +643,12 @@ repeated in each phase below:
       (Cooper–Harvey–Kennedy), in `internal/ir/dom.go`. It is an analysis
       only and changes no IR contract. Tested on hand-built CFGs, on every
       CFG of up to four blocks against the definitions, and on the lowered
-      IR of the corpus and 200 generated programs. φ is not added until the
-      owner approves the plan.
+      IR of the corpus and 200 generated programs. Accepted by the owner
+      2026-11-04.
+    - Part 2 (2026-11-04): the `phi` instruction (one value per incoming
+      edge), `Func.SSA`, the printed form, and the SSA-level verifier of
+      D-025 (Proposed), with positive, negative, and mutation tests. No
+      promotion yet; lowering, the interpreter, and the backend unchanged.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination

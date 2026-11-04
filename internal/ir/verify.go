@@ -87,6 +87,13 @@ type verifier struct {
 	funcs   map[*Func]bool   // the functions of the program
 	globals map[*Global]bool // its well-formed globals
 	errs    []error
+
+	// For a function in SSA form (D-025), set by ssa.
+	reach    []bool
+	def      map[*Instr]int // the block of each instruction
+	ids      map[int]bool   // value numbers seen, in the whole function
+	dom      *DomTree       // nil if the CFG is too malformed to analyze
+	incoming [][]Edge       // each block's edges from reachable blocks, in canonical order
 }
 
 func (v *verifier) errorf(block, index int, in *Instr, format string, args ...any) {
@@ -135,6 +142,9 @@ func verifyFunc(p *Program, f *Func, funcs map[*Func]bool, globals map[*Global]b
 			v.errorf(-1, -1, nil, "slot s%d has no source position", i)
 		}
 	}
+	if f.SSA && len(f.Slots) > 0 {
+		v.errorf(-1, -1, nil, "function in SSA form has %d slots", len(f.Slots))
+	}
 	if len(f.Blocks) == 0 {
 		v.errorf(-1, -1, nil, "no blocks")
 		return v.errs
@@ -156,6 +166,9 @@ func verifyFunc(p *Program, f *Func, funcs map[*Func]bool, globals map[*Global]b
 	}
 	reachable := v.reachable()
 	in := v.definitelyStored(reachable)
+	if f.SSA {
+		v.ssa(reachable)
+	}
 	for i, b := range f.Blocks {
 		if !reachable[i] {
 			v.errorf(i, -1, nil, "unreachable block: no path from the entry reaches it")
@@ -264,7 +277,11 @@ func (v *verifier) block(b *Block, bi int, stored []bool) {
 	}
 	stored = append([]bool(nil), stored...)
 	defined := map[*Instr]bool{}
-	ids := map[int]bool{}
+	ids := v.ids // value numbers are unique in the whole of an SSA function
+	if ids == nil {
+		ids = map[int]bool{}
+	}
+	body := false // whether a non-phi instruction came earlier
 	for i, in := range b.Instrs {
 		if in == nil {
 			v.errorf(bi, i, nil, "nil instruction")
@@ -284,14 +301,31 @@ func (v *verifier) block(b *Block, bi int, stored []bool) {
 			switch {
 			case a == nil:
 				v.errorf(bi, i, in, "nil operand")
-			case !defined[a]:
+			case defined[a]:
+			case v.f.SSA && in.Op == Phi:
+				// Checked against its incoming edge by phi.
+			case v.f.SSA:
+				v.dominatingDef(bi, i, in, a)
+			default:
 				v.errorf(bi, i, in, "operand v%d is not defined earlier in this block", a.ID)
 			}
 		}
 		v.signature(bi, i, in)
-		if in.Op == Load || in.Op == Store {
+		switch {
+		case v.f.SSA && (in.Op == Load || in.Op == Store):
+			v.errorf(bi, i, in, "%s in a function in SSA form", in.Op)
+		case in.Op == Load || in.Op == Store:
 			v.slotRef(bi, i, in, stored)
+		case v.f.SSA && in.Op == Phi:
+			if bi == 0 {
+				v.errorf(bi, i, in, "phi in the entry block")
+			}
+			if body {
+				v.errorf(bi, i, in, "phi after a non-phi instruction")
+			}
+			v.phi(bi, i, in)
 		}
+		body = body || in.Op != Phi
 		if in.Type != NoType {
 			if ids[in.ID] {
 				v.errorf(bi, i, in, "value number v%d defined twice", in.ID)
@@ -366,6 +400,18 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		want, args = Bool, []Type{Bool}
 	case Println, Print:
 		anyArgs = true
+	case Phi:
+		want = in.Type
+		if !v.f.SSA {
+			v.errorf(bi, i, in, "phi in a function not in SSA form")
+		}
+		if !validType(in.Type) {
+			v.errorf(bi, i, in, "phi has invalid type %s", in.Type)
+		}
+		args = make([]Type, len(in.Edges)) // one value per edge
+		for j := range args {
+			args[j] = in.Type
+		}
 	case Ret:
 		args = v.f.Results
 	case Jump:
@@ -472,6 +518,9 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	}
 	if in.Op != GLoad && in.Op != GStore && in.Global != nil {
 		v.errorf(bi, i, in, "%s has a global operand", in.Op)
+	}
+	if in.Op != Phi && in.Edges != nil {
+		v.errorf(bi, i, in, "%s has incoming edges", in.Op)
 	}
 }
 
