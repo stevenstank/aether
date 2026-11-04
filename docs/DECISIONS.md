@@ -33,7 +33,7 @@ benchmarks: none have been run.
 | D-003 | Explicit subset gate and diagnostic classification | Accepted |
 | D-004 | Aether-owned typed CFG IR, non-SSA at first | Accepted |
 | D-005 | Reference interpreter for the IR | Accepted |
-| D-006 | SSA timing and construction method | Proposed (experiment authorized 2026-11-03, conditional on Phase 4 acceptance) |
+| D-006 | SSA timing and construction method | Proposed (resolving experiment authorized 2026-11-03; Phase 4 accepted) |
 | D-007 | Executable path: GNU assembler text, `as`, `ld` | Accepted |
 | D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
 | D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only; Phase 4 stack amended 2026-10-26) |
@@ -50,7 +50,7 @@ benchmarks: none have been run.
 | D-020 | `func main()` without a body is `unsupported` | Accepted |
 | D-021 | The S1 IR instruction set and its contract | Accepted |
 | D-022 | The Phase 3 backend, runtime interface, and `aether build` | Accepted |
-| D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` 2026-11-03) |
+| D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` and `Init` rules 2026-11-03) |
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 
 ## Review log
@@ -79,6 +79,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-10-24 | Phase 1 implementation (E12): D-018 added; D-003 precedence recorded as implemented; `go.mod` created per D-015; S1 gate edge cases found by tests, the GOROOT sweep, and fuzzing recorded | D-002, D-003, D-012, D-015, D-018 |
 | 2026-10-24 | Phase 1 closure audit: D-019 and D-020 record two implemented classifications; D-018 corrected and implemented for syntax-error positions under `//line`; fuzz incident FI-1 recorded in `TESTING.md` | D-018, D-019, D-020 |
 | 2026-11-03 | Owner Phase 4 review: Phase 4 not accepted yet (conditions in `ROADMAP.md` Phase 4); `MaxDepth` = 100,000 approved and D-023's memory figures corrected; V-4 order retained as D-024; D-006 slot-promotion experiment authorized, conditional on Phase 4 acceptance | D-006, D-023, D-024 |
+| 2026-11-03 | Owner final Phase 4 review: Phase 4 accepted; the 29 automated negative controls accepted; FI-1 closed as investigated, unexplained, and not reproduced (`TESTING.md`); D-023's `Init` rules approved; the D-006 experiment may start | D-006, D-023 |
 
 ---
 
@@ -390,7 +391,7 @@ added to this entry.
 
 **Owner review (2026-11-03).** The status stays Proposed. The owner
 authorized the resolving experiment as the first Phase 5 work, starting only
-after Phase 4 is accepted:
+after Phase 4 is accepted (accepted 2026-11-03, so it may start):
 - It runs on the existing load/store IR and covers dominators, φ placement,
   renaming, and the verifier invariants of the SSA form.
 - The construction algorithm, and whether SSA lives in the same IR package
@@ -1566,10 +1567,23 @@ type. SSA, φ-nodes, register allocation, and optimization stay in Phase 5
   runs package initializers in `types.Info.InitOrder`. It cannot be inlined
   into `main`, because Go programs may call `main()` recursively (gc accepts
   it, E13). Functions gain `Params` and `Results`.
-  **Open (2026-11-03):** the verifier also lets a program have no `Init`
-  and rejects any `call` of `Init` (`internal/ir/verify.go`). This entry
-  does not state either rule yet; the owner requires it to be resolved
-  before Phase 4 is accepted.
+  **`Init` rules (approved by the owner 2026-11-03):**
+  - A program has an `Init` only when a package-level variable has an
+    initializer (`types.Info.InitOrder` is not empty). Zero-valued globals
+    and constants do not by themselves require one.
+  - A `call` of `Init` is rejected by the verifier, and lowering never
+    emits one.
+  - When present, `Init` runs before `main`, initializing in `InitOrder`.
+    A panic or stack overflow during initialization ends the program before
+    `main` is entered as the program's entry.
+  - An initializer may call `main` (Go forbids referring to `init`, not to
+    `main`).
+  - That the backend emits a `main.init` that only returns when there is no
+    `Init` is an implementation detail, not part of this contract.
+  Tests: `TestVerifyGlobals`, `TestLowerInit`, `TestGlobalsAndInit`,
+  `TestPanicInInit`, `TestNativeGlobals`, `s2_g02_init_order`,
+  `s2_g03_init_panic`, `s2_g05_init_calls_main`, and the `init` program of
+  `TestStackOverflowAgainstGc`.
 - **Positions.** Every instruction keeps a line and column, with one file per
   function (programs remain single-file). `branch`: its `if` or `for`
   keyword, or the `&&`/`||` operator. `jump`: its `break` or `continue`, or

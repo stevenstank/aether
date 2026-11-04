@@ -115,8 +115,8 @@ repeated in each phase below:
     `internal` result, which was fixed and kept as a regression seed (E12).
     After the fix, runs of 120 s, 180 s, and 420 s (about 3.3, 17.7, and 33.4
     million executions) passed. One other 180 s run failed without reporting
-    a failing input. This is fuzz incident FI-1 (`TESTING.md`): still open and
-    unexplained, and assessed as not blocking.
+    a failing input. This is fuzz incident FI-1 (`TESTING.md`): unexplained, and
+    assessed as not blocking (closed 2026-11-03, not reproduced).
   - **Dependency rules:** checked on the `go list -deps` graph, with a control
     test, and confirmed by temporarily adding a forbidden import (the test
     failed as intended).
@@ -144,7 +144,8 @@ repeated in each phase below:
     that `go/types` wrongly rejects is reported as `invalid`, as happened with
     `func main() ()` before D-019. That error is in the safe direction:
     nothing is compiled.
-  - **FI-1 remains unexplained** (above).
+  - **FI-1 remains unexplained** (above; closed 2026-11-03 as not
+    reproduced).
   - **The stage ordering lives in `cmd/aether/check.go`.** Phase 2's
     in-process checks may need it moved into a package.
 
@@ -210,7 +211,8 @@ repeated in each phase below:
     blocks), and its coverage was judged by inspection, not measured.
   - The stage ordering stays in `cmd/aether/check.go` (`compile`). Phase 2's
     in-process tests are in the same package, so moving it was not needed.
-  - FI-1 (`TESTING.md`) remains open and unexplained.
+  - FI-1 (`TESTING.md`) remains unexplained (closed 2026-11-03 as not
+    reproduced).
 
 ## Phase 3: First native executable (Milestone 1) (complete; accepted by the owner)
 
@@ -298,9 +300,10 @@ repeated in each phase below:
   - The `-x` log includes the two identification commands (`as --version`,
     `ld -V`) besides the build commands.
   - Reproducibility is shown for one host and one binutils version only.
-  - FI-1 (`TESTING.md`) remains open and unexplained.
+  - FI-1 (`TESTING.md`) remains unexplained (closed 2026-11-03 as not
+    reproduced).
 
-## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; implemented 2026-11-01; not accepted, owner review 2026-11-03)
+## Phase 4: Functions, control flow, integer types (S2) (design gate passed 2026-10-26; implemented 2026-11-01; accepted by the owner 2026-11-03)
 
 - **Objective:** structured programs with functions run natively.
 - **Scope:**
@@ -444,7 +447,8 @@ repeated in each phase below:
   generated programs, the panic rule (V-3) on the panicking ones, and the
   overflow rule (V-2) in `TestStackOverflowAgainstGc`. `SEMANTICS.md`
   lists V-2, V-3, V-4, and the D-009 stack limitations.
-- **Owner review (2026-11-03):** Phase 4 is **not accepted yet**.
+- **Owner review (2026-11-03, first pass):** Phase 4 was **not accepted
+  yet**.
   - Decided: `MaxDepth` = 100,000 is approved, with D-023's memory figures
     corrected; this settles 4.2's depth-limit condition. V-4 is retained:
     lowering keeps strict left-to-right order (D-024).
@@ -455,17 +459,20 @@ repeated in each phase below:
        resolution or a defensible disposition is documented.
     3. D-023's unstated `Init` rules (a program may have no `Init`; `Init`
        is never called) are resolved.
-  - Status (2026-11-03), awaiting the owner:
-    1. Done: `TestNegativeControls` runs 29 controls on copies of the
+  - Resolved (2026-11-03):
+    1. `TestNegativeControls` runs the 29 controls on copies of the
        module, each detected, with an unmodified baseline (`TESTING.md`
-       §The S2 suite).
-    2. Investigated, not reproduced; a disposition is proposed in
-       `TESTING.md` (FI-1) and needs the owner's decision.
-    3. Tested: `TestLowerInit` (no `Init` without an initializer; none
-       called), `s2_g05_init_calls_main` (an initializer calls `main`),
-       and an overflow during initialization in
-       `TestStackOverflowAgainstGc`. The D-023 wording needs the owner's
-       approval.
+       §The S2 suite, which lists the detecting tests). Accepted by the
+       owner, including two controls detected by tests other than those
+       first recorded.
+    2. FI-1 closed by the owner as investigated, unexplained, and not
+       reproduced (`TESTING.md`); not fixed. It is reopened if it recurs.
+    3. The `Init` rules approved and recorded in D-023, with tests.
+- **Accepted by the owner (2026-11-03).** Evidence: the S2 suite run of
+  2026-11-03 (`TESTING.md`): `go test -count=1 ./...` exit 0 with 880
+  passing tests and subtests, none failing or skipped; 34 corpus and 200
+  generated programs agreeing with gc natively and in the interpreter; the
+  29 automated negative controls detected; `gofmt` and `go vet` clean.
 - **Acceptance criteria:**
   - Differential agreement on the S2 suite.
   - Panicking programs (divergence V-3; corrected in 4.5, since gc writes
@@ -626,8 +633,8 @@ repeated in each phase below:
 
 - **Objective:** better generated code with **no behavior change**.
 - **Scope:**
-  - SSA construction (resolve D-006). First step, authorized 2026-11-03 and
-    starting only after Phase 4 is accepted: the D-006 slot-promotion
+  - SSA construction (resolve D-006). First step, authorized 2026-11-03
+    (Phase 4 accepted the same day): the D-006 slot-promotion
     experiment on the existing load/store IR (dominators, φ placement,
     renaming, verifier invariants), with no register allocation. The
     algorithm and the one-or-two-IR question stay open until it reports.

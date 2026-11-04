@@ -283,7 +283,34 @@ The S2 suite is the evidence for Phase 4's acceptance criteria
   unsigned division as signed is the variant that sign-extends each
   operand at its width (a plain signed division of zero-extended values
   differs only for 64-bit values with the high bit set, which no generated
-  program divides). Skipped under `-short`; about 2 minutes.
+  program divides). The owner accepted both, since the intended defects
+  are detected (2026-11-03). Skipped under `-short`; about 2 minutes.
+  Each control and what detects it:
+
+  | Control | Detected by |
+  |---|---|
+  | 4.1 branch targets swapped; `setb` for signed `<`; `printbool` printing `1` | `TestNativeControlFlow` |
+  | 4.1 definite assignment on any path | `TestVerifyControlFlow` (store on one path only; store only inside the loop body) |
+  | 4.1 `\|\|` lowered as `&&` | `TestDifferentialAgainstGc`, generated programs, interpreter and native |
+  | 4.1 `continue` skips the post statement | `TestDifferentialAgainstGc` with GNU `as`/`ld` hidden: the interpreter's step budget |
+  | 4.2 prologue without `jb`; `L` never stored | `TestNativeStackOverflow`, `TestStackBoundary`, `TestFrameLargerThanStack` (killed by a signal) |
+  | 4.2 stack mapped with `MAP_NORESERVE` | `TestStackMapping` |
+  | 4.2 overflow message changed, native; in the interpreter | `TestStackOverflowAgainstGc`, native; interpreter |
+  | 4.3 `extract` reads the outgoing area | `TestNativeTuples` |
+  | 4.4 no canonicalization; signed condition codes for unsigned types; `printint` for unsigned values | `TestIntegerTypes` |
+  | 4.4 interpreter compares unsigned values as signed | `TestIntegerTypes` (`internal/amd64`), interpreter side |
+  | 4.4 conversion executed as a no-op (interpreter) | `TestDifferentialAgainstGc`, generated programs |
+  | 4.4 `&^` lowered as `&` | `TestDifferentialAgainstGc`, generated programs, interpreter and native |
+  | 4.5 `idivq` for every divisor; no width check on shifts; zero instead of the sign fill | `TestIntegerTypes` |
+  | 4.5 interpreter divides unsigned values as signed (at their width) | `TestDifferentialAgainstGc`: `s2_d01_division_shifts` and generated programs |
+  | 4.5 `shrq` for signed `>>` | `TestDifferentialAgainstGc`, generated programs, native |
+  | 4.5 no negative-count check | `TestDifferentialAgainstGc`, generated programs, interpreter and native |
+  | 4.6 initialization order reversed | `TestDifferentialAgainstGc`: `s2_g02_init_order` and generated programs |
+  | 4.6 globals share one word | `TestDifferentialAgainstGc`, generated programs, native |
+  | 4.7 `break` leaves the enclosing `for` | `TestDifferentialAgainstGc`: `s2_s01_switch` and generated programs |
+  | 4.7 tag evaluated for each case value | `TestDifferentialAgainstGc`: `s2_s01_switch` |
+  | 4.7 `default` taken in source order | `TestDifferentialAgainstGc`: `s2_s01_switch` and generated programs |
+  | 4.7 only the first value of each case tested | `TestDifferentialAgainstGc`, generated programs |
 - **Goldens and the gate:** the IR goldens of the `run` programs
   (`TestLowerCorpus`), the classification corpus (`TestCheckCorpus`), and
   gc's agreement with each file's `valid` or `invalid` header
@@ -335,7 +362,7 @@ replays it.
 recorded. It must never be piped through `head` or `tail` alone. The incident
 below was left unexplained because its output was truncated.
 
-#### Fuzz incident FI-1 (open, unexplained; disposition proposed 2026-11-03)
+#### Fuzz incident FI-1 (closed 2026-11-03: unexplained, not reproduced)
 
 **What is known:**
 - **The run.** On 2026-10-24 a 180 s run of
@@ -409,12 +436,13 @@ The 8 s runs targeted the end-of-run shutdown phase specifically.
   10.7 M, 11.1 M, and 9.3 M executions, no failing input written.
 - **Not recoverable:** the failure message, which `tail -3` discarded; the
   input in flight, if any; and the host state at the time.
-- **Disposition (proposed, pending the owner):** not reproduced. The
-  evidence is consistent with the end-of-run worker failure described
-  above and gives no sign of a property failure, but cannot exclude one
-  on the input in flight. Proposed: record FI-1 as closed *unexplained and
-  not reproduced*, keeping the full-output rule, and reopen it on any
-  recurrence.
+- **Disposition (owner decision, 2026-11-03): closed as investigated,
+  unexplained, and not reproduced.** It is not fixed: the original failure
+  was not recovered. All 2,976 cached inputs passed, and three reruns of
+  the recovered original command exited successfully. The evidence is
+  consistent with the end-of-run worker failure described above but
+  cannot exclude a property failure on the input in flight. FI-1 is
+  reopened if it recurs, and fuzz output must still be captured in full.
 
 ### Regression tests
 
