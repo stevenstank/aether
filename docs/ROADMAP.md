@@ -638,6 +638,13 @@ repeated in each phase below:
     experiment on the existing load/store IR (dominators, φ placement,
     renaming, verifier invariants), with no register allocation. The
     algorithm and the one-or-two-IR question stay open until it reports.
+    - Part 1 (2026-11-04): `ir.Dominators` computes the dominator tree,
+      predecessors, and dominance frontiers of a function's CFG
+      (Cooper–Harvey–Kennedy), in `internal/ir/dom.go`. It is an analysis
+      only and changes no IR contract. Tested on hand-built CFGs, on every
+      CFG of up to four blocks against the definitions, and on the lowered
+      IR of the corpus and 200 generated programs. φ is not added until the
+      owner approves the plan.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination

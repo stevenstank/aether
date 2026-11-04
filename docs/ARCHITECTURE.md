@@ -577,7 +577,7 @@ The other rows are still candidates.
 | `internal/diag` | Diagnostic type, classes, rendering, exit codes | — (no `go/*`) | stable within the repo |
 | `internal/frontend` | Load, parse, type-check; produce the checked package | `go/*`, `diag` | internal |
 | `internal/gate` | Subset gate | `frontend`, `diag` | internal |
-| `internal/ir` | IR types, builder, verifier, printer | — (no `go/*`) | **contract:** text format + invariants |
+| `internal/ir` | IR types, builder, verifier, printer; dominator tree and dominance frontiers (Phase 5, D-006 experiment) | — (no `go/*`) | **contract:** text format + invariants |
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |
 | `internal/opt` | Optimization passes (Phase 5+) | `ir` | internal |

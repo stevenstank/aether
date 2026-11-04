@@ -398,6 +398,13 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
   or a second one, stay open until the experiment gives evidence.
 - No register allocation is part of it.
 
+**Experiment progress.** The status is still Proposed.
+- Part 1 (2026-11-04): the dominator tree and dominance frontiers
+  (`ir.Dominators`, `internal/ir/dom.go`). It is an analysis over the
+  current IR and changes no contract.
+- No φ instruction exists yet. φ is an IR-contract change, so it waits for
+  the owner's answer to the proposed plan, recorded here once given.
+
 ---
 
 ## D-007: Executable path: GNU assembler text, `as`, `ld`
