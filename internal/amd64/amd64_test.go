@@ -240,11 +240,11 @@ func run(t *testing.T, dir, tool string, args ...string) {
 }
 
 // execute runs the executable and returns its stderr and exit status. Its
-// stdout must be empty.
+// stdout must be empty. A run longer than runTimeout fails the test.
 func execute(t *testing.T, exe string, stderrFile *os.File) (string, int) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(exe)
+	cmd := command(t, exe)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if stderrFile != nil {
@@ -252,6 +252,7 @@ func execute(t *testing.T, exe string, stderrFile *os.File) (string, int) {
 	}
 	code := 0
 	if err := cmd.Run(); err != nil {
+		cmd.checkTimeout(t, err)
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) {
 			t.Fatal(err)
@@ -419,7 +420,8 @@ main.main:
 }
 
 // limited runs exe through /bin/sh with the given ulimit options, and
-// returns its stderr and exit status.
+// returns its stderr and exit status. A run longer than runTimeout fails
+// the test.
 func limited(t *testing.T, exe string, limits ...string) (string, int) {
 	t.Helper()
 	script := ""
@@ -427,10 +429,11 @@ func limited(t *testing.T, exe string, limits ...string) (string, int) {
 		script += "ulimit " + l + " && "
 	}
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("/bin/sh", "-c", script+`exec "$0"`, exe)
+	cmd := command(t, "/bin/sh", "-c", script+`exec "$0"`, exe)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	code := 0
 	if err := cmd.Run(); err != nil {
+		cmd.checkTimeout(t, err)
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) {
 			t.Fatal(err)
@@ -537,8 +540,9 @@ func TestRuntimeStackGuard(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exe := link(t, t.TempDir(), withRuntime([]byte(guardHarness(usable, tt.off))))
-			cmd := exec.Command("/bin/sh", "-c", `ulimit -c 0 && exec "$0"`, exe)
+			cmd := command(t, "/bin/sh", "-c", `ulimit -c 0 && exec "$0"`, exe)
 			err := cmd.Run()
+			cmd.checkTimeout(t, err)
 			var exit *exec.ExitError
 			switch {
 			case err == nil:

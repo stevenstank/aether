@@ -44,7 +44,14 @@ const interpSteps = 100_000_000
 
 // runTimeout bounds every run of a gc-built or Aether-built test program,
 // so that a bug that loops fails the test instead of hanging the suite.
+// The program is killed then, or when the helper running it returns,
+// whichever comes first. The gc-built overflow programs take about 4 s
+// each (E14).
 const runTimeout = 2 * time.Minute
+
+// waitDelay bounds the wait for a killed program's output pipes, which a
+// child of /bin/sh could still hold.
+const waitDelay = 5 * time.Second
 
 // gcRun builds every program with gc (gcBuild), runs each binary, and
 // returns the results by name.

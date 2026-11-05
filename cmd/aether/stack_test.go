@@ -9,14 +9,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 // runLimited runs exe through /bin/sh with the given ulimit options. A
-// signal, such as SIGSEGV from a stack overflow, fails the test.
+// signal, such as SIGSEGV from a stack overflow, or a run longer than
+// runTimeout fails the test.
 func runLimited(t *testing.T, exe string, limits ...string) result {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 	script := ""
 	for _, l := range limits {
@@ -24,9 +24,13 @@ func runLimited(t *testing.T, exe string, limits ...string) result {
 	}
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", script+`exec "$0"`, exe)
+	cmd.WaitDelay = waitDelay
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	r := result{}
 	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			t.Fatalf("%s with ulimit %v: killed after running for the %v timeout", exe, limits, runTimeout)
+		}
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) || exit.ExitCode() < 0 {
 			t.Fatalf("%s with ulimit %v: %v", exe, limits, err)

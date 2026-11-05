@@ -124,6 +124,7 @@ func runExe(t *testing.T, path string) result {
 	var cmd *exec.Cmd
 	for try := 0; ; try++ {
 		cmd = exec.CommandContext(ctx, path)
+		cmd.WaitDelay = waitDelay
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
 		err := cmd.Start()
 		if err == nil {
@@ -136,9 +137,12 @@ func runExe(t *testing.T, path string) result {
 	}
 	r := result{}
 	if err := cmd.Wait(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			t.Fatalf("%s: killed after running for the %v timeout", path, runTimeout)
+		}
 		exit, ok := err.(*exec.ExitError)
 		if !ok || exit.ExitCode() < 0 {
-			t.Fatalf("%s: %v", path, err) // a timeout or a signal
+			t.Fatalf("%s: %v", path, err) // a signal
 		}
 		r.exit = exit.ExitCode()
 	}

@@ -105,7 +105,7 @@ func TestStackMapping(t *testing.T) {
 		t.Logf("vm.overcommit_memory = %s", strings.TrimSpace(string(mode)))
 	}
 	exe := link(t, t.TempDir(), withRuntime([]byte(mappingHarness)))
-	cmd := exec.Command(exe)
+	cmd := command(t, exe)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,9 @@ func TestStackMapping(t *testing.T) {
 	}
 	defer func() {
 		stdin.Close()
-		if err := cmd.Wait(); err != nil {
+		if err := cmd.Wait(); cmd.timedOut(err) {
+			t.Error(cmd.timeoutMessage())
+		} else if err != nil {
 			t.Errorf("harness: %v", err)
 		}
 	}()
@@ -171,8 +173,9 @@ main.main:
 	if got, code := execute(t, exe, nil); got != "fatal error: stack overflow\n" || code != 2 {
 		t.Errorf("stderr %q, exit %d; want the fatal error, exit 2", got, code)
 	}
-	cmd := exec.Command("/bin/sh", "-c", `exec "$0" 2>&-`, exe)
+	cmd := command(t, "/bin/sh", "-c", `exec "$0" 2>&-`, exe)
 	err := cmd.Run()
+	cmd.checkTimeout(t, err)
 	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 2 {
 		t.Errorf("with stderr closed: %v, want exit status 2", err)
 	}
