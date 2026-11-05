@@ -52,7 +52,7 @@ benchmarks: none have been run.
 | D-022 | The Phase 3 backend, runtime interface, and `aether build` | Accepted |
 | D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` and `Init` rules 2026-11-03) |
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
-| D-025 | The SSA form of the IR: φ and the SSA-level invariants | Proposed (representation choices directed by the owner 2026-11-04) |
+| D-025 | The SSA form of the IR: φ and the SSA-level invariants | Accepted (2026-11-05) |
 
 ## Review log
 
@@ -82,6 +82,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-03 | Owner Phase 4 review: Phase 4 not accepted yet (conditions in `ROADMAP.md` Phase 4); `MaxDepth` = 100,000 approved and D-023's memory figures corrected; V-4 order retained as D-024; D-006 slot-promotion experiment authorized, conditional on Phase 4 acceptance | D-006, D-023, D-024 |
 | 2026-11-03 | Owner final Phase 4 review: Phase 4 accepted; the 29 automated negative controls accepted; FI-1 closed as investigated, unexplained, and not reproduced (`TESTING.md`); D-023's `Init` rules approved; the D-006 experiment may start | D-006, D-023 |
 | 2026-11-04 | Owner review of the D-006 experiment plan: part 1 (dominator analysis) accepted; SSA in `internal/ir`, marked per function; φ operands tied to explicit incoming edges; pruned SSA with no `undef`; D-025 created for the SSA contract | D-006, D-025 |
+| 2026-11-05 | Owner review of part 2: the implemented SSA contract accepted as D-025, including parallel edges and SSA functions without φ; `ARCHITECTURE.md` §4 invariant 8 corrected to one operand per incoming edge | D-006, D-025 |
 
 ---
 
@@ -410,7 +411,8 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
   D-025; this entry stays the experiment decision.
 - Part 2 (2026-11-04): the `phi` instruction, its printed form, and the
   SSA-level verifier of D-025, with hand-built tests. No slot promotion
-  yet; lowering, the interpreter, and the backend are unchanged.
+  yet; lowering, the interpreter, and the backend are unchanged. The owner
+  accepted D-025 on 2026-11-05. D-006 itself stays Proposed.
 - Remaining: part 3, promotion (liveness, φ placement, renaming) checked
   against the interpreter; part 4, the backend consuming SSA, static
   instruction counts, and the design note that resolves this entry.
@@ -1821,10 +1823,26 @@ gc-identical output for these statements.
 
 ## D-025: The SSA form of the IR: φ and the SSA-level invariants
 
-**Status:** Proposed. The representation choices below were directed by
-the owner on 2026-11-04; this text, and acceptance, await owner review.
-It extends D-021 and D-023 for functions in SSA form only. Ordinary
-functions and their contract are unchanged. Experiment context: D-006.
+**Status:** Accepted (2026-11-05, owner approval of the implemented
+contract). The representation choices were directed by the owner on
+2026-11-04. It extends D-021 and D-023 for functions in SSA form only.
+Ordinary functions and their contract are unchanged. The experiment
+context is D-006, which stays Proposed.
+
+The owner's approval covers these points, all stated below:
+- SSA functions share `internal/ir` with ordinary IR, told apart by
+  `Func.SSA`.
+- φ operands name explicit incoming CFG edges, `ir.Edge{From, Index}`,
+  ordered by source block and then target index. Parallel edges remain
+  supported.
+- SSA is pruned, with no `undef`.
+- Definitions are unique per function. Ordinary uses require the
+  definition to dominate them; a φ operand requires dominance at its
+  incoming edge.
+- φs come first, are forbidden in the entry block, and cover every
+  incoming edge exactly once.
+- SSA functions have no slots, loads, or stores.
+- An SSA function without φ is valid.
 
 **Context.** The D-006 experiment promotes slots to SSA values. That needs
 values that cross blocks, and φ to merge them where control flow joins.
@@ -1884,6 +1902,11 @@ reachability, positions, calls, globals, and panics):
    predecessors, and `param` stays in the entry block.
 9. Only `phi` has `Edges`, and a `phi` appears only in an SSA function.
 
+An SSA function needs no φ. Values used across blocks by dominance alone
+are valid. The interpreter and the backend already execute them, because
+each keeps one value per value number for the whole call
+(`TestSSACrossBlockValues`).
+
 If the CFG cannot be analyzed (a target that is not a block of the
 function, or targets on a terminator other than `jump` or `branch`), those
 errors are reported and the dominance checks (3, 5, 6, 8) are skipped.
@@ -1895,8 +1918,8 @@ their implementation:
   sequencing parallel copies.
 
 Until then, the interpreter rejects `phi` ("cannot execute") and the backend
-rejects it ("no instruction selection"). Neither is ever given SSA IR,
-because lowering produces only ordinary functions.
+rejects it ("no instruction selection"). Lowering produces only ordinary
+functions, so SSA IR reaches them only from tests.
 
 **Alternatives considered.**
 1. **φ operands matched to predecessor order.** Rejected by the owner: the
@@ -1914,8 +1937,7 @@ because lowering produces only ordinary functions.
 - Part 3 must produce φs in canonical edge order, and pruned.
 - The rule that values are local to their block (D-023) now holds only in
   ordinary functions.
-- `ARCHITECTURE.md` §4 invariant 8 still sketches the SSA level as "one
-  operand per predecessor". D-025 refines that to one per incoming edge.
+- `ARCHITECTURE.md` §4 invariant 8 states one operand per incoming edge.
 
 **Evidence and tests.** `internal/ir/ssa_test.go`:
 - valid fixtures: a diamond, a critical edge, a loop, nested loops with
@@ -1927,6 +1949,12 @@ because lowering produces only ordinary functions.
   and every φ edge is replaced, removed, or swapped. The verdicts are
   checked against dominance computed naively from its definition: 309
   mutants valid and 546 rejected, all as predicted.
+
+`internal/amd64/ssa_test.go` (`TestSSACrossBlockValues`): hand-built SSA
+functions with no φ, whose values (a parameter, a computed value, and call
+results) are used in blocks their definitions dominate. Both arms of a
+branch are taken. The interpreter and the native executable print the same
+expected output.
 
 Ordinary IR goldens and tests are unchanged.
 

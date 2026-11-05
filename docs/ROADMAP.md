@@ -647,8 +647,9 @@ repeated in each phase below:
       2026-11-04.
     - Part 2 (2026-11-04): the `phi` instruction (one value per incoming
       edge), `Func.SSA`, the printed form, and the SSA-level verifier of
-      D-025 (Proposed), with positive, negative, and mutation tests. No
-      promotion yet; lowering, the interpreter, and the backend unchanged.
+      D-025 (Accepted 2026-11-05), with positive, negative, and mutation
+      tests. No promotion yet; lowering, the interpreter, and the backend
+      unchanged.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination

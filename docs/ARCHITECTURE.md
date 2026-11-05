@@ -220,9 +220,10 @@ naming the function, block, and instruction:
    block, of type `i64`. Value numbers are not reused.
 7. Every slot operand belongs to the function, and every `load` follows a
    `store` to the same slot.
-8. **SSA level** (Phase 5): each value is defined once, and every definition
-   dominates its uses. φ-nodes appear only at the start of a block and have one
-   operand per predecessor.
+8. **SSA level** (Phase 5, D-025): each value is defined once, and every
+   definition dominates its uses. φ-nodes appear only at the start of a block
+   and have one operand per incoming CFG edge (`ir.Edge`), not per
+   predecessor.
 
 With no branches, invariants 6 and 7 are exact dominance and
 definite-assignment checks. S2 (D-023, from increment 4.1) keeps invariant 6
