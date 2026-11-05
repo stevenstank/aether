@@ -31,14 +31,22 @@ func FuzzCheck(f *testing.F) {
 // FuzzGenerated runs generated S1 programs through lowering, the verifier,
 // and the interpreter. Unlike FuzzCheck, whose inputs are mostly rejected
 // before lowering, nearly every input here reaches it. A generated program
-// may only be rejected as invalid, for an overflowing constant.
+// may only be rejected as invalid, for an overflowing constant. Since the
+// D-006 experiment, every function of an accepted program is also promoted
+// to SSA form, which must give the same interpreter results
+// (checkPromotion).
 func FuzzGenerated(f *testing.F) {
 	f.Add(uint64(1))
 	f.Fuzz(func(t *testing.T, seed uint64) {
 		src := []byte(generate(seed))
-		if ds := compileAndRun(t, src); len(ds) > 0 && diag.ExitCode(ds) != diag.ExitInvalid {
-			t.Fatalf("generated program rejected: %s\n%s", ds[0], src)
+		ds := compileAndRun(t, src)
+		if len(ds) > 0 {
+			if diag.ExitCode(ds) != diag.ExitInvalid {
+				t.Fatalf("generated program rejected: %s\n%s", ds[0], src)
+			}
+			return
 		}
+		checkPromotion(t, "gen.go", src, 1_000_000, &promoteStats{})
 	})
 }
 

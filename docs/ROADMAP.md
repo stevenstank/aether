@@ -650,6 +650,12 @@ repeated in each phase below:
       D-025 (Accepted 2026-11-05), with positive, negative, and mutation
       tests. No promotion yet; lowering, the interpreter, and the backend
       unchanged.
+    - Part 3 (2026-11-05): `ir.Promote`, pruned SSA construction
+      (liveness, iterated dominance frontiers, renaming over the dominator
+      tree), and φ execution in the interpreter. On the S2 suite the
+      interpreter's results are identical before and after promotion, and
+      the promoted IR verifies. `FuzzGenerated` checks the same. Lowering
+      and the backend unchanged; the backend still rejects φ.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination

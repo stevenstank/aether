@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strconv"
 
 	"github.com/stevenstank/aether/internal/ir"
@@ -103,8 +104,9 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 		*executed++
 		fr := &stack[len(stack)-1]
 		// Verify guarantees that every operand was computed earlier in
-		// the block, that every slot is stored on every path before it is
-		// loaded, and that every block ends in a terminator.
+		// the block, or in SSA form in a dominating block, that every slot
+		// is stored on every path before it is loaded, and that every block
+		// ends in a terminator.
 		in := fr.blk.Instrs[fr.pc]
 		fr.pc++
 		arg := func(i int) int64 { return fr.values[in.Args[i].ID] }
@@ -159,9 +161,9 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 		case ir.Not:
 			fr.values[in.ID] = 1 - arg(0)
 		case ir.Jump:
-			fr.blk, fr.pc = in.Targets[0], 0
+			enter(fr, ir.Edge{From: fr.blk, Index: 0})
 		case ir.Branch:
-			fr.blk, fr.pc = in.Targets[1-arg(0)], 0
+			enter(fr, ir.Edge{From: fr.blk, Index: int(1 - arg(0))})
 		case ir.Println, ir.Print:
 			var line []byte
 			for i, a := range in.Args {
@@ -219,6 +221,29 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 			return 0, fmt.Errorf("interp: func %s: cannot execute %s", fr.f.Name, in)
 		}
 	}
+}
+
+// enter continues fr along edge e and executes the phis at the start of its
+// target (D-025): each takes its value for e, all of them read before any is
+// written. Phis do not count as steps.
+func enter(fr *frame, e ir.Edge) {
+	b := e.From.Instrs[len(e.From.Instrs)-1].Targets[e.Index]
+	n := 0
+	for n < len(b.Instrs) && b.Instrs[n].Op == ir.Phi {
+		n++
+	}
+	if n > 0 {
+		vals := make([]int64, n)
+		for i, phi := range b.Instrs[:n] {
+			// Verify guarantees exactly one value for each incoming edge.
+			j := slices.Index(phi.Edges, e)
+			vals[i] = fr.values[phi.Args[j].ID]
+		}
+		for i, phi := range b.Instrs[:n] {
+			fr.values[phi.ID] = vals[i]
+		}
+	}
+	fr.blk, fr.pc = b, n
 }
 
 // compare applies a comparison to canonical values of type t: as signed or

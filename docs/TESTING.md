@@ -345,7 +345,9 @@ Native Go fuzzing (`testing.F`):
   Every gate-accepted input must lower to verifier-clean IR that the
   interpreter runs. Most `FuzzCheck` inputs are rejected before lowering, so
   `FuzzGenerated` fuzzes the generator's seed instead: nearly every input
-  reaches lowering, the verifier, and the interpreter.
+  reaches lowering, the verifier, and the interpreter. Since Phase 5 (D-006
+  part 3), it also promotes each program to SSA form and requires the same
+  interpreter results.
 - **Program generation** (Phase 2+): a generator of random *valid* subset
   programs, cross-checked between gc, the interpreter, and native code. In
   Phase 2 it is cross-checked between gc and the interpreter. Any

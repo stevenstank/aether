@@ -413,9 +413,26 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
   SSA-level verifier of D-025, with hand-built tests. No slot promotion
   yet; lowering, the interpreter, and the backend are unchanged. The owner
   accepted D-025 on 2026-11-05. D-006 itself stays Proposed.
-- Remaining: part 3, promotion (liveness, φ placement, renaming) checked
-  against the interpreter; part 4, the backend consuming SSA, static
-  instruction counts, and the design note that resolves this entry.
+- Part 3 (2026-11-05): `ir.Promote` converts an ordinary function to
+  pruned SSA. It computes slot liveness, places φs in the iterated
+  dominance frontiers (Cytron et al.) where the slot is live, and renames
+  over the dominator tree. The construction is the dominance-frontier
+  algorithm on the load/store IR, after lowering, which is unchanged. The
+  interpreter executes φ as D-025 specifies.
+
+  On the S2 suite the interpreter gives identical stderr and exit status
+  before and after promotion, and the promoted IR verifies
+  (`TestPromoteSuite`). The suite has 239 programs: 34 corpus `run`
+  programs, 200 generated, and 5 that overflow the stack. It has 418
+  functions and 9,351 slots: promotion removed 22,065 loads and 12,652
+  stores, added 2,578 φs, and took IR instructions from 89,116 to 56,977.
+  These are static IR counts, not machine instructions.
+
+  `FuzzGenerated` now checks the same equivalence. The pass is
+  `internal/ir/promote.go`, 221 lines.
+- Remaining: part 4, the backend consuming SSA, static machine-instruction
+  counts against the Phase 4 backend, and the design note that resolves
+  this entry.
 
 ---
 
@@ -1911,15 +1928,12 @@ If the CFG cannot be analyzed (a target that is not a block of the
 function, or targets on a terminator other than `jump` or `branch`), those
 errors are reported and the dominance checks (3, 5, 6, 8) are skipped.
 
-**Not yet decided (parts 3 and 4).** These need no contract change, only
-their implementation:
-- how the interpreter executes `phi`;
-- how the backend lowers φ, including critical-edge splitting and
-  sequencing parallel copies.
-
-Until then, the interpreter rejects `phi` ("cannot execute") and the backend
-rejects it ("no instruction selection"). Lowering produces only ordinary
-functions, so SSA IR reaches them only from tests.
+**Not yet decided (part 4).** How the backend lowers φ, including
+critical-edge splitting and sequencing parallel copies. This needs no
+contract change, only its implementation. Until then the backend rejects
+`phi` ("no instruction selection"). The interpreter executes φ as specified
+above (D-006 part 3). Lowering produces only ordinary functions, so SSA IR
+reaches either one only from tests.
 
 **Alternatives considered.**
 1. **φ operands matched to predecessor order.** Rejected by the owner: the
