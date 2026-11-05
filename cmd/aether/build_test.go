@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stevenstank/aether/internal/amd64"
 	"github.com/stevenstank/aether/internal/diag"
 )
 
@@ -63,6 +64,8 @@ func TestBuildUsage(t *testing.T) {
 		{"no output", []string{src}, "no output file: use -o FILE"},
 		{"no input", []string{"-o", out}, "no input file"},
 		{"unknown flag", []string{"-z", "-o", out, src}, "flag provided but not defined: -z"},
+		{"no other optimization level", []string{"-O1", "-o", out, src}, "flag provided but not defined: -O1"},
+		{"-O0 after input", []string{"-o", out, src, "-O0"}, "unknown flag -O0"},
 		{"flag after input", []string{src, "-o", out}, "unknown flag -o"},
 		{"not a .go file", []string{"-o", out, "prog.c"}, "prog.c is not a .go file"},
 		{"output is the input", []string{"-o", src, src}, "is the input file"},
@@ -649,4 +652,87 @@ func TestBuildBackendWorstCase(t *testing.T) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	t.Logf("emitProgram: %v; cumulative allocation %d MiB, system %d MiB", time.Since(start).Round(time.Millisecond), m.TotalAlloc>>20, m.Sys>>20)
+}
+
+// TestBuildO0 checks that -O0 selects the slot-based backend: its executable
+// is what amd64.Emit gives for the unpromoted program, it uses no allocatable
+// register for values, it differs from the default build, and both behave
+// the same. It also combines with the other flags.
+func TestBuildO0(t *testing.T) {
+	requireTools(t)
+	src := []byte("package main\n\nfunc main() {\n\ts := 0\n\tfor i := 0; i < 10; i++ {\n\t\ts += i\n\t}\n\tprintln(s)\n}\n")
+	dir := t.TempDir()
+	file := filepath.Join(dir, "p.go")
+	writeFile(t, file, src)
+	o0, def := filepath.Join(dir, "o0"), filepath.Join(dir, "def")
+	if stderr, code := runAether("build", "-O0", "-o", o0, file); code != 0 {
+		t.Fatalf("build -O0: exit %d\n%s", code, stderr)
+	}
+	if stderr, code := runAether("build", "-o", def, file); code != 0 {
+		t.Fatalf("build: exit %d\n%s", code, stderr)
+	}
+	prog, ds := compile([]source{{file, src}})
+	if len(ds) > 0 {
+		t.Fatal(ds)
+	}
+	asm, err := amd64.Emit(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(asm), "%rbx") {
+		t.Errorf("slot-based assembly uses %%rbx:\n%s", asm)
+	}
+	re := filepath.Join(dir, "re")
+	if ds, err := assemble(asm, buildOptions{out: re}, io.Discard); len(ds) > 0 || err != nil {
+		t.Fatalf("assemble: %v %v", ds, err)
+	}
+	if !bytes.Equal(readFile(t, o0), readFile(t, re)) {
+		t.Error("-O0's executable differs from amd64.Emit's")
+	}
+	if bytes.Equal(readFile(t, o0), readFile(t, def)) {
+		t.Error("-O0's executable is the same as the default build's")
+	}
+	want := result{stderr: "45\n"}
+	for _, exe := range []string{o0, def} {
+		if got := runExe(t, exe); got != want {
+			t.Errorf("%s: got %+v, want %+v", exe, got, want)
+		}
+	}
+	both := filepath.Join(dir, "both")
+	stderr, code := runAether("build", "-x", "-O0", "-o", both, file)
+	if code != 0 || !strings.Contains(stderr, "as") {
+		t.Fatalf("build -x -O0: exit %d\n%s", code, stderr)
+	}
+	if !bytes.Equal(readFile(t, both), readFile(t, o0)) {
+		t.Error("-x changes -O0's executable")
+	}
+}
+
+// TestO0CrossCheck is the optimization cross-check of ROADMAP Phase 5: every
+// program of the S2 suite, built through the build path with -O0 and by
+// default, must give the interpreter's stderr and exit status.
+func TestO0CrossCheck(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds about 480 executables")
+	}
+	requireTools(t)
+	progs, _ := s2Suite(t)
+	dir := t.TempDir()
+	for _, p := range progs {
+		want, ds, err := interpret(p.name, p.src)
+		if len(ds) > 0 || err != nil {
+			t.Fatalf("%s: not interpreted: %v %v", p.name, ds, err)
+		}
+		for _, o0 := range []bool{true, false} {
+			exe := filepath.Join(dir, fmt.Sprintf("%s.%v", strings.TrimSuffix(p.name, ".go"), o0))
+			ds, err := build([]source{{p.name, p.src}}, buildOptions{out: exe, o0: o0}, io.Discard)
+			if len(ds) > 0 || err != nil {
+				t.Fatalf("%s: -O0 %v: not built: %v %v", p.name, o0, ds, err)
+			}
+			if got := runExe(t, exe); got != want {
+				t.Errorf("%s: -O0 %v: native %+v, interpreter %+v", p.name, o0, got, want)
+			}
+		}
+	}
+	t.Logf("%d programs built with and without -O0; all match the interpreter", len(progs))
 }

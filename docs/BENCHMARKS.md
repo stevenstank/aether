@@ -65,8 +65,8 @@ check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
 **Variants.** `ra` (what `aether build` produces since D-027: promoted and
-emitted with registers), `slot` (what it produced before: every value in a
-cell), `ssa` (promoted, with every value in a cell), `gc` (`go build`), and
+emitted with registers), `slot` (what `aether build -O0` produces: every value
+in a cell), `ssa` (promoted, with every value in a cell), `gc` (`go build`), and
 `gcN` (`go build -gcflags=all='-N -l'`). The gc variants are reference points only
 ([Comparing against gc](#comparing-against-gc)).
 

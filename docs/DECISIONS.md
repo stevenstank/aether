@@ -55,7 +55,8 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 | D-025 | The SSA form of the IR: φ and the SSA-level invariants | Accepted (2026-11-05) |
 | D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment complete, criteria met; shipped by D-027) |
-| D-027 | `aether build` promotes to SSA and allocates registers | Accepted (2026-11-06, owner direction) |
+| D-027 | `aether build` promotes to SSA and allocates registers | Accepted (2026-11-06, owner direction; its "no flag" clause superseded by D-028) |
+| D-028 | `aether build -O0` selects the slot-based backend | Accepted (2026-11-06, owner direction) |
 
 ## Review log
 
@@ -90,6 +91,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-06 | Register-allocation baseline and benchmark harness checked in (`BENCHMARKS.md`); D-026 created as Proposed. No owner decision yet. | D-026 |
 | 2026-11-06 | Owner approves D-026: experiment RA-0 may start, under the plan, criteria, and thresholds recorded in the entry | D-026 |
 | 2026-11-06 | Owner directs that RA-0 ship to `aether build` after its results; D-027 created | D-026, D-027 |
+| 2026-11-06 | Owner directs that `aether build` gain `-O0`; D-028 created | D-027, D-028 |
 
 ---
 
@@ -2253,6 +2255,7 @@ tests.
   ABI-S0, and the runtime interface do not change.
 - There is no flag. `aether build` has one backend, and no way to ask for
   the slot-based one. Optimization flags remain a separate Phase 5 item.
+  (Superseded by D-028, which adds `-O0`.)
 
 **Why the limits exist.** The first attempt had none. Two runs of the test
 suite ended with the session shutting down, and after the second the WSL2 VM
@@ -2304,6 +2307,49 @@ describe what ships.
 **Revisit when.** A real program hits a limit and its speed matters; compile
 latency is measured and is a problem; or optimization flags arrive, which
 should give a way to select the slot-based path.
+
+---
+
+## D-028: `aether build -O0` selects the slot-based backend
+
+**Status:** Accepted (2026-11-06, owner direction). It supersedes D-027's "no
+flag" clause and adds to the CLI of D-022. Exit codes do not change.
+
+**Context.** Since D-027, a bug in promotion or allocation is a miscompilation
+in built programs, with no way to build around it. ROADMAP Phase 5 also lists
+optimization flags and an optimization cross-check.
+
+**Decision.**
+- `aether build -O0` emits with `amd64.Emit` on the unpromoted program: every
+  value in a stack cell, no SSA promotion, no registers, and no size limits to
+  apply. This is the backend `aether build` used before D-027.
+- The default stays as D-027 made it. There is **no `-O1` or other level**: a
+  flag the compiler cannot honor differently is not added until a second
+  optimization level exists. `-O1` is a usage error (exit 2).
+- `aether check` has no such flag, since it does not generate code.
+
+**Alternatives.** `-O0` and `-O1` together, which would name the default but
+select nothing new. An environment variable, which would hide the choice from
+the command line. Both were passed over for the smallest contract that gives
+a way out.
+
+**Evidence.**
+- `TestBuildO0`: the executable is byte-identical to what `amd64.Emit` gives,
+  differs from the default build's, behaves the same, and combines with `-x`.
+- `TestO0CrossCheck`: all S2-suite programs, built through the build path with
+  and without `-O0`, give the interpreter's stderr and exit status.
+- `TestBuildUsage`: `-O1` and a misplaced `-O0` are usage errors.
+
+**Consequences.**
+- The slot-based path is now a supported user-visible path, so it must keep
+  passing the suites. Removing or changing `-O0` is a CLI contract change.
+- The flag does not make a program correct by itself. It gives a second build
+  to compare against when a miscompilation is suspected.
+- Phase 5's "every optimization level" criteria now cover two backends, the
+  default and `-O0`. Later passes must say which of them they apply to.
+
+**Revisit when.** A second optimization level arrives, which is when `-O1` and
+the meaning of the default should be decided.
 
 ---
 

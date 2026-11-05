@@ -676,8 +676,8 @@ repeated in each phase below:
       (`benchmarks/2026-11-06-ra0/REPORT.md`).
     - Shipped 2026-11-06 (D-027): `aether build` promotes to SSA and allocates
       registers, with size limits above which a function keeps the earlier
-      paths. Built executables changed. There is no flag to select the
-      slot-based path yet.
+      paths. Built executables changed. `-O0` selects the slot-based path
+      (D-028).
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)
@@ -688,6 +688,8 @@ repeated in each phase below:
     - Not yet covered: compilation latency, compiler memory, and
       scalability (`BENCHMARKS.md` metric categories).
   - optimization flags (`-O0`/`-O1` or similar)
+    - `-O0` added 2026-11-06 (D-028), with a cross-check against the default
+      build on the S2 suite. No other level exists yet.
 - **Exclusions:** inlining, escape analysis, loop optimizations, unless
   measurements justify them.
 - **Acceptance criteria:**

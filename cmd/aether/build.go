@@ -20,6 +20,7 @@ type buildOptions struct {
 	out  string // -o: the output path
 	x    bool   // -x: log every command and tool version to stderr
 	work bool   // -work: keep the work directory and print its path
+	o0   bool   // -O0: no SSA promotion and no registers (D-028)
 }
 
 // errUsage reports a problem with the command line or the files it names;
@@ -33,6 +34,7 @@ func runBuild(args []string, stderr io.Writer) int {
 	fs.StringVar(&opt.out, "o", "", "")
 	fs.BoolVar(&opt.x, "x", false, "")
 	fs.BoolVar(&opt.work, "work", false, "")
+	fs.BoolVar(&opt.o0, "O0", false, "")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(stderr, "aether build: %v\n", err)
 		return diag.ExitUsage
@@ -90,7 +92,12 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 			return ds
 		}
 		var err error
-		if asm, err = emitProgram(prog); err != nil {
+		if opt.o0 {
+			asm, err = amd64.Emit(prog)
+		} else {
+			asm, err = emitProgram(prog)
+		}
+		if err != nil {
 			return []diag.Diagnostic{{Class: diag.Internal, Pos: diag.Pos{File: srcs[0].name}, Message: err.Error()}}
 		}
 		return nil

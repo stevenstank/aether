@@ -20,13 +20,15 @@ const usage = `usage: aether <command> [arguments]
 Commands:
   check FILE.go                     report whether FILE.go is inside Aether's
                                     supported subset (S1)
-  build [-x] [-work] -o OUT FILE.go compile FILE.go into the executable OUT
+  build [-x] [-work] [-O0] -o OUT FILE.go
+                                    compile FILE.go into the executable OUT
   help                              print this message
 
 Build flags:
   -o OUT   output file; an existing regular file is replaced only on success
   -x       print the commands run and the tool versions to stderr
   -work    keep the temporary work directory and print its path
+  -O0      disable optimization: every value in a stack cell, no registers
 
 Exit status of check and build:
   0  success

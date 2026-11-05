@@ -281,8 +281,8 @@ naive: each IR instruction maps to a fixed instruction sequence, and there is
 no optimization. Since D-027, `aether build` gives it functions in SSA form and
 keeps values in registers where it can (`regalloc.go`, D-026). The sequences
 stay the same, and an operand may be a register instead of a cell; this
-section describes the cells, which `amd64.Emit` still uses for every value and
-which hold whatever gets no register. The output is GNU assembly
+section describes the cells, which hold whatever gets no register, and every
+value under `aether build -O0` (D-028). The output is GNU assembly
 in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 `go/*` package, which a dependency test enforces.
 

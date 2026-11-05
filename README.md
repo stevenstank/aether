@@ -52,8 +52,9 @@ verifies the IR; a failure there is an internal error (exit 4).
 `aether build -o OUT prog.go` uses the same codes. It emits Aether's
 assembly, assembles and links it with GNU `as`/`ld` together with Aether's
 runtime, and writes `OUT` only if every step succeeds; an existing `OUT` is
-replaced only then. `-x` prints the commands run and the tool versions, and
-`-work` keeps the work directory. See D-022.
+replaced only then. `-x` prints the commands run and the tool versions,
+`-work` keeps the work directory, and `-O0` builds without SSA promotion or
+registers, with every value in a stack cell. See D-022 and D-028.
 
 The IR interpreter is a test oracle and has no command. Tests compare the
 interpreter and the built executables with the gc-built binary.
