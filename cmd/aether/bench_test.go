@@ -11,8 +11,9 @@ package main
 //
 // TestBenchOracle builds every workload with gc, default and with
 // -gcflags=all='-N -l', and checks both against name.gcout. TestBenchMeasure
-// builds every workload slot-based and promoted to SSA, checks them against
-// name.gcout, and profiles both (bench_profile_test.go). It reports dynamic
+// builds every workload as each compiled variant (slot-based, promoted to
+// SSA, and promoted with registers: RA-0, D-026), checks them against
+// name.gcout, and profiles them (bench_profile_test.go). It reports dynamic
 // and static counts, per-function and per-IR-op counts, register pressure
 // weighted by the measured block frequencies (bench_pressure_test.go), and
 // a model of the instructions a register allocator would leave.
@@ -215,10 +216,10 @@ func TestBenchMeasure(t *testing.T) {
 	fmt.Fprintf(&pr, "workload\tfunc\tvalues\tphis\tmaxLive\tmaxLive(noconst)\tcrossing\tcrossing(noconst)\tmaxAcrossCall\tcallsDyn\tcrossDyn/call\tdyn frac live>6\t>8\t>10\t>12\t>14\n")
 	for _, w := range benchWorkloads(t) {
 		name := w.name
-		var total [2]int64
-		for vi, variant := range []string{"slot", "ssa"} {
+		var total [3]int64
+		for vi, variant := range compiledVariants {
 			exe := filepath.Join(outDir, name+"."+variant)
-			prog, asm := benchBuild(t, name+".go", w.src, vi == 1, exe)
+			prog, asm := benchBuild(t, name+".go", w.src, variant, exe)
 			_, stderr, code, _, _ := benchRun(t, exe)
 			if err := checkRun(stderr, code, w.want); err != nil {
 				t.Fatalf("%s %s: %v", name, variant, err)
@@ -247,11 +248,11 @@ func TestBenchMeasure(t *testing.T) {
 				}
 				fmt.Fprintf(&fns, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%s\n", name, variant, fn, fd.instrs, fd.mem(), fd.cell(), fd.abi(), pct(fd.instrs, d.instrs))
 			}
-			if vi == 1 {
+			if variant == "ssa" {
 				writeModel(&model, &pr, name, prog, d, blockFreq(prog, ins, counts), total[0])
 			}
 		}
-		t.Logf("%s: dynamic instructions slot %d, ssa %d", name, total[0], total[1])
+		t.Logf("%s: dynamic instructions slot %d, ssa %d, ra %d", name, total[0], total[1], total[2])
 	}
 	for file, s := range map[string]*strings.Builder{"summary.tsv": &sum, "functions.tsv": &fns, "pressure.tsv": &pr, "ops.tsv": &ops, "model.tsv": &model} {
 		writeReport(t, outDir, file, s.String())

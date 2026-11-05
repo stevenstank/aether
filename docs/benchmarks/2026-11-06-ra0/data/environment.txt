@@ -1,0 +1,8 @@
+aether commit	2606705 (modified)
+go	go1.26.1 linux/amd64
+as	GNU assembler (GNU Binutils for Ubuntu) 2.42
+ld	GNU ld (GNU Binutils for Ubuntu) 2.42
+cpu	AMD Ryzen 7 7435HS
+usable cpus	1
+affinity	6
+kernel	6.6.87.2-microsoft-standard-WSL2

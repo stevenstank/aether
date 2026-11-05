@@ -54,7 +54,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` and `Init` rules 2026-11-03) |
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 | D-025 | The SSA form of the IR: φ and the SSA-level invariants | Accepted (2026-11-05) |
-| D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment in progress) |
+| D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment complete, criteria met, owner decision pending) |
 
 ## Review log
 
@@ -2205,12 +2205,24 @@ of it, since it keeps the accumulator style.
     tests in both packages. The wrong edge's copies were caught by the φ
     edge tests of `internal/amd64`, not by the S2 suite. The plants were
     temporary and are not part of the tests.
-- Part 3 (not started): measurement with the harness against the
-  thresholds.
+- Part 3 (2026-11-06): measurement with the harness's new `ra` variant,
+  under WSL2 (`benchmarks/2026-11-06-ra0/REPORT.md`). All criteria and
+  both thresholds are met:
+  - dynamic memory operations against SSA fall by 98.4% (b02), 99.8%
+    (b03), 50.2% (b04, narrowly: its hot loop needs 17 registers and
+    spills), 88.5% (b07), and 92.1% (b09);
+  - CPU time against SSA improves by 18–70% on all 9 workloads, with
+    non-overlapping ranges (median ra/ssa 0.299–0.823);
+  - dynamic instructions change by only 0–14%, since selection is
+    unchanged. *Inferred, not measured:* memory dependency chains through
+    cells were the dominant cost, as the baseline inferred.
+  - Control: the slot and SSA measurements are byte-identical to the
+    baseline's.
 
-**Resolving experiment.** RA-0 itself, approved 2026-11-06. The owner then
-decides from its results whether any allocator reaches built executables (a
-new entry, as for D-006 and D-025).
+**Resolving experiment.** RA-0 itself, approved and completed 2026-11-06.
+The owner decides from its results whether any allocator reaches built
+executables (a new entry, as for D-006 and D-025). Until then, RA-0 stays
+test-only.
 
 ---
 

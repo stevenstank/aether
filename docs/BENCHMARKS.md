@@ -1,9 +1,11 @@
 # Aether Measurement Strategy
 
-Status: **harness and one baseline.** The workloads and the harness are
-checked in ([The harness](#the-harness)). One baseline has been measured, the
-register-allocation baseline of 2026-11-05 under WSL2
-([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)).
+Status: **harness and two measurements.** The workloads and the harness
+are checked in ([The harness](#the-harness)). Two measurements exist, both
+under WSL2: the register-allocation baseline of 2026-11-05
+([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md))
+and the RA-0 results of 2026-11-06
+([`benchmarks/2026-11-06-ra0/REPORT.md`](benchmarks/2026-11-06-ra0/REPORT.md)).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time. Phase 3
 deliberately uses a slot-per-value backend with no register allocation.
@@ -64,7 +66,8 @@ check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
 **Variants.** `slot` (what `aether build` produces), `ssa` (every function
-promoted, then the same backend), `gc` (`go build`), and `gcN` (`go build
+promoted, then the same backend), `ra` (promoted and emitted with registers:
+experiment RA-0, D-026; test-only), `gc` (`go build`), and `gcN` (`go build
 -gcflags=all='-N -l'`). The gc variants are reference points only
 ([Comparing against gc](#comparing-against-gc)).
 
@@ -105,8 +108,8 @@ unless `AETHER_BENCH_OUT` is set.
 ```
 # gc variants, checked against the recorded outputs
 AETHER_BENCH_OUT=$OUT go test -count=1 ./cmd/aether -run 'TestBenchOracle$' -v
-# slot and SSA builds, checked and profiled; static and dynamic counts,
-# pressure, and the model: summary, functions, pressure, ops, model .tsv
+# slot, SSA, and RA-0 builds, checked and profiled; static and dynamic
+# counts, pressure, and the model: summary, functions, pressure, ops, model .tsv
 AETHER_BENCH_OUT=$OUT go test -count=1 -timeout 30m ./cmd/aether -run 'TestBenchMeasure$' -v
 # static pressure of the S2 suite: suite_pressure.tsv
 AETHER_BENCH_OUT=$OUT go test -count=1 ./cmd/aether -run 'TestBenchSuitePressure$'

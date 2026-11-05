@@ -42,6 +42,17 @@ func TestBenchTimesSummary(t *testing.T) {
 	if got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
+	got, err = timesSummary(raw + "w\tra\t0\t1000000\t500000\nw\tra\t1\t1000000\t700000\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRA := "w\tra\t2\t0.6\t0.5-0.8\t0.5-0.7\t1.0\t1.0-1.0\n"
+	want = strings.Replace(want, "\nworkload\tssa/slot", wantRA+"\nworkload\tssa/slot", 1) +
+		"\nworkload\tra/ssa cpu\tranges overlap?\tra/slot\tra/gc\tra/gcN\n" +
+		"w\t0.480\tno\t0.20\tn/a\tn/a\n"
+	if got != want {
+		t.Errorf("with RA-0 times: got\n%s\nwant\n%s", got, want)
+	}
 	if _, err := timesSummary(strings.Replace(raw, "2000000\t1000000", "x\t1000000", 1)); err == nil {
 		t.Error("malformed times accepted")
 	}

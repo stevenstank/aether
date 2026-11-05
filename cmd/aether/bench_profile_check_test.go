@@ -143,8 +143,8 @@ func TestBenchCheckRun(t *testing.T) {
 // main stack, and the appended wrapper.
 func TestBenchInstrumentOnlyInserts(t *testing.T) {
 	for _, p := range sampleSuite(t, 6) {
-		for _, ssa := range []bool{false, true} {
-			prog, asm := benchEmit(t, p.name, p.src, ssa)
+		for _, v := range compiledVariants {
+			prog, asm := benchEmit(t, p.name, p.src, v)
 			ins, err := instrument(asm, prog)
 			if err != nil {
 				t.Fatalf("%s: %v", p.name, err)
@@ -188,16 +188,16 @@ func TestBenchInstrumentOnlyInserts(t *testing.T) {
 // TestBenchInstrumentedRuns checks that instrumentation does not change
 // what programs do: on a sample of the S2 suite, the instrumented
 // executable gives the same stderr and exit status as the plain one,
-// slot-based and in SSA form, including programs that panic. When the
+// for every compiled variant, including programs that panic. When the
 // program exits normally, the wrapper writes the peak stack and one
 // counter per region to stdout.
 func TestBenchInstrumentedRuns(t *testing.T) {
 	requireTools(t)
 	dir := t.TempDir()
 	for i, p := range sampleSuite(t, 10) {
-		for _, ssa := range []bool{false, true} {
-			exe := filepath.Join(dir, fmt.Sprint(i, ssa))
-			prog, asm := benchBuild(t, p.name, p.src, ssa, exe)
+		for _, v := range compiledVariants {
+			exe := filepath.Join(dir, fmt.Sprint(i, v))
+			prog, asm := benchBuild(t, p.name, p.src, v, exe)
 			ins, err := instrument(asm, prog)
 			if err != nil {
 				t.Fatalf("%s: %v", p.name, err)
@@ -208,11 +208,11 @@ func TestBenchInstrumentedRuns(t *testing.T) {
 			plainOut, plainErr, plainCode, _, _ := benchRun(t, exe)
 			out, stderr, code, _, _ := benchRun(t, exe+".prof")
 			if code != plainCode || !bytes.Equal(stderr, plainErr) || len(plainOut) != 0 {
-				t.Errorf("%s ssa=%v: instrumented exit %d stderr %q, plain exit %d stderr %q stdout %q",
-					p.name, ssa, code, stderr, plainCode, plainErr, plainOut)
+				t.Errorf("%s %s: instrumented exit %d stderr %q, plain exit %d stderr %q stdout %q",
+					p.name, v, code, stderr, plainCode, plainErr, plainOut)
 			}
 			if code == 0 && len(out) != 8*(len(ins.regions)+1) {
-				t.Errorf("%s ssa=%v: %d bytes of counters, want %d", p.name, ssa, len(out), 8*(len(ins.regions)+1))
+				t.Errorf("%s %s: %d bytes of counters, want %d", p.name, v, len(out), 8*(len(ins.regions)+1))
 			}
 		}
 	}
@@ -239,7 +239,7 @@ func inserted(line string) bool {
 }
 
 // TestBenchProfileCounts checks the measured counts of small programs
-// against counts known from their source, slot-based and in SSA form.
+// against counts known from their source, for every compiled variant.
 func TestBenchProfileCounts(t *testing.T) {
 	requireTools(t)
 	const src = `package main
@@ -260,18 +260,18 @@ func main() {
 }
 `
 	dir := t.TempDir()
-	for _, ssa := range []bool{false, true} {
-		exe := filepath.Join(dir, fmt.Sprint("fib", ssa))
-		prog, asm := benchBuild(t, "fib.go", []byte(src), ssa, exe)
+	for _, v := range compiledVariants {
+		exe := filepath.Join(dir, fmt.Sprint("fib", v))
+		prog, asm := benchBuild(t, "fib.go", []byte(src), v, exe)
 		d, ins, counts := profile(t, prog, asm, exe+".prof", []byte("499500 610\n"))
 		// fib(15) makes 2·fib(16)−1 = 1973 calls, all of them by a call
 		// instruction in main.main or main.fib.
 		if d.calls != 1973 {
-			t.Errorf("ssa=%v: %d calls, want 1973", ssa, d.calls)
+			t.Errorf("%s: %d calls, want 1973", v, d.calls)
 		}
 		freq := blockFreq(prog, ins, counts)
 		if got := freq["main.fib"][0]; got != 1973 {
-			t.Errorf("ssa=%v: fib's entry block ran %d times, want 1973", ssa, got)
+			t.Errorf("%s: fib's entry block ran %d times, want 1973", v, got)
 		}
 		// fib(15) reaches 987 leaves, where n < 2; the other 986 calls
 		// fall through the conditional jump, which starts a region of
@@ -283,11 +283,11 @@ func main() {
 			}
 		}
 		if !fallThrough {
-			t.Errorf("ssa=%v: no region of fib ran 986 times after its conditional jump", ssa)
+			t.Errorf("%s: no region of fib ran 986 times after its conditional jump", v)
 		}
 		m := freq["main.main"]
 		if m[0] != 1 || !slices.Contains(m, 1001) || !slices.Contains(m, 1000) {
-			t.Errorf("ssa=%v: main's block counts %v, want 1 for the entry, 1001 for the loop header, 1000 for the body", ssa, m)
+			t.Errorf("%s: main's block counts %v, want 1 for the entry, 1001 for the loop header, 1000 for the body", v, m)
 		}
 		// Every instruction counted is in a region; summing per function
 		// gives the program's total.
@@ -296,7 +296,7 @@ func main() {
 			sum += fd.instrs
 		}
 		if sum != d.instrs || d.instrs == 0 {
-			t.Errorf("ssa=%v: per-function instructions sum to %d, total %d", ssa, sum, d.instrs)
+			t.Errorf("%s: per-function instructions sum to %d, total %d", v, sum, d.instrs)
 		}
 	}
 }
@@ -310,7 +310,7 @@ func TestBenchPeakStack(t *testing.T) {
 	dir := t.TempDir()
 	peak := func(name, src string) (int64, map[string]funcCode) {
 		exe := filepath.Join(dir, name)
-		prog, asm := benchBuild(t, name+".go", []byte(src), false, exe)
+		prog, asm := benchBuild(t, name+".go", []byte(src), "slot", exe)
 		d, _, _ := profile(t, prog, asm, exe+".prof", []byte("0\n"))
 		code, _ := measureAsm(t, asm)
 		return d.peakStack, code

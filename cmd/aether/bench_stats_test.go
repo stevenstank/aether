@@ -14,7 +14,7 @@ import (
 )
 
 // benchVariants are the executables of each workload, in timing order.
-var benchVariants = []string{"slot", "ssa", "gc", "gcN"}
+var benchVariants = []string{"slot", "ssa", "ra", "gc", "gcN"}
 
 // median returns the median of the sorted xs.
 func median(xs []float64) float64 {
@@ -58,7 +58,8 @@ func summarize(cpu, wall []float64) timeStats {
 // timesSummary summarizes times.tsv: per workload and variant, the CPU time
 // median, interquartile range, and range, and the wall time median and
 // range; then, per workload, the ratios of the CPU medians and whether the
-// slot and SSA ranges overlap.
+// slot and SSA ranges overlap; and, if there are RA-0 times, the same for
+// RA-0 against SSA.
 func timesSummary(raw string) (string, error) {
 	type key struct{ w, v string }
 	cpu, wall := map[key][]float64{}, map[key][]float64{}
@@ -117,6 +118,29 @@ func timesSummary(raw string) (string, error) {
 			return "n/a"
 		}
 		fmt.Fprintf(&b, "%s\t%.3f\t%s\t%s\t%s\t%s\n", w, a.cpuMed/s.cpuMed, overlap, ratio(s, "gc"), ratio(a, "gc"), ratio(a, "gcN"))
+	}
+	header := false
+	for _, w := range workloads {
+		a, okA := stats[key{w, "ssa"}]
+		r, okR := stats[key{w, "ra"}]
+		if !okA || !okR {
+			continue
+		}
+		if !header {
+			b.WriteString("\nworkload\tra/ssa cpu\tranges overlap?\tra/slot\tra/gc\tra/gcN\n")
+			header = true
+		}
+		overlap := "yes"
+		if r.cpuMax < a.cpuMin || a.cpuMax < r.cpuMin {
+			overlap = "no"
+		}
+		ratio := func(v string) string {
+			if g, ok := stats[key{w, v}]; ok {
+				return fmt.Sprintf("%.2f", r.cpuMed/g.cpuMed)
+			}
+			return "n/a"
+		}
+		fmt.Fprintf(&b, "%s\t%.3f\t%s\t%s\t%s\t%s\n", w, r.cpuMed/a.cpuMed, overlap, ratio("slot"), ratio("gc"), ratio("gcN"))
 	}
 	return b.String(), nil
 }

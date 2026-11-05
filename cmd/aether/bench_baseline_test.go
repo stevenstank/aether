@@ -8,20 +8,27 @@ import (
 	"testing"
 )
 
-// baselineDir holds the register-allocation baseline of 2026-11-05.
-var baselineDir = filepath.Join("..", "..", "docs", "benchmarks", "2026-11-05-regalloc", "data")
+// baselineDir holds the register-allocation baseline of 2026-11-05, and
+// ra0Dir the RA-0 results of 2026-11-06 (D-026).
+var (
+	baselineDir = filepath.Join("..", "..", "docs", "benchmarks", "2026-11-05-regalloc", "data")
+	ra0Dir      = filepath.Join("..", "..", "docs", "benchmarks", "2026-11-06-ra0", "data")
+)
 
 // TestBenchBaselineData checks the recorded baseline against the checked-in
 // harness and workloads: the timing summaries the report quotes are
 // timesSummary of the raw times, and the deterministic reports cover
 // exactly the workloads of testdata/bench.
 func TestBenchBaselineData(t *testing.T) {
-	for _, session := range []string{"times_session1", "times_session2", "times_session3"} {
-		raw, err := os.ReadFile(filepath.Join(baselineDir, session+".tsv"))
+	sessions := [][2]string{{baselineDir, "times_session1"}, {baselineDir, "times_session2"},
+		{baselineDir, "times_session3"}, {ra0Dir, "times"}}
+	for _, ds := range sessions {
+		dir, session := ds[0], ds[1]
+		raw, err := os.ReadFile(filepath.Join(dir, session+".tsv"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		want, err := os.ReadFile(filepath.Join(baselineDir, session+"_summary.tsv"))
+		want, err := os.ReadFile(filepath.Join(dir, session+"_summary.tsv"))
 		if err != nil {
 			t.Fatal(err)
 		}

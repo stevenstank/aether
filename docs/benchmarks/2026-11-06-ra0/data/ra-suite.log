@@ -1,0 +1,5 @@
+    ra_native_test.go:98: 239 programs built with registers and run; all match the interpreter
+    ra_native_test.go:99: machine instructions: SSA 176641, RA-0 173586 (-1.7%)
+    ra_native_test.go:100: frame bytes, summed over functions: SSA 332928, RA-0 89472 (-73.1%); largest frame: SSA 10480, RA-0 2752
+    ra_native_test.go:102: aether.mainstack, summed over programs: SSA 324144, RA-0 90464 (-72.1%)
+ok  	github.com/stevenstank/aether/cmd/aether	7.482s

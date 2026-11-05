@@ -411,19 +411,23 @@ func checkRun(stderr []byte, code int, want []byte) error {
 	return nil
 }
 
-// benchEmit compiles src, promotes it to SSA if ssa, and emits it.
-func benchEmit(t *testing.T, name string, src []byte, ssa bool) (*ir.Program, []byte) {
+// compiledVariants are the variants Aether builds: slot-based as aether
+// build does, promoted to SSA, and promoted with registers (RA-0, D-026).
+var compiledVariants = []string{"slot", "ssa", "ra"}
+
+// benchEmit compiles src and emits it as the given compiled variant.
+func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Program, []byte) {
 	t.Helper()
 	prog, ds := compile([]source{{name, src}})
 	if len(ds) > 0 {
 		t.Fatalf("%s: %v", name, ds)
 	}
-	if ssa {
+	if variant != "slot" {
 		if err := promoteProgram(prog, &promoteStats{}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
-	asm, err := amd64.Emit(prog)
+	asm, err := amd64.EmitWith(prog, amd64.EmitOptions{Registers: variant == "ra"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,9 +436,9 @@ func benchEmit(t *testing.T, name string, src []byte, ssa bool) (*ir.Program, []
 
 // benchBuild is benchEmit followed by a link into exe; it also writes the
 // assembly to exe.s.
-func benchBuild(t *testing.T, name string, src []byte, ssa bool, exe string) (*ir.Program, []byte) {
+func benchBuild(t *testing.T, name string, src []byte, variant string, exe string) (*ir.Program, []byte) {
 	t.Helper()
-	prog, asm := benchEmit(t, name, src, ssa)
+	prog, asm := benchEmit(t, name, src, variant)
 	if err := os.WriteFile(exe+".s", asm, 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -671,10 +671,11 @@ repeated in each phase below:
     - Baseline measured 2026-11-05 under WSL2 at `a3b64c7`
       (`benchmarks/2026-11-05-regalloc/REPORT.md`). It also measured the
       run time and run-time stack that the D-006 experiment left open.
-    - Experiment RA-0 (D-026) approved 2026-11-06 and in progress. It is
-      test-only: built executables are unchanged. Parts 1 (allocation and
-      checker) and 2 (emitter, S2 suite natively, `FuzzGenerated`) done;
-      part 3 (measurement) not started.
+    - Experiment RA-0 (D-026) approved and completed 2026-11-06. All of its
+      criteria and thresholds are met
+      (`benchmarks/2026-11-06-ra0/REPORT.md`). It is still test-only:
+      built executables are unchanged until the owner decides, in a new
+      entry, whether an allocator reaches `aether build`.
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)
