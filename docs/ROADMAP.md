@@ -633,11 +633,12 @@ repeated in each phase below:
 
 - **Objective:** better generated code with **no behavior change**.
 - **Scope:**
-  - SSA construction (resolve D-006). First step, authorized 2026-11-03
-    (Phase 4 accepted the same day): the D-006 slot-promotion
-    experiment on the existing load/store IR (dominators, φ placement,
-    renaming, verifier invariants), with no register allocation. The
-    algorithm and the one-or-two-IR question stay open until it reports.
+  - SSA construction (D-006, Accepted 2026-11-05; contract D-025). The
+    D-006 slot-promotion experiment, authorized 2026-11-03 (Phase 4
+    accepted the same day), is **complete and closed**. It ran on the
+    existing load/store IR (dominators, φ placement, renaming, verifier
+    invariants) with no register allocation. It settled the algorithm
+    (dominance frontiers, after lowering) and kept a single IR package.
     - Part 1 (2026-11-04): `ir.Dominators` computes the dominator tree,
       predecessors, and dominance frontiers of a function's CFG
       (Cooper–Harvey–Kennedy), in `internal/ir/dom.go`. It is an analysis
@@ -660,8 +661,12 @@ repeated in each phase below:
       lowering φ to a parallel copy on each incoming edge's path. On the
       S2 suite the slot-based and promoted executables and the
       interpreter agree. The static figures, the findings, and the
-      remaining limitations are in D-006, which stays Proposed until the
-      owner resolves it. Promotion is still used only in tests.
+      remaining limitations are in D-006.
+    - Closed 2026-11-05: D-006 accepted.
+      - SSA is still used only in tests. No command promotes, and built
+        executables are unchanged.
+      - Run-time performance and run-time stack usage were not measured.
+      - The remaining Phase 5 items below are not started.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination

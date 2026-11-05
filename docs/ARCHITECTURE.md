@@ -28,7 +28,7 @@ Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this d
                          │          ├──► IR verifier
                          │          └──► reference interpreter (D-005, test oracle)
                          ▼
-             [Phase 5] SSA construction + optimization passes (D-006, proposed)
+             [Phase 5] SSA construction (D-006; tests only so far) + optimization passes
                          │
            ─ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ─  architecture-independent above
                          ▼                architecture-specific below
@@ -258,7 +258,7 @@ and value numbering never depend on map iteration order.
 - It exists to give tests an oracle and to locate bugs. It is not a product
   feature, has no performance goals, and has no CLI command (D-021).
 
-### 6. Optimizer (Aether, Phase 5+, D-006 proposed)
+### 6. Optimizer (Aether, Phase 5+; SSA per D-006 and D-025)
 
 - Passes are IR → IR functions. Each pass is individually switchable for
   testing.
@@ -347,10 +347,18 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   aligned, so it
   is 8 mod 16 on entry, 0 after the push, and stays 0 after subtracting
   `Size`. Every runtime call is therefore made with `%rsp` aligned.
-- **Registers.** Generated code uses only `%rax` (scratch) and `%rdi` (helper
-  argument), besides `%rbp` and `%rsp`. No value is kept in a register across
-  instructions, so nothing needs saving around calls: every value lives in the
-  frame, which the helpers do not touch.
+- **Registers.** Besides `%rbp` and `%rsp`, generated code uses only these
+  scratch registers, all caller-saved:
+  - `%rax`, the accumulator of every instruction;
+  - `%rcx`, the divisor, the shift count, the complemented operand of
+    `andnot`, and the saved value that breaks a cycle of φ copies;
+  - `%rdx`, the high half and remainder of a division and the alternative
+    result of a shift;
+  - `%rdi`, the runtime helpers' argument.
+
+  No value is kept in a register across IR instructions or edges, so nothing
+  needs saving around calls: every value lives in the frame, which the
+  helpers do not touch. There is no register allocation.
 
 **Instruction selection.** `int` is a 64-bit two's-complement value. Every
 selected instruction already has Go's wraparound semantics, so no operation
@@ -588,7 +596,7 @@ The other rows are still candidates.
 | `internal/diag` | Diagnostic type, classes, rendering, exit codes | — (no `go/*`) | stable within the repo |
 | `internal/frontend` | Load, parse, type-check; produce the checked package | `go/*`, `diag` | internal |
 | `internal/gate` | Subset gate | `frontend`, `diag` | internal |
-| `internal/ir` | IR types, builder, verifier, printer; dominator tree and dominance frontiers (Phase 5, D-006 experiment) | — (no `go/*`) | **contract:** text format + invariants |
+| `internal/ir` | IR types, builder, verifier, printer; dominator tree, dominance frontiers, and slot promotion to SSA (Phase 5, D-006, D-025) | — (no `go/*`) | **contract:** text format + invariants |
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |
 | `internal/opt` | Optimization passes (Phase 5+) | `ir` | internal |
@@ -669,7 +677,8 @@ bug (`TESTING.md`).
 
 ## Undecided areas
 
-- SSA construction method, and whether SSA shares the IR package (D-006)
+- Whether register allocation needs a machine IR separate from the SSA IR
+  (D-006 leaves it to that work)
 - GC strategy (D-010)
 - The register-based successor to ABI-S0 (Phase 5, D-011)
 - Register allocation algorithm

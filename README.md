@@ -15,6 +15,10 @@ representation and backend.
 > (4.3), every integer type with conversions and bit operators (4.4),
 > `/ % << >>` with run-time panics (4.5), package-level `var` and `const`
 > (4.6), and `switch` (4.7).
+>
+> Phase 5 has started. Its first step, the D-006 SSA experiment, is complete
+> and accepted (2026-11-05). SSA construction and the backend's SSA support
+> exist but are used only in tests, so built executables are unchanged.
 
 ## What works today
 
@@ -78,7 +82,7 @@ Go source
   → go/parser + go/types      (reused standard-library frontend)
   → subset gate               (rejects anything not yet supported)
   → Aether IR                 (+ reference interpreter used as a test oracle)
-  → [later] SSA + optimizations
+  → SSA (slot promotion; tests only so far) + [later] optimizations
   → amd64 backend             (instruction selection, frames, later register allocation)
   → GNU assembly → as → ld    (GNU binutils: translate and link only)
   → static ELF executable

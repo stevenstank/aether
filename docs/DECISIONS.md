@@ -33,7 +33,7 @@ benchmarks: none have been run.
 | D-003 | Explicit subset gate and diagnostic classification | Accepted |
 | D-004 | Aether-owned typed CFG IR, non-SSA at first | Accepted |
 | D-005 | Reference interpreter for the IR | Accepted |
-| D-006 | SSA timing and construction method | Proposed (resolving experiment authorized 2026-11-03; Phase 4 accepted) |
+| D-006 | SSA timing and construction method | Accepted (2026-11-05, after the resolving experiment) |
 | D-007 | Executable path: GNU assembler text, `as`, `ld` | Accepted |
 | D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
 | D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only; Phase 4 stack amended 2026-10-26) |
@@ -83,6 +83,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-03 | Owner final Phase 4 review: Phase 4 accepted; the 29 automated negative controls accepted; FI-1 closed as investigated, unexplained, and not reproduced (`TESTING.md`); D-023's `Init` rules approved; the D-006 experiment may start | D-006, D-023 |
 | 2026-11-04 | Owner review of the D-006 experiment plan: part 1 (dominator analysis) accepted; SSA in `internal/ir`, marked per function; φ operands tied to explicit incoming edges; pruned SSA with no `undef`; D-025 created for the SSA contract | D-006, D-025 |
 | 2026-11-05 | Owner review of part 2: the implemented SSA contract accepted as D-025, including parallel edges and SSA functions without φ; `ARCHITECTURE.md` §4 invariant 8 corrected to one operand per incoming edge | D-006, D-025 |
+| 2026-11-05 | Owner closes the D-006 experiment after parts 3 and 4: D-006 accepted with the resolution recorded in its entry; the planted φ-lowering bugs are not added to the negative controls, since the permanent tests detect them | D-006 |
 
 ---
 
@@ -360,7 +361,8 @@ whether failures are being localized with it.
 
 ## D-006: SSA timing and construction method
 
-**Status:** Proposed
+**Status:** Accepted (2026-11-05). The owner closed the resolving
+experiment (parts 1–4) and accepted the resolution below.
 
 **Context.** SSA is needed for credible optimization and register allocation,
 but it is not needed for the first executable.
@@ -401,7 +403,7 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
   or a second one, stay open until the experiment gives evidence.
 - No register allocation is part of it.
 
-**Experiment progress.** The status is still Proposed.
+**Experiment record.** D-006 was Proposed throughout parts 1–4.
 - Part 1 (2026-11-04): the dominator tree and dominance frontiers
   (`ir.Dominators`, `internal/ir/dom.go`). It is an analysis over the
   current IR and changes no contract. Accepted by the owner 2026-11-04.
@@ -412,7 +414,7 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
 - Part 2 (2026-11-04): the `phi` instruction, its printed form, and the
   SSA-level verifier of D-025, with hand-built tests. No slot promotion
   yet; lowering, the interpreter, and the backend are unchanged. The owner
-  accepted D-025 on 2026-11-05. D-006 itself stays Proposed.
+  accepted D-025 on 2026-11-05. D-006 itself stayed Proposed.
 - Part 3 (2026-11-05): `ir.Promote` converts an ordinary function to
   pruned SSA. It computes slot liveness, places φs in the iterated
   dominance frontiers (Cytron et al.) where the slot is live, and renames
@@ -496,28 +498,70 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
     improvement is claimed. The stack used at run time scales with the
     frame sizes of the active calls; it was not measured.
 
-**Findings for the design note** (the owner's to accept; the status stays
-Proposed):
-- **Algorithm.** The dominance-frontier construction after lowering works
-  on the load/store IR without changing lowering: Part 1 plus 221 lines
-  of `promote.go`.
-- **One IR package.** Both forms share the instruction set, printer,
-  verifier, interpreter, and backend, distinguished by `Func.SSA` (D-025).
-  No case needed a different data structure.
-- **Backend input.** The naive backend consumes SSA directly. Whether
-  register allocation needs a separate machine IR is not answered by this
-  experiment, which did no register allocation.
+**Resolution (design note, accepted 2026-11-05).**
+- **Timing.** SSA arrives in Phase 5, after control flow and functions work
+  natively, as proposed.
+- **Construction.** SSA is built after lowering, by promoting the slots of
+  the load/store IR (`ir.Promote`). The method is Cytron et al.: dominance
+  frontiers (Cooper–Harvey–Kennedy dominators), φ placement in the
+  iterated frontiers, pruned by slot liveness, and renaming over the
+  dominator tree. Lowering is unchanged. Construction during lowering was
+  not needed.
+- **One IR package.** Both forms share `internal/ir`: the instruction set,
+  printer, verifier, interpreter, and backend. They are distinguished by
+  `Func.SSA`; D-025 is the SSA contract. No case needed a different data
+  structure.
+- **Backend input.** The current backend consumes SSA IR directly. Whether
+  register allocation needs a separate machine IR is not decided here; it
+  belongs to the register-allocation work.
 
-**Remaining limitations:**
-- Promotion runs only in tests; nothing in `aether build` or `aether
-  check` uses SSA, and no flag selects it.
-- The SSA backend is as naive as the slot-based one. Every value,
-  including each φ, is in memory, and the parallel copies go through
-  `%rax` and `%rcx`.
-- A φ copy runs on every edge into its block, even when the value is
-  unchanged along that edge, except where the operand is the φ itself.
-- There are no corpus golden files for SSA IR or for SSA assembly.
-- `FuzzGenerated` checks promotion in the interpreter only, not natively.
+**Final results.**
+- Part 1: the dominator tree and dominance frontiers.
+- Part 2: `phi` with explicit incoming edges, and the SSA verifier
+  (D-025).
+- Part 3: promotion and φ execution in the interpreter. Identical
+  interpreter results on the 239 S2-suite programs.
+  - IR instructions went from 89,116 to 56,977: 22,065 loads and 12,652
+    stores removed, 2,578 φs added.
+- Part 4: φ lowering in the backend. On the same suite, the slot-based
+  and SSA executables and the interpreter agree, and the slot-based
+  assembly is unchanged.
+  - The static figures are in the table under part 4: 24.6% fewer machine
+    instructions, 27.1% fewer code bytes, 40.9% fewer frame bytes, and no
+    function larger under SSA.
+
+**Measurement methodology.** The static method of part 4 is kept as the
+method for later comparisons:
+- the same programs, Aether build, flags, runtime, and tools;
+- instructions counted in the emitted assembly;
+- code bytes from the function symbols of the linked executable;
+- frame sizes from each prologue;
+- the environment recorded.
+
+**Run-time performance and run-time stack usage were not measured.** The
+figures are static counts, and no run-time improvement is claimed from them.
+
+**Remaining limitations.**
+- **No register allocation.** The SSA backend is as naive as the
+  slot-based one. Every value, including each φ, is in memory, and the
+  parallel copies go through `%rax` and `%rcx`. A φ copy runs on every
+  edge into its block, even when the value is unchanged along that edge,
+  except where the operand is the φ itself.
+- **SSA is test-only.** Nothing in `aether build` or `aether check`
+  promotes, and no flag selects it. Built executables are those of the
+  slot-based path. `FuzzGenerated` checks promotion in the interpreter
+  only, not natively.
+- **φ cycles are covered only by hand-built tests.** No S2-suite program
+  produces a cycle of φ copies, so the `%rcx` cycle breaking is exercised
+  only by `TestNativePhiCopies`.
+- There are no corpus golden files for SSA IR or SSA assembly.
+
+**Negative controls.** The planted φ-lowering bugs were not added to the
+controls of `TESTING.md`. Each one that changes behavior is detected by a
+permanent test: `TestNativePhiCopies`, `TestNativePhiEdges`,
+`TestNativePhiLoopExit`, or `TestNativeSSASuite`. The one bug the first
+tests missed, copies made before a branch is decided, led to
+`TestNativePhiLoopExit`.
 
 ---
 
@@ -1929,7 +1973,7 @@ gc-identical output for these statements.
 contract). The representation choices were directed by the owner on
 2026-11-04. It extends D-021 and D-023 for functions in SSA form only.
 Ordinary functions and their contract are unchanged. The experiment
-context is D-006, which stays Proposed.
+context is D-006, accepted on 2026-11-05 when the experiment closed.
 
 The owner's approval covers these points, all stated below:
 - SSA functions share `internal/ir` with ordinary IR, told apart by
