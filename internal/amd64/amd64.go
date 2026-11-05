@@ -8,6 +8,11 @@
 // register allocation and no optimization, so every IR instruction maps to a
 // fixed instruction sequence (docs/ARCHITECTURE.md §7).
 //
+// A function in SSA form (D-025) is translated the same way. A phi has a
+// cell like any value and emits no code: each edge into its block copies
+// the phi's operand for that edge into the phi's cell, as one parallel
+// copy for all of the block's phis (edgeCopies).
+//
 // The package sees only IR: it imports no go/* package.
 package amd64
 
@@ -15,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/stevenstank/aether/internal/ir"
 )
@@ -62,7 +68,7 @@ const (
 //	16+8*i(%rbp)             argument i, then result j at i = P+j
 //	 0(%rbp)                 saved %rbp
 //	-8(%rbp) .. -8*S(%rbp)   slot s0 .. s(S-1)
-//	-8*(S+1)(%rbp) ..        value v0 .. v(V-1)
+//	-8*(S+1)(%rbp) ..        value cell 0 .. V-1
 //	 8*k(%rsp)               outgoing word k, k < Out
 //
 // Size is 8*(S+V+Out) rounded up to a multiple of 16. On entry %rsp is 8
@@ -93,8 +99,8 @@ func NewFrame(slots, values, out int) (Frame, error) {
 // SlotOffset returns the %rbp-relative offset of slot i.
 func (f Frame) SlotOffset(i int) int { return -8 * (i + 1) }
 
-// ValueOffset returns the %rbp-relative offset of value number id.
-func (f Frame) ValueOffset(id int) int { return -8 * (f.Slots + id + 1) }
+// ValueOffset returns the %rbp-relative offset of value cell i.
+func (f Frame) ValueOffset(i int) int { return -8 * (f.Slots + i + 1) }
 
 // Emit returns the assembly for prog. It verifies prog first; malformed IR,
 // or IR this backend cannot translate, is an error, and no assembly is
@@ -152,15 +158,28 @@ func globalSym(g *ir.Global) string { return "main." + g.Name }
 // emitFunc emits f, the program's function number fi, and returns its
 // frame.
 func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
-	values, out := 0, 0
+	// Each value has a cell, numbered by the rank of its value number
+	// among the function's values. Lowering numbers values densely, so the
+	// cell is the value number; slot promotion removes loads and leaves
+	// gaps, which take no cells.
+	var vals []*ir.Instr
+	out := 0
 	for _, blk := range f.Blocks {
 		for _, in := range blk.Instrs {
-			values = max(values, in.ID+1)
+			if in.ID >= 0 {
+				vals = append(vals, in)
+			}
 			if in.Op == ir.Call {
 				out = max(out, len(in.Callee.Params)+len(in.Callee.Results))
 			}
 		}
 	}
+	slices.SortFunc(vals, func(x, y *ir.Instr) int { return x.ID - y.ID })
+	cells := map[*ir.Instr]int{}
+	for i, in := range vals {
+		cells[in] = i
+	}
+	values := len(vals)
 	// A Tuple call has its own cells, one per result, after the values'
 	// cells (D-023 tuple storage); tuples maps it to the first one.
 	tuples := map[*ir.Instr]int{}
@@ -190,11 +209,12 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 	// Blocks are emitted in order, each under a local label; the entry
 	// block follows the prologue.
 	label := func(blk *ir.Block) string { return fmt.Sprintf(".L%d.b%d", fi, blk.ID) }
+	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, tuples: tuples}
 	for _, blk := range f.Blocks {
 		fmt.Fprintf(b, "%s:\n", label(blk))
 		for _, in := range blk.Instrs {
 			fmt.Fprintf(b, "\t# %s @%s\n", in, in.Pos)
-			if err := emitInstr(b, fr, f, label, tuples, in); err != nil {
+			if err := e.instr(blk, in); err != nil {
 				return Frame{}, fmt.Errorf("amd64: func %s: %s: %v", f.Name, in, err)
 			}
 		}
@@ -221,14 +241,33 @@ var canonical = map[ir.Type]string{
 	ir.U8: "movzbl\t%al, %eax", ir.U16: "movzwl\t%ax, %eax", ir.U32: "movl\t%eax, %eax",
 }
 
-func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) string, tuples map[*ir.Instr]int, in *ir.Instr) error {
-	val := func(v *ir.Instr) string { return fmt.Sprintf("%d(%%rbp)", fr.ValueOffset(v.ID)) }
+// emitter holds what translating one function's instructions needs.
+type emitter struct {
+	b      *bytes.Buffer
+	fr     Frame
+	f      *ir.Func
+	fi     int // the function's index in the program
+	label  func(*ir.Block) string
+	cells  map[*ir.Instr]int // each value's cell
+	tuples map[*ir.Instr]int // each Tuple call's first result cell
+}
+
+// val is the location of v's cell.
+func (e *emitter) val(v *ir.Instr) string {
+	return fmt.Sprintf("%d(%%rbp)", e.fr.ValueOffset(e.cells[v]))
+}
+
+// op emits one instruction.
+func (e *emitter) op(format string, args ...any) {
+	e.b.WriteByte('\t')
+	fmt.Fprintf(e.b, format, args...)
+	e.b.WriteByte('\n')
+}
+
+// instr emits in, an instruction of block blk.
+func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
+	b, fr, f, label, tuples, val, op := e.b, e.fr, e.f, e.label, e.tuples, e.val, e.op
 	res := func() string { return val(in) }
-	op := func(format string, args ...any) {
-		b.WriteByte('\t')
-		fmt.Fprintf(b, format, args...)
-		b.WriteByte('\n')
-	}
 	switch in.Op {
 	case ir.Const:
 		if in.Const >= math.MinInt32 && in.Const <= math.MaxInt32 {
@@ -350,13 +389,38 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("xorq\t$1, %%rax")
 		op("movq\t%%rax, %s", res())
+	case ir.Phi:
+		// Its cell is written on each edge into the block (edgeCopies).
 	case ir.Jump:
+		e.edgeCopies(ir.Edge{From: blk, Index: 0})
 		op("jmp\t%s", label(in.Targets[0]))
 	case ir.Branch:
+		// An edge whose target has phis gets its copies on the path taken
+		// only along that edge: after the conditional jump, or under a
+		// label of its own. This splits critical and parallel edges in the
+		// emitted code without changing the CFG. The copies do not change
+		// the flags.
+		then, els := ir.Edge{From: blk, Index: 0}, ir.Edge{From: blk, Index: 1}
 		op("movq\t%s, %%rax", val(in.Args[0]))
 		op("testq\t%%rax, %%rax")
-		op("jnz\t%s", label(in.Targets[0]))
-		op("jmp\t%s", label(in.Targets[1]))
+		switch {
+		case !hasPhis(in.Targets[0]):
+			op("jnz\t%s", label(in.Targets[0]))
+			e.edgeCopies(els)
+			op("jmp\t%s", label(in.Targets[1]))
+		case !hasPhis(in.Targets[1]):
+			op("jz\t%s", label(in.Targets[1]))
+			e.edgeCopies(then)
+			op("jmp\t%s", label(in.Targets[0]))
+		default:
+			elsLabel := fmt.Sprintf("%s.%d", label(blk), 1)
+			op("jz\t%s", elsLabel)
+			e.edgeCopies(then)
+			op("jmp\t%s", label(in.Targets[0]))
+			fmt.Fprintf(b, "%s:\n", elsLabel)
+			e.edgeCopies(els)
+			op("jmp\t%s", label(in.Targets[1]))
+		}
 	case ir.Println, ir.Print:
 		// The operands are already in the frame, which the helpers do not
 		// touch, so they survive the calls. Each call is made with %rsp
@@ -425,5 +489,54 @@ func emitInstr(b *bytes.Buffer, fr Frame, f *ir.Func, label func(*ir.Block) stri
 func canon(op func(string, ...any), t ir.Type) {
 	if c, ok := canonical[t]; ok {
 		op("%s", c)
+	}
+}
+
+// hasPhis reports whether blk begins with a phi.
+func hasPhis(blk *ir.Block) bool { return len(blk.Instrs) > 0 && blk.Instrs[0].Op == ir.Phi }
+
+// edgeCopies emits the copies that give the phis of edge's target their
+// values along it (D-025). The phis take their values together, so this is
+// a parallel copy: a phi's operand may be another phi of the same block,
+// whose old value must be read before its cell is overwritten. A copy is
+// emitted once no remaining copy reads its destination. If none is ready,
+// the destinations of the remaining copies are a permutation of their
+// sources, a set of cycles: saving one destination in %rcx breaks its
+// cycle. A copy of a cell to itself is omitted.
+func (e *emitter) edgeCopies(edge ir.Edge) {
+	type move struct{ dst, src string }
+	var moves []move
+	blk := edge.From.Instrs[len(edge.From.Instrs)-1].Targets[edge.Index]
+	for _, phi := range blk.Instrs {
+		if phi.Op != ir.Phi {
+			break
+		}
+		// Verify guarantees exactly one operand for the edge.
+		src, dst := e.val(phi.Args[slices.Index(phi.Edges, edge)]), e.val(phi)
+		if src != dst {
+			moves = append(moves, move{dst, src})
+		}
+	}
+	for len(moves) > 0 {
+		i := slices.IndexFunc(moves, func(m move) bool {
+			return !slices.ContainsFunc(moves, func(n move) bool { return n.src == m.dst })
+		})
+		if i < 0 {
+			d := moves[0].dst
+			e.op("movq\t%s, %%rcx", d)
+			for j := range moves {
+				if moves[j].src == d {
+					moves[j].src = "%rcx"
+				}
+			}
+			continue
+		}
+		if m := moves[i]; m.src == "%rcx" {
+			e.op("movq\t%%rcx, %s", m.dst)
+		} else {
+			e.op("movq\t%s, %%rax", m.src)
+			e.op("movq\t%%rax, %s", m.dst)
+		}
+		moves = slices.Delete(moves, i, i+1)
 	}
 }

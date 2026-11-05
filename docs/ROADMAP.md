@@ -655,7 +655,13 @@ repeated in each phase below:
       tree), and φ execution in the interpreter. On the S2 suite the
       interpreter's results are identical before and after promotion, and
       the promoted IR verifies. `FuzzGenerated` checks the same. Lowering
-      and the backend unchanged; the backend still rejects φ.
+      and the backend unchanged.
+    - Part 4 (2026-11-05): the amd64 backend consumes SSA functions,
+      lowering φ to a parallel copy on each incoming edge's path. On the
+      S2 suite the slot-based and promoted executables and the
+      interpreter agree. The static figures, the findings, and the
+      remaining limitations are in D-006, which stays Proposed until the
+      owner resolves it. Promotion is still used only in tests.
   - register allocation
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination

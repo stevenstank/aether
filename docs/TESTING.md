@@ -482,6 +482,12 @@ differential harness.
 
 ### Optimization cross-checks (Phase 5+)
 
+- D-006 experiment (part 4): `TestNativeSSASuite` builds every S2-suite
+  program both as lowered and with every function promoted to SSA. Both
+  executables must match the interpreter. The test also logs the static
+  comparison of the two (instructions, code bytes, frame sizes);
+  `internal/amd64/ssa_test.go` covers φ copies along every kind of edge
+  natively.
 - Every end-to-end and differential test runs at every optimization level.
 - Results at every level must be identical to each other and to the oracle.
 - In tests, the verifier runs after every pass.

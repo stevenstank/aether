@@ -311,6 +311,16 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   `main.init`; a program without one gets a `main.init` that only returns,
   since `_start` always calls it. `aether.mainstack` covers the larger of
   `main.main`'s and `main.init`'s frames.
+- **SSA functions (D-006 part 4, D-025).** Value cells are numbered by
+  the rank of the value number, so the gaps that slot promotion leaves
+  take no space; for ordinary functions the cell is the value number. A
+  `phi` emits no code. Each edge into its block copies the operands for
+  that edge into the φs' cells, as one parallel copy (a cycle is broken
+  through `%rcx`). A `jump` makes the copies before jumping. A `branch`
+  makes them after its conditional jump, on the path of the edge they
+  belong to, or under a label `.L<f>.b<n>.1` for the false edge when both
+  targets have φs. Critical and parallel edges are split in the emitted
+  code only, and the CFG is unchanged.
 - **Tuples (increment 4.3).** A call with several results has one extra
   value cell per result, after the ordinary values' cells; they are filled
   from the outgoing area right after the call, and `extract` copies one.

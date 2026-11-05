@@ -430,9 +430,94 @@ after Phase 4 is accepted (accepted 2026-11-03, so it may start):
 
   `FuzzGenerated` now checks the same equivalence. The pass is
   `internal/ir/promote.go`, 221 lines.
-- Remaining: part 4, the backend consuming SSA, static machine-instruction
-  counts against the Phase 4 backend, and the design note that resolves
-  this entry.
+- Part 4 (2026-11-05): the amd64 backend consumes SSA functions directly,
+  with no machine IR. A φ has a frame cell like any value and emits no
+  code. Each edge into a block with φs copies the operands for that edge
+  into the φs' cells as one parallel copy: a copy is emitted once no
+  remaining copy reads its destination, and a cycle is broken by saving
+  one destination in `%rcx`. A `branch` puts each edge's copies only on
+  the path for that edge: after the conditional jump, or under a label of
+  its own (`.L<f>.b<n>.1`) when both targets have φs. Critical and
+  parallel edges are thereby split in the emitted code; the CFG is not
+  changed. Value cells are numbered by rank of value number, so the gaps
+  promotion leaves take no frame space. For ordinary functions, whose
+  numbering is dense, this is the same layout, and the slot-based assembly
+  is byte-identical to that of the previous backend on all 384 programs
+  compared (the corpus `run` programs, generated seeds 1–600, and the
+  overflow programs). The change is in `internal/amd64/amd64.go`.
+
+  Tests:
+  - `internal/amd64/ssa_test.go`, run natively and in the interpreter:
+    - a loop header whose φs swap, rotate three ways, fan out from an
+      overwritten φ, and keep their own value;
+    - every `branch` shape: φs only at the true target, only at the false
+      target, at both, and parallel edges to one block, along critical
+      edges;
+    - a loop that exits from the block its back edge assigns.
+  - `TestNativeSSASuite` builds every S2-suite program (239) twice, as
+    lowered and with every function promoted. Both executables and the
+    interpreter give the same stderr and exit status.
+  - Six bugs were planted in the φ lowering:
+    - Four were detected: sequential copies with no cycle breaking,
+      operands looked up per predecessor instead of per edge, the wrong
+      edge's copies, and a dropped copy.
+    - Copies made before the branch was decided were detected only after
+      the loop-exit test was added for it.
+    - Saving a cycle's source instead of its destination is equivalent,
+      since in a cycle every source is a destination.
+
+  **Measurement.** `go test ./cmd/aether -run TestNativeSSASuite -v`
+  (setting `AETHER_SSA_REPORT=FILE` also writes per-function figures).
+  - Same programs, same Aether build, same flags, and the same runtime.
+  - Promotion is the only difference.
+  - Environment: go1.26.1, GNU as and ld 2.42, WSL2.
+  - Instructions are counted in the emitted assembly; code bytes are the
+    sizes of the `main.*` function symbols in the linked executable.
+
+  On 547 functions (418 compiled functions plus 129 empty `main.init`
+  stubs):
+
+  | Static measure | Slot-based | SSA | Change |
+  |---|---|---|---|
+  | Machine instructions | 234,359 | 176,641 | −24.6% |
+  | Code bytes | 1,419,429 | 1,034,373 | −27.1% |
+  | Frame bytes, summed over functions | 563,520 | 332,928 | −40.9% |
+  | Largest frame | 17,200 | 10,480 | −39.1% |
+  | `aether.mainstack`, summed over programs | 545,056 | 324,144 | −40.5% |
+
+  - No function is larger under SSA by any of these measures. 287
+    functions are smaller, and 260 are unchanged: the stubs and the
+    functions without slots.
+  - Per function with more than one instruction, the ratio of SSA to
+    slot-based instructions ranges from 0.48 to 1.00, with median 0.81.
+  - No cycle of φ copies occurs in the suite (no `%rcx` save), so cycles
+    are covered only by the hand-built tests.
+  - These are static counts. Run time was not measured, and no run-time
+    improvement is claimed. The stack used at run time scales with the
+    frame sizes of the active calls; it was not measured.
+
+**Findings for the design note** (the owner's to accept; the status stays
+Proposed):
+- **Algorithm.** The dominance-frontier construction after lowering works
+  on the load/store IR without changing lowering: Part 1 plus 221 lines
+  of `promote.go`.
+- **One IR package.** Both forms share the instruction set, printer,
+  verifier, interpreter, and backend, distinguished by `Func.SSA` (D-025).
+  No case needed a different data structure.
+- **Backend input.** The naive backend consumes SSA directly. Whether
+  register allocation needs a separate machine IR is not answered by this
+  experiment, which did no register allocation.
+
+**Remaining limitations:**
+- Promotion runs only in tests; nothing in `aether build` or `aether
+  check` uses SSA, and no flag selects it.
+- The SSA backend is as naive as the slot-based one. Every value,
+  including each φ, is in memory, and the parallel copies go through
+  `%rax` and `%rcx`.
+- A φ copy runs on every edge into its block, even when the value is
+  unchanged along that edge, except where the operand is the φ itself.
+- There are no corpus golden files for SSA IR or for SSA assembly.
+- `FuzzGenerated` checks promotion in the interpreter only, not natively.
 
 ---
 
@@ -1920,20 +2005,19 @@ reachability, positions, calls, globals, and panics):
 9. Only `phi` has `Edges`, and a `phi` appears only in an SSA function.
 
 An SSA function needs no φ. Values used across blocks by dominance alone
-are valid. The interpreter and the backend already execute them, because
-each keeps one value per value number for the whole call
+are valid. The interpreter and the backend execute them, because each keeps
+one value per value number, or one cell per value, for the whole call
 (`TestSSACrossBlockValues`).
 
 If the CFG cannot be analyzed (a target that is not a block of the
 function, or targets on a terminator other than `jump` or `branch`), those
 errors are reported and the dominance checks (3, 5, 6, 8) are skipped.
 
-**Not yet decided (part 4).** How the backend lowers φ, including
-critical-edge splitting and sequencing parallel copies. This needs no
-contract change, only its implementation. Until then the backend rejects
-`phi` ("no instruction selection"). The interpreter executes φ as specified
-above (D-006 part 3). Lowering produces only ordinary functions, so SSA IR
-reaches either one only from tests.
+**Execution (D-006 parts 3 and 4).** The interpreter executes φ as specified
+above. The amd64 backend gives each φ a frame cell and makes the copies
+for each edge as one parallel copy on that edge's path, with no change to
+the CFG (D-006 part 4). Neither needed a contract change. Lowering produces
+only ordinary functions, so SSA IR reaches either one only from tests.
 
 **Alternatives considered.**
 1. **φ operands matched to predecessor order.** Rejected by the owner: the

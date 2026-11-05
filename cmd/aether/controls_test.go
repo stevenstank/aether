@@ -34,9 +34,11 @@ var controls = []control{
 	// 4.1
 	{name: "4.1 branch targets swapped", file: "internal/amd64/amd64.go",
 		old: `op("jnz\t%s", label(in.Targets[0]))
-		op("jmp\t%s", label(in.Targets[1]))`,
+			e.edgeCopies(els)
+			op("jmp\t%s", label(in.Targets[1]))`,
 		new: `op("jnz\t%s", label(in.Targets[1]))
-		op("jmp\t%s", label(in.Targets[0]))`,
+			e.edgeCopies(els)
+			op("jmp\t%s", label(in.Targets[0]))`,
 		pkg: "./internal/amd64", run: "^TestNativeControlFlow$", want: []string{`--- FAIL: TestNativeControlFlow`}},
 	{name: "4.1 setb for signed less", file: "internal/amd64/amd64.go",
 		old: `ir.Lt: "setl"`, new: `ir.Lt: "setb"`,

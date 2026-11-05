@@ -97,6 +97,12 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 	if len(ds) > 0 {
 		return ds, nil
 	}
+	return assemble(asm, opt, stderr)
+}
+
+// assemble assembles asm, the program's assembly, links it with the
+// runtime into the executable opt.out, and reports problems as build does.
+func assemble(asm []byte, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic, error) {
 	var log io.Writer
 	if opt.x {
 		log = stderr

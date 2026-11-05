@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stevenstank/aether/internal/interp"
@@ -84,17 +86,18 @@ func checkPromotion(t *testing.T, name string, src []byte, steps int64, st *prom
 	return true
 }
 
-// TestPromoteSuite promotes every program of the S2 suite (TESTING.md): the
-// corpus programs expected to run, the 200 generated programs of the
-// differential test, and the stack-overflow programs. The promoted IR must
-// verify, promotion must be deterministic, and the interpreter must give the
-// same output and exit status before and after it.
-func TestPromoteSuite(t *testing.T) {
-	type prog struct {
-		name string
-		src  []byte
-	}
-	var progs []prog
+// s2Program is a program of the S2 suite.
+type s2Program struct {
+	name string
+	src  []byte
+}
+
+// s2Suite returns the programs of the S2 suite (TESTING.md), in a fixed
+// order: the corpus programs expected to run, the first generatedPrograms
+// valid generated programs, and the stack-overflow programs. It also
+// returns how many came from the corpus.
+func s2Suite(t *testing.T) (progs []s2Program, corpusRun int) {
+	t.Helper()
 	for _, path := range corpus(t) {
 		if readExpectation(t, path).class != "run" {
 			continue
@@ -103,21 +106,30 @@ func TestPromoteSuite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		progs = append(progs, prog{filepath.Base(path), src})
+		progs = append(progs, s2Program{filepath.Base(path), src})
 	}
-	corpusRun := len(progs)
+	corpusRun = len(progs)
 	for seed := uint64(1); len(progs) < corpusRun+generatedPrograms; seed++ {
 		if seed > 3*generatedPrograms {
 			t.Fatal("too many generated programs rejected")
 		}
 		src := []byte(generate(seed))
 		if _, ds := compile([]source{{"gen.go", src}}); len(ds) == 0 {
-			progs = append(progs, prog{fmt.Sprintf("gen%04d.go", seed), src})
+			progs = append(progs, s2Program{fmt.Sprintf("gen%04d.go", seed), src})
 		}
 	}
-	for name, body := range overflowPrograms {
-		progs = append(progs, prog{name + ".go", []byte("package main\n\n" + body + "\n")})
+	names := slices.Sorted(maps.Keys(overflowPrograms))
+	for _, name := range names {
+		progs = append(progs, s2Program{name + ".go", []byte("package main\n\n" + overflowPrograms[name] + "\n")})
 	}
+	return progs, corpusRun
+}
+
+// TestPromoteSuite promotes every program of the S2 suite. The promoted IR
+// must verify, promotion must be deterministic, and the interpreter must
+// give the same output and exit status before and after it.
+func TestPromoteSuite(t *testing.T) {
+	progs, corpusRun := s2Suite(t)
 	var st promoteStats
 	for _, p := range progs {
 		if !checkPromotion(t, p.name, p.src, interpSteps, &st) {
