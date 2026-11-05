@@ -54,7 +54,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` and `Init` rules 2026-11-03) |
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 | D-025 | The SSA form of the IR: φ and the SSA-level invariants | Accepted (2026-11-05) |
-| D-026 | Register-allocation experiment RA-0 | Proposed (2026-11-06) |
+| D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment in progress) |
 
 ## Review log
 
@@ -87,6 +87,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-05 | Owner review of part 2: the implemented SSA contract accepted as D-025, including parallel edges and SSA functions without φ; `ARCHITECTURE.md` §4 invariant 8 corrected to one operand per incoming edge | D-006, D-025 |
 | 2026-11-05 | Owner closes the D-006 experiment after parts 3 and 4: D-006 accepted with the resolution recorded in its entry; the planted φ-lowering bugs are not added to the negative controls, since the permanent tests detect them | D-006 |
 | 2026-11-06 | Register-allocation baseline and benchmark harness checked in (`BENCHMARKS.md`); D-026 created as Proposed. No owner decision yet. | D-026 |
+| 2026-11-06 | Owner approves D-026: experiment RA-0 may start, under the plan, criteria, and thresholds recorded in the entry | D-026 |
 
 ---
 
@@ -2110,9 +2111,12 @@ or a later IR extension (memory, address-of) leaves some slots unpromotable.
 
 ## D-026: Register-allocation experiment RA-0
 
-**Status:** Proposed (2026-11-06). Not approved. No allocator code may be
-written until the owner resolves it. Nothing in it changes built
-executables, the IR contract, or ABI-S0 (D-011).
+**Status:** Accepted (2026-11-06, owner approval of the plan, criteria, and
+thresholds below; proposed the same day). The experiment is in progress.
+The approval covers RA-0 as a test-only experiment. It does not let any
+allocator reach built executables, which needs a new entry after the
+results. Nothing in it changes built executables, the IR contract, or
+ABI-S0 (D-011).
 
 **Context.** The register-allocation baseline
 (`benchmarks/2026-11-05-regalloc/REPORT.md`, measured under WSL2 at
@@ -2173,11 +2177,40 @@ estimate in the report (0.49–0.72× SSA's dynamic instructions for a full
 allocator) is modeled, not measured, and RA-0 is expected to fall well short
 of it, since it keeps the accumulator style.
 
-**Resolving experiment.** RA-0 itself, after the owner approves this entry.
-The owner then decides from its results whether any allocator reaches built
-executables (a new entry, as for D-006 and D-025).
+**Experiment record.**
+- Part 1 (2026-11-06): `internal/amd64/regalloc.go`: SSA value liveness,
+  the allocation (candidates, spill-everywhere, coloring in dominator-tree
+  preorder), and `checkAllocation`. The checker tracks register contents
+  forward and shares no code with the allocation's liveness. Tests:
+  hand-built functions (straight-line, loop, φ swap, calls, diamond, spill)
+  and their expected locations; planted bad assignments; and a sweep that
+  moves every allocated value to every other register (378 mutants
+  accepted, 262 rejected), where the checker's verdict must match
+  interference computed from liveness.
+- Part 2 (2026-11-06): `amd64.EmitWith(prog, EmitOptions{Registers: true})`
+  uses the allocation; `Emit`, which `aether build` uses, is unchanged.
+  Results:
+  - all 239 S2-suite programs built with registers give the interpreter's
+    stderr and exit status (`TestNativeRASuite`);
+  - the assembly is deterministic;
+  - `FuzzGenerated` also emits with registers, which runs the checker, and
+    runs the result natively; 60 s of fuzzing (17,560 executions) found
+    nothing.
+  - Static figures against SSA without registers: machine instructions
+    176,641 → 173,586 (−1.7%, only coinciding φ copies disappear); frame
+    bytes 332,928 → 89,472 (−73.1%).
+  - The five planted bugs of criterion 4 were each caught by permanent
+    tests: shared registers and register values across calls by the
+    checker, and the dropped edge copy and wrong cycle break by the native
+    tests in both packages. The wrong edge's copies were caught by the φ
+    edge tests of `internal/amd64`, not by the S2 suite. The plants were
+    temporary and are not part of the tests.
+- Part 3 (not started): measurement with the harness against the
+  thresholds.
 
-**Resolve when.** Before any register-allocation code is written.
+**Resolving experiment.** RA-0 itself, approved 2026-11-06. The owner then
+decides from its results whether any allocator reaches built executables (a
+new entry, as for D-006 and D-025).
 
 ---
 

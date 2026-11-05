@@ -34,7 +34,9 @@ func FuzzCheck(f *testing.F) {
 // may only be rejected as invalid, for an overflowing constant. Since the
 // D-006 experiment, every function of an accepted program is also promoted
 // to SSA form, which must give the same interpreter results
-// (checkPromotion).
+// (checkPromotion). Since experiment RA-0 (D-026), the promoted program is
+// also emitted with registers, which checks every allocation, and run
+// natively when it finishes (checkRegistersGenerated).
 func FuzzGenerated(f *testing.F) {
 	f.Add(uint64(1))
 	f.Fuzz(func(t *testing.T, seed uint64) {
@@ -46,7 +48,8 @@ func FuzzGenerated(f *testing.F) {
 			}
 			return
 		}
-		checkPromotion(t, "gen.go", src, 1_000_000, &promoteStats{})
+		finished := checkPromotion(t, "gen.go", src, 1_000_000, &promoteStats{})
+		checkRegistersGenerated(t, src, finished)
 	})
 }
 

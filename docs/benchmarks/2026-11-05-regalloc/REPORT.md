@@ -7,6 +7,10 @@ The workloads and the harness were checked in afterwards, unchanged in what
 they measure (§1, "Provenance"). The next experiment it recommends is
 **Proposed** as D-026 and is not approved.
 
+*Update 2026-11-06:* the owner accepted D-026, so RA-0 is approved and in
+progress. The report is otherwise kept as written; "Proposed" below records
+the status when it was written.
+
 **How to read this report.** Every claim is one of:
 - **Measured:** read from the data files in `data/`.
 - **Inferred:** an explanation of measured data that was not itself measured.

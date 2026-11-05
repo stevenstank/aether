@@ -13,6 +13,10 @@
 // the phi's operand for that edge into the phi's cell, as one parallel
 // copy for all of the block's phis (edgeCopies).
 //
+// EmitWith can also keep values of SSA functions in registers instead of
+// cells (experiment RA-0, D-026; regalloc.go). It is test-only: Emit, which
+// aether build uses, never allocates registers.
+//
 // The package sees only IR: it imports no go/* package.
 package amd64
 
@@ -106,7 +110,18 @@ func (f Frame) ValueOffset(i int) int { return -8 * (f.Slots + i + 1) }
 // or IR this backend cannot translate, is an error, and no assembly is
 // returned. The output depends only on prog: it contains no paths, times,
 // or host data.
-func Emit(prog *ir.Program) ([]byte, error) {
+func Emit(prog *ir.Program) ([]byte, error) { return EmitWith(prog, EmitOptions{}) }
+
+// EmitOptions select test-only variants of the backend.
+type EmitOptions struct {
+	// Registers keeps values of SSA functions in registers where
+	// allocate assigns them (RA-0, D-026). Every allocation is checked
+	// with checkAllocation; one that fails is an error.
+	Registers bool
+}
+
+// EmitWith is Emit with options.
+func EmitWith(prog *ir.Program, opts EmitOptions) ([]byte, error) {
 	if errs := ir.Verify(prog); len(errs) > 0 {
 		return nil, fmt.Errorf("amd64: malformed IR: %v", errs[0])
 	}
@@ -116,7 +131,7 @@ func Emit(prog *ir.Program) ([]byte, error) {
 	// Verify guarantees exactly one main function.
 	var stack int
 	for fi, f := range prog.Funcs {
-		fr, err := emitFunc(&b, fi, f)
+		fr, err := emitFunc(&b, fi, f, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -157,16 +172,26 @@ func globalSym(g *ir.Global) string { return "main." + g.Name }
 
 // emitFunc emits f, the program's function number fi, and returns its
 // frame.
-func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
-	// Each value has a cell, numbered by the rank of its value number
-	// among the function's values. Lowering numbers values densely, so the
-	// cell is the value number; slot promotion removes loads and leaves
-	// gaps, which take no cells.
+func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, error) {
+	regs := map[*ir.Instr]int{}
+	if opts.Registers {
+		var err error
+		if regs, err = allocate(f); err != nil {
+			return Frame{}, err
+		}
+		if err := checkAllocation(f, regs); err != nil {
+			return Frame{}, err
+		}
+	}
+	// Each value without a register has a cell, numbered by the rank of
+	// its value number among those values. Lowering numbers values
+	// densely, so without registers the cell is the value number; slot
+	// promotion removes loads and leaves gaps, which take no cells.
 	var vals []*ir.Instr
 	out := 0
 	for _, blk := range f.Blocks {
 		for _, in := range blk.Instrs {
-			if in.ID >= 0 {
+			if _, ok := regs[in]; in.ID >= 0 && !ok {
 				vals = append(vals, in)
 			}
 			if in.Op == ir.Call {
@@ -209,7 +234,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func) (Frame, error) {
 	// Blocks are emitted in order, each under a local label; the entry
 	// block follows the prologue.
 	label := func(blk *ir.Block) string { return fmt.Sprintf(".L%d.b%d", fi, blk.ID) }
-	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, tuples: tuples}
+	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples}
 	for _, blk := range f.Blocks {
 		fmt.Fprintf(b, "%s:\n", label(blk))
 		for _, in := range blk.Instrs {
@@ -248,12 +273,16 @@ type emitter struct {
 	f      *ir.Func
 	fi     int // the function's index in the program
 	label  func(*ir.Block) string
-	cells  map[*ir.Instr]int // each value's cell
+	cells  map[*ir.Instr]int // the cell of each value without a register
+	regs   map[*ir.Instr]int // the register of each value with one, in allocRegs
 	tuples map[*ir.Instr]int // each Tuple call's first result cell
 }
 
-// val is the location of v's cell.
+// val is the location of v: its register or its cell.
 func (e *emitter) val(v *ir.Instr) string {
+	if r, ok := e.regs[v]; ok {
+		return allocRegs[r]
+	}
 	return fmt.Sprintf("%d(%%rbp)", e.fr.ValueOffset(e.cells[v]))
 }
 
