@@ -1,0 +1,12 @@
+=== RUN   TestNativeSSASuite
+    ssa_native_test.go:181: 239 programs (34 corpus, 200 generated, 5 overflow) built and run both ways; all match the interpreter
+    ssa_native_test.go:183: functions: 547 slot, 547 SSA
+    ssa_native_test.go:184: machine instructions: slot 234359, SSA 176641 (-24.6%)
+    ssa_native_test.go:185: code bytes: slot 1419429, SSA 1034373 (-27.1%)
+    ssa_native_test.go:186: frame bytes, summed over functions: slot 563520, SSA 332928 (-40.9%); largest frame: slot 17200, SSA 10480
+    ssa_native_test.go:188: aether.mainstack, summed over programs: slot 545056, SSA 324144 (-40.5%)
+    ssa_native_test.go:189: functions where SSA is larger: 0 in instructions, 0 in bytes, 0 in frame size
+    ssa_native_test.go:191: cycles of phi copies broken through %rcx: 0
+--- PASS: TestNativeSSASuite (11.77s)
+PASS
+ok  	github.com/stevenstank/aether/cmd/aether	11.783s

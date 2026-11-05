@@ -1,0 +1,14 @@
+== gofmt
+== vet
+vet exit 0
+== test
+ok  	github.com/stevenstank/aether/cmd/aether	180.108s
+ok  	github.com/stevenstank/aether/internal/amd64	11.956s
+ok  	github.com/stevenstank/aether/internal/diag	0.003s
+ok  	github.com/stevenstank/aether/internal/frontend	0.006s
+ok  	github.com/stevenstank/aether/internal/gate	0.017s
+ok  	github.com/stevenstank/aether/internal/interp	0.610s
+ok  	github.com/stevenstank/aether/internal/ir	1.157s
+ok  	github.com/stevenstank/aether/internal/lower	0.008s
+ok  	github.com/stevenstank/aether/internal/toolchain	0.036s
+test exit 0

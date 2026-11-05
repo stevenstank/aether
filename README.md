@@ -150,5 +150,6 @@ See [docs/ROADMAP.md](docs/ROADMAP.md#milestone-1-acceptance-test).
 - [Roadmap](docs/ROADMAP.md): phased milestones with acceptance criteria
 - [Decisions](docs/DECISIONS.md): decision register (accepted and proposed)
 - [Testing](docs/TESTING.md): testing strategy
-- [Benchmarks](docs/BENCHMARKS.md): measurement strategy
+- [Benchmarks](docs/BENCHMARKS.md): measurement strategy, harness, and
+  baselines
 - [AGENTS.md](AGENTS.md): working rules for contributors and coding agents

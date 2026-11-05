@@ -386,7 +386,7 @@ and ends with an empty `.note.GNU-stack` section (no executable stack).
   check before every prologue's `pushq %rbp`. The outgoing area counts in the
   frame size, which stays at most 1 GiB.
 - Phase 5: instruction selection over SSA, register allocation (algorithm
-  not chosen), a register-based successor to the Phase 4 convention, and a
+  not chosen; D-026 proposes an experiment), a register-based successor to the Phase 4 convention, and a
   frame layout that reserves room for future stack maps (D-010).
 
 ### 8. Assembly and linking (GNU host tools, D-007, D-008)

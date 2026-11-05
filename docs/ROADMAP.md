@@ -666,11 +666,22 @@ repeated in each phase below:
       - SSA is still used only in tests. No command promotes, and built
         executables are unchanged.
       - Run-time performance and run-time stack usage were not measured.
-      - The remaining Phase 5 items below are not started.
+      - The remaining Phase 5 items below were not started at closure.
   - register allocation
+    - Baseline measured 2026-11-05 under WSL2 at `a3b64c7`
+      (`benchmarks/2026-11-05-regalloc/REPORT.md`). It also measured the
+      run time and run-time stack that the D-006 experiment left open.
+    - Experiment RA-0 is Proposed (D-026), not approved. No allocator code
+      exists.
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)
+    - Checked in 2026-11-06: the nine workloads of the baseline with their
+      gc outputs, dynamic counts by instrumentation, register pressure,
+      timing, and tests of the harness in the normal suite. The benchmarks
+      themselves run only on request (`AETHER_BENCH_OUT`).
+    - Not yet covered: compilation latency, compiler memory, and
+      scalability (`BENCHMARKS.md` metric categories).
   - optimization flags (`-O0`/`-O1` or similar)
 - **Exclusions:** inlining, escape analysis, loop optimizations, unless
   measurements justify them.

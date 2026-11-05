@@ -21,8 +21,9 @@ throwaway check run outside the repository: E1–E11 during Phase 0, and later
 experiments in the phase their note names (E12 in Phase 1, E13 and E14 at
 the Phase 4 design gate). Their results are summarized in
 [Phase 0 research notes](#phase-0-research-notes) at the end of this file,
-which also holds the later experiments. Nothing here is supported by
-benchmarks: none have been run.
+which also holds the later experiments. Benchmarks were first measured on
+2026-11-05, the register-allocation baseline
+(`benchmarks/2026-11-05-regalloc/REPORT.md`). Only D-026 cites them.
 
 ## Summary
 
@@ -53,6 +54,7 @@ benchmarks: none have been run.
 | D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` and `Init` rules 2026-11-03) |
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 | D-025 | The SSA form of the IR: φ and the SSA-level invariants | Accepted (2026-11-05) |
+| D-026 | Register-allocation experiment RA-0 | Proposed (2026-11-06) |
 
 ## Review log
 
@@ -84,6 +86,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-04 | Owner review of the D-006 experiment plan: part 1 (dominator analysis) accepted; SSA in `internal/ir`, marked per function; φ operands tied to explicit incoming edges; pruned SSA with no `undef`; D-025 created for the SSA contract | D-006, D-025 |
 | 2026-11-05 | Owner review of part 2: the implemented SSA contract accepted as D-025, including parallel edges and SSA functions without φ; `ARCHITECTURE.md` §4 invariant 8 corrected to one operand per incoming edge | D-006, D-025 |
 | 2026-11-05 | Owner closes the D-006 experiment after parts 3 and 4: D-006 accepted with the resolution recorded in its entry; the planted φ-lowering bugs are not added to the negative controls, since the permanent tests detect them | D-006 |
+| 2026-11-06 | Register-allocation baseline and benchmark harness checked in (`BENCHMARKS.md`); D-026 created as Proposed. No owner decision yet. | D-026 |
 
 ---
 
@@ -2102,6 +2105,79 @@ Ordinary IR goldens and tests are unchanged.
 
 **Revisit when.** Part 3 or part 4 shows a rule is missing or too strict,
 or a later IR extension (memory, address-of) leaves some slots unpromotable.
+
+---
+
+## D-026: Register-allocation experiment RA-0
+
+**Status:** Proposed (2026-11-06). Not approved. No allocator code may be
+written until the owner resolves it. Nothing in it changes built
+executables, the IR contract, or ABI-S0 (D-011).
+
+**Context.** The register-allocation baseline
+(`benchmarks/2026-11-05-regalloc/REPORT.md`, measured under WSL2 at
+`a3b64c7`) found:
+- *Measured:* SSA promotion alone cut dynamic instructions by 12–35% and
+  CPU time by 14–48% on nine S2 workloads.
+- *Measured:* low register pressure. 98.6% of S2-suite functions have at
+  most 12 values live at once (constants excluded), the largest has 16, and
+  at most 5 values are live across any call.
+- *Measured:* about half of dynamic instructions are compare/branch
+  sequences, constants, and ABI-S0 call overhead, which allocation alone
+  does not remove.
+- *Inferred, not measured:* the gap between instruction and time ratios
+  comes from store→load chains through stack cells. No hardware counters
+  were available.
+
+**Proposal.** A test-only experiment, like D-006, with no change to built
+executables:
+- Allocate directly on the SSA IR, with the assignment kept in
+  `internal/amd64`. No machine IR.
+- Greedy coloring in dominator-tree preorder (SSA-based coloring), with
+  spill-everywhere for functions whose pressure exceeds the register count.
+- 11 allocatable registers: `%rbx`, `%rsi`, `%rdi`, `%r8`–`%r15`. `%rax`,
+  `%rcx`, and `%rdx` stay reserved scratch, so the existing division,
+  shift, φ-cycle, and prologue sequences are unchanged.
+- Values live across any call, and tuples, stay in cells.
+- φs become parallel copies between locations.
+- An independent allocation checker over the IR liveness and the assignment.
+
+**Proposed acceptance criteria.** All of these, on the checked-in harness
+(`BENCHMARKS.md`):
+1. The S2 suite and the nine workloads give identical stderr and exit
+   status for slot, SSA, RA-0, and the interpreter or gc oracle.
+2. The checker passes on every function, also in `FuzzGenerated`, natively.
+3. The assembly is deterministic.
+4. Permanent tests detect planted bugs: interfering values sharing a
+   register, a register value live across a call, a dropped edge copy, a
+   wrong cycle break, and the wrong edge's copies.
+5. The result is reported whatever it is.
+
+**Proposed thresholds.** Expectations registered before the experiment:
+- dynamic memory operations fall by at least 50% relative to SSA on b02,
+  b03, b04, b07, and b09;
+- CPU time (median of 15 pinned runs) improves by at least 10% over SSA on
+  at least 5 of the 9 workloads, with non-overlapping min–max ranges.
+
+Missing them is a recorded negative result. It would redirect Phase 5 work
+to instruction selection and the calling convention, not to a more
+sophisticated allocator.
+
+**Alternatives.** Linear scan, Chaitin–Briggs coloring, and a separate
+machine IR. The report (§5) compares them. Each is reconsidered with data if
+the experiment shows spill cost, constraint handling, or the checker needs
+them.
+
+**Missing evidence.** Everything the experiment would produce. The model
+estimate in the report (0.49–0.72× SSA's dynamic instructions for a full
+allocator) is modeled, not measured, and RA-0 is expected to fall well short
+of it, since it keeps the accumulator style.
+
+**Resolving experiment.** RA-0 itself, after the owner approves this entry.
+The owner then decides from its results whether any allocator reaches built
+executables (a new entry, as for D-006 and D-025).
+
+**Resolve when.** Before any register-allocation code is written.
 
 ---
 
