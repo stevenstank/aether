@@ -1,7 +1,7 @@
 package amd64
 
-// Register allocation for experiment RA-0 (D-026). It is test-only: no
-// command asks for it, so built executables are unchanged.
+// Register allocation as designed by experiment RA-0 (D-026), which aether
+// build uses (D-027).
 //
 // RA-0 changes only where values live. Instruction selection stays the
 // accumulator sequences of instr, which read operands with movq or an
@@ -9,6 +9,7 @@ package amd64
 // well be a register as a cell. %rax, %rcx, and %rdx stay reserved scratch;
 // values go in the 11 registers of allocRegs or keep their cells:
 //   - only SSA functions are allocated, and only values of reachable blocks;
+//   - a function of more than maxAllocValues values gets no registers;
 //   - a value live across a call (an Aether call, println, print, or panic)
 //     keeps its cell: under ABI-S0 (D-011) no register survives a call, and
 //     the runtime helpers clobber %rdi and %rsi;
@@ -37,6 +38,15 @@ import (
 
 // allocRegs are the allocatable registers, in preference order.
 var allocRegs = [...]string{"%rbx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"}
+
+// maxAllocValues bounds the functions allocate takes on. Its working sets
+// grow with the square of a function's values (a set of live values per
+// instruction), which a program can make arbitrarily large: a println of a
+// million constants needs about 10^11 entries. A larger function keeps
+// every value in its cell, which costs speed and nothing else. It is well
+// above the largest function of the S2 suite and of the workloads, which
+// TestBuildBackendLimits checks.
+const maxAllocValues = 2000
 
 // valueSet is a set of values.
 type valueSet map[*ir.Instr]bool
@@ -142,7 +152,7 @@ func liveAfter(b *ir.Block, out valueSet) []valueSet {
 // registers.
 func allocate(f *ir.Func) (map[*ir.Instr]int, error) {
 	regs := map[*ir.Instr]int{}
-	if !f.SSA {
+	if !f.SSA || countValues(f) > maxAllocValues {
 		return regs, nil
 	}
 	d := ir.Dominators(f)
@@ -183,22 +193,7 @@ func allocate(f *ir.Func) (map[*ir.Instr]int, error) {
 			}
 		}
 	}
-	// Spill everywhere: while some point has more candidates live than
-	// registers, the one there with the fewest uses, and of those the one
-	// defined first, keeps its cell.
-	for {
-		over := overloaded(f, d, liveOut, after, cand)
-		if over == nil {
-			break
-		}
-		slices.SortFunc(over, func(x, y *ir.Instr) int {
-			if uses[x] != uses[y] {
-				return uses[x] - uses[y]
-			}
-			return x.ID - y.ID
-		})
-		delete(cand, over[0])
-	}
+	spill(f, d, liveOut, after, cand, uses)
 	// Color in dominator-tree preorder.
 	work := []*ir.Block{f.Entry()}
 	for len(work) > 0 {
@@ -264,11 +259,49 @@ func allocate(f *ir.Func) (map[*ir.Instr]int, error) {
 	return regs, nil
 }
 
-// overloaded returns the candidates live at the first point of f where
-// more of them are live than there are registers, or nil if there is none.
-// The points are each block's entry, with all of its φs, and each
-// definition, with the values live after it.
-func overloaded(f *ir.Func, d *ir.DomTree, liveOut []valueSet, after [][]valueSet, cand valueSet) []*ir.Instr {
+// countValues returns the number of values f defines.
+func countValues(f *ir.Func) (n int) {
+	for _, b := range f.Blocks {
+		for _, in := range b.Instrs {
+			if in.ID >= 0 {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// spill removes values from cand (spill everywhere) until no point of f has
+// more candidates live than there are registers. It visits the points in
+// order: each block's entry, with all of its φs, and each definition, with
+// the values live after it. Where too many are live, those with the fewest
+// uses, and of those the ones defined first, keep their cells. Removing
+// candidates only lowers the pressure at points already visited, so one
+// pass is enough.
+func spill(f *ir.Func, d *ir.DomTree, liveOut []valueSet, after [][]valueSet, cand valueSet, uses map[*ir.Instr]int) {
+	relieve := func(point valueSet, def *ir.Instr) {
+		var live []*ir.Instr
+		for v := range point {
+			if cand[v] {
+				live = append(live, v)
+			}
+		}
+		if def != nil && cand[def] && !point[def] {
+			live = append(live, def)
+		}
+		if len(live) <= len(allocRegs) {
+			return
+		}
+		slices.SortFunc(live, func(x, y *ir.Instr) int {
+			if uses[x] != uses[y] {
+				return uses[x] - uses[y]
+			}
+			return x.ID - y.ID
+		})
+		for _, v := range live[:len(live)-len(allocRegs)] {
+			delete(cand, v)
+		}
+	}
 	for _, b := range f.Blocks {
 		if !d.Reachable(b) {
 			continue
@@ -281,29 +314,13 @@ func overloaded(f *ir.Func, d *ir.DomTree, liveOut []valueSet, after [][]valueSe
 		for _, phi := range b.Instrs[:first] {
 			entry[phi] = true
 		}
-		points := []valueSet{entry}
+		relieve(entry, nil)
 		for j, in := range b.Instrs {
 			if in.ID >= 0 && in.Op != ir.Phi {
-				p := valueSet{in: true}
-				for v := range after[b.ID][j] {
-					p[v] = true
-				}
-				points = append(points, p)
-			}
-		}
-		for _, p := range points {
-			var live []*ir.Instr
-			for v := range p {
-				if cand[v] {
-					live = append(live, v)
-				}
-			}
-			if len(live) > len(allocRegs) {
-				return live
+				relieve(after[b.ID][j], in)
 			}
 		}
 	}
-	return nil
 }
 
 // sortedValues returns s in value-number order.

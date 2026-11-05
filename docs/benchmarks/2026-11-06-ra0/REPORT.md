@@ -4,8 +4,12 @@ Experiment RA-0 of D-026: values of SSA functions in registers, with the
 instruction sequences unchanged. Measured at Aether commit `2606705` plus the
 harness's `ra` variant (uncommitted at the time, "modified" in
 `data/environment.txt`), under WSL2, with the harness of `BENCHMARKS.md`.
-RA-0 is test-only: `aether build` does not allocate registers, and its
-executables are unchanged.
+RA-0 was test-only when measured: `aether build` did not allocate registers.
+
+*Update 2026-11-06:* RA-0 has since shipped to `aether build` (D-027). Its
+dynamic counts and static sizes on the workloads did not change, so this
+report describes what ships; where it says nothing changes built
+executables, it records the status when it was written.
 
 **How to read this report.** As in the baseline report
 (`../2026-11-05-regalloc/REPORT.md`):

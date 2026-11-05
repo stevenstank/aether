@@ -411,8 +411,9 @@ func checkRun(stderr []byte, code int, want []byte) error {
 	return nil
 }
 
-// compiledVariants are the variants Aether builds: slot-based as aether
-// build does, promoted to SSA, and promoted with registers (RA-0, D-026).
+// compiledVariants are the variants Aether builds: slot-based, promoted to
+// SSA, and with registers, which is what aether build produces (D-026,
+// D-027).
 var compiledVariants = []string{"slot", "ssa", "ra"}
 
 // benchEmit compiles src and emits it as the given compiled variant.
@@ -422,12 +423,19 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 	if len(ds) > 0 {
 		t.Fatalf("%s: %v", name, ds)
 	}
-	if variant != "slot" {
+	if variant == "ra" {
+		asm, err := emitProgram(prog)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return prog, asm
+	}
+	if variant == "ssa" {
 		if err := promoteProgram(prog, &promoteStats{}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
-	asm, err := amd64.EmitWith(prog, amd64.EmitOptions{Registers: variant == "ra"})
+	asm, err := amd64.Emit(prog)
 	if err != nil {
 		t.Fatal(err)
 	}

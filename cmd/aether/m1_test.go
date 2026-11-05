@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/stevenstank/aether/internal/amd64"
 )
 
 // The Milestone 1 acceptance test (docs/ROADMAP.md §Milestone 1 acceptance
@@ -169,7 +167,7 @@ func TestMilestone1(t *testing.T) {
 	}
 
 	// P2: Aether's backend emitted the program's instructions.
-	asm, err := amd64.Emit(prog)
+	asm, err := emitProgram(prog)
 	if err != nil {
 		t.Fatal(err)
 	}

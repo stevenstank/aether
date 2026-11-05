@@ -673,9 +673,11 @@ repeated in each phase below:
       run time and run-time stack that the D-006 experiment left open.
     - Experiment RA-0 (D-026) approved and completed 2026-11-06. All of its
       criteria and thresholds are met
-      (`benchmarks/2026-11-06-ra0/REPORT.md`). It is still test-only:
-      built executables are unchanged until the owner decides, in a new
-      entry, whether an allocator reaches `aether build`.
+      (`benchmarks/2026-11-06-ra0/REPORT.md`).
+    - Shipped 2026-11-06 (D-027): `aether build` promotes to SSA and allocates
+      registers, with size limits above which a function keeps the earlier
+      paths. Built executables changed. There is no flag to select the
+      slot-based path yet.
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)

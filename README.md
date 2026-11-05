@@ -16,9 +16,10 @@ representation and backend.
 > `/ % << >>` with run-time panics (4.5), package-level `var` and `const`
 > (4.6), and `switch` (4.7).
 >
-> Phase 5 has started. Its first step, the D-006 SSA experiment, is complete
-> and accepted (2026-11-05). SSA construction and the backend's SSA support
-> exist but are used only in tests, so built executables are unchanged.
+> Phase 5 has started. `aether build` now promotes functions to SSA form
+> (D-006) and keeps values in registers where it can (D-026, D-027). Other
+> Phase 5 work, such as optimization passes and a register calling convention,
+> has not started.
 
 ## What works today
 
@@ -82,8 +83,8 @@ Go source
   → go/parser + go/types      (reused standard-library frontend)
   → subset gate               (rejects anything not yet supported)
   → Aether IR                 (+ reference interpreter used as a test oracle)
-  → SSA (slot promotion; tests only so far) + [later] optimizations
-  → amd64 backend             (instruction selection, frames, later register allocation)
+  → SSA (slot promotion) + [later] optimizations
+  → amd64 backend             (register allocation, instruction selection, frames)
   → GNU assembly → as → ld    (GNU binutils: translate and link only)
   → static ELF executable
 ```

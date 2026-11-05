@@ -11,6 +11,7 @@ import (
 
 	"github.com/stevenstank/aether/internal/amd64"
 	"github.com/stevenstank/aether/internal/diag"
+	"github.com/stevenstank/aether/internal/ir"
 	"github.com/stevenstank/aether/internal/toolchain"
 )
 
@@ -89,7 +90,7 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 			return ds
 		}
 		var err error
-		if asm, err = amd64.Emit(prog); err != nil {
+		if asm, err = emitProgram(prog); err != nil {
 			return []diag.Diagnostic{{Class: diag.Internal, Pos: diag.Pos{File: srcs[0].name}, Message: err.Error()}}
 		}
 		return nil
@@ -98,6 +99,40 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 		return ds, nil
 	}
 	return assemble(asm, opt, stderr)
+}
+
+// Promotion's tables grow with blocks times slots, and so can the φs it
+// places, which a program can make arbitrarily large. A function over these
+// limits stays slot-based (D-027), which costs speed and nothing else. They
+// are well above every function of the S2 suite and of the workloads, which
+// TestBuildBackendLimits checks.
+const (
+	maxPromoteInstrs     = 10_000
+	maxPromoteBlockSlots = 1_000_000
+)
+
+// promotable reports whether f is within the limits on promotion.
+func promotable(f *ir.Func) bool {
+	instrs := 0
+	for _, b := range f.Blocks {
+		instrs += len(b.Instrs)
+	}
+	return instrs <= maxPromoteInstrs && len(f.Blocks)*len(f.Slots) <= maxPromoteBlockSlots
+}
+
+// emitProgram is the backend of aether build (D-027): it promotes every
+// function of prog within the limits to SSA form (ir.Promote, D-006), in
+// place, and emits it with values in registers (RA-0, D-026), which checks
+// every allocation. Any failure is a bug in Aether, not in the program.
+func emitProgram(prog *ir.Program) ([]byte, error) {
+	for _, f := range prog.Funcs {
+		if promotable(f) {
+			if err := ir.Promote(f); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return amd64.EmitWith(prog, amd64.EmitOptions{Registers: true})
 }
 
 // assemble assembles asm, the program's assembly, links it with the

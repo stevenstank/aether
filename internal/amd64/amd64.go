@@ -5,8 +5,8 @@
 // The Phase 3 backend is deliberately naive. Every slot and every IR value
 // lives in its own 8-byte stack slot in an rbp-based frame; each instruction
 // loads its operands into %rax, computes, and stores the result. There is no
-// register allocation and no optimization, so every IR instruction maps to a
-// fixed instruction sequence (docs/ARCHITECTURE.md §7).
+// optimization, so every IR instruction maps to a fixed instruction sequence
+// (docs/ARCHITECTURE.md §7).
 //
 // A function in SSA form (D-025) is translated the same way. A phi has a
 // cell like any value and emits no code: each edge into its block copies
@@ -14,8 +14,8 @@
 // copy for all of the block's phis (edgeCopies).
 //
 // EmitWith can also keep values of SSA functions in registers instead of
-// cells (experiment RA-0, D-026; regalloc.go). It is test-only: Emit, which
-// aether build uses, never allocates registers.
+// cells (experiment RA-0, D-026; regalloc.go), as aether build asks it to
+// (D-027). Emit never allocates registers.
 //
 // The package sees only IR: it imports no go/* package.
 package amd64
@@ -112,7 +112,7 @@ func (f Frame) ValueOffset(i int) int { return -8 * (f.Slots + i + 1) }
 // or host data.
 func Emit(prog *ir.Program) ([]byte, error) { return EmitWith(prog, EmitOptions{}) }
 
-// EmitOptions select test-only variants of the backend.
+// EmitOptions select variants of the backend.
 type EmitOptions struct {
 	// Registers keeps values of SSA functions in registers where
 	// allocate assigns them (RA-0, D-026). Every allocation is checked

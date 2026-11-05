@@ -7,8 +7,7 @@ under WSL2: the register-allocation baseline of 2026-11-05
 and the RA-0 results of 2026-11-06
 ([`benchmarks/2026-11-06-ra0/REPORT.md`](benchmarks/2026-11-06-ra0/REPORT.md)).
 This document itself contains no numbers. Aether's generated code is much
-slower than gc's and is expected to stay so for a long time. Phase 3
-deliberately uses a slot-per-value backend with no register allocation.
+slower than gc's and is expected to stay so for a long time.
 
 Benchmarking starts in Phase 5 (`ROADMAP.md`). Its purpose is to decide which
 optimizations are worth implementing and to detect regressions. It is not for
@@ -57,18 +56,18 @@ score.
 ## The harness
 
 The harness is test code in `cmd/aether` (`bench_*_test.go`). It uses the
-compiler's own stages (`compile`, the test-only `promoteProgram`,
-`amd64.Emit`, `assemble`), so it measures exactly what `aether build`
-produces, plus the test-only SSA variant. It does not change the compiler.
+compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `ra`
+variant is exactly what `aether build` produces, and it also builds the earlier
+slot-based and SSA variants. It does not change the compiler.
 
 **Workloads.** `cmd/aether/testdata/bench/*.go`, S2 programs that `aether
 check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
-**Variants.** `slot` (what `aether build` produces), `ssa` (every function
-promoted, then the same backend), `ra` (promoted and emitted with registers:
-experiment RA-0, D-026; test-only), `gc` (`go build`), and `gcN` (`go build
--gcflags=all='-N -l'`). The gc variants are reference points only
+**Variants.** `ra` (what `aether build` produces since D-027: promoted and
+emitted with registers), `slot` (what it produced before: every value in a
+cell), `ssa` (promoted, with every value in a cell), `gc` (`go build`), and
+`gcN` (`go build -gcflags=all='-N -l'`). The gc variants are reference points only
 ([Comparing against gc](#comparing-against-gc)).
 
 **Dynamic counts without hardware counters.** `bench_profile_test.go`

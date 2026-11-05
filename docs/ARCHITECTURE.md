@@ -28,13 +28,13 @@ Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this d
                          │          ├──► IR verifier
                          │          └──► reference interpreter (D-005, test oracle)
                          ▼
-             [Phase 5] SSA construction (D-006; tests only so far) + optimization passes
+             [Phase 5] SSA construction (D-006, D-027) + [later] optimization passes
                          │
            ─ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ─  architecture-independent above
                          ▼                architecture-specific below
                    amd64 backend:
                      instruction selection
-                     register allocation   (Phase 3: none, every value in a stack slot)
+                     register allocation   (D-026, D-027: registers or stack cells)
                      frame layout
                      GNU assembly emission (D-007)
                          │
@@ -277,8 +277,12 @@ and value numbering never depend on map iteration order.
 ### 7. Backend (Aether, architecture-specific)
 
 The **Phase 3 backend** (`internal/amd64`, D-007, D-022) is deliberately
-naive. There is no register allocation and no optimization: each IR
-instruction maps to a fixed instruction sequence. The output is GNU assembly
+naive: each IR instruction maps to a fixed instruction sequence, and there is
+no optimization. Since D-027, `aether build` gives it functions in SSA form and
+keeps values in registers where it can (`regalloc.go`, D-026). The sequences
+stay the same, and an operand may be a register instead of a cell; this
+section describes the cells, which `amd64.Emit` still uses for every value and
+which hold whatever gets no register. The output is GNU assembly
 in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 `go/*` package, which a dependency test enforces.
 
@@ -347,8 +351,8 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   aligned, so it
   is 8 mod 16 on entry, 0 after the push, and stays 0 after subtracting
   `Size`. Every runtime call is therefore made with `%rsp` aligned.
-- **Registers.** Besides `%rbp` and `%rsp`, generated code uses only these
-  scratch registers, all caller-saved:
+- **Registers.** Besides `%rbp` and `%rsp` and the registers that hold values
+  (below), generated code uses these scratch registers, all caller-saved:
   - `%rax`, the accumulator of every instruction;
   - `%rcx`, the divisor, the shift count, the complemented operand of
     `andnot`, and the saved value that breaks a cycle of φ copies;
@@ -356,9 +360,10 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
     result of a shift;
   - `%rdi`, the runtime helpers' argument.
 
-  No value is kept in a register across IR instructions or edges, so nothing
-  needs saving around calls: every value lives in the frame, which the
-  helpers do not touch. There is no register allocation.
+  Values may be in `%rbx`, `%rsi`, `%rdi`, or `%r8`–`%r15` (D-026); the first
+  three scratch registers are never allocated. Registers are not saved around
+  calls: a value live across a call, or an operand of `println` or `print`,
+  lives in the frame, which the helpers do not touch.
 
 **Instruction selection.** `int` is a 64-bit two's-complement value. Every
 selected instruction already has Go's wraparound semantics, so no operation
@@ -385,9 +390,9 @@ and ends with an empty `.note.GNU-stack` section (no executable stack).
   caller-owned outgoing area at the bottom of the frame, and a stack-bound
   check before every prologue's `pushq %rbp`. The outgoing area counts in the
   frame size, which stays at most 1 GiB.
-- Phase 5: instruction selection over SSA, register allocation (algorithm
-  not chosen; experiment RA-0 under D-026), a register-based successor to the Phase 4 convention, and a
-  frame layout that reserves room for future stack maps (D-010).
+- Phase 5: instruction selection over SSA, a register-based successor to the
+  Phase 4 convention, and a frame layout that reserves room for future stack
+  maps (D-010).
 
 ### 8. Assembly and linking (GNU host tools, D-007, D-008)
 
@@ -665,8 +670,8 @@ bug (`TESTING.md`).
   frontend.
 - SSA (Phase 5) is added as a pass over the existing IR, plus stricter verifier
   invariants. Phase 3 lowering stays valid.
-- Register allocation replaces the slot-per-value strategy inside the backend.
-  The IR contract does not change.
+- Register allocation replaced the slot-per-value strategy inside the backend
+  in `aether build` (D-027). The IR contract did not change.
 - The binutils boundary is accepted long-term (D-008). If a concrete
   requirement ever justifies an in-house assembler or ELF writer, it would
   replace only `internal/toolchain` and the final emission step. Everything
@@ -677,11 +682,10 @@ bug (`TESTING.md`).
 
 ## Undecided areas
 
-- Whether register allocation needs a machine IR separate from the SSA IR
-  (D-006 leaves it to that work)
+- Whether later register-allocation work needs a machine IR separate from the
+  SSA IR (D-026 allocates on the SSA IR)
 - GC strategy (D-010)
 - The register-based successor to ABI-S0 (Phase 5, D-011)
-- Register allocation algorithm
 - Representation of interfaces, closures, defer records, and maps
 - Goroutine stack strategy
 - Multi-package compilation, and how imported packages are type-checked and

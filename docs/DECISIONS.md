@@ -23,7 +23,7 @@ the Phase 4 design gate). Their results are summarized in
 [Phase 0 research notes](#phase-0-research-notes) at the end of this file,
 which also holds the later experiments. Benchmarks were first measured on
 2026-11-05, the register-allocation baseline
-(`benchmarks/2026-11-05-regalloc/REPORT.md`). Only D-026 cites them.
+(`benchmarks/2026-11-05-regalloc/REPORT.md`). Only D-026 and D-027 cite them.
 
 ## Summary
 
@@ -54,7 +54,8 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-023 | The S2 IR extension, introduced in stages | Accepted (staged, 2026-10-26; `MaxDepth` and `Init` rules 2026-11-03) |
 | D-024 | Strict left-to-right evaluation order | Accepted (2026-11-03) |
 | D-025 | The SSA form of the IR: φ and the SSA-level invariants | Accepted (2026-11-05) |
-| D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment complete, criteria met, owner decision pending) |
+| D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment complete, criteria met; shipped by D-027) |
+| D-027 | `aether build` promotes to SSA and allocates registers | Accepted (2026-11-06, owner direction) |
 
 ## Review log
 
@@ -88,6 +89,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-05 | Owner closes the D-006 experiment after parts 3 and 4: D-006 accepted with the resolution recorded in its entry; the planted φ-lowering bugs are not added to the negative controls, since the permanent tests detect them | D-006 |
 | 2026-11-06 | Register-allocation baseline and benchmark harness checked in (`BENCHMARKS.md`); D-026 created as Proposed. No owner decision yet. | D-026 |
 | 2026-11-06 | Owner approves D-026: experiment RA-0 may start, under the plan, criteria, and thresholds recorded in the entry | D-026 |
+| 2026-11-06 | Owner directs that RA-0 ship to `aether build` after its results; D-027 created | D-026, D-027 |
 
 ---
 
@@ -2220,9 +2222,88 @@ of it, since it keeps the accumulator style.
     baseline's.
 
 **Resolving experiment.** RA-0 itself, approved and completed 2026-11-06.
-The owner decides from its results whether any allocator reaches built
-executables (a new entry, as for D-006 and D-025). Until then, RA-0 stays
-test-only.
+The owner decided from its results that RA-0 reaches built executables:
+D-027.
+
+---
+
+## D-027: `aether build` promotes to SSA and allocates registers
+
+**Status:** Accepted (2026-11-06, owner direction to ship RA-0 to
+`aether build`, after the results of D-026).
+
+**Context.** RA-0 met every criterion and threshold of D-026
+(`benchmarks/2026-11-06-ra0/REPORT.md`). It allocates only SSA functions, so
+shipping it also ships slot promotion (D-006), which until now ran only in
+tests.
+
+**Decision.**
+- `aether build` compiles as before, then `emitProgram` (`cmd/aether/build.go`)
+  promotes each function with `ir.Promote` and emits with
+  `amd64.EmitWith(prog, EmitOptions{Registers: true})`, which checks every
+  allocation with `checkAllocation`. A failure of either is an `internal`
+  diagnostic, and no executable is produced.
+- **Size limits.** A function stays slot-based if it has more than 10,000 IR
+  instructions, or if blocks × slots exceeds 1,000,000. A function of more
+  than 2,000 values after promotion gets no registers. Such a function is
+  slower and otherwise correct. These paths are the ones the earlier suites
+  tested.
+- `amd64.Emit`, the slot-based and SSA paths, and the interpreter's
+  unpromoted IR stay in place as test variants and oracles. The IR contract,
+  ABI-S0, and the runtime interface do not change.
+- There is no flag. `aether build` has one backend, and no way to ask for
+  the slot-based one. Optimization flags remain a separate Phase 5 item.
+
+**Why the limits exist.** The first attempt had none. Two runs of the test
+suite ended with the session shutting down, and after the second the WSL2 VM
+had restarted. Rerun under a 6 GB-per-process limit, `TestBuildLargeFrame` ran
+out of memory in `EmitWith`: it builds a `println` of 1,100,000 constants, and
+the allocator kept a set of live values per instruction, about 10^11 entries
+for that function. That this caused the shutdowns is inferred; the kernel log
+did not survive the restart. RA-0's own testing did not reach this, because its
+largest function had 1,310 values. Promotion was not observed to fail; its limits are set from its
+table sizes, not from a measured failure.
+
+**Spilling changed.** Spill-everywhere restarted its scan after each spill,
+which took 1 min 49 s on a function at the limit (1,000 parameters live at
+once). It now makes one forward pass, 171 ms on the same function. On the
+nine workloads, `summary.tsv`, `functions.tsv`, and `ops.tsv` stayed
+byte-identical to the RA-0 data, so RA-0's dynamic counts and static sizes
+describe what ships.
+
+**Evidence.**
+- `TestMilestone1`: `prog.s` is `emitProgram`'s output, and the independently
+  rebuilt executable is identical.
+- `TestBuildBackend` and `TestBuildBackendLimits`: the build uses
+  `emitProgram`; no function of the S2 suite or the workloads reaches a limit
+  (the largest has 1,310 values); a function over each limit builds and gives
+  the right output.
+- `go test ./...`, including the negative controls and the gc differential
+  tests, passes through the shipped path, as does 60 s of `FuzzGenerated`
+  (15,409 executions).
+- Three workloads built by `aether build` are byte-identical to the harness's
+  `ra` executables and print gc's output.
+- Run times are the RA-0 session's. They were not measured again, since the
+  counts and sizes did not change.
+
+**Consequences.**
+- Built executables change, and run faster on the workloads measured
+  (`benchmarks/2026-11-06-ra0/REPORT.md`). Their output and exit status are
+  expected to stay the same; the tests above check that on the programs they
+  cover.
+- Frames are smaller, so a deep recursion that overflowed the stack may now
+  finish. Stack exhaustion stays a documented limit, not a guarantee of depth.
+- A bug in promotion or allocation is now a miscompilation in built programs,
+  with no flag to work around it. The checker catches allocations it can model.
+  It does not read the emitted code, so emitter bugs depend on the native tests.
+- The compiler does more work per function. Compile latency has not been
+  measured (`BENCHMARKS.md`).
+- Phase 5's acceptance criteria that need optimization levels (`-O0`/`-O1`
+  cross-checks) are not addressed by this entry.
+
+**Revisit when.** A real program hits a limit and its speed matters; compile
+latency is measured and is a problem; or optimization flags arrive, which
+should give a way to select the slot-based path.
 
 ---
 

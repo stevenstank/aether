@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -507,4 +508,145 @@ func TestBuildFileFailures(t *testing.T) {
 			t.Errorf("left in TMPDIR: %v", entries)
 		}
 	})
+}
+
+// TestBuildBackend checks that aether build uses emitProgram: its executable
+// is the one that assembly gives, with values in registers, and it behaves
+// like the interpreter's run of the program.
+func TestBuildBackend(t *testing.T) {
+	requireTools(t)
+	src := []byte("package main\n\nfunc main() {\n\ts := 0\n\tfor i := 0; i < 10; i++ {\n\t\ts += i\n\t}\n\tprintln(s)\n}\n")
+	dir := t.TempDir()
+	file := filepath.Join(dir, "p.go")
+	writeFile(t, file, src)
+	out := filepath.Join(dir, "out")
+	if stderr, code := runAether("build", "-o", out, file); code != 0 {
+		t.Fatalf("build: exit %d\n%s", code, stderr)
+	}
+	prog, ds := compile([]source{{file, src}})
+	if len(ds) > 0 {
+		t.Fatal(ds)
+	}
+	asm, err := emitProgram(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(asm), ", %rbx\n") {
+		t.Errorf("no value in a register:\n%s", asm)
+	}
+	for _, f := range prog.Funcs {
+		if !f.SSA {
+			t.Errorf("func %s is not in SSA form", f.Name)
+		}
+	}
+	re := filepath.Join(dir, "re")
+	if ds, err := assemble(asm, buildOptions{out: re}, io.Discard); len(ds) > 0 || err != nil {
+		t.Fatalf("assemble: %v %v", ds, err)
+	}
+	if !bytes.Equal(readFile(t, out), readFile(t, re)) {
+		t.Error("aether build's executable differs from emitProgram's")
+	}
+	if got, want := runExe(t, out), (result{stderr: "45\n"}); got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+// TestBuildBackendLimits checks the limits on emitProgram. No function of
+// the S2 suite or the workloads reaches them, so all of them are promoted.
+// A function over the limits builds and runs slot-based, and one over only
+// the allocator's limit builds and runs in SSA form without registers.
+func TestBuildBackendLimits(t *testing.T) {
+	requireTools(t)
+	progs, _ := s2Suite(t)
+	for _, w := range benchWorkloads(t) {
+		progs = append(progs, s2Program{w.name + ".go", w.src})
+	}
+	maxValues := 0
+	for _, p := range progs {
+		prog, ds := compile([]source{{p.name, p.src}})
+		if len(ds) > 0 {
+			t.Fatal(ds)
+		}
+		if _, err := emitProgram(prog); err != nil {
+			t.Fatalf("%s: %v", p.name, err)
+		}
+		for _, f := range prog.Funcs {
+			if !f.SSA {
+				t.Errorf("%s: func %s was not promoted", p.name, f.Name)
+			}
+			n := 0
+			for _, b := range f.Blocks {
+				for _, in := range b.Instrs {
+					if in.ID >= 0 {
+						n++
+					}
+				}
+			}
+			maxValues = max(maxValues, n)
+		}
+	}
+	t.Logf("largest function: %d values", maxValues)
+	dir := t.TempDir()
+	println := func(n int) []byte {
+		return []byte("package main\n\nfunc main() {\n\tprintln(" + strings.Repeat("0, ", n-1) + "0)\n}\n")
+	}
+	for _, c := range []struct {
+		name string
+		n    int
+		ssa  bool
+	}{
+		{"over the allocator's limit", 3000, true},
+		{"over the limit on promotion", maxPromoteInstrs + 1, false},
+	} {
+		prog, ds := compile([]source{{"p.go", println(c.n)}})
+		if len(ds) > 0 {
+			t.Fatal(ds)
+		}
+		asm, err := emitProgram(prog)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		for _, f := range prog.Funcs {
+			if f.Name == "main" && f.SSA != c.ssa {
+				t.Errorf("%s: main.SSA = %v, want %v", c.name, f.SSA, c.ssa)
+			}
+		}
+		exe := filepath.Join(dir, "out")
+		if ds, err := assemble(asm, buildOptions{out: exe}, io.Discard); len(ds) > 0 || err != nil {
+			t.Fatalf("%s: %v %v", c.name, ds, err)
+		}
+		if got, want := runExe(t, exe), (result{stderr: strings.Repeat("0 ", c.n-1) + "0\n"}); got != want {
+			t.Errorf("%s: exit %d, %d bytes of stderr; want exit 0, %d bytes", c.name, got.exit, len(got.stderr), len(want.stderr))
+		}
+	}
+}
+
+// TestBuildBackendWorstCase builds the most expensive kind of function the
+// limits allow, to keep their cost visible: maxAllocValues values, half of
+// them parameters live at once, so nearly all of them must be spilled.
+func TestBuildBackendWorstCase(t *testing.T) {
+	const n = 1000
+	var params, sum, args strings.Builder
+	for i := range n {
+		if i > 0 {
+			params.WriteString(", ")
+			sum.WriteString(" + ")
+			args.WriteString(", ")
+		}
+		fmt.Fprintf(&params, "p%d", i)
+		fmt.Fprintf(&sum, "p%d", i)
+		args.WriteString("1")
+	}
+	src := fmt.Sprintf("package main\n\nfunc f(%s int) int {\n\treturn %s\n}\n\nfunc main() { println(f(%s)) }\n", params.String(), sum.String(), args.String())
+	prog, ds := compile([]source{{"p.go", []byte(src)}})
+	if len(ds) > 0 {
+		t.Fatal(ds)
+	}
+	start := time.Now()
+	if _, err := emitProgram(prog); err != nil {
+		t.Fatal(err)
+	}
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	t.Logf("emitProgram: %v; cumulative allocation %d MiB, system %d MiB", time.Since(start).Round(time.Millisecond), m.TotalAlloc>>20, m.Sys>>20)
 }

@@ -350,3 +350,24 @@ func TestCheckAllocationSweep(t *testing.T) {
 	}
 	t.Logf("%d mutants accepted and %d rejected, all as interference predicts", accepted, rejected)
 }
+
+// TestAllocateLimit checks that a function over maxAllocValues gets no
+// registers, and one at the limit does.
+func TestAllocateLimit(t *testing.T) {
+	build := func(n int) *ir.Func {
+		_, f := raFunc(0)
+		b := f.Entry()
+		s := f.Const(b, 1, p1)
+		for range n - 1 {
+			s = f.Neg(b, s, p1)
+		}
+		f.Ret(b, p1, s)
+		return f
+	}
+	if regs, err := allocate(build(maxAllocValues)); err != nil || len(regs) != maxAllocValues {
+		t.Errorf("at the limit: %d registers, %v; want %d", len(regs), err, maxAllocValues)
+	}
+	if regs, err := allocate(build(maxAllocValues + 1)); err != nil || len(regs) != 0 {
+		t.Errorf("over the limit: %d registers, %v; want none", len(regs), err)
+	}
+}
