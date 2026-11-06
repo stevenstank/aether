@@ -1,13 +1,15 @@
 # Aether Measurement Strategy
 
-Status: **harness and three measurements.** The workloads and the harness
-are checked in ([The harness](#the-harness)). Three measurements exist, all
+Status: **harness and four measurements.** The workloads and the harness
+are checked in ([The harness](#the-harness)). Four measurements exist, all
 under WSL2: the register-allocation baseline of 2026-11-05
 ([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)),
 the RA-0 results of 2026-11-06
 ([`benchmarks/2026-11-06-ra0/REPORT.md`](benchmarks/2026-11-06-ra0/REPORT.md)),
-and instruction selection, also of 2026-11-06
-([`benchmarks/2026-11-06-isel/REPORT.md`](benchmarks/2026-11-06-isel/REPORT.md)).
+instruction selection, also of 2026-11-06
+([`benchmarks/2026-11-06-isel/REPORT.md`](benchmarks/2026-11-06-isel/REPORT.md)),
+and the calling-convention investigation, also of 2026-11-06
+([`benchmarks/2026-11-06-abi/REPORT.md`](benchmarks/2026-11-06-abi/REPORT.md)).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time.
 

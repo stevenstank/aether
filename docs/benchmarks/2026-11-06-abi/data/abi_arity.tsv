@@ -1,0 +1,27 @@
+programs	239
+call sites	423
+call sites with a call result as argument	6
+functions by params	0	7
+functions by params	1	30
+functions by params	2	20
+functions by params	3	4
+functions by params	4	8
+functions by results	0	23
+functions by results	1	38
+functions by results	2	7
+functions by results	3	1
+sites by params	0	10
+sites by params	1	100
+sites by params	2	139
+sites by params	3	10
+sites by params	4	164
+sites by results	0	279
+sites by results	1	123
+sites by results	2	18
+sites by results	3	3
+functions by max across one call	0	405
+functions by max across one call	1	6
+functions by max across one call	2	4
+functions by max across one call	3	1
+functions by max across one call	4	1
+functions by max across one call	5	1
