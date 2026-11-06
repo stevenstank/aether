@@ -194,6 +194,9 @@ with D if this gain is pursued.
 
 ## Proposed experiment: ABI-R1
 
+*Update:* the owner approved this experiment as D-030, which is the authority for its
+scope and criteria where the two differ.
+
 **Scope.** An `EmitOptions` flag, off by default and test-only until accepted, like
 RA-0. Arguments 0-5 in `%rdi %rsi %r8 %r9 %r10 %r11`, a single result in `%rax`, and
 everything else in ABI-S0 positions. `%rbp`, the frame chain, and the prologue check

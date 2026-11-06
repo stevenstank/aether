@@ -57,6 +57,8 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-026 | Register-allocation experiment RA-0 | Accepted (2026-11-06, owner approval; experiment complete, criteria met; shipped by D-027) |
 | D-027 | `aether build` promotes to SSA and allocates registers | Accepted (2026-11-06, owner direction; its "no flag" clause superseded by D-028) |
 | D-028 | `aether build -O0` selects the slot-based backend | Accepted (2026-11-06, owner direction) |
+| D-029 | Instruction selection for comparisons, branches, and constants | Accepted (2026-11-06, owner direction; accepted as the default with one unresolved regression, b08_ackermann) |
+| D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment only, not started, not shipped) |
 
 ## Review log
 
@@ -93,6 +95,8 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-06 | Owner directs that RA-0 ship to `aether build` after its results; D-027 created | D-026, D-027 |
 | 2026-11-06 | Owner directs that `aether build` gain `-O0`; D-028 created | D-027, D-028 |
 | 2026-11-06 | Owner directs that the roadmap stop showing Phases 1 and 2 as pending review; their acceptance is recorded in `ROADMAP.md`. No earlier record of it exists. | — |
+| 2026-11-06 | Owner accepts instruction selection as the default; the b08_ackermann regression is recorded as unresolved, and block alignment stays out of scope | D-029 |
+| 2026-11-06 | Owner approves experiment ABI-R1 under the scope and criteria recorded in D-030. Shipping needs a new entry. No code exists yet. | D-011, D-030 |
 
 ---
 
@@ -2413,6 +2417,131 @@ build without selection (`ra`), under WSL2 on one CPU, with times repeated at
 
 **Revisit when.** Hardware counters or another CPU can test the b08 hypotheses;
 code alignment is taken up; or register-register forms are.
+
+## D-030: Experiment ABI-R1, a register calling convention for internal calls
+
+**Status:** Accepted (2026-11-06, owner approval of the scope and criteria below).
+The experiment may start and has not. This approval authorizes the experiment only.
+**Shipping ABI-R1 as the default needs a new entry after the results.** D-011 stays
+in force: ABI-S0 remains the convention of `aether build`, with and without `-O0`,
+throughout the experiment.
+
+**Context.** ABI-S0 passes arguments and results through stack memory. The
+investigation (`benchmarks/2026-11-06-abi/REPORT.md`) modeled candidate conventions
+by rewriting the shipped assembly (`cmd/aether/bench_abi_test.go`):
+- *Measured on the model:* median CPU time across code offsets changes by -30% on
+  b08, -20% on b05, -13% on b01, -9% on b06, and -5% on b07; b02, b03, b04, and b09
+  do not change. The model matched the interpreter on all 239 S2 suite programs.
+- *Measured:* code placement alone moves some workloads by up to 57%, so results at
+  a single layout are not sufficient.
+- These are results of a model, not of an implementation.
+
+**Decision: the convention.** For calls between Aether-compiled functions, when an
+emission option that is off by default is set:
+- **Arguments.** Arguments 0-5 are in `%rdi`, `%rsi`, `%r8`, `%r9`, `%r10`, and
+  `%r11`, in that order. Each is one canonical word (D-023). Argument 6 onward stays
+  stack-based at its ABI-S0 position: `8i(%rsp)` in the caller, `16+8i(%rbp)` in the
+  callee.
+- **Results.** A function with exactly one result returns it in `%rax`. A function
+  with two or more returns **all** of them at their ABI-S0 positions.
+- **Registers.** Every register except `%rbp` and `%rsp` stays caller-saved, as in
+  ABI-S0. No value lives in a register across a call.
+- **Moves.** The moves at a call site and at entry are parallel copies, with `%rax` as
+  the temporary. The stack check needs `%rax` free at entry, so `%rax` is never an
+  argument register (D-011, "Revisit when"). `%rcx` and `%rdx` stay reserved scratch.
+- **Frame.** The prologue's check, the frame chain, and the epilogue keep their form.
+  Only the frame's size changes: the outgoing area A = 8·max(P+R) counts only calls
+  with more than six arguments or more than one result, because the others use no
+  outgoing word. Those calls keep the whole area, unused words included.
+- **Entry precondition.** Argument registers hold their values only at entry, so:
+  the entry block has no predecessor; before the last `param` runs, only `param`s and
+  stores to slots may have run; and such a store touches only `%rax` and memory.
+  Lowering produces this shape today, but the IR contract does not require it (it
+  requires only that `param` is in the entry block). The IR contract does not change.
+  A violation is an `internal` error when the option is set, checked independently of
+  emission.
+
+**Unchanged.** The IR, the allocator, instruction selection, the runtime and its
+helper ABI (`rt/*.s`), exit codes, the CLI, ABI-S0 itself, `-O0`, and the harness's
+`slot`, `ssa`, `ra`, and `isel` variants. A build uses one convention throughout. The
+option has no command-line flag.
+
+**Out of scope.** These are excluded even if a criterion would be easier to meet with
+them. Each needs its own decision:
+- **frameless leaves**, and any other removal of the frame chain or the stack check;
+- **callee-saved registers**, and any caller knowledge of what a callee clobbers;
+- allocator hints or coalescing, tail calls, code alignment, instruction scheduling,
+  and results in more than one register.
+
+**Correctness criteria.** All must hold with the option set. The option does not reach
+the build path, so tests set it through `amd64.EmitOptions` as emitted by the default
+build's pipeline, not through `aether build`.
+1. `gofmt`, `go vet`, and `go test ./...` pass, and 60 s of `FuzzGenerated`, with its
+   native check also running the option, exits 0.
+2. The S2 suite and the nine workloads match the interpreter and the recorded gc
+   output, and `TestSelectDifferential`'s programs agree across gc, the interpreter,
+   `-O0`, and the option. A new cross-check compares the option with ABI-S0 on the
+   suite, since `TestO0CrossCheck` goes through the build path.
+3. New native tests, with values both in registers and in cells: 0 to 8 arguments;
+   every permutation of arguments among argument registers that forces a copy cycle;
+   arguments as immediates, cells, and constants too large for an immediate; 1 to 3
+   results; nested calls; mutual recursion; and D-024's order with panics in arguments.
+4. Functions above each size limit (`TestBuildBackendLimits`: over the promotion limit
+   and over the allocator's) build and run under the option.
+5. The stack boundary tests hold under the new frame sizes: entry at E = T, at E = T −
+   16, overflow with arguments in registers, and the helpers at the reserve's edge.
+   The D-011 bound still holds as stated. Peak stack is no higher than `isel` on any
+   workload.
+6. An independent check verifies each entry and call-site copy, and the entry
+   precondition, as `checkAllocation` does for allocations. A failure is an `internal`
+   error.
+7. New negative controls are each detected: swapped argument registers, a dropped
+   cycle break, a stale `%rax` result, a seventh argument read from a register, a frame
+   missing a needed outgoing area, and a `param` after a clobbering instruction.
+8. With the option off, `-O0` output and the `slot`, `ssa`, `ra`, and `isel` assembly
+   stay byte-identical. With it on, the assembly is deterministic, and b03 and b04
+   stay byte-identical to `isel`, as in the model.
+
+**Performance criteria.** Fixed before implementation, against `isel` at the same
+commit, by the method of `BENCHMARKS.md`: pinned, round-robin, with a discarded
+warm-up, at the 8 code offsets of `TestABITime`, with at least 7 runs per offset.
+1. CPU time improves by at least 10% on each of b01, b05, and b08 (ratio at most
+   0.900), and by at least 5% on b06 (ratio at most 0.950). The model gave 0.874,
+   0.801, 0.696, and 0.913.
+2. No workload is more than 2% slower (ratio at most 1.020).
+3. On every workload, dynamic instructions and memory operations are no higher than
+   the `r1` row of `benchmarks/2026-11-06-abi/data/abi_summary.tsv`.
+
+The ratios in 1 and 2 are of the median of the eight per-offset medians. Per-offset
+medians and the aggregates are both reported, but only the aggregates decide: on the
+model, single offsets reach 1.042 on b05 and 1.064 on b09 while their aggregates are
+0.801 and 1.001.
+
+**Outcome rules.**
+- Missing any criterion means ABI-R1 does not ship. The results are reported whatever
+  they are, including every regression.
+- Meeting them all does not ship it either, and the owner decides on a new entry.
+- If meeting a criterion would need anything out of scope, the experiment stops and
+  returns to the owner.
+
+**Alternatives.** Keeping ABI-S0 without the `%rax` hop gains at most 5.5%. Frameless
+leaves and callee-saved registers gain more on some workloads, with the costs in the
+report, and stay separate so that each can be judged alone. System V and Go's
+ABIInternal were set aside by D-011 and not measured.
+
+**Consequences.**
+- While the experiment runs, tests and the harness cover a convention no built
+  executable uses.
+- The harness gains a variant for the implementation, separate from the model's `r1`,
+  and `TestABITime` times it. Existing rows do not change.
+- Shipping would change what D-011, D-028's description of the default, and V-2's
+  remark on frame sizes say, which the new entry must address.
+- Arguments in registers at entry would have to be preserved by a growable stack's
+  growth path (Phase 10, undecided). Nothing lives in a register across a call, so
+  D-010's stack-map options are not constrained further.
+
+**Revisit when.** The results are in; or the entry precondition stops holding, for
+example if lowering or a pass puts other code before a `param`.
 
 ---
 

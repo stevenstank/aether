@@ -690,8 +690,9 @@ repeated in each phase below:
       report.
   - register-based internal convention (D-011 follow-up)
     - Investigated 2026-11-06 with no compiler change
-      (`benchmarks/2026-11-06-abi/REPORT.md`). It proposes experiment ABI-R1,
-      which awaits owner approval. D-011 stays as accepted.
+      (`benchmarks/2026-11-06-abi/REPORT.md`). It proposed experiment ABI-R1.
+    - Experiment ABI-R1 approved 2026-11-06 (D-030), not started. The approval
+      does not cover shipping, and D-011 stays as accepted.
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)
     - Checked in 2026-11-06: the nine workloads of the baseline with their
