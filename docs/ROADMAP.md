@@ -47,7 +47,7 @@ repeated in each phase below:
 
   All of this is recorded in the `DECISIONS.md` review log.
 
-## Phase 1: Frontend driver, diagnostics, subset gate (complete 2026-10-24, pending owner review)
+## Phase 1: Frontend driver, diagnostics, subset gate (complete 2026-10-24; accepted by the owner, recorded 2026-11-06)
 
 - **Objective:** `aether check prog.go` classifies any single-file program as
   `invalid`, `unsupported` (for S1), or acceptable.
@@ -104,8 +104,8 @@ repeated in each phase below:
     - five precedence cases
     - one or more files per unsupported feature category
 
-    All goldens were reviewed by the implementing agent. Owner review is
-    pending.
+    All goldens were reviewed by the implementing agent at the time. The
+    owner's acceptance of the phase was recorded on 2026-11-06.
   - **gc cross-check:** every corpus file except the cgo case was built with
     gc, and gc's verdict matched each file's declared validity.
   - **GOROOT sweep:** of the 141 `// run` programs, 0 were accepted, 0
@@ -149,7 +149,7 @@ repeated in each phase below:
   - **The stage ordering lives in `cmd/aether/check.go`.** Phase 2's
     in-process checks may need it moved into a package.
 
-## Phase 2: IR and reference interpreter for S1 (complete 2026-10-24, pending owner review)
+## Phase 2: IR and reference interpreter for S1 (complete 2026-10-24; accepted by the owner, recorded 2026-11-06)
 
 - **Objective:** S1 programs lower to verified IR, and the interpreter's output
   matches gc's.

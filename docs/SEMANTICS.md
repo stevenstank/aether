@@ -34,7 +34,7 @@ A construct can be in one of these states. Only the last two count as
 Any command that executes or generates code (`build`, interpretation) must
 reject constructs that are not at least **Supported (interp)**. The only
 exception was `aether check` in Phase 1, which classified programs against the
-*target* subset before lowering existed. Since Phase 3 the gate's subset, S1,
+*target* subset before lowering existed. Since Phase 4 the gate's subset, S2,
 is Supported (native) in full, so the gate accepts nothing that is not.
 A program that passes the gate must either compile correctly or fail with an
 `internal` error. It must never be silently miscompiled.
@@ -528,10 +528,20 @@ The Milestone 1 acceptance test names a further required minimum set
 A test program that contains an import is expected to be `unsupported` even if
 it also has a type error.
 
-## Functions (Phase 4 increment 4.2, in progress)
+## Subset S2 (Phase 4, accepted 2026-11-03)
+
+S2 is the subset Aether supports today, and the one the gate enforces. It is S1
+extended by the sections from here to the support matrix, each one a Phase 4
+increment; a rule of S1 holds in S2 unless a later section relaxes it. Its
+status is in the support matrix. Everything else is `unsupported`.
+
+The text of `unsupported` diagnostics still says "subset S1". It was not
+updated when S2 was added, so read it as "the supported subset".
+
+## Functions (Phase 4 increment 4.2)
 
 The gate accepts S1 extended with functions. Every rule of S1 applies
-inside every function. Diagnostics still name subset S1.
+inside every function.
 - Top-level `func` declarations other than `init`, with `int` parameters
   (named, blank, or unnamed) and either no result or one unnamed `int`
   result. A function named `_`, a generic function, a function without a
@@ -655,7 +665,7 @@ type switches (`type-switch`), and switches on other types. The feature name
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from
 §Subset S1) and Go tests. Every corpus program expected to run, and 200
-generated S1 programs, are run by `TestDifferentialAgainstGc`, which requires
+generated programs, are run by `TestDifferentialAgainstGc`, which requires
 the stdout, stderr, and exit status of both the interpreter and the
 executable built by `aether build` to equal those of the gc-built binary.
 `internal/amd64` tests also run every operation at the integer boundaries

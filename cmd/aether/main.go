@@ -1,8 +1,8 @@
 // Command aether is the driver for the Aether compiler.
 //
 // "aether check" classifies a Go source file as invalid Go, valid Go outside
-// Aether's supported subset (S1), or acceptable. "aether build" compiles an
-// S1 program into a static Linux x86-64 executable with Aether's own backend
+// Aether's supported subset (S2), or acceptable. "aether build" compiles an
+// S2 program into a static Linux x86-64 executable with Aether's own backend
 // and runtime, using GNU as and ld only to assemble and link (D-007, D-008).
 package main
 
@@ -19,10 +19,17 @@ const usage = `usage: aether <command> [arguments]
 
 Commands:
   check FILE.go                     report whether FILE.go is inside Aether's
-                                    supported subset (S1)
+                                    supported subset (S2)
   build [-x] [-work] [-O0] -o OUT FILE.go
                                     compile FILE.go into the executable OUT
   help                              print this message
+
+Supported subset (S2):
+  one file, package main, no imports; functions with multiple results;
+  bool and every integer type; if, for, and switch; package-level var and
+  const; print and println. Not supported: strings, floats, arrays, structs,
+  pointers, slices, maps, methods, interfaces, closures, defer, goroutines.
+  See docs/SEMANTICS.md.
 
 Build flags:
   -o OUT   output file; an existing regular file is replaced only on success

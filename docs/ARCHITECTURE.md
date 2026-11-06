@@ -4,10 +4,14 @@ Status:
 - **Implemented (Phase 1):** stages 1 (frontend) and 2 (subset gate),
   diagnostics, and the `aether check` driver.
 - **Implemented (Phase 2):** stages 3 (lowering), 4 (IR, with verifier and
-  printer), and 5 (reference interpreter), for S1.
+  printer), and 5 (reference interpreter), first for S1.
 - **Implemented (Phase 3):** stages 7 (amd64 backend), 8 (assembly and
-  linking with GNU `as`/`ld`), and 9 (runtime), for S1, and `aether build`.
-- **Design only:** the optimizer (stage 6), and everything beyond S1.
+  linking with GNU `as`/`ld`), and 9 (runtime), first for S1, and `aether build`.
+- **Implemented (Phase 4):** every stage above for S2, the supported subset.
+- **Implemented (Phase 5, in progress):** SSA promotion and register allocation
+  (D-006, D-026, D-027), and `-O0` (D-028).
+- **Design only:** optimization passes (the rest of stage 6), and everything
+  beyond S2.
 
 Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
 "proposed", the corresponding decision is not yet accepted.
@@ -82,7 +86,7 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   diagnostic naming the construct and its position.
 - **Two passes:**
   - A pre-check on the raw files *before* type checking, for file-level
-    constructs. In S1 it rejects:
+    constructs. It rejects:
     - more than one source file
     - a package name other than `main`
     - any import declaration, including `import "C"` (cgo)
@@ -152,7 +156,7 @@ backend or interpreter may rely on.
 
 **Structure.**
 - A **program** is a list of functions. Its entry point is the function named
-  `main`. In S1 it is the only function, and it has no parameters or results.
+  `main`, which has no parameters or results.
 - A **function** has a name, a source file, a position, a list of **slots**
   (its local variables), and a list of **blocks**. `Blocks[0]` is the entry.
 - A **slot** has an ID equal to its index, a source name (for printing only;
@@ -230,9 +234,9 @@ definite-assignment checks. S2 (D-023, from increment 4.1) keeps invariant 6
 block-local (values cross blocks only through slots), requires every block to
 be reachable, and replaces invariant 7 with a "must be stored" dataflow over
 the CFG. That dataflow starts the entry block at ∅ and every other block at all
-slots, and iterates to the greatest fixed point. This section describes the
-S1 IR that exists today; D-023 is the contract for each extension until its
-increment updates this section.
+slots, and iterates to the greatest fixed point. This section was written for
+the S1 IR and has not been rewritten for S2; D-023 and D-025 are the contract
+for the extensions, and they win where this section differs.
 
 **What lowering guarantees beyond the verifier.** The verifier checks the
 IR's form, not its meaning. Lowering guarantees, and the IR goldens and the

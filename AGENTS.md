@@ -24,7 +24,7 @@ changing anything architectural.
 - `internal/diag`: diagnostics, rendering, and exit codes. No `go/*` imports.
 - `internal/frontend`: a wrapper around `go/parser` and `go/types`, plus
   program-level checks.
-- `internal/gate`: the S1 subset gate (default-deny).
+- `internal/gate`: the S2 subset gate (default-deny).
 - `internal/ir`: the IR, its printer, and its verifier. No `go/*` imports.
 - `internal/lower`: typed AST to IR.
 - `internal/interp`: the IR interpreter, a test oracle (D-005, D-021).

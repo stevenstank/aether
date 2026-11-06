@@ -92,6 +92,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-06 | Owner approves D-026: experiment RA-0 may start, under the plan, criteria, and thresholds recorded in the entry | D-026 |
 | 2026-11-06 | Owner directs that RA-0 ship to `aether build` after its results; D-027 created | D-026, D-027 |
 | 2026-11-06 | Owner directs that `aether build` gain `-O0`; D-028 created | D-027, D-028 |
+| 2026-11-06 | Owner directs that the roadmap stop showing Phases 1 and 2 as pending review; their acceptance is recorded in `ROADMAP.md`. No earlier record of it exists. | — |
 
 ---
 

@@ -4,17 +4,17 @@ Aether is an independent compiler for the Go programming language, written in
 Go, targeting native Linux x86-64 executables through its own intermediate
 representation and backend.
 
-> **Status: Phase 4 is complete and accepted by the owner (2026-11-03).** Aether compiles
-> programs in its first supported subset, S1, into static Linux x86-64
-> executables. Its own backend selects every instruction and its own runtime
-> provides process start and `println`; GNU `as` and `ld` only assemble and
-> link. S1 is small: one `main` function with `int` variables, `+ - *`, nested
-> blocks, and `println`. Phase 4 (S2) adds
-> functions with `int` parameters and results, stack-overflow detection
-> (increment 4.2), `bool`, `if`, and `for` (increment 4.1), multiple results
-> (4.3), every integer type with conversions and bit operators (4.4),
-> `/ % << >>` with run-time panics (4.5), package-level `var` and `const`
-> (4.6), and `switch` (4.7).
+> **Status: Phase 5 is in progress; Phase 4 was accepted by the owner on
+> 2026-11-03.** Aether compiles programs in its supported subset, **S2**, into
+> static Linux x86-64 executables. Its own backend selects every instruction and
+> its own runtime provides process start, printing, panics, and stack-overflow
+> detection; GNU `as` and `ld` only assemble and link. S2 is S1, the first
+> milestone's subset (one `main` function with `int` variables, `+ - *`, nested
+> blocks, and `println`), plus functions with `int` parameters and results and
+> stack-overflow detection (increment 4.2), `bool`, `if`, and `for` (increment
+> 4.1), multiple results (4.3), every integer type with conversions and bit
+> operators (4.4), `/ % << >>` with run-time panics (4.5), package-level `var`
+> and `const` (4.6), and `switch` (4.7).
 >
 > Phase 5 has started. `aether build` now promotes functions to SSA form
 > (D-006) and keeps values in registers where it can (D-026, D-027). Other
@@ -36,9 +36,9 @@ It then runs Aether's own subset gate and reports one of the following:
 
 | Exit | Meaning |
 |---|---|
-| 0 | the program is inside S1 (no output) |
+| 0 | the program is inside S2 (no output) |
 | 1 | not valid Go (`invalid`) |
-| 3 | valid Go outside S1 (`unsupported`, with a feature name) |
+| 3 | valid Go outside S2 (`unsupported`, with a feature name) |
 | 2 | usage error |
 | 4 | internal compiler error |
 | 5 | GNU `as` or `ld` missing, not identified, or failed (`build`) |
@@ -46,7 +46,7 @@ It then runs Aether's own subset gate and reports one of the following:
 Diagnostics go to stderr as `file:line:col: class: message`. See D-018 in
 [docs/DECISIONS.md](docs/DECISIONS.md).
 
-For a program inside S1, `aether check` also lowers it to Aether's IR and
+For a program inside S2, `aether check` also lowers it to Aether's IR and
 verifies the IR; a failure there is an internal error (exit 4).
 
 `aether build -o OUT prog.go` uses the same codes. It emits Aether's
@@ -117,13 +117,17 @@ potentially long-term dependencies. The exact ownership boundaries are in
 
 ## Current limitations
 
-- Only S1, functions, `bool`, `if`, `for`, and the integer types are
-  supported, with package-level `var` and `const` and `switch`: no
-  `fallthrough` or type switches, no `type` declarations or `init` functions, and no types other than the integer
-  types and `bool`. Panics print no traceback. The generated code is unoptimized: every value
-  goes through memory.
+- Only S2 is supported: no strings, floats, arrays, structs, pointers, slices,
+  maps, methods, interfaces, closures, `defer`, `panic`, or goroutines; no
+  `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
+  declarations or `init` functions. Panics print no traceback.
 - Only one source file, `package main`, with no imports, is ever accepted.
-  Everything outside S1 is **rejected with an explicit diagnostic**.
+  Everything outside S2 is **rejected with an explicit diagnostic**. The
+  diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).
+- There are no optimization passes. By default, values are kept in registers
+  where possible, but arguments and results still go through memory, and each
+  operation still uses a fixed instruction sequence. `-O0` keeps every value in
+  a stack cell.
 
 ## First milestone
 
@@ -148,7 +152,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md#milestone-1-acceptance-test).
 
 - [Vision](docs/VISION.md): goals, non-goals, what "independent" means
 - [Architecture](docs/ARCHITECTURE.md): pipeline, stage boundaries, diagnostics, runtime boundary
-- [Semantics](docs/SEMANTICS.md): compatibility policy, subset S1, support matrix
+- [Semantics](docs/SEMANTICS.md): compatibility policy, subsets S1 and S2, support matrix
 - [Roadmap](docs/ROADMAP.md): phased milestones with acceptance criteria
 - [Decisions](docs/DECISIONS.md): decision register (accepted and proposed)
 - [Testing](docs/TESTING.md): testing strategy

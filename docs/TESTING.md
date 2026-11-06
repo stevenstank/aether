@@ -465,7 +465,7 @@ differential harness.
   - shadowing and short-variable redeclaration
   - empty `main`
   - `println()` with no arguments
-  - valid Go that `go/types` accepts but S1 rejects (`var x int = 1.0`,
+  - valid Go that `go/types` accepts but the subset rejects (`var x int = 1.0`,
     `println('a')`)
   - `package main` without `func main`, which `go/types` does not report
 - Go has no undefined behavior in the C sense for these cases. Tests assert the

@@ -23,10 +23,10 @@ type source struct {
 //  2. syntax errors: invalid (a file must parse before it can be inspected)
 //  3. file-level constructs: unsupported (gate.Precheck)
 //  4. type errors and program-level checks: invalid (frontend.TypeCheck)
-//  5. everything else outside S1: unsupported (gate.Check)
+//  5. everything else outside the subset: unsupported (gate.Check)
 //  6. lowering to IR and verifying it: internal (lower.Lower, ir.Verify)
 //
-// An empty result means the program is inside S1. Step 6 cannot fail for a
+// An empty result means the program is inside the subset (S2). Step 6 cannot fail for a
 // correct compiler; running it on every accepted program means a lowering
 // bug is reported as internal instead of the program being accepted.
 func check(srcs []source) []diag.Diagnostic {
@@ -35,7 +35,7 @@ func check(srcs []source) []diag.Diagnostic {
 }
 
 // compile runs the steps of check and returns the verified IR of a program
-// inside S1, or the diagnostics and no IR.
+// inside the subset, or the diagnostics and no IR.
 func compile(srcs []source) (*ir.Program, []diag.Diagnostic) {
 	names := make([]string, len(srcs))
 	for i, s := range srcs {

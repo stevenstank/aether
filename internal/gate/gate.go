@@ -1,9 +1,10 @@
 // Package gate decides whether a Go program is inside Aether's supported
-// subset: S1 (docs/SEMANTICS.md §Subset S1, D-012) plus the functions of
-// Phase 4 increment 4.2 (§Functions), the bool and control flow of
-// increment 4.1 (§Control flow and bool), the multiple results of increment
-// 4.3, the integer types of increment 4.4 (§Integer types), and the division
-// and shifts of increment 4.5.
+// subset, S2 (docs/SEMANTICS.md §Subset S2): S1 (§Subset S1, D-012) plus the
+// functions of Phase 4 increment 4.2 (§Functions), the bool and control flow
+// of increment 4.1 (§Control flow and bool), the multiple results of increment
+// 4.3, the integer types of increment 4.4 (§Integer types), the division and
+// shifts of increment 4.5, the package-level variables and constants of
+// increment 4.6, and the switch statements of increment 4.7.
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -142,7 +143,8 @@ func directive(text string) (string, bool) {
 	return "", false
 }
 
-// Check walks a type-checked package and reports every construct outside S1.
+// Check walks a type-checked package and reports every construct outside the
+// subset.
 // It must only be called on a package that type-checked without errors.
 func Check(pkg *frontend.Package) []diag.Diagnostic {
 	c := &checker{pkg: pkg, info: pkg.Info}

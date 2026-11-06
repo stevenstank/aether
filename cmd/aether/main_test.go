@@ -162,3 +162,20 @@ func listDir(t *testing.T, dir string) []string {
 	}
 	return names
 }
+
+// TestHelpNamesSubset checks that help names the subset the gate enforces.
+func TestHelpNamesSubset(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"help"}, &stdout, &stderr); code != diag.ExitOK {
+		t.Fatalf("help: exit %d\n%s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{"supported subset (S2)", "Supported subset (S2):", "-O0"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("help lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "S1") {
+		t.Errorf("help still names S1:\n%s", out)
+	}
+}
