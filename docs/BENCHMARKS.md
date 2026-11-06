@@ -100,6 +100,14 @@ are excluded where a column says so.
 register allocator would leave. It is an estimate, never reported as a
 measurement.
 
+**The calling-convention model** (`bench_abi_test.go`) rewrites the assembly of
+`aether build` into candidate conventions, so that they can be counted and timed
+without changing the compiler. It is a model, not an implementation, and nothing
+in it reaches a built executable. Besides timing at the shipped layout,
+`AETHER_ABI_LAYOUT` times every variant at eight code offsets modulo 64, because
+placement alone can move a result. `TestABIModel` and `TestParallelCopy` run in
+the normal suite; the rest skip unless `AETHER_BENCH_OUT` is set.
+
 **Tests.** The normal suite tests the harness, not the workloads' speed:
 operand parsing and classification, the instrumentation (it only inserts
 lines; instrumented and plain executables of a sample of the S2 suite give
@@ -122,6 +130,20 @@ AETHER_BENCH_OUT=$OUT go test -count=1 ./cmd/aether -run 'TestBenchSuitePressure
 # timing, after the two above: times.tsv and times_summary.tsv
 AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=15 taskset -c 6 \
   go test -count=1 -timeout 30m ./cmd/aether -run 'TestBenchTime$' -v
+```
+
+The calling-convention model, in the same `OUT`, after the gc variants:
+
+```
+# abi_summary, abi_attr, abi_attr_mem, abi_arity .tsv, and abi_suite.txt
+AETHER_BENCH_OUT=$OUT go test -count=1 -timeout 30m ./cmd/aether \
+  -run '^(TestABICounts|TestABIAttribution|TestABIArity|TestABISuite)$' -v
+# abi_times.tsv and abi_times_summary.tsv, at the shipped layout
+AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=15 taskset -c 6 \
+  go test -count=1 -timeout 60m ./cmd/aether -run '^TestABITime$' -v
+# abi_layout.tsv and abi_layout_summary.tsv: per-offset medians and their median
+AETHER_ABI_LAYOUT=1 AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=7 taskset -c 6 \
+  go test -count=1 -timeout 60m ./cmd/aether -run '^TestABITime$' -v
 ```
 
 Each writes `environment.txt` (commit, toolchains, CPU, CPU affinity,

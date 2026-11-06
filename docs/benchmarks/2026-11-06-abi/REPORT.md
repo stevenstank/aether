@@ -18,8 +18,8 @@ are available here.
 
 ## Method
 
-The compiler was not changed. A probe outside the repository, in a scratch copy of
-the tree, rewrites the assembly of `aether build` into each candidate convention:
+The compiler was not changed. A probe, then outside the repository in a scratch copy
+of the tree, rewrites the assembly of `aether build` into each candidate convention:
 
 | Variant | Convention |
 |---|---|
@@ -249,5 +249,8 @@ single reviewable change, with a separate change to ship.
   the whole program and is not a full exploration of layout, and each offset has 5 runs.
 - `r1cs` is deliberately simple: it picks cells by static use and saves on every path.
 - Compile latency was not measured.
-- The probe (about 1,100 lines) is not in the repository, like earlier out-of-tree
-  experiments. Only its outputs are in `data/`.
+- *Update:* the probe has since moved into the harness as
+  `cmd/aether/bench_abi_test.go` (`BENCHMARKS.md`). It reproduces the rewritten
+  assembly, the count files, and the summaries of the kept raw times in `data/` byte
+  for byte. Its own test now runs the path for more than six arguments, which this
+  investigation had not; the report's other limits stand.
