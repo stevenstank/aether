@@ -58,7 +58,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-027 | `aether build` promotes to SSA and allocates registers | Accepted (2026-11-06, owner direction; its "no flag" clause superseded by D-028) |
 | D-028 | `aether build -O0` selects the slot-based backend | Accepted (2026-11-06, owner direction) |
 | D-029 | Instruction selection for comparisons, branches, and constants | Accepted (2026-11-06, owner direction; accepted as the default with one unresolved regression, b08_ackermann) |
-| D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment only, not started, not shipped) |
+| D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment only, implemented behind a test option, not measured, not shipped) |
 
 ## Review log
 
@@ -97,7 +97,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-06 | Owner directs that the roadmap stop showing Phases 1 and 2 as pending review; their acceptance is recorded in `ROADMAP.md`. No earlier record of it exists. | — |
 | 2026-11-06 | Owner accepts instruction selection as the default; the b08_ackermann regression is recorded as unresolved, and block alignment stays out of scope | D-029 |
 | 2026-11-06 | Owner approves experiment ABI-R1 under the scope and criteria recorded in D-030. Shipping needs a new entry. No code exists yet. | D-011, D-030 |
-| 2026-11-07 | Owner settles three D-030 criteria: frame sizes may shrink while the stack check's mechanism, frame chain, and epilogue stay unchanged; the 2% limit applies to aggregates, with per-offset results reported and significant outliers investigated; peak stack stays within the `isel` baseline, and b03 and b04 stay byte-identical only if they avoid ABI-R1's call paths. Implementation has not started. | D-030 |
+| 2026-11-07 | Owner settles three D-030 criteria: frame sizes may shrink while the stack check's mechanism, frame chain, and epilogue stay unchanged; the 2% limit applies to aggregates, with per-offset results reported and significant outliers investigated; peak stack stays within the `isel` baseline, and b03 and b04 stay byte-identical only if they avoid ABI-R1's call paths. Implementation had not started. | D-030 |
 
 ---
 
@@ -2422,8 +2422,8 @@ code alignment is taken up; or register-register forms are.
 ## D-030: Experiment ABI-R1, a register calling convention for internal calls
 
 **Status:** Accepted (2026-11-06, owner approval of the scope and criteria below;
-three criteria settled by the owner on 2026-11-07). The experiment may start and has
-not. This approval authorizes the experiment only.
+three criteria settled by the owner on 2026-11-07). Implemented behind
+`amd64.EmitOptions.ABIR1` (`internal/amd64/abir1.go`), not yet measured. This approval authorizes the experiment only.
 **Shipping ABI-R1 as the default needs a new entry after the results.** D-011 stays
 in force: ABI-S0 remains the convention of `aether build`, with and without `-O0`,
 throughout the experiment.

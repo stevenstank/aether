@@ -697,8 +697,8 @@ bug (`TESTING.md`).
 - Whether later register-allocation work needs a machine IR separate from the
   SSA IR (D-026 allocates on the SSA IR)
 - GC strategy (D-010)
-- The register-based successor to ABI-S0 (Phase 5, D-011; experiment approved
-  under D-030, not shipped)
+- The register-based successor to ABI-S0 (Phase 5, D-011; experiment under D-030,
+  behind a test option, not shipped)
 - Representation of interfaces, closures, defer records, and maps
 - Goroutine stack strategy
 - Multi-package compilation, and how imported packages are type-checked and

@@ -123,6 +123,11 @@ type EmitOptions struct {
 	// (select.go). Every selection is checked with checkSelection; one that
 	// fails is an error.
 	Select bool
+	// ABIR1 uses the experimental calling convention of D-030 (abir1.go) for
+	// the whole program. Only tests set it: aether build stays on ABI-S0. Every
+	// entry, call, and return is checked with checkR1; one that fails is an
+	// error.
+	ABIR1 bool
 }
 
 // EmitWith is Emit with options.
@@ -178,6 +183,11 @@ func globalSym(g *ir.Global) string { return "main." + g.Name }
 // emitFunc emits f, the program's function number fi, and returns its
 // frame.
 func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, error) {
+	if opts.ABIR1 {
+		if err := checkR1Entry(f); err != nil {
+			return Frame{}, err
+		}
+	}
 	regs := map[*ir.Instr]int{}
 	var sel *selection
 	none := valueSet{}
@@ -211,7 +221,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 				vals = append(vals, in)
 			}
 			if in.Op == ir.Call {
-				out = max(out, len(in.Callee.Params)+len(in.Callee.Results))
+				out = max(out, outgoingWords(in.Callee, opts.ABIR1))
 			}
 		}
 	}
@@ -240,7 +250,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	fmt.Fprintf(b, "\t.globl\t%s\n\t.type\t%s, @function\n%s:\n", sym, sym, sym)
 	// The bound check comes before anything is written below the return
 	// address: entry %rsp must be at least L + Size + 8 (D-011). %rax is
-	// free, since ABI-S0 passes nothing in registers.
+	// free, since neither ABI-S0 nor ABI-R1 passes anything in it at entry.
 	fmt.Fprintf(b, "\tmovq\t%s(%%rip), %%rax\n\taddq\t$%d, %%rax\n\tcmpq\t%%rax, %%rsp\n\tjb\t%s\n",
 		symStackLimit, fr.Size+8, symStackOverflow)
 	b.WriteString("\tpushq\t%rbp\n\tmovq\t%rsp, %rbp\n")
@@ -255,6 +265,12 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	if sel != nil {
 		sel.fwd = e.forwarders()
 	}
+	if opts.ABIR1 {
+		e.r1 = &abiR1{uses: useCounts(f), sites: map[*ir.Instr][2]int{}}
+		e.r1.entry[0] = b.Len()
+		e.r1Entry()
+		e.r1.entry[1] = b.Len()
+	}
 	for _, blk := range f.Blocks {
 		if sel == nil || sel.fwd[blk] == nil {
 			blocks = append(blocks, blk)
@@ -268,9 +284,21 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 		fmt.Fprintf(b, "%s:\n", label(blk))
 		for _, in := range blk.Instrs {
 			fmt.Fprintf(b, "\t# %s @%s\n", in, in.Pos)
+			start := b.Len()
 			if err := e.instr(blk, in); err != nil {
 				return Frame{}, fmt.Errorf("amd64: func %s: %s: %v", f.Name, in, err)
 			}
+			if e.r1 != nil {
+				e.r1.sites[in] = [2]int{start, b.Len()}
+			}
+		}
+	}
+	if e.r1 != nil {
+		if err := e.err; err != nil {
+			return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
+		}
+		if err := e.checkR1(); err != nil {
+			return Frame{}, fmt.Errorf("amd64: func %s: abi-r1: %v", f.Name, err)
 		}
 	}
 	fmt.Fprintf(b, "\t.size\t%s, .-%s\n", sym, sym)
@@ -306,6 +334,7 @@ type emitter struct {
 	regs   map[*ir.Instr]int // the register of each value with one, in allocRegs
 	tuples map[*ir.Instr]int // each Tuple call's first result cell
 	sel    *selection        // instruction selection, or nil (select.go)
+	r1     *abiR1            // ABI-R1's state, or nil for ABI-S0 (abir1.go)
 	next   *ir.Block         // the block emitted after the current one, or nil
 	err    error             // the first error of the current function
 }
@@ -516,9 +545,17 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		}
 		op("call\t%s", symPrintNL)
 	case ir.Param:
+		if e.r1 != nil {
+			e.r1Param(in)
+			break
+		}
 		op("movq\t%d(%%rbp), %%rax", 16+8*in.Index)
 		op("movq\t%%rax, %s", res())
 	case ir.Call:
+		if e.r1 != nil {
+			e.r1Call(in)
+			break
+		}
 		// Arguments and results go through the outgoing area at the
 		// bottom of the frame (D-011); %rsp is aligned (see Frame).
 		for i, a := range in.Args {
@@ -542,6 +579,10 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("movq\t%d(%%rbp), %%rax", fr.ValueOffset(tuples[in.Args[0]]+in.Index))
 		op("movq\t%%rax, %s", res())
 	case ir.Ret:
+		if e.r1 != nil {
+			e.r1Ret(in)
+			break
+		}
 		for j, a := range in.Args {
 			e.put(a, fmt.Sprintf("%d(%%rbp)", 16+8*(len(f.Params)+j)))
 		}
