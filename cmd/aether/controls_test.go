@@ -133,7 +133,7 @@ var controls = []control{
 		old: `case in.Type.Signed():
 			op("movq\t%%rax, %%rdx")`, new: `case in.Type.Signed() && in.Op == ir.Shl:
 			op("movq\t%%rax, %%rdx")`,
-		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`gen\d{4}: native`}},
+		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`s2_d01_division_shifts: native`}},
 	{name: "4.5 no negative-count check", file: "internal/lower/lower.go",
 		old: `if !constant {
 				neg :=`, new: `if !constant && false {
@@ -170,6 +170,37 @@ var controls = []control{
 	{name: "4.7 only the first value of each case tested", file: "internal/lower/lower.go",
 		old: `for _, e := range cc.List {`, new: `for _, e := range cc.List[:1] {`,
 		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`gen\d{4}: interpreter`, `gen\d{4}: native`}},
+
+	// Instruction selection (D-029)
+	selectControl("signed condition inverted wrongly", `"l": "ge"`, `"l": "g"`),
+	selectControl("operands swapped without the condition", `ir.Lt: ir.Gt,`, `ir.Lt: ir.Lt,`),
+	selectControl("unsigned comparison as signed", `if t := x.Type; t.IsInteger() && !t.Signed() {
+		cc = strings`, `if t := x.Type; false && t.IsInteger() && !t.Signed() {
+		cc = strings`),
+	selectControl("fall-through jump not inverted", `jcc(inverse[cc], et)
+	case !tc:`, `jcc(cc, et)
+	case !tc:`),
+	selectControl("fused Not ignored", `if c.neg {
+		return inverse[cc]`, `if false {
+		return inverse[cc]`),
+	selectControl("forwarding past phi copies", `!e.hasCopies(ir.Edge{From: b, Index: 0}) {`, `true {`),
+	selectControl("shift count equal to the width in range", `inRange := n < uint64(x.Type.Width())`, `inRange := n <= uint64(x.Type.Width())`),
+	selectControl("no canonicalization with an immediate", `if in.Op == ir.Add || in.Op == ir.Sub || in.Op == ir.Mul {
+		e.canonReg(t, in.Type)`, `if false {
+		e.canonReg(t, in.Type)`),
+	selectControl("subtraction of an immediate adds", `d, mnemonic = -c, "subq"`, `d, mnemonic = c, "subq"`),
+	selectControl("and-not without the complement", `e.op("andq\t$%d, %s", ^c, t)`, `e.op("andq\t$%d, %s", c, t)`),
+	selectControl("division by -1 as remainder", `c == -1 && in.Op == ir.Div:`, `c == -1 && in.Op == ir.Rem:`),
+	selectControl("signedness of a right shift lost", `case x.Type.Signed():
+		e.load(x, t)`, `case false:
+		e.load(x, t)`),
+}
+
+// selectControl is a defect in select.go, which the differential test of
+// selection must detect.
+func selectControl(name, old, new string) control {
+	return control{name: "isel " + name, file: "internal/amd64/select.go", old: old, new: new,
+		pkg: "./cmd/aether", run: "^TestSelectDifferential$", want: []string{`--- FAIL: TestSelectDifferential`}}
 }
 
 // controlEnv is set in the environment of the tests a control runs, so

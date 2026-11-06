@@ -150,7 +150,12 @@ func liveAfter(b *ir.Block, out valueSet) []valueSet {
 // allocate assigns registers, as indexes into allocRegs, to values of f; a
 // value it does not assign keeps its cell. Functions not in SSA form get no
 // registers.
-func allocate(f *ir.Func) (map[*ir.Instr]int, error) {
+func allocate(f *ir.Func) (map[*ir.Instr]int, error) { return allocateExcept(f, nil) }
+
+// allocateExcept is allocate for a function whose values in none have no
+// location at all (select.go). They take no register and count toward no
+// point's pressure.
+func allocateExcept(f *ir.Func, none valueSet) (map[*ir.Instr]int, error) {
 	regs := map[*ir.Instr]int{}
 	if !f.SSA || countValues(f) > maxAllocValues {
 		return regs, nil
@@ -166,7 +171,7 @@ func allocate(f *ir.Func) (map[*ir.Instr]int, error) {
 		}
 		after[b.ID] = liveAfter(b, liveOut[b.ID])
 		for _, in := range b.Instrs {
-			if in.ID >= 0 && in.Type != ir.Tuple {
+			if in.ID >= 0 && in.Type != ir.Tuple && !none[in] {
 				cand[in] = true
 			}
 			for _, a := range in.Args {

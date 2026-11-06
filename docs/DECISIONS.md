@@ -2354,6 +2354,51 @@ the meaning of the default should be decided.
 
 ---
 
+## D-029: Instruction selection for comparisons, branches, and constants
+
+**Status:** Accepted (2026-11-06, owner direction to implement instruction
+selection). It applies to the default build only. `-O0`, and `amd64.Emit`, are
+unchanged byte for byte. The IR, ABI-S0, the runtime interface, and exit codes
+do not change.
+
+**Context.** RA-0 left the accumulator sequences in place, and its report
+named `cmp; jcc` and immediates as the gap to gc.
+
+**Decision.** `EmitOptions.Select`, which `emitProgram` sets
+(`internal/amd64/select.go`):
+- A constant that fits a sign-extended 32-bit immediate, or a `conv` of one
+  whose result fits, has no location. Each use reads `$c`. Other constants load
+  by the shortest form into their own register.
+- A comparison or `not` whose only use is its block's `branch`, with only such
+  immediates between, produces no value. The branch tests it directly. Nothing
+  moves past code, so no call, panic check, or global access is reordered
+  (D-024).
+- Forms with an immediate operand for arithmetic, bitwise operations, shifts,
+  and division, stores of immediates, direct phi copies, and jump threading
+  through empty blocks and fall-through layout.
+- `checkSelection` verifies each selection independently, like
+  `checkAllocation`. A failure is an `internal` diagnostic.
+
+**Alternatives.** A rewrite to a machine IR, which is more general and a far
+larger change. Moving comparisons to their branch across code, which needs
+liveness changes for little gain on these workloads. Direct register forms for
+register-register operations, which were left for a separate change.
+
+**Evidence.** `benchmarks/2026-11-06-isel/REPORT.md`; the tests are listed in
+`TESTING.md`.
+
+**Consequences.**
+- A bug in selection is a miscompilation in built programs, and `-O0` avoids it.
+- The harness's `ra` variant no longer is what `aether build` produces; `isel`
+  is.
+- b08_ackermann runs 20% slower despite 36% fewer instructions. The evidence
+  points to code layout, not to the instructions selected. No alignment was
+  added; the data is in the report.
+
+**Revisit when.** Code alignment is taken up, or register-register forms are.
+
+---
+
 ## Phase 0 research notes
 
 Experiments E1–E12 ran in a scratch directory outside the repository on

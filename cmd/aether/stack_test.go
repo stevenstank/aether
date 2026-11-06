@@ -55,12 +55,14 @@ func TestBuildLargeFrame(t *testing.T) {
 	if _, err := os.Stat("/bin/sh"); err != nil {
 		t.Skip("no /bin/sh to set limits with")
 	}
-	// One value per argument: a frame of at least 8*n = 8.8 MB.
+	// One value per argument: a frame of at least 8*n = 8.8 MB. The function
+	// is over the limit on promotion (D-027), so each operand is a load with
+	// a cell. Constants would take no cells (D-029).
 	const n = 1_100_000
 	dir := t.TempDir()
 	src := filepath.Join(dir, "big.go")
-	args := strings.Repeat("0, ", n-1) + "0"
-	writeFile(t, src, []byte("package main\n\nfunc main() {\n\tprintln("+args+")\n}\n"))
+	args := strings.Repeat("x, ", n-1) + "x"
+	writeFile(t, src, []byte("package main\n\nfunc main() {\n\tx := 0\n\tprintln("+args+")\n}\n"))
 	big := filepath.Join(dir, "big")
 	if stderr, code := runAether("build", "-o", big, src); code != 0 {
 		t.Fatalf("build: exit %d\n%s", code, stderr)

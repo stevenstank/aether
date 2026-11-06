@@ -678,6 +678,9 @@ repeated in each phase below:
       registers, with size limits above which a function keeps the earlier
       paths. Built executables changed. `-O0` selects the slot-based path
       (D-028).
+  - instruction selection for comparisons, branches, and constants, shipped
+    2026-11-06 (D-029, `benchmarks/2026-11-06-isel/REPORT.md`). One workload
+    regressed in run time; see the report. `-O0` is unchanged.
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)

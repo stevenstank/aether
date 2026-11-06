@@ -329,9 +329,14 @@ func checkDisassembly(t *testing.T, obj, exe string, asm []byte) {
 	}
 }
 
-// mnemonic drops the AT&T operand-size suffix q, which objdump omits where
-// the operands make the size clear.
-func mnemonic(m string) string { return strings.TrimSuffix(m, "q") }
+// mnemonic drops the AT&T operand-size suffix q, and the l of movl and xorl,
+// which objdump omits where the operands make the size clear.
+func mnemonic(m string) string {
+	if m == "movl" || m == "xorl" {
+		return strings.TrimSuffix(m, "l")
+	}
+	return strings.TrimSuffix(m, "q")
+}
 
 func disassembledMain(t *testing.T, file string) []string {
 	t.Helper()

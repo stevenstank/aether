@@ -12,7 +12,8 @@ package main
 // TestBenchOracle builds every workload with gc, default and with
 // -gcflags=all='-N -l', and checks both against name.gcout. TestBenchMeasure
 // builds every workload as each compiled variant (slot-based, promoted to
-// SSA, and promoted with registers: RA-0, D-026), checks them against
+// SSA, promoted with registers: RA-0, D-026, and with selection too: D-029,
+// which is aether build), checks them against
 // name.gcout, and profiles them (bench_profile_test.go). It reports dynamic
 // and static counts, per-function and per-IR-op counts, register pressure
 // weighted by the measured block frequencies (bench_pressure_test.go), and
@@ -216,7 +217,7 @@ func TestBenchMeasure(t *testing.T) {
 	fmt.Fprintf(&pr, "workload\tfunc\tvalues\tphis\tmaxLive\tmaxLive(noconst)\tcrossing\tcrossing(noconst)\tmaxAcrossCall\tcallsDyn\tcrossDyn/call\tdyn frac live>6\t>8\t>10\t>12\t>14\n")
 	for _, w := range benchWorkloads(t) {
 		name := w.name
-		var total [3]int64
+		var total [4]int64
 		for vi, variant := range compiledVariants {
 			exe := filepath.Join(outDir, name+"."+variant)
 			prog, asm := benchBuild(t, name+".go", w.src, variant, exe)
@@ -252,7 +253,7 @@ func TestBenchMeasure(t *testing.T) {
 				writeModel(&model, &pr, name, prog, d, blockFreq(prog, ins, counts), total[0])
 			}
 		}
-		t.Logf("%s: dynamic instructions slot %d, ssa %d, ra %d", name, total[0], total[1], total[2])
+		t.Logf("%s: dynamic instructions slot %d, ssa %d, ra %d, isel %d", name, total[0], total[1], total[2], total[3])
 	}
 	for file, s := range map[string]*strings.Builder{"summary.tsv": &sum, "functions.tsv": &fns, "pressure.tsv": &pr, "ops.tsv": &ops, "model.tsv": &model} {
 		writeReport(t, outDir, file, s.String())

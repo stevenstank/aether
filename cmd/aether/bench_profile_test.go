@@ -151,6 +151,9 @@ func account(r *regionStat, line string, slots int, irOp string) error {
 		}
 		return nil
 	}
+	if mn == "leaq" {
+		return nil // computes an address, reads no memory
+	}
 	isMov := strings.HasPrefix(mn, "mov") || mn == "cmovaeq"
 	cls := make([]memClass, len(ops))
 	for i, op := range ops {
@@ -412,9 +415,9 @@ func checkRun(stderr []byte, code int, want []byte) error {
 }
 
 // compiledVariants are the variants Aether builds: slot-based, promoted to
-// SSA, and with registers, which is what aether build produces (D-026,
-// D-027).
-var compiledVariants = []string{"slot", "ssa", "ra"}
+// SSA, with registers (D-026), and with registers and instruction selection,
+// which is what aether build produces (D-027, D-029).
+var compiledVariants = []string{"slot", "ssa", "ra", "isel"}
 
 // benchEmit compiles src and emits it as the given compiled variant.
 func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Program, []byte) {
@@ -423,19 +426,19 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 	if len(ds) > 0 {
 		t.Fatalf("%s: %v", name, ds)
 	}
-	if variant == "ra" {
+	if variant == "isel" {
 		asm, err := emitProgram(prog)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 		return prog, asm
 	}
-	if variant == "ssa" {
+	if variant == "ssa" || variant == "ra" {
 		if err := promoteProgram(prog, &promoteStats{}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
-	asm, err := amd64.Emit(prog)
+	asm, err := amd64.EmitWith(prog, amd64.EmitOptions{Registers: variant == "ra"})
 	if err != nil {
 		t.Fatal(err)
 	}

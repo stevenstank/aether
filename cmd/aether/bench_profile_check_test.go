@@ -275,15 +275,20 @@ func main() {
 		}
 		// fib(15) reaches 987 leaves, where n < 2; the other 986 calls
 		// fall through the conditional jump, which starts a region of
-		// its own that no label starts.
+		// its own that no label starts. Selection lays the leaf out next
+		// and inverts the jump, so there the 987 fall through.
+		want := int64(986)
+		if v == "isel" {
+			want = 987
+		}
 		fallThrough := false
 		for i, r := range ins.regions {
-			if r.fn == "main.fib" && r.block < 0 && counts[i] == 986 {
+			if r.fn == "main.fib" && r.block < 0 && counts[i] == want {
 				fallThrough = true
 			}
 		}
 		if !fallThrough {
-			t.Errorf("%s: no region of fib ran 986 times after its conditional jump", v)
+			t.Errorf("%s: no region of fib ran %d times after its conditional jump", v, want)
 		}
 		m := freq["main.main"]
 		if m[0] != 1 || !slices.Contains(m, 1001) || !slices.Contains(m, 1000) {

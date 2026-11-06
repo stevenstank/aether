@@ -488,6 +488,11 @@ differential harness.
   comparison of the two (instructions, code bytes, frame sizes);
   `internal/amd64/ssa_test.go` covers φ copies along every kind of edge
   natively.
+- Instruction selection (D-029): `TestSelectDifferential` runs every selected
+  form on boundary values of all ten integer types, with values in registers and
+  in cells, built by gc, by `aether build`, and with `-O0`, and in the
+  interpreter. `checkSelection` runs on every function emitted with selection.
+  The `isel` entries of `TestNegativeControls` plant bugs in `select.go`.
 - Every end-to-end and differential test runs at every optimization level.
 - Results at every level must be identical to each other and to the oracle.
 - In tests, the verifier runs after every pass.

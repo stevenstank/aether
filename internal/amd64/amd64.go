@@ -15,7 +15,8 @@
 //
 // EmitWith can also keep values of SSA functions in registers instead of
 // cells (experiment RA-0, D-026; regalloc.go), as aether build asks it to
-// (D-027). Emit never allocates registers.
+// (D-027), and use immediates and fused branches (select.go, D-029). Emit does
+// neither.
 //
 // The package sees only IR: it imports no go/* package.
 package amd64
@@ -118,6 +119,10 @@ type EmitOptions struct {
 	// allocate assigns them (RA-0, D-026). Every allocation is checked
 	// with checkAllocation; one that fails is an error.
 	Registers bool
+	// Select uses immediates and fuses comparisons into branches
+	// (select.go). Every selection is checked with checkSelection; one that
+	// fails is an error.
+	Select bool
 }
 
 // EmitWith is Emit with options.
@@ -174,12 +179,23 @@ func globalSym(g *ir.Global) string { return "main." + g.Name }
 // frame.
 func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, error) {
 	regs := map[*ir.Instr]int{}
+	var sel *selection
+	none := valueSet{}
+	if opts.Select {
+		sel = selectFunc(f)
+		none = sel.noLocation()
+	}
 	if opts.Registers {
 		var err error
-		if regs, err = allocate(f); err != nil {
+		if regs, err = allocateExcept(f, none); err != nil {
 			return Frame{}, err
 		}
 		if err := checkAllocation(f, regs); err != nil {
+			return Frame{}, err
+		}
+	}
+	if sel != nil {
+		if err := checkSelection(f, sel, regs); err != nil {
 			return Frame{}, err
 		}
 	}
@@ -191,7 +207,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	out := 0
 	for _, blk := range f.Blocks {
 		for _, in := range blk.Instrs {
-			if _, ok := regs[in]; in.ID >= 0 && !ok {
+			if _, ok := regs[in]; in.ID >= 0 && !ok && !none[in] {
 				vals = append(vals, in)
 			}
 			if in.Op == ir.Call {
@@ -234,8 +250,21 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	// Blocks are emitted in order, each under a local label; the entry
 	// block follows the prologue.
 	label := func(blk *ir.Block) string { return fmt.Sprintf(".L%d.b%d", fi, blk.ID) }
-	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples}
+	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples, sel: sel}
+	var blocks []*ir.Block
+	if sel != nil {
+		sel.fwd = e.forwarders()
+	}
 	for _, blk := range f.Blocks {
+		if sel == nil || sel.fwd[blk] == nil {
+			blocks = append(blocks, blk)
+		}
+	}
+	for i, blk := range blocks {
+		e.next = nil
+		if i+1 < len(blocks) {
+			e.next = blocks[i+1]
+		}
 		fmt.Fprintf(b, "%s:\n", label(blk))
 		for _, in := range blk.Instrs {
 			fmt.Fprintf(b, "\t# %s @%s\n", in, in.Pos)
@@ -276,14 +305,27 @@ type emitter struct {
 	cells  map[*ir.Instr]int // the cell of each value without a register
 	regs   map[*ir.Instr]int // the register of each value with one, in allocRegs
 	tuples map[*ir.Instr]int // each Tuple call's first result cell
+	sel    *selection        // instruction selection, or nil (select.go)
+	next   *ir.Block         // the block emitted after the current one, or nil
+	err    error             // the first error of the current function
 }
 
-// val is the location of v: its register or its cell.
+// val is the location of v: its register or its cell, or the operand of an
+// immediate. A value with no location that is read is an internal error.
 func (e *emitter) val(v *ir.Instr) string {
+	if e.sel != nil {
+		if c, ok := e.sel.imm[v]; ok {
+			return fmt.Sprintf("$%d", c)
+		}
+	}
 	if r, ok := e.regs[v]; ok {
 		return allocRegs[r]
 	}
-	return fmt.Sprintf("%d(%%rbp)", e.fr.ValueOffset(e.cells[v]))
+	cell, ok := e.cells[v]
+	if !ok {
+		e.fail(fmt.Errorf("v%d has no location", v.ID))
+	}
+	return fmt.Sprintf("%d(%%rbp)", e.fr.ValueOffset(cell))
 }
 
 // op emits one instruction.
@@ -297,6 +339,9 @@ func (e *emitter) op(format string, args ...any) {
 func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 	b, fr, f, label, tuples, val, op := e.b, e.fr, e.f, e.label, e.tuples, e.val, e.op
 	res := func() string { return val(in) }
+	if e.sel != nil && e.selected(blk, in) {
+		return e.err
+	}
 	switch in.Op {
 	case ir.Const:
 		if in.Const >= math.MinInt32 && in.Const <= math.MaxInt32 {
@@ -310,28 +355,26 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("movq\t%d(%%rbp), %%rax", fr.SlotOffset(in.Slot.ID))
 		op("movq\t%%rax, %s", res())
 	case ir.Store:
-		op("movq\t%s, %%rax", val(in.Args[0]))
-		op("movq\t%%rax, %d(%%rbp)", fr.SlotOffset(in.Slot.ID))
+		e.put(in.Args[0], fmt.Sprintf("%d(%%rbp)", fr.SlotOffset(in.Slot.ID)))
 	case ir.GLoad:
 		op("movq\t%s(%%rip), %%rax", globalSym(in.Global))
 		op("movq\t%%rax, %s", res())
 	case ir.GStore:
-		op("movq\t%s, %%rax", val(in.Args[0]))
-		op("movq\t%%rax, %s(%%rip)", globalSym(in.Global))
+		e.put(in.Args[0], globalSym(in.Global)+"(%rip)")
 	case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor:
 		// addq, subq, and the two-operand imulq keep the low 64 bits of
 		// the result, whose low width bits are exact, and so do the bitwise
 		// operations; canonicalizing then gives the IR's wrapping
 		// semantics at every width. The flags they set are not used.
 		mnemonic := map[ir.Op]string{ir.Add: "addq", ir.Sub: "subq", ir.Mul: "imulq", ir.And: "andq", ir.Or: "orq", ir.Xor: "xorq"}[in.Op]
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[0], "%rax")
 		op("%s\t%s, %%rax", mnemonic, val(in.Args[1]))
 		canon(op, in.Type)
 		op("movq\t%%rax, %s", res())
 	case ir.AndNot:
-		op("movq\t%s, %%rcx", val(in.Args[1]))
+		e.load(in.Args[1], "%rcx")
 		op("notq\t%%rcx")
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[0], "%rax")
 		op("andq\t%%rcx, %%rax")
 		canon(op, in.Type)
 		op("movq\t%%rax, %s", res())
@@ -340,8 +383,8 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		// is done without idivq, which faults on the minimum divided by
 		// -1 (E10): the quotient is the negation, wrapping, and the
 		// remainder 0. Numeric local labels keep each sequence's own.
-		op("movq\t%s, %%rcx", val(in.Args[1]))
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[1], "%rcx")
+		e.load(in.Args[0], "%rax")
 		if in.Type.Signed() {
 			op("cmpq\t$-1, %%rcx")
 			op("jne\t1f")
@@ -370,8 +413,8 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		// x86 shifts use the count modulo 64 (E10), so a count at or above
 		// the width selects 0, or for an arithmetic right shift the sign
 		// fill, instead. The count is unsigned, so the comparison is too.
-		op("movq\t%s, %%rcx", val(in.Args[1]))
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[1], "%rcx")
+		e.load(in.Args[0], "%rax")
 		switch {
 		case in.Op == ir.Shl:
 			op("shlq\t%%cl, %%rax")
@@ -393,7 +436,7 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 	case ir.Neg, ir.Com, ir.Conv:
 		// negq maps the minimum to itself, as the IR requires; a conversion
 		// is only the canonicalization to the new type.
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[0], "%rax")
 		switch in.Op {
 		case ir.Neg:
 			op("negq\t%%rax")
@@ -409,13 +452,13 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		if t := in.Args[0].Type; t.IsInteger() && !t.Signed() {
 			cc = setccUnsigned[in.Op]
 		}
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[0], "%rax")
 		op("cmpq\t%s, %%rax", val(in.Args[1]))
 		op("%s\t%%al", cc)
 		op("movzbl\t%%al, %%eax")
 		op("movq\t%%rax, %s", res())
 	case ir.Not:
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[0], "%rax")
 		op("xorq\t$1, %%rax")
 		op("movq\t%%rax, %s", res())
 	case ir.Phi:
@@ -430,7 +473,7 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		// emitted code without changing the CFG. The copies do not change
 		// the flags.
 		then, els := ir.Edge{From: blk, Index: 0}, ir.Edge{From: blk, Index: 1}
-		op("movq\t%s, %%rax", val(in.Args[0]))
+		e.load(in.Args[0], "%rax")
 		op("testq\t%%rax, %%rax")
 		switch {
 		case !hasPhis(in.Targets[0]):
@@ -458,7 +501,7 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 			if i > 0 && in.Op == ir.Println {
 				op("call\t%s", symPrintSpace)
 			}
-			op("movq\t%s, %%rdi", val(a))
+			e.load(a, "%rdi")
 			switch {
 			case a.Type == ir.Bool:
 				op("call\t%s", symPrintBool)
@@ -479,8 +522,7 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		// Arguments and results go through the outgoing area at the
 		// bottom of the frame (D-011); %rsp is aligned (see Frame).
 		for i, a := range in.Args {
-			op("movq\t%s, %%rax", val(a))
-			op("movq\t%%rax, %d(%%rsp)", 8*i)
+			e.put(a, fmt.Sprintf("%d(%%rsp)", 8*i))
 		}
 		op("call\t%s", funcSym(in.Callee))
 		// Results are copied out before any other call can reuse the
@@ -501,8 +543,7 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("movq\t%%rax, %s", res())
 	case ir.Ret:
 		for j, a := range in.Args {
-			op("movq\t%s, %%rax", val(a))
-			op("movq\t%%rax, %d(%%rbp)", 16+8*(len(f.Params)+j))
+			e.put(a, fmt.Sprintf("%d(%%rbp)", 16+8*(len(f.Params)+j)))
 		}
 		op("movq\t%%rbp, %%rsp")
 		op("popq\t%%rbp")
@@ -520,6 +561,10 @@ func canon(op func(string, ...any), t ir.Type) {
 		op("%s", c)
 	}
 }
+
+// indexOfEdge returns the index of phi's operand for edge. Verify guarantees
+// there is exactly one.
+func indexOfEdge(phi *ir.Instr, edge ir.Edge) int { return slices.Index(phi.Edges, edge) }
 
 // hasPhis reports whether blk begins with a phi.
 func hasPhis(blk *ir.Block) bool { return len(blk.Instrs) > 0 && blk.Instrs[0].Op == ir.Phi }
@@ -541,7 +586,7 @@ func (e *emitter) edgeCopies(edge ir.Edge) {
 			break
 		}
 		// Verify guarantees exactly one operand for the edge.
-		src, dst := e.val(phi.Args[slices.Index(phi.Edges, edge)]), e.val(phi)
+		src, dst := e.val(phi.Args[indexOfEdge(phi, edge)]), e.val(phi)
 		if src != dst {
 			moves = append(moves, move{dst, src})
 		}
@@ -562,6 +607,9 @@ func (e *emitter) edgeCopies(edge ir.Edge) {
 		}
 		if m := moves[i]; m.src == "%rcx" {
 			e.op("movq\t%%rcx, %s", m.dst)
+		} else if e.sel != nil && (isReg(m.src) || isReg(m.dst) || isImm(m.src)) {
+			// After the conditional jump: the flags are dead here.
+			e.move(m.src, m.dst)
 		} else {
 			e.op("movq\t%s, %%rax", m.src)
 			e.op("movq\t%%rax, %s", m.dst)

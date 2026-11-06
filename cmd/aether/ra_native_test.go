@@ -23,6 +23,12 @@ import (
 // twice: the assembly must be the same both times.
 func emitRegisters(t *testing.T, name string, src []byte) []byte {
 	t.Helper()
+	return emitPromoted(t, name, src, amd64.EmitOptions{Registers: true})
+}
+
+// emitPromoted is emitRegisters with any options.
+func emitPromoted(t *testing.T, name string, src []byte, opts amd64.EmitOptions) []byte {
+	t.Helper()
 	var asm [2][]byte
 	for i := range asm {
 		prog, ds := compile([]source{{name, src}})
@@ -33,7 +39,7 @@ func emitRegisters(t *testing.T, name string, src []byte) []byte {
 			t.Fatalf("%s: promotion: %v", name, err)
 		}
 		var err error
-		if asm[i], err = amd64.EmitWith(prog, amd64.EmitOptions{Registers: true}); err != nil {
+		if asm[i], err = amd64.EmitWith(prog, opts); err != nil {
 			t.Fatalf("%s: %v\nsource:\n%s", name, err, src)
 		}
 	}
@@ -105,14 +111,15 @@ func TestNativeRASuite(t *testing.T) {
 	}
 }
 
-// checkRegistersGenerated is FuzzGenerated's RA-0 check of a valid
-// generated program: emitting it with registers must succeed, which
-// checks every allocation, and be deterministic. If the program finishes
-// in the interpreter within steps and as and ld are available, the native
-// executable with registers must also give the interpreter's result.
+// checkRegistersGenerated is FuzzGenerated's check of a valid generated
+// program: emitting it as aether build does, with registers and selection,
+// must succeed, which checks every allocation and selection, and be
+// deterministic. If the program finishes in the interpreter within steps and
+// as and ld are available, the native executable must also give the
+// interpreter's result.
 func checkRegistersGenerated(t *testing.T, src []byte, finished bool) {
 	t.Helper()
-	asm := emitRegisters(t, "gen.go", src)
+	asm := emitPromoted(t, "gen.go", src, amd64.EmitOptions{Registers: true, Select: true})
 	if !finished {
 		return
 	}

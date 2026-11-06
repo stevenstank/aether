@@ -1,11 +1,13 @@
 # Aether Measurement Strategy
 
-Status: **harness and two measurements.** The workloads and the harness
-are checked in ([The harness](#the-harness)). Two measurements exist, both
+Status: **harness and three measurements.** The workloads and the harness
+are checked in ([The harness](#the-harness)). Three measurements exist, all
 under WSL2: the register-allocation baseline of 2026-11-05
-([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md))
-and the RA-0 results of 2026-11-06
-([`benchmarks/2026-11-06-ra0/REPORT.md`](benchmarks/2026-11-06-ra0/REPORT.md)).
+([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)),
+the RA-0 results of 2026-11-06
+([`benchmarks/2026-11-06-ra0/REPORT.md`](benchmarks/2026-11-06-ra0/REPORT.md)),
+and instruction selection, also of 2026-11-06
+([`benchmarks/2026-11-06-isel/REPORT.md`](benchmarks/2026-11-06-isel/REPORT.md)).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time.
 
@@ -56,7 +58,7 @@ score.
 ## The harness
 
 The harness is test code in `cmd/aether` (`bench_*_test.go`). It uses the
-compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `ra`
+compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `isel`
 variant is exactly what `aether build` produces, and it also builds the earlier
 slot-based and SSA variants. It does not change the compiler.
 
@@ -64,8 +66,9 @@ slot-based and SSA variants. It does not change the compiler.
 check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
-**Variants.** `ra` (what `aether build` produces since D-027: promoted and
-emitted with registers), `slot` (what `aether build -O0` produces: every value
+**Variants.** `isel` (what `aether build` produces since D-029: promoted and
+emitted with registers and instruction selection), `ra` (the same without
+selection, what it produced under D-027), `slot` (what `aether build -O0` produces: every value
 in a cell), `ssa` (promoted, with every value in a cell), `gc` (`go build`), and
 `gcN` (`go build -gcflags=all='-N -l'`). The gc variants are reference points only
 ([Comparing against gc](#comparing-against-gc)).
@@ -107,7 +110,7 @@ unless `AETHER_BENCH_OUT` is set.
 ```
 # gc variants, checked against the recorded outputs
 AETHER_BENCH_OUT=$OUT go test -count=1 ./cmd/aether -run 'TestBenchOracle$' -v
-# slot, SSA, and RA-0 builds, checked and profiled; static and dynamic
+# slot, SSA, RA-0, and isel builds, checked and profiled; static and dynamic
 # counts, pressure, and the model: summary, functions, pressure, ops, model .tsv
 AETHER_BENCH_OUT=$OUT go test -count=1 -timeout 30m ./cmd/aether -run 'TestBenchMeasure$' -v
 # static pressure of the S2 suite: suite_pressure.tsv

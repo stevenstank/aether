@@ -129,8 +129,8 @@ func promotable(f *ir.Func) bool {
 
 // emitProgram is the backend of aether build (D-027): it promotes every
 // function of prog within the limits to SSA form (ir.Promote, D-006), in
-// place, and emits it with values in registers (RA-0, D-026), which checks
-// every allocation. Any failure is a bug in Aether, not in the program.
+// place, and emits it with values in registers (RA-0, D-026) and instruction
+// selection (D-029), which checks every allocation and selection. Any failure is a bug in Aether, not in the program.
 func emitProgram(prog *ir.Program) ([]byte, error) {
 	for _, f := range prog.Funcs {
 		if promotable(f) {
@@ -139,7 +139,7 @@ func emitProgram(prog *ir.Program) ([]byte, error) {
 			}
 		}
 	}
-	return amd64.EmitWith(prog, amd64.EmitOptions{Registers: true})
+	return amd64.EmitWith(prog, amd64.EmitOptions{Registers: true, Select: true})
 }
 
 // assemble assembles asm, the program's assembly, links it with the

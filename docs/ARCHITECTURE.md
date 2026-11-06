@@ -9,7 +9,8 @@ Status:
   linking with GNU `as`/`ld`), and 9 (runtime), first for S1, and `aether build`.
 - **Implemented (Phase 4):** every stage above for S2, the supported subset.
 - **Implemented (Phase 5, in progress):** SSA promotion and register allocation
-  (D-006, D-026, D-027), and `-O0` (D-028).
+  (D-006, D-026, D-027), `-O0` (D-028), and instruction selection for
+  comparisons, branches, and constants (D-029).
 - **Design only:** optimization passes (the rest of stage 6), and everything
   beyond S2.
 
@@ -382,6 +383,13 @@ needs a flag check or a special case.
 | `vN = neg vA` | `movq vA, %rax; negq %rax; movq %rax, vN` (`negq` maps `MinInt64` to itself) |
 | `println vA, vB, …` | `movq vA, %rdi; call aether.printint; call aether.printsp; movq vB, %rdi; call aether.printint; …; call aether.printnl` |
 | `ret` | the epilogue |
+
+This table is the baseline, which `-O0` still emits. The default build also
+selects shorter forms (D-029, `internal/amd64/select.go`): a constant that fits
+an immediate has no location and is an operand of each use, and a comparison or
+`not` used only by the branch right after it is emitted as `cmpq`/`testq` and a
+conditional jump. Blocks with nothing but a jump are bypassed, and a jump to the
+next block is omitted.
 
 Each instruction's code is preceded by a comment holding the IR instruction
 and its line and column. The output contains no paths, times, or host data,

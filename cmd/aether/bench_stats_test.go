@@ -14,7 +14,7 @@ import (
 )
 
 // benchVariants are the executables of each workload, in timing order.
-var benchVariants = []string{"slot", "ssa", "ra", "gc", "gcN"}
+var benchVariants = []string{"slot", "ssa", "ra", "isel", "gc", "gcN"}
 
 // median returns the median of the sorted xs.
 func median(xs []float64) float64 {
@@ -141,6 +141,29 @@ func timesSummary(raw string) (string, error) {
 			return "n/a"
 		}
 		fmt.Fprintf(&b, "%s\t%.3f\t%s\t%s\t%s\t%s\n", w, r.cpuMed/a.cpuMed, overlap, ratio("slot"), ratio("gc"), ratio("gcN"))
+	}
+	header = false
+	for _, w := range workloads {
+		r, okR := stats[key{w, "ra"}]
+		i, okI := stats[key{w, "isel"}]
+		if !okR || !okI {
+			continue
+		}
+		if !header {
+			b.WriteString("\nworkload\tisel/ra cpu\tranges overlap?\tisel/gc\tisel/gcN\tra/gc\n")
+			header = true
+		}
+		overlap := "yes"
+		if i.cpuMax < r.cpuMin || r.cpuMax < i.cpuMin {
+			overlap = "no"
+		}
+		ratio := func(x timeStats, v string) string {
+			if g, ok := stats[key{w, v}]; ok {
+				return fmt.Sprintf("%.2f", x.cpuMed/g.cpuMed)
+			}
+			return "n/a"
+		}
+		fmt.Fprintf(&b, "%s\t%.3f\t%s\t%s\t%s\t%s\n", w, i.cpuMed/r.cpuMed, overlap, ratio(i, "gc"), ratio(i, "gcN"), ratio(r, "gc"))
 	}
 	return b.String(), nil
 }
