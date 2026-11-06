@@ -18,7 +18,7 @@ representation and backend.
 >
 > Phase 5 has started. `aether build` now promotes functions to SSA form
 > (D-006), keeps values in registers where it can (D-026, D-027), and selects
-shorter forms for comparisons, branches, and constants (D-029). Other
+> shorter forms for comparisons, branches, and constants (D-029). Other
 > Phase 5 work, such as optimization passes and a register calling convention,
 > has not started.
 

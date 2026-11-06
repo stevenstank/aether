@@ -679,8 +679,15 @@ repeated in each phase below:
       paths. Built executables changed. `-O0` selects the slot-based path
       (D-028).
   - instruction selection for comparisons, branches, and constants, shipped
-    2026-11-06 (D-029, `benchmarks/2026-11-06-isel/REPORT.md`). One workload
-    regressed in run time; see the report. `-O0` is unchanged.
+    2026-11-06 and accepted by the owner the same day as the default (D-029,
+    `benchmarks/2026-11-06-isel/REPORT.md`). `-O0` is unchanged and stays the
+    unoptimized fallback; the ABI and the runtime did not change.
+    - Measured against the same build without selection, under WSL2: dynamic
+      instructions -21% to -73% on all nine workloads; CPU time -11% to -36% on
+      six, unchanged on b01 and b05, and +20% on b08_ackermann.
+    - **Open: the b08_ackermann regression.** Its cause is not established.
+    - Block alignment was tried and is out of scope; its trade-offs are in the
+      report.
   - register-based internal convention (D-011 follow-up)
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)

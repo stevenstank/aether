@@ -1,0 +1,26 @@
+fuzz: elapsed: 0s, gathering baseline coverage: 0/1368 completed
+fuzz: elapsed: 3s, gathering baseline coverage: 612/1368 completed
+fuzz: elapsed: 6s, gathering baseline coverage: 1132/1368 completed
+fuzz: elapsed: 8s, gathering baseline coverage: 1368/1368 completed, now fuzzing with 16 workers
+fuzz: elapsed: 9s, execs: 1796 (221/sec), new interesting: 0 (total: 1368)
+fuzz: elapsed: 12s, execs: 2683 (296/sec), new interesting: 2 (total: 1370)
+fuzz: elapsed: 15s, execs: 3638 (318/sec), new interesting: 4 (total: 1372)
+fuzz: elapsed: 18s, execs: 4562 (308/sec), new interesting: 5 (total: 1373)
+fuzz: elapsed: 21s, execs: 5381 (273/sec), new interesting: 6 (total: 1374)
+fuzz: elapsed: 24s, execs: 6225 (281/sec), new interesting: 7 (total: 1375)
+fuzz: elapsed: 27s, execs: 7088 (288/sec), new interesting: 8 (total: 1376)
+fuzz: elapsed: 30s, execs: 7963 (292/sec), new interesting: 8 (total: 1376)
+fuzz: elapsed: 33s, execs: 8870 (302/sec), new interesting: 8 (total: 1376)
+fuzz: elapsed: 36s, execs: 9767 (299/sec), new interesting: 8 (total: 1376)
+fuzz: elapsed: 39s, execs: 10667 (300/sec), new interesting: 8 (total: 1376)
+fuzz: elapsed: 42s, execs: 11558 (297/sec), new interesting: 9 (total: 1377)
+fuzz: elapsed: 45s, execs: 12415 (286/sec), new interesting: 9 (total: 1377)
+fuzz: elapsed: 48s, execs: 13241 (275/sec), new interesting: 9 (total: 1377)
+fuzz: elapsed: 51s, execs: 14131 (297/sec), new interesting: 9 (total: 1377)
+fuzz: elapsed: 54s, execs: 15003 (290/sec), new interesting: 9 (total: 1377)
+fuzz: elapsed: 57s, execs: 15847 (282/sec), new interesting: 9 (total: 1377)
+fuzz: elapsed: 1m0s, execs: 16659 (271/sec), new interesting: 10 (total: 1378)
+fuzz: elapsed: 1m1s, execs: 16659 (0/sec), new interesting: 10 (total: 1378)
+PASS
+ok  	github.com/stevenstank/aether/cmd/aether	60.663s
+exit status: 0

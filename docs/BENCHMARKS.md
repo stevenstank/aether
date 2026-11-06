@@ -53,7 +53,9 @@ score.
 - **Workloads:** checked into the repository and versioned. Never change a
   workload without renaming it.
 - **Regressions:** a change that worsens a tracked metric beyond the measured
-  noise band must be explained in the change description.
+  noise band must be explained in the change description. If the cause is not
+  established, it is recorded as an unresolved regression, with measurements and
+  hypotheses kept apart.
 
 ## The harness
 

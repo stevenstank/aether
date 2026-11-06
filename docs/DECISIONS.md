@@ -2357,9 +2357,10 @@ the meaning of the default should be decided.
 ## D-029: Instruction selection for comparisons, branches, and constants
 
 **Status:** Accepted (2026-11-06, owner direction to implement instruction
-selection). It applies to the default build only. `-O0`, and `amd64.Emit`, are
-unchanged byte for byte. The IR, ABI-S0, the runtime interface, and exit codes
-do not change.
+selection; milestone accepted the same day as the default, at `ca5dbe2`, with
+one unresolved regression). It applies to the default build only. `-O0`, and
+`amd64.Emit`, are unchanged byte for byte and `-O0` stays the unoptimized
+fallback. The IR, ABI-S0, the runtime interface, and exit codes do not change.
 
 **Context.** RA-0 left the accumulator sequences in place, and its report
 named `cmp; jcc` and immediates as the gap to gc.
@@ -2384,18 +2385,34 @@ larger change. Moving comparisons to their branch across code, which needs
 liveness changes for little gain on these workloads. Direct register forms for
 register-register operations, which were left for a separate change.
 
-**Evidence.** `benchmarks/2026-11-06-isel/REPORT.md`; the tests are listed in
-`TESTING.md`.
+Block alignment was tried and left out by owner decision: it is a separate
+optimization, and no variant tried improved every workload (the report has the
+times and sizes).
+
+**Evidence.** `benchmarks/2026-11-06-isel/REPORT.md`, whose method is that of
+`BENCHMARKS.md`; the tests are listed in `TESTING.md`. Measured against the same
+build without selection (`ra`), under WSL2 on one CPU, with times repeated at
+`ca5dbe2`:
+- Dynamic instructions fell 21.0% to 73.3% on all nine workloads, and static
+  instructions 20.0% to 55.8%. Across the S2 suite and the workloads, static
+  instructions fell 32.0% and frame bytes 30.7%, and no function grew.
+- Median CPU time fell 11% to 36% on six workloads (b02, b03, b04, b06, b07, b09).
+- b01 and b05 did not change: their ranges overlap.
+- b08_ackermann got 20% slower.
+- The ratio to gc went from 1.20-3.14 to 1.01-3.14 (1.01-3.16 in the repeat).
 
 **Consequences.**
 - A bug in selection is a miscompilation in built programs, and `-O0` avoids it.
 - The harness's `ra` variant no longer is what `aether build` produces; `isel`
   is.
-- b08_ackermann runs 20% slower despite 36% fewer instructions. The evidence
-  points to code layout, not to the instructions selected. No alignment was
-  added; the data is in the report.
+- **Unresolved regression.** b08_ackermann runs 20% slower despite 36% fewer
+  instructions and the same memory operations. Its time is sensitive to block
+  alignment, but `ra` aligned the same way stays about 13% ahead, so alignment
+  does not remove the difference. **The cause is not established**: branch density
+  is a hypothesis, and no hardware counters are available here.
 
-**Revisit when.** Code alignment is taken up, or register-register forms are.
+**Revisit when.** Hardware counters or another CPU can test the b08 hypotheses;
+code alignment is taken up; or register-register forms are.
 
 ---
 
