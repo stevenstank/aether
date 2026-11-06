@@ -97,6 +97,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-06 | Owner directs that the roadmap stop showing Phases 1 and 2 as pending review; their acceptance is recorded in `ROADMAP.md`. No earlier record of it exists. | — |
 | 2026-11-06 | Owner accepts instruction selection as the default; the b08_ackermann regression is recorded as unresolved, and block alignment stays out of scope | D-029 |
 | 2026-11-06 | Owner approves experiment ABI-R1 under the scope and criteria recorded in D-030. Shipping needs a new entry. No code exists yet. | D-011, D-030 |
+| 2026-11-07 | Owner settles three D-030 criteria: frame sizes may shrink while the stack check's mechanism, frame chain, and epilogue stay unchanged; the 2% limit applies to aggregates, with per-offset results reported and significant outliers investigated; peak stack stays within the `isel` baseline, and b03 and b04 stay byte-identical only if they avoid ABI-R1's call paths. Implementation has not started. | D-030 |
 
 ---
 
@@ -2420,8 +2421,9 @@ code alignment is taken up; or register-register forms are.
 
 ## D-030: Experiment ABI-R1, a register calling convention for internal calls
 
-**Status:** Accepted (2026-11-06, owner approval of the scope and criteria below).
-The experiment may start and has not. This approval authorizes the experiment only.
+**Status:** Accepted (2026-11-06, owner approval of the scope and criteria below;
+three criteria settled by the owner on 2026-11-07). The experiment may start and has
+not. This approval authorizes the experiment only.
 **Shipping ABI-R1 as the default needs a new entry after the results.** D-011 stays
 in force: ABI-S0 remains the convention of `aether build`, with and without `-O0`,
 throughout the experiment.
@@ -2449,8 +2451,8 @@ emission option that is off by default is set:
 - **Moves.** The moves at a call site and at entry are parallel copies, with `%rax` as
   the temporary. The stack check needs `%rax` free at entry, so `%rax` is never an
   argument register (D-011, "Revisit when"). `%rcx` and `%rdx` stay reserved scratch.
-- **Frame.** The prologue's check, the frame chain, and the epilogue keep their form.
-  Only the frame's size changes: the outgoing area A = 8·max(P+R) counts only calls
+- **Frame.** The stack check's mechanism, the frame chain, and the epilogue do not
+  change. Frame sizes may shrink: the outgoing area A = 8·max(P+R) counts only calls
   with more than six arguments or more than one result, because the others use no
   outgoing word. Those calls keep the whole area, unused words included.
 - **Entry precondition.** Argument registers hold their values only at entry, so:
@@ -2488,10 +2490,11 @@ build's pipeline, not through `aether build`.
    results; nested calls; mutual recursion; and D-024's order with panics in arguments.
 4. Functions above each size limit (`TestBuildBackendLimits`: over the promotion limit
    and over the allocator's) build and run under the option.
-5. The stack boundary tests hold under the new frame sizes: entry at E = T, at E = T −
-   16, overflow with arguments in registers, and the helpers at the reserve's edge.
-   The D-011 bound still holds as stated. Peak stack is no higher than `isel` on any
-   workload.
+5. The stack boundary tests are updated for ABI-R1's frame sizes and pass: entry at
+   E = T, at E = T − 16, overflow with arguments in registers, and the helpers at the
+   reserve's edge. The ABI-S0 tests stay as they are. The D-011 bound still holds as
+   stated. Peak stack is no higher than the `isel` baseline on any workload (the `isel`
+   rows of `benchmarks/2026-11-06-abi/data/abi_summary.tsv`).
 6. An independent check verifies each entry and call-site copy, and the entry
    precondition, as `checkAllocation` does for allocations. A failure is an `internal`
    error.
@@ -2499,8 +2502,15 @@ build's pipeline, not through `aether build`.
    cycle break, a stale `%rax` result, a seventh argument read from a register, a frame
    missing a needed outgoing area, and a `param` after a clobbering instruction.
 8. With the option off, `-O0` output and the `slot`, `ssa`, `ra`, and `isel` assembly
-   stay byte-identical. With it on, the assembly is deterministic, and b03 and b04
-   stay byte-identical to `isel`, as in the model.
+   stay byte-identical. With it on, the assembly is deterministic.
+9. With the option on, b03 and b04 stay byte-identical to `isel` if they avoid ABI-R1's
+   call paths, meaning that no Aether function in the workload is called with, receives,
+   or returns a value. The test establishes this from the emitted assembly instead of
+   assuming it. Otherwise, the requirement for that workload is semantic equivalence:
+   the same stderr and exit status as `isel` and the recorded gc output. *Verified
+   2026-11-07 at 67e19d1:* both avoid these paths. Their only calls are `main.main`'s to
+   runtime helpers, whose ABI does not change, and `_start`'s to `main.init` and
+   `main.main`, which pass and return nothing. Byte-identity therefore applies today.
 
 **Performance criteria.** Fixed before implementation, against `isel` at the same
 commit, by the method of `BENCHMARKS.md`: pinned, round-robin, with a discarded
@@ -2508,14 +2518,19 @@ warm-up, at the 8 code offsets of `TestABITime`, with at least 7 runs per offset
 1. CPU time improves by at least 10% on each of b01, b05, and b08 (ratio at most
    0.900), and by at least 5% on b06 (ratio at most 0.950). The model gave 0.874,
    0.801, 0.696, and 0.913.
-2. No workload is more than 2% slower (ratio at most 1.020).
+2. No workload's aggregate is more than 2% slower (ratio at most 1.020). The limit does
+   not apply to individual offsets.
 3. On every workload, dynamic instructions and memory operations are no higher than
    the `r1` row of `benchmarks/2026-11-06-abi/data/abi_summary.tsv`.
 
-The ratios in 1 and 2 are of the median of the eight per-offset medians. Per-offset
-medians and the aggregates are both reported, but only the aggregates decide: on the
-model, single offsets reach 1.042 on b05 and 1.064 on b09 while their aggregates are
-0.801 and 1.001.
+The ratios in 1 and 2 are of the median of the eight per-offset medians. Only these
+aggregates decide: on the model, single offsets reach 1.042 on b05 and 1.064 on b09
+while their aggregates are 0.801 and 1.001. Every per-offset measurement is reported,
+and significant outliers are investigated. An offset is a significant outlier when its
+ratio differs from the workload's aggregate by more than the measured noise band
+(`BENCHMARKS.md`, Regressions). The report gives each one's cause, or records it as
+unresolved with measurements and hypotheses kept apart. An outlier does not change the
+aggregate verdict, but the results are not complete until it has been investigated.
 
 **Outcome rules.**
 - Missing any criterion means ABI-R1 does not ship. The results are reported whatever
