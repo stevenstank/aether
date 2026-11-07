@@ -713,8 +713,13 @@ repeated in each phase below:
         in the generated programs; on the 34 corpus programs, 4.8%. No
         function grew.
     - Copy propagation: nothing to do after promotion, which leaves no copies.
-    - Dead code elimination: not started, beyond the unreachable blocks and
-      unused constants that folding removes.
+    - Dead code elimination (`opt.DCE`), after folding since 2026-11-08,
+      with the verifier after each pass on the S2 suite and `FuzzGenerated`.
+      - Measured: after promotion and folding, the workloads and the corpus
+        programs have no dead instruction, so their code is unchanged; it
+        was not timed. On the generated programs it removes 331 IR
+        instructions; static machine instructions on the S2 suite and
+        workloads fell 1.1% from folding's. No function grew.
   - benchmark harness (`BENCHMARKS.md`)
     - Checked in 2026-11-06: the nine workloads of the baseline with their
       gc outputs, dynamic counts by instrumentation, register pressure,

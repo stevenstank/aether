@@ -11,7 +11,8 @@ Status:
 - **Implemented (Phase 5, in progress):** SSA promotion and register allocation
   (D-006, D-026, D-027), `-O0` (D-028), instruction selection for
   comparisons, branches, and constants (D-029), register forms of
-  arithmetic and conversions, and constant folding (stage 6, `internal/opt`).
+  arithmetic and conversions, constant folding and dead code elimination
+  (stage 6, `internal/opt`).
 - **Design only:** the other optimization passes of stage 6, and everything
   beyond S2.
 
@@ -287,6 +288,11 @@ and value numbering never depend on map iteration order.
   value, or only equal constants, and drops unused constants, until nothing
   changes. It removes code only from blocks that never execute and moves
   nothing.
+- **Implemented: dead code elimination** (`opt.DCE`), after folding. It keeps
+  the instructions with an effect (terminators, `call`, `println`, `print`,
+  `gstore`, and `param`) and their operands, transitively, and removes the
+  rest, dead phi cycles included. `div` and `rem` cannot trap (lowering's zero
+  check is a branch of its own), and a dead `gload` is not reordered but gone.
 - Copy propagation has nothing to do after promotion: the IR has no copy
   instruction, and promotion replaces every load by the stored value.
 
@@ -638,7 +644,7 @@ The other rows are still candidates.
 | `internal/ir` | IR types, builder, verifier, printer; dominator tree, dominance frontiers, and slot promotion to SSA (Phase 5, D-006, D-025) | — (no `go/*`) | **contract:** text format + invariants |
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |
-| `internal/opt` | Optimization passes (Phase 5+): constant folding | `ir` (no `go/*`) | internal |
+| `internal/opt` | Optimization passes (Phase 5+): constant folding, dead code elimination | `ir` (no `go/*`) | internal |
 | `internal/amd64` | isel, frames, regalloc, asm emission; runtime sources in `internal/amd64/rt/*.s`, embedded (§9) | `ir` | internal |
 | `internal/toolchain` | Locate and run `as` and `ld` | — | internal |
 

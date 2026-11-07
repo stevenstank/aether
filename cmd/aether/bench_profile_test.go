@@ -30,6 +30,7 @@ import (
 
 	"github.com/stevenstank/aether/internal/amd64"
 	"github.com/stevenstank/aether/internal/ir"
+	"github.com/stevenstank/aether/internal/opt"
 )
 
 // memClass classifies a memory operand or implicit stack access.
@@ -419,6 +420,23 @@ func checkRun(stderr []byte, code int, want []byte) error {
 // which is what aether build produces (D-027, D-029).
 var compiledVariants = []string{"slot", "ssa", "ra", "isel"}
 
+// compiledPipeline reports whether variant is one of the default build's
+// pipeline with some of its passes: two, fold, or dce.
+func compiledPipeline(variant string) bool {
+	return variant == "two" || variant == "fold" || variant == "dce"
+}
+
+// benchPasses are the passes of a compiled variant: none before fold.
+func benchPasses(variant string) []pass {
+	switch variant {
+	case "fold":
+		return []pass{opt.Fold}
+	case "dce":
+		return buildPasses
+	}
+	return nil
+}
+
 // benchEmit compiles src and emits it as the given compiled variant.
 func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Program, []byte) {
 	t.Helper()
@@ -428,11 +446,11 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 	}
 	// isel is ABI-S0 with selection, the baseline of D-030; abir1 is what
 	// aether build produced from D-031, two adds the register forms of
-	// arith.go, and fold, which folds constants (opt.Fold), is what aether
-	// build produces now. Only fold folds.
-	if variant == "isel" || variant == "abir1" || variant == "two" || variant == "fold" {
-		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant != "isel", TwoAddress: variant == "two" || variant == "fold"}
-		if err := optimize(prog, variant == "fold"); err != nil {
+	// arith.go, fold folds constants (opt.Fold), and dce, which also removes
+	// dead code (opt.DCE), is what aether build produces now.
+	if variant == "isel" || variant == "abir1" || compiledPipeline(variant) {
+		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant != "isel", TwoAddress: compiledPipeline(variant)}
+		if err := optimize(prog, benchPasses(variant)...); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 		asm, err := amd64.EmitWith(prog, opts)

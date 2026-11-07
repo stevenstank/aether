@@ -139,16 +139,24 @@ func emitProgram(prog *ir.Program) ([]byte, error) {
 // emitProgramWith is emitProgram's pipeline with any options. Only tests pass
 // any but emitProgram's.
 func emitProgramWith(prog *ir.Program, opts amd64.EmitOptions) ([]byte, error) {
-	if err := optimize(prog, true); err != nil {
+	if err := optimize(prog, buildPasses...); err != nil {
 		return nil, err
 	}
 	return amd64.EmitWith(prog, opts)
 }
 
-// optimize promotes every function of prog within the limits to SSA form and,
-// if fold, folds the constants of each one promoted. Only tests pass fold
-// false, to measure folding.
-func optimize(prog *ir.Program, fold bool) error {
+// A pass transforms an SSA function in place and reports whether it changed
+// it (internal/opt).
+type pass func(*ir.Func) (bool, error)
+
+// buildPasses are aether build's passes, in order: constant folding, then
+// dead code elimination, which folding cannot use.
+var buildPasses = []pass{opt.Fold, opt.DCE}
+
+// optimize promotes every function of prog within the limits to SSA form and
+// runs passes on each one promoted. Only tests pass other passes than
+// buildPasses, to measure them.
+func optimize(prog *ir.Program, passes ...pass) error {
 	for _, f := range prog.Funcs {
 		if !promotable(f) {
 			continue
@@ -156,8 +164,8 @@ func optimize(prog *ir.Program, fold bool) error {
 		if err := ir.Promote(f); err != nil {
 			return err
 		}
-		if fold {
-			if _, err := opt.Fold(f); err != nil {
+		for _, p := range passes {
+			if _, err := p(f); err != nil {
 				return err
 			}
 		}

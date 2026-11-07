@@ -12,33 +12,40 @@ import (
 
 	"github.com/stevenstank/aether/internal/interp"
 	"github.com/stevenstank/aether/internal/ir"
-	"github.com/stevenstank/aether/internal/opt"
 )
 
 // promoteStats counts what promotion changed in a program's functions.
 type promoteStats struct {
 	funcs, slots, loads, stores, phis, before, after int
-	folded                                           int // IR instructions after folding
+	folded                                           int // IR instructions after buildPasses
 }
 
-// foldProgram folds every SSA function of prog, adding its size to st, and
-// verifies the result. A second Fold must change nothing.
-func foldProgram(prog *ir.Program, st *promoteStats) error {
+// passProgram runs buildPasses on every SSA function of prog, verifying the
+// program after each pass, and adds the size of the result to st. Running a
+// pass again right after it must change nothing.
+func passProgram(prog *ir.Program, st *promoteStats) error {
+	for i, p := range buildPasses {
+		for _, f := range prog.Funcs {
+			if !f.SSA {
+				continue
+			}
+			if _, err := p(f); err != nil {
+				return err
+			}
+			if again, err := p(f); again || err != nil {
+				return fmt.Errorf("func %s: pass %d changed it again (%v)", f.Name, i, err)
+			}
+		}
+		if err := errors.Join(ir.Verify(prog)...); err != nil {
+			return fmt.Errorf("after pass %d: %v", i, err)
+		}
+	}
 	for _, f := range prog.Funcs {
-		if !f.SSA {
-			continue
-		}
-		if _, err := opt.Fold(f); err != nil {
-			return err
-		}
-		if again, err := opt.Fold(f); again || err != nil {
-			return fmt.Errorf("func %s: a second Fold changed it (%v)", f.Name, err)
-		}
 		for _, b := range f.Blocks {
 			st.folded += len(b.Instrs)
 		}
 	}
-	return errors.Join(ir.Verify(prog)...)
+	return nil
 }
 
 // promoteProgram converts every function of prog to SSA form (D-006
@@ -105,18 +112,18 @@ func checkPromotion(t *testing.T, name string, src []byte, steps int64, st *prom
 		t.Fatalf("%s: interpreter results differ after promotion:\nbefore: exit %d, %v, stderr:\n%s\nafter: exit %d, %v, stderr:\n%s\nSSA:\n%s",
 			name, wantCode, wantErr, want.String(), gotCode, gotErr, got.String(), promoted)
 	}
-	// Folding, after the same promotion, must verify, be deterministic, and
-	// keep the results. It removes code, so it runs in no more steps.
-	if err := foldProgram(promoted, st); err != nil {
-		t.Fatalf("%s: folding: %v\n%s", name, err, promoted)
+	// The passes, after the same promotion, must verify, be deterministic,
+	// and keep the results. They remove code, so it runs in no more steps.
+	if err := passProgram(promoted, st); err != nil {
+		t.Fatalf("%s: passes: %v\n%s", name, err, promoted)
 	}
-	if err := foldProgram(again, &promoteStats{}); err != nil || again.String() != promoted.String() {
-		t.Fatalf("%s: folding is not deterministic: %v", name, err)
+	if err := passProgram(again, &promoteStats{}); err != nil || again.String() != promoted.String() {
+		t.Fatalf("%s: the passes are not deterministic: %v", name, err)
 	}
 	var folded bytes.Buffer
 	foldCode, foldErr := interp.RunSteps(promoted, &folded, steps)
 	if foldErr != nil || foldCode != wantCode || folded.String() != want.String() {
-		t.Fatalf("%s: interpreter results differ after folding:\nbefore: exit %d, stderr:\n%s\nafter: exit %d, %v, stderr:\n%s\nfolded:\n%s",
+		t.Fatalf("%s: interpreter results differ after the passes:\nbefore: exit %d, stderr:\n%s\nafter: exit %d, %v, stderr:\n%s\nfolded:\n%s",
 			name, wantCode, want.String(), foldCode, foldErr, folded.String(), promoted)
 	}
 	return true
@@ -173,7 +180,7 @@ func TestPromoteSuite(t *testing.T) {
 		}
 	}
 	t.Logf("%d programs (%d corpus, %d generated, %d overflow); %d functions, %d slots; "+
-		"%d loads and %d stores removed, %d phis added; IR instructions %d before, %d after, %d folded",
+		"%d loads and %d stores removed, %d phis added; IR instructions %d before, %d after, %d after the passes",
 		len(progs), corpusRun, generatedPrograms, len(overflowPrograms), st.funcs, st.slots,
 		st.loads, st.stores, st.phis, st.before, st.after, st.folded)
 }
