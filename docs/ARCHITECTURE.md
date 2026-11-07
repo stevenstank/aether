@@ -9,8 +9,9 @@ Status:
   linking with GNU `as`/`ld`), and 9 (runtime), first for S1, and `aether build`.
 - **Implemented (Phase 4):** every stage above for S2, the supported subset.
 - **Implemented (Phase 5, in progress):** SSA promotion and register allocation
-  (D-006, D-026, D-027), `-O0` (D-028), and instruction selection for
-  comparisons, branches, and constants (D-029).
+  (D-006, D-026, D-027), `-O0` (D-028), instruction selection for
+  comparisons, branches, and constants (D-029), and register forms of
+  arithmetic and conversions.
 - **Design only:** optimization passes (the rest of stage 6), and everything
   beyond S2.
 
@@ -363,7 +364,7 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   `Size`. Every runtime call is therefore made with `%rsp` aligned.
 - **Registers.** Besides `%rbp` and `%rsp` and the registers that hold values
   (below), generated code uses these scratch registers, all caller-saved:
-  - `%rax`, the accumulator of every instruction;
+  - `%rax`, the accumulator of every instruction without a register form;
   - `%rcx`, the divisor, the shift count, the complemented operand of
     `andnot`, and the saved value that breaks a cycle of φ copies;
   - `%rdx`, the high half and remainder of a division and the alternative
@@ -394,7 +395,13 @@ selects shorter forms (D-029, `internal/amd64/select.go`): a constant that fits
 an immediate has no location and is an operand of each use, and a comparison or
 `not` used only by the branch right after it is emitted as `cmpq`/`testq` and a
 conditional jump. Blocks with nothing but a jump are bypassed, and a jump to the
-next block is omitted.
+next block is omitted. Arithmetic (`add` through `andnot`, `neg`, `com`) and
+`conv` whose result has a register compute in that register instead of `%rax`
+(`internal/amd64/arith.go`): `movq vA, vN; addq vB, vN`, a single `leaq` for an
+`add` of two other registers, operands swapped or `sub`/`andnot` rewritten when
+`vN` is `vB`'s register, and canonicalization only where the result can leave
+canonical form. `checkArith` runs each such sequence on concrete operands
+against the IR's definition and rejects any that writes another location.
 
 Each instruction's code is preceded by a comment holding the IR instruction
 and its line and column. The output contains no paths, times, or host data,

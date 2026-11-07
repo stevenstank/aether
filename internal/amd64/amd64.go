@@ -129,6 +129,10 @@ type EmitOptions struct {
 	// (D-011). Every entry, call, and return is checked with checkR1; one that
 	// fails is an error.
 	ABIR1 bool
+	// TwoAddress computes arithmetic and conversions in their result's
+	// register (arith.go), as aether build does; it needs Select. Every such
+	// sequence is checked with checkArith; one that fails is an error.
+	TwoAddress bool
 }
 
 // EmitWith is Emit with options.
@@ -194,6 +198,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	none := valueSet{}
 	if opts.Select {
 		sel = selectFunc(f)
+		sel.twoAddr = opts.TwoAddress
 		none = sel.noLocation()
 	}
 	if opts.Registers {
@@ -294,10 +299,13 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 			}
 		}
 	}
+	if err := e.err; err != nil {
+		return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
+	}
+	if err := e.checkArith(); err != nil {
+		return Frame{}, fmt.Errorf("amd64: func %s: two-address: %v", f.Name, err)
+	}
 	if e.r1 != nil {
-		if err := e.err; err != nil {
-			return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
-		}
 		if err := e.checkR1(); err != nil {
 			return Frame{}, fmt.Errorf("amd64: func %s: abi-r1: %v", f.Name, err)
 		}
@@ -337,6 +345,7 @@ type emitter struct {
 	sel    *selection        // instruction selection, or nil (select.go)
 	r1     *abiR1            // ABI-R1's state, or nil for ABI-S0 (abir1.go)
 	next   *ir.Block         // the block emitted after the current one, or nil
+	arith  []arithSite       // the register-form sequences (arith.go)
 	err    error             // the first error of the current function
 }
 

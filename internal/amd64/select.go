@@ -47,6 +47,8 @@ type selection struct {
 	skip valueSet                // comparisons and Nots fused into a Branch
 	cond map[*ir.Instr]condition // by Branch
 	fwd  map[*ir.Block]*ir.Block // emitter: blocks that only jump, to their final target
+	// twoAddr enables the register forms of arith.go.
+	twoAddr bool
 }
 
 func fitsImm(c int64) bool { return c >= math.MinInt32 && c <= math.MaxInt32 }
@@ -282,20 +284,8 @@ func (e *emitter) finish(in *ir.Instr, t string) {
 // canonReg puts the register reg in the canonical form of the integer type t,
 // if t is narrower than 64 bits.
 func (e *emitter) canonReg(reg string, t ir.Type) {
-	r := subRegs[reg]
-	switch t {
-	case ir.I8:
-		e.op("movsbq\t%s, %s", r[2], reg)
-	case ir.I16:
-		e.op("movswq\t%s, %s", r[1], reg)
-	case ir.I32:
-		e.op("movslq\t%s, %s", r[0], reg)
-	case ir.U8:
-		e.op("movzbl\t%s, %s", r[2], r[0])
-	case ir.U16:
-		e.op("movzwl\t%s, %s", r[1], r[0])
-	case ir.U32:
-		e.op("movl\t%s, %s", r[0], r[0])
+	if t.IsInteger() && t.Width() < 64 {
+		e.canonFrom(reg, reg, t)
 	}
 }
 
@@ -314,7 +304,9 @@ func (e *emitter) selected(blk *ir.Block, in *ir.Instr) bool {
 		e.materialize(in.Const, t)
 		e.finish(in, t)
 	case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor, ir.AndNot:
-		return e.selectBinary(in)
+		return e.selectBinary(in) || e.twoAddress(in)
+	case ir.Neg, ir.Com, ir.Conv:
+		return e.twoAddress(in)
 	case ir.Div, ir.Rem:
 		return e.selectDivide(in)
 	case ir.Shl, ir.Shr:

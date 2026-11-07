@@ -132,7 +132,7 @@ func promotable(f *ir.Func) bool {
 // place, and emits it with values in registers (RA-0, D-026) and instruction
 // selection (D-029), which checks every allocation and selection. Any failure is a bug in Aether, not in the program.
 func emitProgram(prog *ir.Program) ([]byte, error) {
-	return emitProgramWith(prog, amd64.EmitOptions{Registers: true, Select: true, ABIR1: true})
+	return emitProgramWith(prog, amd64.EmitOptions{Registers: true, Select: true, ABIR1: true, TwoAddress: true})
 }
 
 // emitProgramWith is emitProgram's pipeline with any options. Only tests pass

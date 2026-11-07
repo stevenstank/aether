@@ -688,6 +688,15 @@ repeated in each phase below:
     - **Open: the b08_ackermann regression.** Its cause is not established.
     - Block alignment was tried and is out of scope; its trade-offs are in the
       report.
+    - Register forms of arithmetic and conversions, the default since
+      2026-11-07 (`internal/amd64/arith.go`, each sequence checked by
+      `checkArith`). Chosen before constant folding by measurement: after
+      promotion and selection the workloads have no dead values, no copies,
+      and 17 instructions with all-constant operands: 15 `conv`s that
+      selection already makes immediates, and 2 outside any loop. Register-
+      to-register moves were 27–43% of the dynamic instructions of seven
+      workloads (`2026-11-07-abir1/final/abi_summary.tsv`), many of them the
+      copies in and out of `%rax`. ABI, runtime, and `-O0` unchanged.
   - register-based internal convention (D-011 follow-up)
     - Investigated 2026-11-06 with no compiler change
       (`benchmarks/2026-11-06-abi/REPORT.md`). It proposed experiment ABI-R1.

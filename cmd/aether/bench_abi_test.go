@@ -45,8 +45,9 @@ var (
 // abiVariants are the conventions of the model. isel is the shipped build;
 // h_r1 and h_cs replace fib and ack with hand-written code. abir1 is not a
 // model: it is ABI-R1 (D-030) as the compiler emits it, which is what aether
-// build produces since D-031. isel stays the ABI-S0 build the models rewrite.
-var abiVariants = []string{"isel", "nohop", "r1", "r1leaf", "r1cs", "h_r1", "h_cs", "abir1"}
+// build produced from D-031 until the register forms of arith.go; two adds them,
+// and is aether build. isel stays the ABI-S0 build the models rewrite.
+var abiVariants = []string{"isel", "nohop", "r1", "r1leaf", "r1cs", "h_r1", "h_cs", "abir1", "two"}
 
 // abiSelected returns vs, or only those named in AETHER_ABI_VARIANTS
 // (comma-separated) if it is set: TestABITime then times just those.
@@ -65,10 +66,10 @@ func abiSelected(t *testing.T, vs []string) []string {
 }
 
 // abiAsm returns a workload's program and its assembly as variant: ra and
-// abir1 as the compiler emits them, the others rewritten from isel.
+// abir1 and two as the compiler emits them, the others rewritten from isel.
 func abiAsm(t *testing.T, name string, src []byte, variant string) (*ir.Program, []byte) {
 	t.Helper()
-	if variant == "ra" || variant == "abir1" {
+	if variant == "ra" || variant == "abir1" || variant == "two" {
 		return benchEmit(t, name, src, variant)
 	}
 	prog, asm := benchEmit(t, name, src, "isel")
@@ -810,13 +811,14 @@ func abiRunAgainstInterp(t *testing.T, dir, name string, src []byte, variant str
 	if len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant == "abir1"}
+	compiled := variant == "abir1" || variant == "two"
+	opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: compiled, TwoAddress: variant == "two"}
 	asm, err := emitProgramWith(prog, opts)
 	if err != nil {
 		return fmt.Errorf("emit: %v", err)
 	}
 	re := asm
-	if variant != "abir1" {
+	if !compiled {
 		if re, err = abiRewrite(asm, prog, variant); err != nil {
 			return fmt.Errorf("rewrite: %v", err)
 		}
@@ -838,7 +840,7 @@ func TestABISuite(t *testing.T) {
 	progs, _ := s2Suite(t)
 	work := t.TempDir()
 	var rep strings.Builder
-	for _, v := range []string{"nohop", "r1", "r1leaf", "r1cs", "abir1"} {
+	for _, v := range []string{"nohop", "r1", "r1leaf", "r1cs", "abir1", "two"} {
 		bad := 0
 		for _, p := range progs {
 			if err := abiRunAgainstInterp(t, work, p.name, p.src, v); err != nil {

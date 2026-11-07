@@ -21,8 +21,8 @@ import (
 // entry, call, and return (checkR1).
 
 var (
-	r1Options = amd64.EmitOptions{Registers: true, Select: true, ABIR1: true}
-	s0Options = amd64.EmitOptions{Registers: true, Select: true}
+	r1Options = amd64.EmitOptions{Registers: true, Select: true, ABIR1: true, TwoAddress: true}
+	s0Options = amd64.EmitOptions{Registers: true, Select: true, TwoAddress: true}
 )
 
 // emitR1 returns src's assembly under ABI-R1, emitted twice: it must not differ.
