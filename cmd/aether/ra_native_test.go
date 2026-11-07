@@ -116,11 +116,12 @@ func TestNativeRASuite(t *testing.T) {
 // must succeed, which checks every allocation and selection, and be
 // deterministic. If the program finishes in the interpreter within steps and
 // as and ld are available, the native executable must also give the
-// interpreter's result.
+// interpreter's result. The same goes for ABI-R1.
 func checkRegistersGenerated(t *testing.T, src []byte, finished bool) {
 	t.Helper()
 	asm := emitPromoted(t, "gen.go", src, amd64.EmitOptions{Registers: true, Select: true})
 	if !finished {
+		emitPromoted(t, "gen.go", src, r1Options)
 		return
 	}
 	for _, tool := range []string{"as", "ld"} {
@@ -132,5 +133,8 @@ func checkRegistersGenerated(t *testing.T, src []byte, finished bool) {
 	if len(ds) > 0 || err != nil {
 		t.Fatalf("not interpreted: %v %v", ds, err)
 	}
-	runRegisters(t, fmt.Sprintf("gen%d.go", len(src)), asm, t.TempDir(), want)
+	dir := t.TempDir()
+	runRegisters(t, fmt.Sprintf("gen%d.go", len(src)), asm, dir, want)
+	// ABI-R1 (D-030), which the build path never reaches.
+	runRegisters(t, fmt.Sprintf("gen%d.r1.go", len(src)), emitPromoted(t, "gen.go", src, r1Options), dir, want)
 }

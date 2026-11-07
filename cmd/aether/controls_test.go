@@ -194,6 +194,27 @@ var controls = []control{
 	selectControl("signedness of a right shift lost", `case x.Type.Signed():
 		e.load(x, t)`, `case false:
 		e.load(x, t)`),
+
+	// Experiment ABI-R1 (D-030 criterion 7)
+	r1Control("argument registers swapped", `regCopy{argRegs[i], e.val(a)}`, `regCopy{argRegs[i^1], e.val(a)}`),
+	r1Control("entry reads the wrong register", `regCopy{e.val(in), argRegs[in.Index]}`, `regCopy{e.val(in), argRegs[(in.Index+1)%len(argRegs)]}`),
+	r1Control("cycle break dropped", `e.op("movq\t%s, %%rax", d)`, ``),
+	r1Control("stale result in %rax", `e.load(in.Args[0], "%rax")`, `_ = e.val(in.Args[0])`),
+	r1Control("seventh argument read from a register", `e.toMem(fmt.Sprintf("%d(%%rbp)", 16+8*in.Index), e.val(in))`, `e.toMem(argRegs[in.Index%len(argRegs)], e.val(in))`),
+	r1Control("frame missing a needed outgoing area", `if r1 && p <= len(argRegs) && r <= 1 {`, `if r1 {`),
+	{name: "abi-r1 param after a clobbering instruction", file: "internal/amd64/abir1.go",
+		old: `if in.Op != ir.Param && (in.Op != ir.Store || in.Args[0].Op != ir.Param) {`, new: `if false {`,
+		pkg: "./internal/amd64", run: "^TestR1EntryPrecondition$", want: []string{`--- FAIL: TestR1EntryPrecondition`, `runs before the last param`}},
+	{name: "abi-r1 entry with a predecessor", file: "internal/amd64/abir1.go",
+		old: `if slices.Contains(ir.Succs(b), entry) {`, new: `if false {`,
+		pkg: "./internal/amd64", run: "^TestR1EntryPrecondition$", want: []string{`--- FAIL: TestR1EntryPrecondition`, `entry block has predecessor`}},
+}
+
+// r1Control is a defect in abir1.go's emission, which checkR1 must report while
+// the convention's programs are emitted.
+func r1Control(name, old, new string) control {
+	return control{name: "abi-r1 " + name, file: "internal/amd64/abir1.go", old: old, new: new,
+		pkg: "./cmd/aether", run: "^TestABIR1Programs$", want: []string{`--- FAIL: TestABIR1Programs`, `abi-r1: `}}
 }
 
 // selectControl is a defect in select.go, which the differential test of

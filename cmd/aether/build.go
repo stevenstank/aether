@@ -132,6 +132,12 @@ func promotable(f *ir.Func) bool {
 // place, and emits it with values in registers (RA-0, D-026) and instruction
 // selection (D-029), which checks every allocation and selection. Any failure is a bug in Aether, not in the program.
 func emitProgram(prog *ir.Program) ([]byte, error) {
+	return emitProgramWith(prog, amd64.EmitOptions{Registers: true, Select: true})
+}
+
+// emitProgramWith is emitProgram's pipeline with any options. Only tests pass
+// any but emitProgram's.
+func emitProgramWith(prog *ir.Program, opts amd64.EmitOptions) ([]byte, error) {
 	for _, f := range prog.Funcs {
 		if promotable(f) {
 			if err := ir.Promote(f); err != nil {
@@ -139,7 +145,7 @@ func emitProgram(prog *ir.Program) ([]byte, error) {
 			}
 		}
 	}
-	return amd64.EmitWith(prog, amd64.EmitOptions{Registers: true, Select: true})
+	return amd64.EmitWith(prog, opts)
 }
 
 // assemble assembles asm, the program's assembly, links it with the
