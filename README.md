@@ -18,8 +18,9 @@ representation and backend.
 >
 > Phase 5 has started. `aether build` now promotes functions to SSA form
 > (D-006), keeps values in registers where it can (D-026, D-027), and selects
-> shorter forms for comparisons, branches, and constants (D-029). Other
-> Phase 5 work, such as optimization passes and a register calling convention,
+> shorter forms for comparisons, branches, and constants (D-029), and passes
+> arguments and results in registers (ABI-R1, D-030, D-031; `-O0` keeps the
+> stack convention ABI-S0). Other Phase 5 work, such as optimization passes,
 > has not started.
 
 ## What works today
