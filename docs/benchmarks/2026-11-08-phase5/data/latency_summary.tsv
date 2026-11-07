@@ -1,0 +1,13 @@
+program	compile ms	optimize+emit ms	emit -O0 ms	assemble ms	of which identify ms	assemble share of default build
+b01_fib.go	0.144	0.141	0.065	13.209	3.210	0.98
+b02_primes.go	0.200	0.365	0.146	13.256	3.248	0.96
+b03_collatz.go	0.180	0.306	0.122	13.303	3.149	0.96
+b04_matpow.go	0.401	0.935	0.357	13.667	3.302	0.91
+b05_hash.go	0.281	0.483	0.253	13.020	3.039	0.94
+b06_vm.go	0.236	0.456	0.198	12.980	3.042	0.95
+b07_gcd.go	0.169	0.301	0.111	12.892	3.221	0.96
+b08_ackermann.go	0.134	0.148	0.071	12.623	3.107	0.98
+b09_crc.go	0.231	0.417	0.182	12.825	2.988	0.95
+s2_d01_division_shifts.go	1.695	5.269	3.177	15.322	3.023	0.69
+s2_i01_integer_tables.go	1.330	3.114	1.792	14.875	3.095	0.77
+s2_a02_state_machines.go	0.637	1.471	0.649	13.652	3.008	0.87

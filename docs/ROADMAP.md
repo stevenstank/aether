@@ -725,8 +725,14 @@ repeated in each phase below:
       gc outputs, dynamic counts by instrumentation, register pressure,
       timing, and tests of the harness in the normal suite. The benchmarks
       themselves run only on request (`AETHER_BENCH_OUT`).
-    - Not yet covered: compilation latency, compiler memory, and
-      scalability (`BENCHMARKS.md` metric categories).
+    - Phase 5 report 2026-11-08
+      (`benchmarks/2026-11-08-phase5/README.md`): every step against the
+      Phase 4 baseline (`slot`), whose CPU time the current build cuts to
+      16–53% on the nine workloads, and compile latency by stage, which
+      meets D-008's first revisit trigger: `as`/`ld` take 91–98% of the
+      build on every workload. Revisiting D-008 is the owner's decision.
+    - Not yet covered: compiler memory per stage and scalability
+      (`BENCHMARKS.md` metric categories).
   - optimization flags (`-O0`/`-O1` or similar)
     - `-O0` added 2026-11-06 (D-028), with a cross-check against the default
       build on the S2 suite. No other level exists yet.

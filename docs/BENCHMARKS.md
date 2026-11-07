@@ -1,15 +1,19 @@
 # Aether Measurement Strategy
 
-Status: **harness and four measurements.** The workloads and the harness
-are checked in ([The harness](#the-harness)). Four measurements exist, all
+Status: **harness and six measurements.** The workloads and the harness
+are checked in ([The harness](#the-harness)). Six measurements exist, all
 under WSL2: the register-allocation baseline of 2026-11-05
 ([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)),
 the RA-0 results of 2026-11-06
 ([`benchmarks/2026-11-06-ra0/REPORT.md`](benchmarks/2026-11-06-ra0/REPORT.md)),
 instruction selection, also of 2026-11-06
 ([`benchmarks/2026-11-06-isel/REPORT.md`](benchmarks/2026-11-06-isel/REPORT.md)),
-and the calling-convention investigation, also of 2026-11-06
-([`benchmarks/2026-11-06-abi/REPORT.md`](benchmarks/2026-11-06-abi/REPORT.md)).
+the calling-convention investigation, also of 2026-11-06
+([`benchmarks/2026-11-06-abi/REPORT.md`](benchmarks/2026-11-06-abi/REPORT.md)),
+the ABI-R1 acceptance evidence of 2026-11-07
+([`benchmarks/2026-11-07-abir1/README.md`](benchmarks/2026-11-07-abir1/README.md)),
+and the Phase 5 report of 2026-11-08, with compile latency
+([`benchmarks/2026-11-08-phase5/README.md`](benchmarks/2026-11-08-phase5/README.md)).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time.
 
@@ -62,16 +66,18 @@ score.
 ## The harness
 
 The harness is test code in `cmd/aether` (`bench_*_test.go`). It uses the
-compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `isel`
-variant is exactly what `aether build` produces, and it also builds the earlier
-slot-based and SSA variants. It does not change the compiler.
+compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `dce`
+variant is exactly what `aether build` produces, and it also builds every
+earlier step of Phase 5, back to the slot-based variant. It does not change the compiler.
 
 **Workloads.** `cmd/aether/testdata/bench/*.go`, S2 programs that `aether
 check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
-**Variants.** `abir1` (what `aether build` produces since D-031: `isel` with the
-calling convention ABI-R1), `isel` (what it produced from D-029 to D-031: promoted and
+**Variants.** `dce` (what `aether build` produces: `fold` with dead code
+elimination), `fold` (`two` with constant folding), `two` (`abir1` with the
+register forms of arithmetic), `abir1` (`isel` with the
+calling convention ABI-R1, D-031), `isel` (what it produced from D-029 to D-031: promoted and
 emitted with registers and instruction selection), `ra` (the same without
 selection, what it produced under D-027), `slot` (what `aether build -O0` produces: every value
 in a cell), `ssa` (promoted, with every value in a cell), `gc` (`go build`), and
@@ -133,6 +139,14 @@ AETHER_BENCH_OUT=$OUT go test -count=1 ./cmd/aether -run 'TestBenchSuitePressure
 # timing, after the two above: times.tsv and times_summary.tsv
 AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=15 taskset -c 6 \
   go test -count=1 -timeout 30m ./cmd/aether -run 'TestBenchTime$' -v
+```
+
+Compile latency by stage, in process (`TestBenchLatency`): `latency.tsv` and
+`latency_summary.tsv`:
+
+```
+AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=21 taskset -c 6 \
+  go test -count=1 ./cmd/aether -run '^TestBenchLatency$' -v
 ```
 
 The calling-convention model, in the same `OUT`, after the gc variants:

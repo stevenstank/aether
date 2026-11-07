@@ -217,7 +217,7 @@ func TestBenchMeasure(t *testing.T) {
 	fmt.Fprintf(&pr, "workload\tfunc\tvalues\tphis\tmaxLive\tmaxLive(noconst)\tcrossing\tcrossing(noconst)\tmaxAcrossCall\tcallsDyn\tcrossDyn/call\tdyn frac live>6\t>8\t>10\t>12\t>14\n")
 	for _, w := range benchWorkloads(t) {
 		name := w.name
-		var total [4]int64
+		total := make([]int64, len(compiledVariants))
 		for vi, variant := range compiledVariants {
 			exe := filepath.Join(outDir, name+"."+variant)
 			prog, asm := benchBuild(t, name+".go", w.src, variant, exe)
@@ -253,7 +253,7 @@ func TestBenchMeasure(t *testing.T) {
 				writeModel(&model, &pr, name, prog, d, blockFreq(prog, ins, counts), total[0])
 			}
 		}
-		t.Logf("%s: dynamic instructions slot %d, ssa %d, ra %d, isel %d", name, total[0], total[1], total[2], total[3])
+		t.Logf("%s: dynamic instructions %v of %v", name, total, compiledVariants)
 	}
 	for file, s := range map[string]*strings.Builder{"summary.tsv": &sum, "functions.tsv": &fns, "pressure.tsv": &pr, "ops.tsv": &ops, "model.tsv": &model} {
 		writeReport(t, outDir, file, s.String())

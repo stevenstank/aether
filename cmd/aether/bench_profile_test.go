@@ -415,10 +415,12 @@ func checkRun(stderr []byte, code int, want []byte) error {
 	return nil
 }
 
-// compiledVariants are the variants Aether builds: slot-based, promoted to
-// SSA, with registers (D-026), and with registers and instruction selection,
-// which is what aether build produces (D-027, D-029).
-var compiledVariants = []string{"slot", "ssa", "ra", "isel"}
+// compiledVariants are the variants Aether builds, each a step of Phase 5:
+// slot-based (aether build -O0), promoted to SSA, with registers (D-026), with
+// instruction selection (D-029), with ABI-R1 (D-031), with the register forms
+// of arith.go, with constant folding, and with dead code elimination, which
+// is what aether build produces.
+var compiledVariants = []string{"slot", "ssa", "ra", "isel", "abir1", "two", "fold", "dce"}
 
 // compiledPipeline reports whether variant is one of the default build's
 // pipeline with some of its passes: two, fold, or dce.

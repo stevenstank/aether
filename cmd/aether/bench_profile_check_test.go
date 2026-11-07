@@ -275,11 +275,12 @@ func main() {
 		}
 		// fib(15) reaches 987 leaves, where n < 2; the other 986 calls
 		// fall through the conditional jump, which starts a region of
-		// its own that no label starts. Selection lays the leaf out next
-		// and inverts the jump, so there the 987 fall through.
-		want := int64(986)
-		if v == "isel" {
-			want = 987
+		// its own that no label starts. Selection, in isel and every variant
+		// after it, lays the leaf out next and inverts the jump, so there the
+		// 987 fall through.
+		want := int64(987)
+		if v == "slot" || v == "ssa" || v == "ra" {
+			want = 986
 		}
 		fallThrough := false
 		for i, r := range ins.regions {
