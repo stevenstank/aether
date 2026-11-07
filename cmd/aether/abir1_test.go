@@ -15,11 +15,15 @@ import (
 	"github.com/stevenstank/aether/internal/diag"
 )
 
-// Experiment ABI-R1 (D-030). aether build never sets the option, so these tests
-// emit through the default build's pipeline with it set. Emitting checks every
+// ABI-R1 (D-030), the default build's convention since D-031. These tests emit
+// through the default build's pipeline, and compare it with ABI-S0 emitted with
+// the same pipeline and the option off. Emitting checks every
 // entry, call, and return (checkR1).
 
-var r1Options = amd64.EmitOptions{Registers: true, Select: true, ABIR1: true}
+var (
+	r1Options = amd64.EmitOptions{Registers: true, Select: true, ABIR1: true}
+	s0Options = amd64.EmitOptions{Registers: true, Select: true}
+)
 
 // emitR1 returns src's assembly under ABI-R1, emitted twice: it must not differ.
 func emitR1(t *testing.T, name string, src []byte) []byte {
@@ -350,7 +354,7 @@ func TestABIR1SelectPrograms(t *testing.T) {
 	checkR1Programs(t, progs)
 }
 
-// avoidsR1 reports whether asm, ABI-S0 assembly of the default build, has no
+// avoidsR1 reports whether asm, ABI-S0 assembly of the default pipeline, has no
 // path that ABI-R1 changes: only main.main and main.init, which take and return
 // nothing, are Aether functions, and neither is called from the program.
 func avoidsR1(asm []byte) bool {
@@ -392,11 +396,18 @@ func TestABIR1Suite(t *testing.T) {
 		if len(ds) > 0 {
 			t.Fatal(ds)
 		}
-		s0, err := emitProgram(prog)
+		s0, err := emitProgramWith(prog, s0Options)
 		if err != nil {
 			t.Fatalf("%s: %v", p.name, err)
 		}
 		r1 := emitR1(t, p.name, p.src)
+		def, ds := compile([]source{{p.name, p.src}})
+		if len(ds) > 0 {
+			t.Fatal(ds)
+		}
+		if asm, err := emitProgram(def); err != nil || !bytes.Equal(asm, r1) {
+			t.Fatalf("%s: the default build is not ABI-R1 (%v)", p.name, err)
+		}
 		exe := filepath.Join(dir, strings.TrimSuffix(p.name, ".go")+".s0")
 		if ds, err := assemble(s0, buildOptions{out: exe}, io.Discard); len(ds) > 0 || err != nil {
 			t.Fatalf("%s: %v %v", p.name, ds, err)

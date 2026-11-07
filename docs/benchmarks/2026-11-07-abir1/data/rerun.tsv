@@ -1,0 +1,16 @@
+b05_hash	0	isel 126.0	abir1 129.0	r1 101.2	abir1/isel 1.023	r1/isel 0.803
+b05_hash	8	isel 128.5	abir1 99.9	r1 102.0	abir1/isel 0.778	r1/isel 0.794
+b05_hash	24	isel 130.8	abir1 133.2	r1 133.0	abir1/isel 1.018	r1/isel 1.017
+b05_hash	40	isel 143.6	abir1 114.6	r1 115.6	abir1/isel 0.798	r1/isel 0.805
+b05_hash	48	isel 131.2	abir1 97.1	r1 102.8	abir1/isel 0.740	r1/isel 0.783
+b06_vm	8	isel 188.6	abir1 189.4	r1 189.2	abir1/isel 1.004	r1/isel 1.004
+b07_gcd	0	isel 345.4	abir1 345.3	r1 345.2	abir1/isel 1.000	r1/isel 0.999
+b07_gcd	16	isel 367.3	abir1 346.4	r1 346.9	abir1/isel 0.943	r1/isel 0.945
+b07_gcd	40	isel 349.3	abir1 350.5	r1 349.9	abir1/isel 1.003	r1/isel 1.002
+b08_ackermann	24	isel 228.7	abir1 228.6	r1 228.8	abir1/isel 0.999	r1/isel 1.000
+b08_ackermann	40	isel 231.2	abir1 170.5	r1 170.8	abir1/isel 0.737	r1/isel 0.739
+b08_ackermann	56	isel 247.0	abir1 166.5	r1 165.6	abir1/isel 0.674	r1/isel 0.670
+b09_crc	0	isel 92.1	abir1 90.3	r1 90.4	abir1/isel 0.981	r1/isel 0.982
+b09_crc	8	isel 90.4	abir1 92.9	r1 92.8	abir1/isel 1.027	r1/isel 1.026
+b09_crc	32	isel 94.1	abir1 90.6	r1 90.4	abir1/isel 0.963	r1/isel 0.960
+b09_crc	48	isel 88.7	abir1 96.0	r1 95.4	abir1/isel 1.082	r1/isel 1.076

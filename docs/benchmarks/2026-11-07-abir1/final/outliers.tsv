@@ -1,0 +1,15 @@
+workload	offset	ratio	aggregate ratio	noise band	direction
+b01_fib	48	0.856	0.881	0.018	faster
+b02_primes	0	1.000	0.991	0.009	slower
+b05_hash	8	0.767	0.816	0.024	faster
+b05_hash	48	0.744	0.816	0.028	faster
+b06_vm	0	0.895	0.914	0.012	faster
+b06_vm	8	1.005	0.914	0.008	slower
+b07_gcd	0	1.001	0.955	0.012	slower
+b07_gcd	16	0.945	0.955	0.009	faster
+b07_gcd	40	1.005	0.955	0.006	slower
+b08_ackermann	24	1.002	0.712	0.018	slower
+b08_ackermann	40	0.742	0.712	0.015	slower
+b09_crc	8	1.036	1.001	0.031	slower
+b09_crc	32	0.956	1.001	0.033	faster
+b09_crc	48	1.078	1.001	0.019	slower

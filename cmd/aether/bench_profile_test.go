@@ -426,6 +426,8 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 	if len(ds) > 0 {
 		t.Fatalf("%s: %v", name, ds)
 	}
+	// isel is ABI-S0 with selection, the baseline of D-030; abir1 is what
+	// aether build produces since D-031.
 	if variant == "isel" || variant == "abir1" {
 		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant == "abir1"}
 		asm, err := emitProgramWith(prog, opts)

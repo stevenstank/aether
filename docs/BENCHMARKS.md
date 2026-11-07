@@ -70,7 +70,8 @@ slot-based and SSA variants. It does not change the compiler.
 check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
-**Variants.** `isel` (what `aether build` produces since D-029: promoted and
+**Variants.** `abir1` (what `aether build` produces since D-031: `isel` with the
+calling convention ABI-R1), `isel` (what it produced from D-029 to D-031: promoted and
 emitted with registers and instruction selection), `ra` (the same without
 selection, what it produced under D-027), `slot` (what `aether build -O0` produces: every value
 in a cell), `ssa` (promoted, with every value in a cell), `gc` (`go build`), and
@@ -104,8 +105,7 @@ measurement.
 `aether build` into candidate conventions, so that they can be counted and timed
 without changing the compiler. It is a model, not an implementation, and nothing
 in it reaches a built executable. The one exception is `abir1`, which is not
-rewritten: it is experiment ABI-R1 as the compiler emits it under the test option
-of D-030. `AETHER_ABI_VARIANTS` (comma-separated) limits `TestABITime` to the
+rewritten: it is ABI-R1 as the compiler emits it, the default build since D-031. `AETHER_ABI_VARIANTS` (comma-separated) limits `TestABITime` to the
 variants named. Besides timing at the shipped layout,
 `AETHER_ABI_LAYOUT` times every variant at eight code offsets modulo 64, because
 placement alone can move a result. `TestABIModel` and `TestParallelCopy` run in

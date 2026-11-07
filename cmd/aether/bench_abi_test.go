@@ -44,8 +44,8 @@ var (
 
 // abiVariants are the conventions of the model. isel is the shipped build;
 // h_r1 and h_cs replace fib and ack with hand-written code. abir1 is not a
-// model: it is the implementation of experiment ABI-R1 (D-030), emitted by the
-// compiler with amd64.EmitOptions.ABIR1, which aether build never sets.
+// model: it is ABI-R1 (D-030) as the compiler emits it, which is what aether
+// build produces since D-031. isel stays the ABI-S0 build the models rewrite.
 var abiVariants = []string{"isel", "nohop", "r1", "r1leaf", "r1cs", "h_r1", "h_cs", "abir1"}
 
 // abiSelected returns vs, or only those named in AETHER_ABI_VARIANTS

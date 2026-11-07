@@ -119,7 +119,7 @@ func TestNativeRASuite(t *testing.T) {
 // interpreter's result. The same goes for ABI-R1.
 func checkRegistersGenerated(t *testing.T, src []byte, finished bool) {
 	t.Helper()
-	asm := emitPromoted(t, "gen.go", src, amd64.EmitOptions{Registers: true, Select: true})
+	asm := emitPromoted(t, "gen.go", src, s0Options)
 	if !finished {
 		emitPromoted(t, "gen.go", src, r1Options)
 		return
@@ -135,6 +135,6 @@ func checkRegistersGenerated(t *testing.T, src []byte, finished bool) {
 	}
 	dir := t.TempDir()
 	runRegisters(t, fmt.Sprintf("gen%d.go", len(src)), asm, dir, want)
-	// ABI-R1 (D-030), which the build path never reaches.
+	// ABI-R1 (D-030), the default build's convention (D-031).
 	runRegisters(t, fmt.Sprintf("gen%d.r1.go", len(src)), emitPromoted(t, "gen.go", src, r1Options), dir, want)
 }

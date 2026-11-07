@@ -343,6 +343,11 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   Every prologue, `main.main`'s included, first checks the frame against
   `aether.stacklimit` and jumps to `aether.stackoverflow` if it does not
   fit.
+- **Calls, ABI-R1 (D-030, D-031).** The default build passes arguments 0-5 in
+  `%rdi`, `%rsi`, `%r8`, `%r9`, `%r10`, `%r11` and a single result in `%rax`;
+  later arguments and two or more results stay at their ABI-S0 positions. Every
+  register stays caller-saved. The outgoing area counts only calls that pass a
+  word in memory. `-O0` keeps ABI-S0.
 - **Stack.** After the code, the backend emits the read-only 8-byte datum
   `aether.mainstack = 16 + Size`: the bytes `main.main` uses below `_start`'s
   call (return address, saved `%rbp`, frame). The runtime maps a stack that
@@ -550,9 +555,9 @@ that interface is:
 |---|---|---|
 | `_start` | runtime | Process entry. Maps a stack of max(256 MiB, `aether.mainstack`) bytes, stores its limit in `aether.stacklimit`, calls `main.init` and then `main.main` on it, then exits 0. Exits 2 with a fatal error if the stack cannot be mapped. |
 | `aether.mainstack` | compiler | Read-only 8-byte datum: the bytes `main.main` or `main.init`, whichever needs more, uses below `_start`'s call, excluding the helpers' own use. |
-| `main.init` | compiler | Package initialization (D-023), or only `ret` if there is none. No arguments, no results; called once by `_start`, under ABI-S0, with `rsp` 16-byte aligned before `call`. No register survives it. |
+| `main.init` | compiler | Package initialization (D-023), or only `ret` if there is none. No arguments, no results; called once by `_start`, with `rsp` 16-byte aligned before `call`. No register survives it. |
 | `main.main` | compiler | Aether-compiled `main`. No arguments, no results. Called with `rsp` 16-byte aligned before `call`. |
-| `main.<name>` | compiler | Every other Aether-compiled function, called only from compiled code under ABI-S0 (D-011). |
+| `main.<name>` | compiler | Every other Aether-compiled function, called only from compiled code: under ABI-R1 (D-030, D-031) in the default build, under ABI-S0 (D-011) with `-O0`. |
 | `aether.stacklimit` | runtime | Writable 8-byte word: the stack limit `L` every prologue checks against (D-009, D-011). |
 | `aether.stackoverflow` | runtime | Entered by `jb` from a prologue, with `%rsp` at least `L` − 8. Writes `fatal error: stack overflow` to fd 2 and exits 2; uses at most 24 bytes below `L`. |
 | `aether.printint`, `aether.printsp`, `aether.printnl` | runtime | Print one `int64` (in `%rdi`) in decimal / a space / a newline to fd 2. No result; `%rsp` 16-byte aligned before `call`; the helper preserves `%rbx`, `%rbp`, `%r12`–`%r15` and may clobber every other general-purpose register (a subset of the System V convention). Write errors other than `EINTR` are ignored. This interface covers only runtime helpers. It does not decide D-011 (D-022). |
@@ -697,8 +702,6 @@ bug (`TESTING.md`).
 - Whether later register-allocation work needs a machine IR separate from the
   SSA IR (D-026 allocates on the SSA IR)
 - GC strategy (D-010)
-- The register-based successor to ABI-S0 (Phase 5, D-011; experiment under D-030,
-  behind a test option, not shipped)
 - Representation of interfaces, closures, defer records, and maps
 - Goroutine stack strategy
 - Multi-package compilation, and how imported packages are type-checked and

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stevenstank/aether/internal/amd64"
+	"github.com/stevenstank/aether/internal/ir"
 )
 
 // selectType is an integer type the differential programs are built for.
@@ -338,8 +339,9 @@ func diffResults(got, want result) string {
 	return fmt.Sprintf("%d lines, want %d", len(g), len(w))
 }
 
-// TestSelectShapes checks the code selected for f: each must regexp must
-// match it and no mustNot.
+// TestSelectShapes checks the code selected for f by the default build: each
+// must regexp must match it and no mustNot. The cases in s0 emit ABI-S0 instead,
+// whose results and stack arguments are in memory.
 func TestSelectShapes(t *testing.T) {
 	const r = `%r[a-z0-9]+`
 	cases := []struct {
@@ -372,7 +374,10 @@ func TestSelectShapes(t *testing.T) {
 		{"global", "g = 5", []string{`movq\t\$5, main\.g\(%rip\)`}, nil},
 		{"result", "if x > 0 { return 7 }", []string{`movq\t\$7, \d+\(%rbp\)`}, nil},
 		{"argument", "h(9)", []string{`movq\t\$9, 0\(%rsp\)`}, nil},
+		{"result in a register", "if x > 0 { return 7 }", []string{`movl\t\$7, %eax\n\tmovq\t%rbp, %rsp`}, []string{`\$7, \d+\(%rbp\)`}},
+		{"argument in a register", "h(9)", []string{`movl\t\$9, %edi\n\tcall\tmain\.h`}, []string{`\(%rsp\)`}},
 	}
+	s0 := map[string]bool{"result": true, "argument": true}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			src := "package main\n\nvar g int\n\nfunc h(a int) {}\n\nfunc f(x, y int) int {\n" + c.body + "\nreturn 0\n}\n\nfunc main() { println(f(1, 2), g); h(0) }\n"
@@ -380,7 +385,11 @@ func TestSelectShapes(t *testing.T) {
 			if len(ds) > 0 {
 				t.Fatal(ds)
 			}
-			asm, err := emitProgram(prog)
+			emit := emitProgram
+			if s0[c.name] {
+				emit = func(prog *ir.Program) ([]byte, error) { return emitProgramWith(prog, s0Options) }
+			}
+			asm, err := emit(prog)
 			if err != nil {
 				t.Fatal(err)
 			}

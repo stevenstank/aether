@@ -691,9 +691,8 @@ repeated in each phase below:
   - register-based internal convention (D-011 follow-up)
     - Investigated 2026-11-06 with no compiler change
       (`benchmarks/2026-11-06-abi/REPORT.md`). It proposed experiment ABI-R1.
-    - Experiment ABI-R1 approved 2026-11-06 (D-030). Implemented behind a test
-      option that no build uses, and not yet measured. The approval does not cover
-      shipping, and D-011 stays as accepted.
+    - Experiment ABI-R1 approved 2026-11-06 (D-030); all criteria met, and the
+      default of `aether build` since 2026-11-07 (D-031). `-O0` keeps ABI-S0.
   - constant folding, copy propagation, dead code elimination
   - benchmark harness (`BENCHMARKS.md`)
     - Checked in 2026-11-06: the nine workloads of the baseline with their

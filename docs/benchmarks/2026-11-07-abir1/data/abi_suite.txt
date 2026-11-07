@@ -1,0 +1,5 @@
+nohop	programs 239	ran 239	mismatches or failures 0
+r1	programs 239	ran 239	mismatches or failures 0
+r1leaf	programs 239	ran 239	mismatches or failures 0
+r1cs	programs 239	ran 239	mismatches or failures 0
+abir1	programs 239	ran 239	mismatches or failures 0

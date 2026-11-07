@@ -1,7 +1,7 @@
 package amd64
 
-// Experiment ABI-R1 (D-030): EmitOptions.ABIR1. No built executable uses it:
-// aether build stays on ABI-S0 (D-011), with and without -O0.
+// ABI-R1 (D-030): EmitOptions.ABIR1, the convention of aether build since
+// D-031. aether build -O0 stays on ABI-S0 (D-011).
 //
 // Arguments 0-5 are in argRegs, and later ones at their ABI-S0 positions. One
 // result is in %rax, and two or more are all at their ABI-S0 positions.

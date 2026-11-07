@@ -15,8 +15,9 @@
 //
 // EmitWith can also keep values of SSA functions in registers instead of
 // cells (experiment RA-0, D-026; regalloc.go), as aether build asks it to
-// (D-027), and use immediates and fused branches (select.go, D-029). Emit does
-// neither.
+// (D-027), use immediates and fused branches (select.go, D-029), and pass
+// arguments and a result in registers (ABI-R1, abir1.go, D-031). Emit does none
+// of these.
 //
 // The package sees only IR: it imports no go/* package.
 package amd64
@@ -123,10 +124,10 @@ type EmitOptions struct {
 	// (select.go). Every selection is checked with checkSelection; one that
 	// fails is an error.
 	Select bool
-	// ABIR1 uses the experimental calling convention of D-030 (abir1.go) for
-	// the whole program. Only tests set it: aether build stays on ABI-S0. Every
-	// entry, call, and return is checked with checkR1; one that fails is an
-	// error.
+	// ABIR1 uses the calling convention ABI-R1 of D-030 (abir1.go) for the
+	// whole program, as aether build does since D-031; without it, ABI-S0
+	// (D-011). Every entry, call, and return is checked with checkR1; one that
+	// fails is an error.
 	ABIR1 bool
 }
 

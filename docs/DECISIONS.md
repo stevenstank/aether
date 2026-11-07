@@ -39,7 +39,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
 | D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only; Phase 4 stack amended 2026-10-26) |
 | D-010 | Memory management and garbage collection | Proposed |
-| D-011 | Calling convention for Aether-compiled functions | Accepted (ABI-S0, 2026-10-26) |
+| D-011 | Calling convention for Aether-compiled functions | Accepted (ABI-S0, 2026-10-26); since D-031 the convention of `aether build -O0` only |
 | D-012 | Initial supported Go subset (S1) | Accepted |
 | D-013 | Dependency policy | Accepted |
 | D-014 | Testing strategy with the official toolchain as oracle | Accepted |
@@ -58,7 +58,8 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-027 | `aether build` promotes to SSA and allocates registers | Accepted (2026-11-06, owner direction; its "no flag" clause superseded by D-028) |
 | D-028 | `aether build -O0` selects the slot-based backend | Accepted (2026-11-06, owner direction) |
 | D-029 | Instruction selection for comparisons, branches, and constants | Accepted (2026-11-06, owner direction; accepted as the default with one unresolved regression, b08_ackermann) |
-| D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment only, implemented behind a test option, not measured, not shipped) |
+| D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment complete, all criteria met; shipped by D-031) |
+| D-031 | `aether build` uses ABI-R1; `-O0` keeps ABI-S0 | Accepted (2026-11-07, owner approval) |
 
 ## Review log
 
@@ -98,6 +99,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-06 | Owner accepts instruction selection as the default; the b08_ackermann regression is recorded as unresolved, and block alignment stays out of scope | D-029 |
 | 2026-11-06 | Owner approves experiment ABI-R1 under the scope and criteria recorded in D-030. Shipping needs a new entry. No code exists yet. | D-011, D-030 |
 | 2026-11-07 | Owner settles three D-030 criteria: frame sizes may shrink while the stack check's mechanism, frame chain, and epilogue stay unchanged; the 2% limit applies to aggregates, with per-offset results reported and significant outliers investigated; peak stack stays within the `isel` baseline, and b03 and b04 stay byte-identical only if they avoid ABI-R1's call paths. Implementation had not started. | D-030 |
+| 2026-11-07 | Owner approves ABI-R1 as the default convention of `aether build` after the D-030 criteria were met; `-O0` keeps ABI-S0. D-031 created. | D-011, D-028, D-030, D-031 |
 
 ---
 
@@ -909,7 +911,10 @@ allocator.
 ## D-011: Calling convention for Aether-compiled functions
 
 **Status:** Accepted (2026-10-26, owner approval after the Phase 4 design
-gate, E13): option 3, as the stack-based convention **ABI-S0**. It is required
+gate, E13): option 3, as the stack-based convention **ABI-S0**. Since D-031,
+ABI-S0 is the convention of `aether build -O0` only; the default build uses
+ABI-R1 (D-030), which keeps ABI-S0's frame chain, stack check, and caller-saved
+registers. It is required
 before Phase 4 increment 4.2, which introduces calls; increment 4.1 does not
 depend on it.
 
@@ -2319,7 +2324,9 @@ should give a way to select the slot-based path.
 ## D-028: `aether build -O0` selects the slot-based backend
 
 **Status:** Accepted (2026-11-06, owner direction). It supersedes D-027's "no
-flag" clause and adds to the CLI of D-022. Exit codes do not change.
+flag" clause and adds to the CLI of D-022. Exit codes do not change. Since
+D-031 the default build's calling convention is ABI-R1; `-O0` is unchanged and
+stays on ABI-S0.
 
 **Context.** Since D-027, a bug in promotion or allocation is a miscompilation
 in built programs, with no way to build around it. ROADMAP Phase 5 also lists
@@ -2422,8 +2429,9 @@ code alignment is taken up; or register-register forms are.
 ## D-030: Experiment ABI-R1, a register calling convention for internal calls
 
 **Status:** Accepted (2026-11-06, owner approval of the scope and criteria below;
-three criteria settled by the owner on 2026-11-07). Implemented behind
-`amd64.EmitOptions.ABIR1` (`internal/amd64/abir1.go`), not yet measured. This approval authorizes the experiment only.
+three criteria settled by the owner on 2026-11-07). Implemented in
+`internal/amd64/abir1.go`; every criterion met (`benchmarks/2026-11-07-abir1/`),
+and shipped as the default by D-031. This approval authorizes the experiment only.
 **Shipping ABI-R1 as the default needs a new entry after the results.** D-011 stays
 in force: ABI-S0 remains the convention of `aether build`, with and without `-O0`,
 throughout the experiment.
@@ -2557,6 +2565,52 @@ ABIInternal were set aside by D-011 and not measured.
 
 **Revisit when.** The results are in; or the entry precondition stops holding, for
 example if lowering or a pass puts other code before a `param`.
+
+---
+
+## D-031: `aether build` uses ABI-R1; `-O0` keeps ABI-S0
+
+**Status:** Accepted (2026-11-07, owner approval).
+
+**Context.** Experiment ABI-R1 (D-030) met every correctness and performance
+criterion. Its evidence is in `benchmarks/2026-11-07-abir1/`, which holds the
+raw timings, summaries, and environment:
+- *Measured:* median CPU time across eight code offsets against `isel`, 11 runs
+  per offset: b01 0.881, b05 0.827, b06 0.916, b07 0.954, b08 0.716. The rest are
+  0.985 to 1.003, against the 1.020 limit.
+- *Measured:* dynamic instructions and memory operations equal the model's `r1`
+  row on all nine workloads, and peak stack is no higher than `isel`'s on any.
+- *Not established:* the cause of the per-offset outliers. Every one was
+  reproduced by an independent rerun, and none moves an aggregate past a limit.
+  At b08's offset 24, ABI-R1 is no faster than `isel`.
+
+**Decision.**
+- `aether build` emits with ABI-R1: `emitProgram` sets `amd64.EmitOptions.ABIR1`.
+  The convention, its entry precondition, and its checker are as in D-030.
+- `aether build -O0` is unchanged: `amd64.Emit`, slot-based, on ABI-S0 (D-011,
+  D-028). A build uses one convention throughout.
+- Nothing else changes: the IR, the allocator, instruction selection, the runtime
+  and its helper ABI, exit codes, and the CLI. The stack check, the frame chain,
+  and the bound of D-011 still hold. Only the frame sizes may shrink.
+- What D-030 excluded stays excluded, each needing its own decision: frameless
+  leaves, callee-saved registers, and the rest of D-030's list.
+
+**Alternatives.** Keeping ABI-R1 behind the option, which leaves the measured gain
+unused. Shipping it only with `-O1`, which D-028 rules out while no second level
+exists.
+
+**Consequences.**
+- A bug in ABI-R1 is now a miscompilation in built programs. `-O0` builds around
+  it, and `TestO0CrossCheck` compares the two conventions on the S2 suite.
+- The harness's `isel` variant stays ABI-S0 with selection, the baseline of D-030.
+  `abir1` is what `aether build` produces.
+- The register-based successor that D-011's "Revisit when" anticipated exists
+  for internal calls. Changes to it, such as callee-saved registers, need new
+  entries.
+
+**Revisit when.** A pass or lowering change breaks the entry precondition; a
+growable stack (Phase 10) needs the argument registers preserved on its growth
+path; or a later convention is proposed.
 
 ---
 
