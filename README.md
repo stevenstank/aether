@@ -20,8 +20,8 @@ representation and backend.
 > (D-006), keeps values in registers where it can (D-026, D-027), and selects
 > shorter forms for comparisons, branches, and constants (D-029), and passes
 > arguments and results in registers (ABI-R1, D-030, D-031; `-O0` keeps the
-> stack convention ABI-S0). Other Phase 5 work, such as optimization passes,
-> has not started.
+> stack convention ABI-S0). It computes arithmetic in its result's register and
+> folds constants. Copy propagation and dead code elimination have not started.
 
 ## What works today
 
@@ -86,7 +86,7 @@ Go source
   → go/parser + go/types      (reused standard-library frontend)
   → subset gate               (rejects anything not yet supported)
   → Aether IR                 (+ reference interpreter used as a test oracle)
-  → SSA (slot promotion) + [later] optimizations
+  → SSA (slot promotion) + constant folding [more passes later]
   → amd64 backend             (register allocation, instruction selection, frames)
   → GNU assembly → as → ld    (GNU binutils: translate and link only)
   → static ELF executable
@@ -126,10 +126,10 @@ potentially long-term dependencies. The exact ownership boundaries are in
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).
-- There are no optimization passes. By default, values are kept in registers
-  where possible, but arguments and results still go through memory, and each
-  operation still uses a fixed instruction sequence. `-O0` keeps every value in
-  a stack cell.
+- The only optimization pass is constant folding. By default, values are kept
+  in registers where possible and arguments and results are passed in
+  registers; values live across a call stay in stack cells. `-O0` folds
+  nothing and keeps every value in a stack cell.
 
 ## First milestone
 

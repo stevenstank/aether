@@ -703,6 +703,18 @@ repeated in each phase below:
     - Experiment ABI-R1 approved 2026-11-06 (D-030); all criteria met, and the
       default of `aether build` since 2026-11-07 (D-031). `-O0` keeps ABI-S0.
   - constant folding, copy propagation, dead code elimination
+    - Constant folding (`opt.Fold`), in `aether build` after promotion since
+      2026-11-08. Checked against the interpreter on every foldable operation,
+      type, and boundary operand pair, and on the S2 suite and `FuzzGenerated`
+      after promotion, with the verifier after the pass.
+      - Measured: the workloads' machine code is unchanged except b05_hash's,
+        whose two removed instructions run once; it was not timed. Static
+        machine instructions on the S2 suite and workloads fell 51.0%, mostly
+        in the generated programs; on the 34 corpus programs, 4.8%. No
+        function grew.
+    - Copy propagation: nothing to do after promotion, which leaves no copies.
+    - Dead code elimination: not started, beyond the unreachable blocks and
+      unused constants that folding removes.
   - benchmark harness (`BENCHMARKS.md`)
     - Checked in 2026-11-06: the nine workloads of the baseline with their
       gc outputs, dynamic counts by instrumentation, register pressure,

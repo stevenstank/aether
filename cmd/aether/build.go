@@ -12,6 +12,7 @@ import (
 	"github.com/stevenstank/aether/internal/amd64"
 	"github.com/stevenstank/aether/internal/diag"
 	"github.com/stevenstank/aether/internal/ir"
+	"github.com/stevenstank/aether/internal/opt"
 	"github.com/stevenstank/aether/internal/toolchain"
 )
 
@@ -129,7 +130,7 @@ func promotable(f *ir.Func) bool {
 
 // emitProgram is the backend of aether build (D-027): it promotes every
 // function of prog within the limits to SSA form (ir.Promote, D-006), in
-// place, and emits it with values in registers (RA-0, D-026) and instruction
+// place, folds its constants (opt.Fold), and emits it with values in registers (RA-0, D-026) and instruction
 // selection (D-029), which checks every allocation and selection. Any failure is a bug in Aether, not in the program.
 func emitProgram(prog *ir.Program) ([]byte, error) {
 	return emitProgramWith(prog, amd64.EmitOptions{Registers: true, Select: true, ABIR1: true, TwoAddress: true})
@@ -138,14 +139,30 @@ func emitProgram(prog *ir.Program) ([]byte, error) {
 // emitProgramWith is emitProgram's pipeline with any options. Only tests pass
 // any but emitProgram's.
 func emitProgramWith(prog *ir.Program, opts amd64.EmitOptions) ([]byte, error) {
+	if err := optimize(prog, true); err != nil {
+		return nil, err
+	}
+	return amd64.EmitWith(prog, opts)
+}
+
+// optimize promotes every function of prog within the limits to SSA form and,
+// if fold, folds the constants of each one promoted. Only tests pass fold
+// false, to measure folding.
+func optimize(prog *ir.Program, fold bool) error {
 	for _, f := range prog.Funcs {
-		if promotable(f) {
-			if err := ir.Promote(f); err != nil {
-				return nil, err
+		if !promotable(f) {
+			continue
+		}
+		if err := ir.Promote(f); err != nil {
+			return err
+		}
+		if fold {
+			if _, err := opt.Fold(f); err != nil {
+				return err
 			}
 		}
 	}
-	return amd64.EmitWith(prog, opts)
+	return nil
 }
 
 // assemble assembles asm, the program's assembly, links it with the

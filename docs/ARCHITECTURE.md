@@ -10,9 +10,9 @@ Status:
 - **Implemented (Phase 4):** every stage above for S2, the supported subset.
 - **Implemented (Phase 5, in progress):** SSA promotion and register allocation
   (D-006, D-026, D-027), `-O0` (D-028), instruction selection for
-  comparisons, branches, and constants (D-029), and register forms of
-  arithmetic and conversions.
-- **Design only:** optimization passes (the rest of stage 6), and everything
+  comparisons, branches, and constants (D-029), register forms of
+  arithmetic and conversions, and constant folding (stage 6, `internal/opt`).
+- **Design only:** the other optimization passes of stage 6, and everything
   beyond S2.
 
 Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this document says
@@ -279,6 +279,16 @@ and value numbering never depend on map iteration order.
   cross-checks.
 - The first candidate passes are constant folding, copy propagation, and dead
   code elimination. Each is justified only with `BENCHMARKS.md` measurements.
+- **Implemented: constant folding** (`opt.Fold`), run by `aether build` on
+  every promoted function, after `ir.Promote`; `-O0` does not run it. It
+  replaces each pure instruction whose operands are constants by its constant
+  (a division only by a nonzero constant), turns a branch on a constant into a
+  jump, removes the blocks no longer reachable, replaces phis left with one
+  value, or only equal constants, and drops unused constants, until nothing
+  changes. It removes code only from blocks that never execute and moves
+  nothing.
+- Copy propagation has nothing to do after promotion: the IR has no copy
+  instruction, and promotion replaces every load by the stored value.
 
 ### 7. Backend (Aether, architecture-specific)
 
@@ -628,7 +638,7 @@ The other rows are still candidates.
 | `internal/ir` | IR types, builder, verifier, printer; dominator tree, dominance frontiers, and slot promotion to SSA (Phase 5, D-006, D-025) | — (no `go/*`) | **contract:** text format + invariants |
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |
-| `internal/opt` | Optimization passes (Phase 5+) | `ir` | internal |
+| `internal/opt` | Optimization passes (Phase 5+): constant folding | `ir` (no `go/*`) | internal |
 | `internal/amd64` | isel, frames, regalloc, asm emission; runtime sources in `internal/amd64/rt/*.s`, embedded (§9) | `ir` | internal |
 | `internal/toolchain` | Locate and run `as` and `ld` | — | internal |
 

@@ -32,6 +32,7 @@ var forbiddenEverywhere = []string{"go/importer", "go/build"}
 var noGoPackages = []string{
 	modulePath + "/internal/diag",
 	modulePath + "/internal/ir",
+	modulePath + "/internal/opt",
 	modulePath + "/internal/amd64",
 }
 

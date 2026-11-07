@@ -427,11 +427,15 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 		t.Fatalf("%s: %v", name, ds)
 	}
 	// isel is ABI-S0 with selection, the baseline of D-030; abir1 is what
-	// aether build produced from D-031, and two, with the register forms of
-	// arith.go, is what it produces now.
-	if variant == "isel" || variant == "abir1" || variant == "two" {
-		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant != "isel", TwoAddress: variant == "two"}
-		asm, err := emitProgramWith(prog, opts)
+	// aether build produced from D-031, two adds the register forms of
+	// arith.go, and fold, which folds constants (opt.Fold), is what aether
+	// build produces now. Only fold folds.
+	if variant == "isel" || variant == "abir1" || variant == "two" || variant == "fold" {
+		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant != "isel", TwoAddress: variant == "two" || variant == "fold"}
+		if err := optimize(prog, variant == "fold"); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		asm, err := amd64.EmitWith(prog, opts)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
