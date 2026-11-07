@@ -103,7 +103,10 @@ measurement.
 **The calling-convention model** (`bench_abi_test.go`) rewrites the assembly of
 `aether build` into candidate conventions, so that they can be counted and timed
 without changing the compiler. It is a model, not an implementation, and nothing
-in it reaches a built executable. Besides timing at the shipped layout,
+in it reaches a built executable. The one exception is `abir1`, which is not
+rewritten: it is experiment ABI-R1 as the compiler emits it under the test option
+of D-030. `AETHER_ABI_VARIANTS` (comma-separated) limits `TestABITime` to the
+variants named. Besides timing at the shipped layout,
 `AETHER_ABI_LAYOUT` times every variant at eight code offsets modulo 64, because
 placement alone can move a result. `TestABIModel` and `TestParallelCopy` run in
 the normal suite; the rest skip unless `AETHER_BENCH_OUT` is set.

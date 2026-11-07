@@ -4,7 +4,8 @@ package main
 // rewrites the assembly of aether build into candidate conventions, so they
 // can be counted and timed without changing the compiler: the measurement
 // behind benchmarks/2026-11-06-abi/REPORT.md. Nothing here reaches a built
-// executable. The conventions are in abiVariants; nohop stays on ABI-S0.
+// executable. The conventions are in abiVariants; nohop stays on ABI-S0, and
+// abir1 is not rewritten: it is the compiler's own ABI-R1 (D-030).
 
 import (
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stevenstank/aether/internal/amd64"
 	"github.com/stevenstank/aether/internal/ir"
 )
 
@@ -41,8 +43,41 @@ var (
 )
 
 // abiVariants are the conventions of the model. isel is the shipped build;
-// h_r1 and h_cs replace fib and ack with hand-written code.
-var abiVariants = []string{"isel", "nohop", "r1", "r1leaf", "r1cs", "h_r1", "h_cs"}
+// h_r1 and h_cs replace fib and ack with hand-written code. abir1 is not a
+// model: it is the implementation of experiment ABI-R1 (D-030), emitted by the
+// compiler with amd64.EmitOptions.ABIR1, which aether build never sets.
+var abiVariants = []string{"isel", "nohop", "r1", "r1leaf", "r1cs", "h_r1", "h_cs", "abir1"}
+
+// abiSelected returns vs, or only those named in AETHER_ABI_VARIANTS
+// (comma-separated) if it is set: TestABITime then times just those.
+func abiSelected(t *testing.T, vs []string) []string {
+	sel := os.Getenv("AETHER_ABI_VARIANTS")
+	if sel == "" {
+		return vs
+	}
+	names := strings.Split(sel, ",")
+	for _, n := range names {
+		if !slices.Contains(vs, n) {
+			t.Fatalf("AETHER_ABI_VARIANTS: no variant %q", n)
+		}
+	}
+	return slices.DeleteFunc(slices.Clone(vs), func(v string) bool { return !slices.Contains(names, v) })
+}
+
+// abiAsm returns a workload's program and its assembly as variant: ra and
+// abir1 as the compiler emits them, the others rewritten from isel.
+func abiAsm(t *testing.T, name string, src []byte, variant string) (*ir.Program, []byte) {
+	t.Helper()
+	if variant == "ra" || variant == "abir1" {
+		return benchEmit(t, name, src, variant)
+	}
+	prog, asm := benchEmit(t, name, src, "isel")
+	re, err := abiRewrite(asm, prog, variant)
+	if err != nil {
+		t.Fatalf("%s %s: %v", name, variant, err)
+	}
+	return prog, re
+}
 
 type abiSig struct{ p, r int }
 
@@ -584,11 +619,7 @@ func TestABICounts(t *testing.T) {
 			if !abiApplies(w.name, v) {
 				continue
 			}
-			prog, asm := benchEmit(t, w.name+".go", w.src, "isel")
-			re, err := abiRewrite(asm, prog, v)
-			if err != nil {
-				t.Fatalf("%s %s: %v", w.name, v, err)
-			}
+			prog, re := abiAsm(t, w.name+".go", w.src, v)
 			exe := filepath.Join(dir, w.name+"."+v)
 			if err := os.WriteFile(exe+".s", re, 0o644); err != nil {
 				t.Fatal(err)
@@ -779,13 +810,16 @@ func abiRunAgainstInterp(t *testing.T, dir, name string, src []byte, variant str
 	if len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	asm, err := emitProgram(prog)
+	opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant == "abir1"}
+	asm, err := emitProgramWith(prog, opts)
 	if err != nil {
-		t.Fatal(err)
+		return fmt.Errorf("emit: %v", err)
 	}
-	re, err := abiRewrite(asm, prog, variant)
-	if err != nil {
-		return fmt.Errorf("rewrite: %v", err)
+	re := asm
+	if variant != "abir1" {
+		if re, err = abiRewrite(asm, prog, variant); err != nil {
+			return fmt.Errorf("rewrite: %v", err)
+		}
 	}
 	exe := filepath.Join(dir, "abi")
 	if ds, err := assemble(re, buildOptions{out: exe}, io.Discard); len(ds) > 0 || err != nil {
@@ -804,7 +838,7 @@ func TestABISuite(t *testing.T) {
 	progs, _ := s2Suite(t)
 	work := t.TempDir()
 	var rep strings.Builder
-	for _, v := range []string{"nohop", "r1", "r1leaf", "r1cs"} {
+	for _, v := range []string{"nohop", "r1", "r1leaf", "r1cs", "abir1"} {
 		bad := 0
 		for _, p := range progs {
 			if err := abiRunAgainstInterp(t, work, p.name, p.src, v); err != nil {
@@ -925,21 +959,12 @@ func TestABITime(t *testing.T) {
 	for _, w := range benchWorkloads(t) {
 		var exes []abiTimeKey
 		path := map[abiTimeKey]string{}
-		for _, v := range append([]string{"ra"}, abiVariants...) {
+		for _, v := range abiSelected(t, append([]string{"ra"}, abiVariants...)) {
 			if !abiApplies(w.name, v) {
 				continue
 			}
 			for _, off := range offsets {
-				var asm []byte
-				if v == "ra" {
-					_, asm = benchEmit(t, w.name+".go", w.src, "ra")
-				} else {
-					prog, s := benchEmit(t, w.name+".go", w.src, "isel")
-					var err error
-					if asm, err = abiRewrite(s, prog, v); err != nil {
-						t.Fatal(err)
-					}
-				}
+				_, asm := abiAsm(t, w.name+".go", w.src, v)
 				if off >= 0 {
 					asm = abiPad(asm, off)
 				}

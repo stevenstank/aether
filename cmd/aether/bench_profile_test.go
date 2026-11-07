@@ -426,8 +426,9 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 	if len(ds) > 0 {
 		t.Fatalf("%s: %v", name, ds)
 	}
-	if variant == "isel" {
-		asm, err := emitProgram(prog)
+	if variant == "isel" || variant == "abir1" {
+		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant == "abir1"}
+		asm, err := emitProgramWith(prog, opts)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
