@@ -21,8 +21,8 @@ import (
 // entry, call, and return (checkR1).
 
 var (
-	r1Options = amd64.EmitOptions{Registers: true, Select: true, ABIR1: true, TwoAddress: true}
-	s0Options = amd64.EmitOptions{Registers: true, Select: true, TwoAddress: true}
+	r1Options = amd64.EmitOptions{Registers: true, Select: true, ABIR1: true, TwoAddress: true, Coalesce: true}
+	s0Options = amd64.EmitOptions{Registers: true, Select: true, TwoAddress: true, Coalesce: true}
 )
 
 // emitR1 returns src's assembly under ABI-R1, emitted twice: it must not differ.
@@ -294,8 +294,26 @@ func TestABIR1Programs(t *testing.T) {
 		progs[name] = []byte(src)
 	}
 	checkR1Programs(t, progs)
+	// Coalescing leaves most parameters in their own argument registers, so
+	// the permutations are emitted without it, and must run as the default
+	// build does.
+	prog, ds := compile([]source{{"r1_perm.go", progs["r1_perm"]}})
+	if len(ds) > 0 {
+		t.Fatal(ds)
+	}
+	plain := r1Options
+	plain.Coalesce = false
+	asm, err := emitProgramWith(prog, plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireTools(t)
+	dir := t.TempDir()
+	if runR1(t, "r1_perm_plain.go", asm, dir) != runR1(t, "r1_perm.go", emitR1(t, "r1_perm.go", progs["r1_perm"]), dir) {
+		t.Error("r1_perm: without coalescing differs from the default build")
+	}
 	cycles := 0
-	for _, fn := range strings.Split(string(emitR1(t, "r1_perm.go", progs["r1_perm"])), "\t.globl\t")[1:] {
+	for _, fn := range strings.Split(string(asm), "\t.globl\t")[1:] {
 		if !strings.HasPrefix(fn, "main.p") {
 			continue
 		}

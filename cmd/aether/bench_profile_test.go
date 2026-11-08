@@ -418,14 +418,14 @@ func checkRun(stderr []byte, code int, want []byte) error {
 // compiledVariants are the variants Aether builds, each a step of Phase 5:
 // slot-based (aether build -O0), promoted to SSA, with registers (D-026), with
 // instruction selection (D-029), with ABI-R1 (D-031), with the register forms
-// of arith.go, with constant folding, and with dead code elimination, which
-// is what aether build produces.
-var compiledVariants = []string{"slot", "ssa", "ra", "isel", "abir1", "two", "fold", "dce"}
+// of arith.go, with constant folding, with dead code elimination, and with
+// coalescing (EmitOptions.Coalesce), which is what aether build produces.
+var compiledVariants = []string{"slot", "ssa", "ra", "isel", "abir1", "two", "fold", "dce", "copy"}
 
 // compiledPipeline reports whether variant is one of the default build's
-// pipeline with some of its passes: two, fold, or dce.
+// pipeline with some of its passes and options: two, fold, dce, or copy.
 func compiledPipeline(variant string) bool {
-	return variant == "two" || variant == "fold" || variant == "dce"
+	return variant == "two" || variant == "fold" || variant == "dce" || variant == "copy"
 }
 
 // benchPasses are the passes of a compiled variant: none before fold.
@@ -433,7 +433,7 @@ func benchPasses(variant string) []pass {
 	switch variant {
 	case "fold":
 		return []pass{opt.Fold}
-	case "dce":
+	case "dce", "copy":
 		return buildPasses
 	}
 	return nil
@@ -448,10 +448,11 @@ func benchEmit(t *testing.T, name string, src []byte, variant string) (*ir.Progr
 	}
 	// isel is ABI-S0 with selection, the baseline of D-030; abir1 is what
 	// aether build produced from D-031, two adds the register forms of
-	// arith.go, fold folds constants (opt.Fold), and dce, which also removes
-	// dead code (opt.DCE), is what aether build produces now.
+	// arith.go, fold folds constants (opt.Fold), dce also removes dead code
+	// (opt.DCE), and copy, which also coalesces, is what aether build produces
+	// now.
 	if variant == "isel" || variant == "abir1" || compiledPipeline(variant) {
-		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant != "isel", TwoAddress: compiledPipeline(variant)}
+		opts := amd64.EmitOptions{Registers: true, Select: true, ABIR1: variant != "isel", TwoAddress: compiledPipeline(variant), Coalesce: variant == "copy"}
 		if err := optimize(prog, benchPasses(variant)...); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}

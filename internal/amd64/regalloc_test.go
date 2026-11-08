@@ -93,6 +93,88 @@ var raFuncs = map[string]func() (*ir.Program, *ir.Func){
 		f.Ret(b3, p1, f.Binary(b3, ir.Add, r, x, p1))
 		return p, f
 	},
+	// return g(p1, -p0, p0+1): values computed for a call's arguments.
+	"args": func() (*ir.Program, *ir.Func) {
+		p, f := raFunc(2)
+		g := p.NewFunc("g", "p.go", p1)
+		g.Params, g.Results, g.SSA = []ir.Type{ir.I64, ir.I64, ir.I64}, []ir.Type{ir.I64}, true
+		gb := g.Entry()
+		u, v, w := g.Param(gb, 0, p1), g.Param(gb, 1, p1), g.Param(gb, 2, p1)
+		g.Ret(gb, p1, g.Binary(gb, ir.Sub, g.Binary(gb, ir.Mul, u, v, p1), w, p1))
+		b := f.Entry()
+		x, y := f.Param(b, 0, p1), f.Param(b, 1, p1)
+		neg := f.Neg(b, x, p1)
+		inc := f.Binary(b, ir.Add, x, f.Const(b, 1, p1), p1)
+		f.Ret(b, p1, f.Call(b, g, []*ir.Instr{y, neg, inc}, p1))
+		return p, f
+	},
+	// for i := 0; i < p0; { j := i + 1; t += i * j; i = j }: i is live
+	// after j's definition, so j cannot take i's register.
+	"busy": func() (*ir.Program, *ir.Func) {
+		p, f := raFunc(1)
+		b0, b1, b2, b3 := f.Entry(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+		n := f.Param(b0, 0, p1)
+		zero, one := f.Const(b0, 0, p1), f.Const(b0, 1, p1)
+		f.Jump(b0, b1, p1)
+		t, i := f.Phi(b1, ir.I64, p1), f.Phi(b1, ir.I64, p1)
+		f.Branch(b1, f.Compare(b1, ir.Lt, i, n, p1), b2, b3, p1)
+		j := f.Binary(b2, ir.Add, i, one, p1)
+		t2 := f.Binary(b2, ir.Add, t, f.Binary(b2, ir.Mul, i, j, p1), p1)
+		f.Jump(b2, b1, p1)
+		f.Ret(b3, p1, t)
+		t.AddIncoming(ir.Edge{From: b0}, zero)
+		t.AddIncoming(ir.Edge{From: b2}, t2)
+		i.AddIncoming(ir.Edge{From: b0}, zero)
+		i.AddIncoming(ir.Edge{From: b2}, j)
+		return p, f
+	},
+	// a, b := 0, 1; for k := 0; k < p0; k++ { a, b = b, a+b }; return a
+	"fib": func() (*ir.Program, *ir.Func) {
+		p, f := raFunc(1)
+		b0, b1, b2, b3 := f.Entry(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+		n := f.Param(b0, 0, p1)
+		zero, one := f.Const(b0, 0, p1), f.Const(b0, 1, p1)
+		f.Jump(b0, b1, p1)
+		a, b, k := f.Phi(b1, ir.I64, p1), f.Phi(b1, ir.I64, p1), f.Phi(b1, ir.I64, p1)
+		f.Branch(b1, f.Compare(b1, ir.Lt, k, n, p1), b2, b3, p1)
+		s := f.Binary(b2, ir.Add, a, b, p1)
+		k2 := f.Binary(b2, ir.Add, k, f.Const(b2, 1, p1), p1)
+		f.Jump(b2, b1, p1)
+		f.Ret(b3, p1, a)
+		for _, x := range []struct{ phi, init, back *ir.Instr }{{a, zero, b}, {b, one, s}, {k, zero, k2}} {
+			x.phi.AddIncoming(ir.Edge{From: b0}, x.init)
+			x.phi.AddIncoming(ir.Edge{From: b2}, x.back)
+		}
+		return p, f
+	},
+	// x := p0; for k := 0; k < 8; k++ { if x&1 != 0 { x = x>>1 ^ 5 } else
+	// { x >>= 1 } }; return x: a loop around a diamond, as in a CRC.
+	"shift": func() (*ir.Program, *ir.Func) {
+		p, f := raFunc(1)
+		b0, b1, b2, b3, b4, b5, b6 := f.Entry(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+		x0 := f.Param(b0, 0, p1)
+		zero := f.Const(b0, 0, p1)
+		f.Jump(b0, b1, p1)
+		x, k := f.Phi(b1, ir.I64, p1), f.Phi(b1, ir.I64, p1)
+		f.Branch(b1, f.Compare(b1, ir.Lt, k, f.Const(b1, 8, p1), p1), b2, b6, p1)
+		low := f.Binary(b2, ir.And, x, f.Const(b2, 1, p1), p1)
+		f.Branch(b2, f.Compare(b2, ir.Ne, low, f.Const(b2, 0, p1), p1), b3, b4, p1)
+		odd := f.Binary(b3, ir.Xor, f.Shift(b3, ir.Shr, x, f.TypedConst(b3, ir.U64, 1, p1), p1), f.Const(b3, 5, p1), p1)
+		f.Jump(b3, b5, p1)
+		even := f.Shift(b4, ir.Shr, x, f.TypedConst(b4, ir.U64, 1, p1), p1)
+		f.Jump(b4, b5, p1)
+		x2 := f.Phi(b5, ir.I64, p1)
+		x2.AddIncoming(ir.Edge{From: b3}, odd)
+		x2.AddIncoming(ir.Edge{From: b4}, even)
+		k2 := f.Binary(b5, ir.Add, k, f.Const(b5, 1, p1), p1)
+		f.Jump(b5, b1, p1)
+		f.Ret(b6, p1, x)
+		x.AddIncoming(ir.Edge{From: b0}, x0)
+		x.AddIncoming(ir.Edge{From: b5}, x2)
+		k.AddIncoming(ir.Edge{From: b0}, zero)
+		k.AddIncoming(ir.Edge{From: b5}, k2)
+		return p, f
+	},
 	// The sum of 15 parameters, added last to first, so all 15 are live
 	// at the first add: more than the 11 registers.
 	"spill": func() (*ir.Program, *ir.Func) {
@@ -120,6 +202,10 @@ var raArgs = map[string][][]int64{
 	"swap":     {{0}, {1}, {7}},
 	"call":     {{3}, {-5}},
 	"diamond":  {{-4}, {0}, {9}},
+	"args":     {{3, 4}, {-1 << 63, 7}},
+	"busy":     {{0}, {1}, {9}},
+	"fib":      {{0}, {1}, {50}},
+	"shift":    {{0}, {1}, {-12345}},
 	"spill":    {{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, {-7, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 1 << 40}},
 }
 

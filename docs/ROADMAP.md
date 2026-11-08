@@ -712,7 +712,16 @@ repeated in each phase below:
         machine instructions on the S2 suite and workloads fell 51.0%, mostly
         in the generated programs; on the 34 corpus programs, 4.8%. No
         function grew.
-    - Copy propagation: nothing to do after promotion, which leaves no copies.
+    - Copy propagation: nothing to do after promotion, which leaves no copies
+      in the IR (measured after folding and DCE on the S2 suite and the
+      workloads). The copies are the backend's register moves, which
+      `aether build` reduces since 2026-11-08 by coalescing in register
+      allocation (`EmitOptions.Coalesce`), checked by `checkAllocation` as
+      before (`benchmarks/2026-11-08-copy/README.md`).
+      - Measured against `dce`: executed instructions 0.90–1.00× on the
+        workloads, all of them register moves; static register moves on the
+        S2 suite and workloads −2.3%, no function larger. CPU time unchanged
+        beyond code placement (median over eight offsets 0.967–1.013×).
     - Dead code elimination (`opt.DCE`), after folding since 2026-11-08,
       with the verifier after each pass on the S2 suite and `FuzzGenerated`.
       - Measured: after promotion and folding, the workloads and the corpus

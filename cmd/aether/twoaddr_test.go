@@ -105,8 +105,20 @@ func TestTwoAddressDifferential(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
+		// Coalescing prefers the first operand's register for the result,
+		// so the forms into y are also emitted, and run, without it.
+		prog, _ = compile([]source{{name + ".go", progs[name]}})
+		plainOpts := r1Options
+		plainOpts.Coalesce = false
+		plain, err := emitProgramWith(prog, plainOpts)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := runR1(t, name+"_plain.go", plain, dir); got != want[name] {
+			t.Errorf("%s: without coalescing differs from gc:\n%s", name, diffResults(got, want[name]))
+		}
 		for f, re := range forms {
-			seen[f] = seen[f] || re.Match(asm)
+			seen[f] = seen[f] || re.Match(asm) || re.Match(plain)
 		}
 		for _, o0 := range []bool{false, true} {
 			exe := filepath.Join(dir, fmt.Sprintf("%s.%v", name, o0))

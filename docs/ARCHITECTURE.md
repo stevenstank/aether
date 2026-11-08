@@ -12,7 +12,7 @@ Status:
   (D-006, D-026, D-027), `-O0` (D-028), instruction selection for
   comparisons, branches, and constants (D-029), register forms of
   arithmetic and conversions, constant folding and dead code elimination
-  (stage 6, `internal/opt`).
+  (stage 6, `internal/opt`), and coalescing of register moves.
 - **Design only:** the other optimization passes of stage 6, and everything
   beyond S2.
 
@@ -294,7 +294,12 @@ and value numbering never depend on map iteration order.
   rest, dead phi cycles included. `div` and `rem` cannot trap (lowering's zero
   check is a branch of its own), and a dead `gload` is not reordered but gone.
 - Copy propagation has nothing to do after promotion: the IR has no copy
-  instruction, and promotion replaces every load by the stored value.
+  instruction, and promotion replaces every load by the stored value. The
+  copies that remain are register moves the backend emits (φ edges, ABI-R1's
+  entry and call copies, and two-address operations); `aether build` reduces
+  them by coalescing in register allocation (`EmitOptions.Coalesce`): a value
+  takes, among the free registers, the one that related values already hold,
+  so the move becomes a move to itself and is dropped.
 
 ### 7. Backend (Aether, architecture-specific)
 

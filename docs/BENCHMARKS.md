@@ -1,6 +1,6 @@
 # Aether Measurement Strategy
 
-Status: **harness and six measurements.** The workloads and the harness
+Status: **harness and seven measurements.** The workloads and the harness
 are checked in ([The harness](#the-harness)). Six measurements exist, all
 under WSL2: the register-allocation baseline of 2026-11-05
 ([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)),
@@ -12,8 +12,10 @@ the calling-convention investigation, also of 2026-11-06
 ([`benchmarks/2026-11-06-abi/REPORT.md`](benchmarks/2026-11-06-abi/REPORT.md)),
 the ABI-R1 acceptance evidence of 2026-11-07
 ([`benchmarks/2026-11-07-abir1/README.md`](benchmarks/2026-11-07-abir1/README.md)),
-and the Phase 5 report of 2026-11-08, with compile latency
-([`benchmarks/2026-11-08-phase5/README.md`](benchmarks/2026-11-08-phase5/README.md)).
+the Phase 5 report of 2026-11-08, with compile latency
+([`benchmarks/2026-11-08-phase5/README.md`](benchmarks/2026-11-08-phase5/README.md)),
+and coalescing against it, also of 2026-11-08
+([`benchmarks/2026-11-08-copy/README.md`](benchmarks/2026-11-08-copy/README.md)).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time.
 
@@ -66,7 +68,7 @@ score.
 ## The harness
 
 The harness is test code in `cmd/aether` (`bench_*_test.go`). It uses the
-compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `dce`
+compiler's own stages (`compile`, `emitProgram`, `assemble`), so its `copy`
 variant is exactly what `aether build` produces, and it also builds every
 earlier step of Phase 5, back to the slot-based variant. It does not change the compiler.
 
@@ -74,8 +76,8 @@ earlier step of Phase 5, back to the slot-based variant. It does not change the 
 check` accepts. Each has `name.gcout`, the stderr of its gc-built binary.
 Every measured executable must exit 0 with exactly that stderr.
 
-**Variants.** `dce` (what `aether build` produces: `fold` with dead code
-elimination), `fold` (`two` with constant folding), `two` (`abir1` with the
+**Variants.** `copy` (what `aether build` produces: `dce` with coalescing in
+register allocation), `dce` (`fold` with dead code elimination), `fold` (`two` with constant folding), `two` (`abir1` with the
 register forms of arithmetic), `abir1` (`isel` with the
 calling convention ABI-R1, D-031), `isel` (what it produced from D-029 to D-031: promoted and
 emitted with registers and instruction selection), `ra` (the same without
@@ -112,7 +114,7 @@ measurement.
 without changing the compiler. It is a model, not an implementation, and nothing
 in it reaches a built executable. The one exception is `abir1`, which is not
 rewritten: it is ABI-R1 as the compiler emits it, the default build since D-031. `AETHER_ABI_VARIANTS` (comma-separated) limits `TestABITime` to the
-variants named. Besides timing at the shipped layout,
+variants named and `isel`, the baseline of its ratios. Besides timing at the shipped layout,
 `AETHER_ABI_LAYOUT` times every variant at eight code offsets modulo 64, because
 placement alone can move a result. `TestABIModel` and `TestParallelCopy` run in
 the normal suite; the rest skip unless `AETHER_BENCH_OUT` is set.

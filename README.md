@@ -22,7 +22,8 @@ representation and backend.
 > arguments and results in registers (ABI-R1, D-030, D-031; `-O0` keeps the
 > stack convention ABI-S0). It computes arithmetic in its result's register and
 > folds constants and removes dead code. Copy propagation has nothing to do
-> after promotion.
+> after promotion; the register moves the backend emits are reduced by
+> coalescing in register allocation.
 
 ## What works today
 

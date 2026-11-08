@@ -14,7 +14,7 @@ import (
 )
 
 // benchVariants are the executables of each workload, in timing order.
-var benchVariants = []string{"slot", "ssa", "ra", "isel", "abir1", "two", "fold", "dce", "gc", "gcN"}
+var benchVariants = []string{"slot", "ssa", "ra", "isel", "abir1", "two", "fold", "dce", "copy", "gc", "gcN"}
 
 // median returns the median of the sorted xs.
 func median(xs []float64) float64 {

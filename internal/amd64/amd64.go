@@ -133,6 +133,10 @@ type EmitOptions struct {
 	// register (arith.go), as aether build does; it needs Select. Every such
 	// sequence is checked with checkArith; one that fails is an error.
 	TwoAddress bool
+	// Coalesce gives values the registers that make moves unnecessary
+	// where one is free (preferences in regalloc.go), as aether build
+	// does; it needs Registers. The allocation is checked as without it.
+	Coalesce bool
 }
 
 // EmitWith is Emit with options.
@@ -203,7 +207,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	}
 	if opts.Registers {
 		var err error
-		if regs, err = allocateExcept(f, none); err != nil {
+		if regs, err = allocateExcept(f, none, opts.Coalesce); err != nil {
 			return Frame{}, err
 		}
 		if err := checkAllocation(f, regs); err != nil {

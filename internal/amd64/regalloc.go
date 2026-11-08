@@ -23,7 +23,8 @@ package amd64
 //
 // The rest are colored greedily over the dominator tree in preorder: at
 // each definition the value gets the first register no value live after it
-// holds. In SSA a value live at a point is live at every later definition
+// holds, or with EmitOptions.Coalesce, as aether build does, the free
+// register that preferences ranks best, which saves moves. In SSA a value live at a point is live at every later definition
 // that dominates the point, so the registers of the values live at once are
 // distinct, and a free register always exists where no more than
 // len(allocRegs) values are live. checkAllocation verifies the result
@@ -150,12 +151,13 @@ func liveAfter(b *ir.Block, out valueSet) []valueSet {
 // allocate assigns registers, as indexes into allocRegs, to values of f; a
 // value it does not assign keeps its cell. Functions not in SSA form get no
 // registers.
-func allocate(f *ir.Func) (map[*ir.Instr]int, error) { return allocateExcept(f, nil) }
+func allocate(f *ir.Func) (map[*ir.Instr]int, error) { return allocateExcept(f, nil, false) }
 
 // allocateExcept is allocate for a function whose values in none have no
 // location at all (select.go). They take no register and count toward no
-// point's pressure.
-func allocateExcept(f *ir.Func, none valueSet) (map[*ir.Instr]int, error) {
+// point's pressure. With coalesce, a value takes the first free register
+// that preferences gives it, if any, before the first free one.
+func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int, error) {
 	regs := map[*ir.Instr]int{}
 	if !f.SSA || countValues(f) > maxAllocValues {
 		return regs, nil
@@ -199,6 +201,10 @@ func allocateExcept(f *ir.Func, none valueSet) (map[*ir.Instr]int, error) {
 		}
 	}
 	spill(f, d, liveOut, after, cand, uses)
+	var prefer func(v *ir.Instr) []int
+	if coalesce {
+		prefer = preferences(f, regs)
+	}
 	// Color in dominator-tree preorder.
 	work := []*ir.Block{f.Entry()}
 	for len(work) > 0 {
@@ -206,6 +212,14 @@ func allocateExcept(f *ir.Func, none valueSet) (map[*ir.Instr]int, error) {
 		work = work[:len(work)-1]
 		var used [len(allocRegs)]*ir.Instr
 		take := func(v *ir.Instr) error {
+			if prefer != nil {
+				for _, r := range prefer(v) {
+					if used[r] == nil {
+						used[r], regs[v] = v, r
+						return nil
+					}
+				}
+			}
 			for r := range used {
 				if used[r] == nil {
 					used[r], regs[v] = v, r
@@ -262,6 +276,93 @@ func allocateExcept(f *ir.Func, none valueSet) (map[*ir.Instr]int, error) {
 		}
 	}
 	return regs, nil
+}
+
+// preferences returns, for a value about to be colored, the registers that
+// would make moves of the emitted code unnecessary, given regs, the registers
+// of the values colored so far. Each value related to it as below votes for
+// its register, and the registers come most votes first, then in the order
+// of the list:
+//   - a φ that the value is an operand of (3 votes): the copy on the edge
+//     becomes a move to itself, which edgeCopies drops. Coloring follows the
+//     dominator tree, so that φ is colored first only when its block
+//     dominates the value's: the edge closes a loop.
+//   - an operand of a φ (2 votes), and the φ's other operands (1 vote), for
+//     the same reason;
+//   - for a param among the first len(argRegs), ABI-R1's register of its
+//     argument (2 votes), which makes the entry copy's move unnecessary;
+//   - for an argument of a call, each register ABI-R1 passes it in (2
+//     votes);
+//   - for the result of an operation computed in place from its first
+//     operand (twoAddress, selectShift, and Not), that operand (2 votes),
+//     which then needs no move.
+//
+// Only a free register is ever taken, so the coloring stays correct
+// whatever the preferences are; they only choose among correct colorings,
+// and checkAllocation checks the result as before. Under ABI-S0 the
+// argument registers are merely registers like the others.
+func preferences(f *ir.Func, regs map[*ir.Instr]int) func(v *ir.Instr) []int {
+	phisOf := map[*ir.Instr][]*ir.Instr{} // the φs v is an operand of, in order
+	argOf := map[*ir.Instr][]int{}        // the argument positions v is passed in
+	for _, b := range f.Blocks {
+		for _, in := range b.Instrs {
+			switch in.Op {
+			case ir.Phi:
+				for _, a := range in.Args {
+					if !slices.Contains(phisOf[a], in) {
+						phisOf[a] = append(phisOf[a], in)
+					}
+				}
+			case ir.Call:
+				for i, a := range in.Args {
+					if i < len(argRegs) {
+						argOf[a] = append(argOf[a], i)
+					}
+				}
+			}
+		}
+	}
+	argReg := func(i int) int { return slices.Index(allocRegs[:], argRegs[i]) }
+	return func(v *ir.Instr) []int {
+		var out []int
+		votes := map[int]int{}
+		vote := func(r, w int) {
+			if votes[r] == 0 {
+				out = append(out, r)
+			}
+			votes[r] += w
+		}
+		add := func(x *ir.Instr, w int) {
+			if r, ok := regs[x]; ok && x != v {
+				vote(r, w)
+			}
+		}
+		for _, p := range phisOf[v] {
+			add(p, 3)
+		}
+		if v.Op == ir.Phi {
+			for _, a := range v.Args {
+				add(a, 2)
+			}
+		}
+		for _, p := range phisOf[v] {
+			for _, a := range p.Args {
+				add(a, 1)
+			}
+		}
+		if v.Op == ir.Param && v.Index < len(argRegs) {
+			vote(argReg(v.Index), 2)
+		}
+		for _, i := range argOf[v] {
+			vote(argReg(i), 2)
+		}
+		switch v.Op {
+		case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor, ir.AndNot, ir.Neg, ir.Com, ir.Conv, ir.Shl, ir.Shr, ir.Not:
+			add(v.Args[0], 2)
+		}
+		slices.SortStableFunc(out, func(x, y int) int { return votes[y] - votes[x] })
+		return out
+	}
 }
 
 // countValues returns the number of values f defines.
