@@ -47,12 +47,7 @@ var controls = []control{
 		old: "aether.printbool:\n", new: "aether.printbool:\n\tjmp\taether.printint\n",
 		pkg: "./internal/amd64", run: "^TestNativeControlFlow$", want: []string{`--- FAIL: TestNativeControlFlow`}},
 	{name: "4.1 definite assignment on any path", file: "internal/ir/verify.go",
-		old: `all := true
-				for _, p := range preds[i] {
-					all = all && (`,
-		new: `all := false
-				for _, p := range preds[i] {
-					all = all || (`,
+		old: `if count[q.in.Slot.ID] == 0 {`, new: `if count[q.in.Slot.ID] == 0 && len(storesIn[q.in.Slot.ID]) == 0 {`,
 		pkg: "./internal/ir", run: "^TestVerifyControlFlow$", want: []string{`--- FAIL: TestVerifyControlFlow/store_on_one_path_only`, `--- FAIL: TestVerifyControlFlow/store_only_inside_the_loop_body`}},
 	{name: "4.1 || lowered as &&", file: "internal/lower/lower.go",
 		old: `if e.Op == token.LAND {`, new: `if e.Op == token.LAND || e.Op == token.LOR {`,

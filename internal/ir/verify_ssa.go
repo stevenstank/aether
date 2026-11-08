@@ -46,11 +46,16 @@ func (v *verifier) ssa(reachable []bool) {
 	}
 	v.dom = Dominators(v.f)
 	v.incoming = make([][]Edge, len(v.f.Blocks))
+	v.edgeIndex = make([]map[Edge]int, len(v.f.Blocks))
 	for _, b := range v.f.Blocks {
 		if !reachable[b.ID] {
 			continue
 		}
 		for k, s := range Succs(b) {
+			if v.edgeIndex[s.ID] == nil {
+				v.edgeIndex[s.ID] = map[Edge]int{}
+			}
+			v.edgeIndex[s.ID][Edge{b, k}] = len(v.incoming[s.ID])
 			v.incoming[s.ID] = append(v.incoming[s.ID], Edge{b, k})
 		}
 	}
@@ -90,22 +95,23 @@ func (v *verifier) phi(bi, i int, in *Instr) {
 		return
 	}
 	want := v.incoming[bi]
-	seen := map[Edge]bool{}
+	seen := make([]bool, len(want)) // by position in want
 	ok := true
 	for _, e := range in.Edges {
+		k, incoming := v.edgeIndex[bi][e]
 		switch {
-		case !slices.Contains(want, e):
+		case !incoming:
 			v.errorf(bi, i, in, "edge %s is not an incoming edge of b%d", e, bi)
-		case seen[e]:
+		case seen[k]:
 			v.errorf(bi, i, in, "edge %s has more than one value", e)
 		default:
-			seen[e] = true
+			seen[k] = true
 			continue
 		}
 		ok = false
 	}
-	for _, e := range want {
-		if !seen[e] {
+	for k, e := range want {
+		if !seen[k] {
 			v.errorf(bi, i, in, "no value for incoming edge %s", e)
 			ok = false
 		}
@@ -114,7 +120,7 @@ func (v *verifier) phi(bi, i int, in *Instr) {
 		v.errorf(bi, i, in, "incoming edges are not in canonical order (by block, then target index)")
 	}
 	for j, e := range in.Edges {
-		if j >= len(in.Args) || in.Args[j] == nil || !seen[e] {
+		if k, incoming := v.edgeIndex[bi][e]; j >= len(in.Args) || in.Args[j] == nil || !incoming || !seen[k] {
 			continue // reported above or by signature
 		}
 		a := in.Args[j]

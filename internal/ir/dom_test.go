@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -343,4 +344,28 @@ func TestDominatorsGenerated(t *testing.T) {
 		walk(0)
 	}
 	t.Logf("%d CFGs checked", count)
+}
+
+// TestDominatorsRandom cross-checks DomTree against the naive definitions on
+// random CFGs of up to 60 blocks, where path compression and long frontier
+// walks matter, with unreachable blocks and duplicate edges.
+func TestDominatorsRandom(t *testing.T) {
+	r := rand.New(rand.NewPCG(1, 2))
+	for range 400 {
+		n := 2 + r.IntN(59)
+		succ := make([][]int, n)
+		for i := range succ {
+			switch r.IntN(4) {
+			case 0: // ret
+			case 1:
+				succ[i] = []int{r.IntN(n)}
+			default:
+				succ[i] = []int{r.IntN(n), r.IntN(n)}
+			}
+		}
+		f := cfg(succ)
+		if err := checkDomTree(f, Dominators(f)); err != nil {
+			t.Fatalf("CFG %v:\n%v", succ, err)
+		}
+	}
 }

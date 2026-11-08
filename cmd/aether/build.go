@@ -94,7 +94,8 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 		}
 		var err error
 		if opt.o0 {
-			asm, err = amd64.Emit(prog)
+			// compile verified prog, and nothing has changed it.
+			asm, err = amd64.EmitWith(prog, amd64.EmitOptions{Verified: true})
 		} else {
 			asm, err = emitProgram(prog)
 		}
@@ -138,10 +139,24 @@ func emitProgram(prog *ir.Program) ([]byte, error) {
 
 // emitProgramWith is emitProgram's pipeline with any options. Only tests pass
 // any but emitProgram's.
+//
+// prog must be as compile returns it, verified. optimize changes only the
+// functions it promotes, so only those are verified again before emission,
+// which then verifies nothing.
 func emitProgramWith(prog *ir.Program, opts amd64.EmitOptions) ([]byte, error) {
 	if err := optimize(prog, buildPasses...); err != nil {
 		return nil, err
 	}
+	var changed []*ir.Func
+	for _, f := range prog.Funcs {
+		if f.SSA {
+			changed = append(changed, f)
+		}
+	}
+	if errs := ir.VerifyFuncs(prog, changed); len(errs) > 0 {
+		return nil, fmt.Errorf("malformed IR after optimization: %v", errs[0])
+	}
+	opts.Verified = true
 	return amd64.EmitWith(prog, opts)
 }
 

@@ -29,8 +29,51 @@ func (e *VerifyError) Error() string {
 // empty result means p is well formed. Lowering must only ever produce
 // well-formed IR, so any error is an internal compiler error.
 func Verify(p *Program) []error {
-	var errs []error
+	errs, funcs, globals := verifyProgram(p)
 	names := map[string]bool{}
+	mains := 0
+	for _, f := range p.Funcs {
+		if f == nil {
+			errs = append(errs, &VerifyError{Func: "?", Block: -1, Index: -1, Msg: "nil function"})
+			continue
+		}
+		if names[f.Name] {
+			errs = append(errs, &VerifyError{Func: f.Name, Block: -1, Index: -1, Msg: "duplicate function name"})
+		}
+		names[f.Name] = true
+		if f.Name == "main" {
+			mains++
+		}
+		errs = append(errs, verifyFunc(p, f, funcs, globals)...)
+	}
+	if mains == 0 {
+		errs = append(errs, &VerifyError{Func: "main", Block: -1, Index: -1, Msg: "missing entry point: no function named main"})
+	}
+	return errs
+}
+
+// VerifyFuncs checks fs, functions of p, as Verify checks every function,
+// and returns the violations found. It is for a program that Verify accepted
+// and whose other functions, globals, and function list have not changed
+// since: then the result is empty exactly when Verify's would be. Program
+// errors that Verify reports are not reported again.
+func VerifyFuncs(p *Program, fs []*Func) []error {
+	_, funcs, globals := verifyProgram(p)
+	var errs []error
+	for _, f := range fs {
+		if !funcs[f] {
+			errs = append(errs, &VerifyError{Func: f.Name, Block: -1, Index: -1, Msg: "not a function of the program"})
+			continue
+		}
+		errs = append(errs, verifyFunc(p, f, funcs, globals)...)
+	}
+	return errs
+}
+
+// verifyProgram checks p's globals and Init, and returns the violations, the
+// functions of p, and its well-formed globals.
+func verifyProgram(p *Program) ([]error, map[*Func]bool, map[*Global]bool) {
+	var errs []error
 	funcs := map[*Func]bool{}
 	for _, f := range p.Funcs {
 		funcs[f] = true
@@ -60,25 +103,7 @@ func Verify(p *Program) []error {
 	if p.Init != nil && !funcs[p.Init] {
 		errs = append(errs, &VerifyError{Func: p.Init.Name, Block: -1, Index: -1, Msg: "Init is not a function of the program"})
 	}
-	mains := 0
-	for _, f := range p.Funcs {
-		if f == nil {
-			errs = append(errs, &VerifyError{Func: "?", Block: -1, Index: -1, Msg: "nil function"})
-			continue
-		}
-		if names[f.Name] {
-			errs = append(errs, &VerifyError{Func: f.Name, Block: -1, Index: -1, Msg: "duplicate function name"})
-		}
-		names[f.Name] = true
-		if f.Name == "main" {
-			mains++
-		}
-		errs = append(errs, verifyFunc(p, f, funcs, globals)...)
-	}
-	if mains == 0 {
-		errs = append(errs, &VerifyError{Func: "main", Block: -1, Index: -1, Msg: "missing entry point: no function named main"})
-	}
-	return errs
+	return errs, funcs, globals
 }
 
 type verifier struct {
@@ -88,12 +113,15 @@ type verifier struct {
 	globals map[*Global]bool // its well-formed globals
 	errs    []error
 
+	unstored map[*Instr]bool // the loads not stored on every path, by unstoredLoads
+
 	// For a function in SSA form (D-025), set by ssa.
-	reach    []bool
-	def      map[*Instr]int // the block of each instruction
-	ids      map[int]bool   // value numbers seen, in the whole function
-	dom      *DomTree       // nil if the CFG is too malformed to analyze
-	incoming [][]Edge       // each block's edges from reachable blocks, in canonical order
+	reach     []bool
+	def       map[*Instr]int // the block of each instruction
+	ids       map[int]bool   // value numbers seen, in the whole function
+	dom       *DomTree       // nil if the CFG is too malformed to analyze
+	incoming  [][]Edge       // each block's edges from reachable blocks, in canonical order
+	edgeIndex []map[Edge]int // each edge's position in incoming
 }
 
 func (v *verifier) errorf(block, index int, in *Instr, format string, args ...any) {
@@ -165,15 +193,16 @@ func verifyFunc(p *Program, f *Func, funcs map[*Func]bool, globals map[*Global]b
 		return v.errs // the checks below index blocks by ID
 	}
 	reachable := v.reachable()
-	in := v.definitelyStored(reachable)
 	if f.SSA {
 		v.ssa(reachable)
+	} else {
+		v.unstored = v.unstoredLoads(reachable)
 	}
 	for i, b := range f.Blocks {
 		if !reachable[i] {
 			v.errorf(i, -1, nil, "unreachable block: no path from the entry reaches it")
 		}
-		v.block(b, i, in[i])
+		v.block(b, i)
 	}
 	return v.errs
 }
@@ -218,64 +247,181 @@ func (v *verifier) reachable() []bool {
 	return seen
 }
 
-// definitelyStored computes, for each block, the slots stored on every path
-// from the entry to its start (D-023 invariant 4): in(entry) is empty,
-// every other block starts with all slots, out(b) is in(b) plus the slots
-// b stores, and in(b) is the intersection of out over b's reachable
-// predecessors. Iterating to the greatest fixed point accepts loops whose
-// header reads a slot stored before the loop.
-func (v *verifier) definitelyStored(reachable []bool) [][]bool {
+// unstoredLoads returns the loads of reachable blocks whose slot is not
+// stored on every path from the entry to them (D-023 invariant 4). A slot is
+// stored on entry to a block b exactly when no path from the entry reaches b
+// through blocks that do not store it, the entry included, since nothing is
+// stored on entry to it; a load is then checked against the stores before it
+// in its block. Loads in unreachable blocks are not checked.
+//
+// Only a load before any store to its slot in its block needs the CFG. A
+// store in a block that strictly dominates the load's settles it, which a
+// walk down the dominator tree with a count of stores per slot finds for
+// every such load at once: lowered code declares each variable in a block
+// that dominates its uses. The entry's own stores, which settle the loads of
+// every other block, are applied first, so that a function whose variables
+// are all stored in the entry needs no dominators. The loads left, and all of them if the CFG is too
+// malformed for dominators, are settled for each slot by a forward search
+// from the entry that stops at the blocks storing the slot. The work is the
+// instructions, the blocks, and one search per slot left, of the blocks that
+// slot can reach unstored.
+func (v *verifier) unstoredLoads(reachable []bool) map[*Instr]bool {
 	n, ns := len(v.f.Blocks), len(v.f.Slots)
-	in := make([][]bool, n)
-	stores := make([][]bool, n)
-	preds := make([][]int, n)
-	for i, b := range v.f.Blocks {
-		in[i] = make([]bool, ns)
-		stores[i] = make([]bool, ns)
-		for j := range in[i] {
-			in[i][j] = i != 0
-		}
-		for _, inst := range b.Instrs {
-			if inst != nil && inst.Op == Store && v.isSlot(inst.Slot) {
-				stores[i][inst.Slot.ID] = true
-			}
-		}
-		if reachable[i] {
-			for _, s := range v.successors(b) {
-				preds[s] = append(preds[s], i)
-			}
-		}
+	type query struct {
+		in *Instr
+		b  int
 	}
-	for changed := true; changed; {
-		changed = false
-		for i := 1; i < n; i++ {
-			if !reachable[i] {
+	queries := make([][]query, n) // by block
+	storesIn := make([][]int, ns) // the blocks storing each slot
+	blockStores := make([][]int, n)
+	mark := make([]int, ns) // block ID + 1 once the slot is stored in that block
+	need := false
+	for bi, b := range v.f.Blocks {
+		for _, in := range b.Instrs {
+			if in == nil || in.Op != Load && in.Op != Store || !v.isSlot(in.Slot) {
 				continue
 			}
-			for j := range ns {
-				all := true
-				for _, p := range preds[i] {
-					all = all && (in[p][j] || stores[p][j])
-				}
-				if in[i][j] && !all {
-					in[i][j] = false
-					changed = true
-				}
+			s := in.Slot.ID
+			switch {
+			case in.Op == Store && mark[s] != bi+1:
+				mark[s] = bi + 1
+				storesIn[s] = append(storesIn[s], bi)
+				blockStores[bi] = append(blockStores[bi], s)
+			case in.Op == Load && mark[s] != bi+1 && reachable[bi]:
+				queries[bi] = append(queries[bi], query{in, bi})
+				need = true
 			}
 		}
 	}
-	return in
+	if !need {
+		return nil
+	}
+	// The entry strictly dominates every other block, so its stores settle
+	// the loads of other blocks without dominators.
+	inEntry := make([]bool, ns)
+	for _, s := range blockStores[0] {
+		inEntry[s] = true
+	}
+	settled := true
+	for bi := 1; bi < n; bi++ {
+		kept := queries[bi][:0]
+		for _, q := range queries[bi] {
+			if !inEntry[q.in.Slot.ID] {
+				kept = append(kept, q)
+			}
+		}
+		queries[bi] = kept
+		settled = settled && len(kept) == 0
+	}
+	var pending []query
+	if settled {
+		pending = queries[0]
+	} else if d := v.domTree(); d != nil {
+		count := make([]int, ns) // stores in the strict dominators of the block visited
+		type frame struct{ b, next int }
+		stack := []frame{{b: 0}}
+		pending = append(pending, queries[0]...)
+		for _, s := range blockStores[0] {
+			count[s]++
+		}
+		for len(stack) > 0 {
+			top := &stack[len(stack)-1]
+			if top.next == len(d.kids[top.b]) {
+				for _, s := range blockStores[top.b] {
+					count[s]--
+				}
+				stack = stack[:len(stack)-1]
+				continue
+			}
+			k := d.kids[top.b][top.next]
+			top.next++
+			for _, q := range queries[k] {
+				if count[q.in.Slot.ID] == 0 {
+					pending = append(pending, q)
+				}
+			}
+			for _, s := range blockStores[k] {
+				count[s]++
+			}
+			stack = append(stack, frame{b: k})
+		}
+	} else {
+		for _, qs := range queries {
+			pending = append(pending, qs...)
+		}
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+	bySlot := make([][]query, ns)
+	for _, q := range pending {
+		bySlot[q.in.Slot.ID] = append(bySlot[q.in.Slot.ID], q)
+	}
+	unstored := map[*Instr]bool{}
+	stores, open := make([]int, n), make([]int, n) // stamped with the slot + 1
+	var work []int
+	for s, qs := range bySlot {
+		if len(qs) == 0 {
+			continue
+		}
+		stamp := s + 1
+		for _, b := range storesIn[s] {
+			stores[b] = stamp
+		}
+		// open: blocks some path from the entry reaches with s unstored.
+		open[0] = stamp
+		work = append(work[:0], 0)
+		for len(work) > 0 {
+			b := work[len(work)-1]
+			work = work[:len(work)-1]
+			if stores[b] == stamp {
+				continue
+			}
+			for _, t := range v.successors(v.f.Blocks[b]) {
+				if open[t] != stamp {
+					open[t] = stamp
+					work = append(work, t)
+				}
+			}
+		}
+		for _, q := range qs {
+			if open[q.b] == stamp {
+				unstored[q.in] = true
+			}
+		}
+	}
+	return unstored
 }
 
-// block checks one block, starting with the slots definitely stored on
-// entry. Operands must be defined earlier in the same block (D-023), so
+// domTree returns the function's dominator tree, or nil if its CFG is too
+// malformed to analyze: Dominators follows the last instruction's targets,
+// so they must be blocks of the function, and only jump and branch may have
+// any (otherwise reported by signature).
+func (v *verifier) domTree() *DomTree {
+	for _, b := range v.f.Blocks {
+		if len(b.Instrs) == 0 {
+			continue
+		}
+		t := b.Instrs[len(b.Instrs)-1]
+		if t == nil || t.Op != Jump && t.Op != Branch && len(t.Targets) > 0 {
+			return nil
+		}
+		for _, target := range t.Targets {
+			if !v.isBlock(target) {
+				return nil
+			}
+		}
+	}
+	return Dominators(v.f)
+}
+
+// block checks one block; unstoredLoads has settled its loads. Operands must be defined earlier in the same block (D-023), so
 // "defined earlier in the block" is an exact dominance check.
-func (v *verifier) block(b *Block, bi int, stored []bool) {
+func (v *verifier) block(b *Block, bi int) {
 	if len(b.Instrs) == 0 {
 		v.errorf(bi, -1, nil, "empty block: missing terminator")
 		return
 	}
-	stored = append([]bool(nil), stored...)
 	defined := map[*Instr]bool{}
 	ids := v.ids // value numbers are unique in the whole of an SSA function
 	if ids == nil {
@@ -315,7 +461,7 @@ func (v *verifier) block(b *Block, bi int, stored []bool) {
 		case v.f.SSA && (in.Op == Load || in.Op == Store):
 			v.errorf(bi, i, in, "%s in a function in SSA form", in.Op)
 		case in.Op == Load || in.Op == Store:
-			v.slotRef(bi, i, in, stored)
+			v.slotRef(bi, i, in)
 		case v.f.SSA && in.Op == Phi:
 			if bi == 0 {
 				v.errorf(bi, i, in, "phi in the entry block")
@@ -530,17 +676,13 @@ func (v *verifier) isSlot(s *Slot) bool {
 
 // slotRef checks a Load or Store's slot: it must belong to the function,
 // and a load must follow a store to the same slot on every path.
-func (v *verifier) slotRef(bi, i int, in *Instr, stored []bool) {
+func (v *verifier) slotRef(bi, i int, in *Instr) {
 	s := in.Slot
 	if !v.isSlot(s) {
 		v.errorf(bi, i, in, "slot operand is not a slot of this function")
 		return
 	}
-	if in.Op == Store {
-		stored[s.ID] = true
-		return
-	}
-	if !stored[s.ID] {
+	if in.Op == Load && v.unstored[in] {
 		v.errorf(bi, i, in, "load of s%d (%s) before any store to it on every path", s.ID, s.Name)
 	}
 }

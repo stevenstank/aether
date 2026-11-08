@@ -183,6 +183,21 @@ func TestEmitRejects(t *testing.T) {
 	}
 }
 
+// TestEmitVerified checks that Verified changes only whether EmitWith
+// verifies: a well-formed program gives the same assembly either way.
+func TestEmitVerified(t *testing.T) {
+	prog := program(func(f *ir.Func, b *ir.Block) {
+		f.Println(b, []*ir.Instr{f.Const(b, 7, p1)}, p1)
+	})
+	want, err := Emit(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := EmitWith(prog, EmitOptions{Verified: true}); err != nil || !bytes.Equal(got, want) {
+		t.Errorf("with Verified: %v, %d bytes, want the same %d bytes", err, len(got), len(want))
+	}
+}
+
 func TestRuntimeFiles(t *testing.T) {
 	files := Runtime()
 	var names []string

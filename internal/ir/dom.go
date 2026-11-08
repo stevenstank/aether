@@ -40,9 +40,12 @@ func Succs(b *Block) []*Block {
 // have at least one block, and every jump and branch target must be a block
 // of f, as Verify checks.
 //
-// It uses the iterative algorithm of Cooper, Harvey, and Kennedy, "A Simple,
-// Fast Dominance Algorithm" (2001), over a reverse postorder of the
-// reachable blocks, and their frontier algorithm.
+// It finds immediate dominators with the algorithm of Lengauer and Tarjan,
+// "A Fast Algorithm for Finding Dominators in a Flowgraph" (1979), in its
+// simple form (path compression without balancing, O(m log n)), and
+// frontiers with the algorithm of Cooper, Harvey, and Kennedy, "A Simple,
+// Fast Dominance Algorithm" (2001), whose walks stop where an earlier walk
+// for the same block went on, so they cost the frontiers' size and the edges.
 func Dominators(f *Func) *DomTree {
 	n := len(f.Blocks)
 	d := &DomTree{
@@ -54,17 +57,15 @@ func Dominators(f *Func) *DomTree {
 		pre:   make([]int, n),
 		post:  make([]int, n),
 	}
-	po := postorder(f)
-	// num is each block's postorder number, -1 if unreachable.
-	num := make([]int, n)
-	for i := range num {
-		num[i], d.idom[i] = -1, -1
+	reachable := make([]bool, n)
+	for i := range d.idom {
+		d.idom[i] = -1
 	}
-	for i, b := range po {
-		num[b] = i
+	for _, b := range postorder(f) {
+		reachable[b] = true
 	}
 	for _, b := range f.Blocks {
-		if num[b.ID] < 0 {
+		if !reachable[b.ID] {
 			continue
 		}
 		for _, s := range Succs(b) {
@@ -75,40 +76,7 @@ func Dominators(f *Func) *DomTree {
 		slices.Sort(d.preds[i])
 	}
 
-	// The entry is its own immediate dominator while iterating; reset below.
-	d.idom[0] = 0
-	intersect := func(a, b int) int {
-		for a != b {
-			for num[a] < num[b] {
-				a = d.idom[a]
-			}
-			for num[b] < num[a] {
-				b = d.idom[b]
-			}
-		}
-		return a
-	}
-	for changed := true; changed; {
-		changed = false
-		for i := len(po) - 2; i >= 0; i-- { // reverse postorder, skipping the entry
-			b := po[i]
-			idom := -1
-			for _, p := range d.preds[b] {
-				switch {
-				case d.idom[p] < 0:
-				case idom < 0:
-					idom = p
-				default:
-					idom = intersect(p, idom)
-				}
-			}
-			if d.idom[b] != idom {
-				d.idom[b] = idom
-				changed = true
-			}
-		}
-	}
-	d.idom[0] = -1
+	d.lengauerTarjan()
 
 	for b, id := range d.idom {
 		if id >= 0 {
@@ -117,12 +85,15 @@ func Dominators(f *Func) *DomTree {
 	}
 	d.number()
 
+	// b is added to frontiers only while b is visited here, so a frontier
+	// that already holds b ends with it.
 	for b, ps := range d.preds {
 		for _, p := range ps {
 			for r := p; r != d.idom[b]; r = d.idom[r] {
-				if !slices.Contains(d.df[r], b) {
-					d.df[r] = append(d.df[r], b)
+				if k := len(d.df[r]); k > 0 && d.df[r][k-1] == b {
+					break // an earlier walk for b went on from r to b's idom
 				}
+				d.df[r] = append(d.df[r], b)
 				if r == 0 {
 					break // the entry: b is a loop back to it
 				}
@@ -133,6 +104,88 @@ func Dominators(f *Func) *DomTree {
 		slices.Sort(d.df[i])
 	}
 	return d
+}
+
+// lengauerTarjan sets idom of the reachable blocks other than the entry,
+// given preds.
+func (d *DomTree) lengauerTarjan() {
+	n := len(d.f.Blocks)
+	// Number the reachable blocks in a depth-first preorder.
+	dfnum, parent := make([]int, n), make([]int, n)
+	for i := range dfnum {
+		dfnum[i], parent[i] = -1, -1
+	}
+	var vertex []int
+	type frame struct{ b, next int }
+	stack := []frame{{b: 0}}
+	dfnum[0] = 0
+	vertex = append(vertex, 0)
+	for len(stack) > 0 {
+		top := &stack[len(stack)-1]
+		succ := Succs(d.f.Blocks[top.b])
+		if top.next == len(succ) {
+			stack = stack[:len(stack)-1]
+			continue
+		}
+		s := succ[top.next].ID
+		top.next++
+		if dfnum[s] < 0 {
+			dfnum[s], parent[s] = len(vertex), top.b
+			vertex = append(vertex, s)
+			stack = append(stack, frame{b: s})
+		}
+	}
+	semi, ancestor, label := make([]int, n), make([]int, n), make([]int, n)
+	for i := range semi {
+		semi[i], ancestor[i], label[i] = dfnum[i], -1, i
+	}
+	// eval returns the vertex of least semidominator on the forest path
+	// to v, compressing the path iteratively.
+	var path []int
+	eval := func(v int) int {
+		if ancestor[v] < 0 {
+			return v
+		}
+		path = path[:0]
+		for x := v; ancestor[ancestor[x]] >= 0; x = ancestor[x] {
+			path = append(path, x)
+		}
+		for i := len(path) - 1; i >= 0; i-- {
+			y := path[i]
+			a := ancestor[y]
+			if semi[label[a]] < semi[label[y]] {
+				label[y] = label[a]
+			}
+			ancestor[y] = ancestor[a]
+		}
+		return label[v]
+	}
+	bucket := make([][]int, n)
+	for i := len(vertex) - 1; i > 0; i-- {
+		w := vertex[i]
+		for _, v := range d.preds[w] {
+			if u := eval(v); semi[u] < semi[w] {
+				semi[w] = semi[u]
+			}
+		}
+		sv := vertex[semi[w]]
+		bucket[sv] = append(bucket[sv], w)
+		p := parent[w]
+		ancestor[w] = p
+		for _, v := range bucket[p] {
+			if u := eval(v); semi[u] < semi[v] {
+				d.idom[v] = u
+			} else {
+				d.idom[v] = p
+			}
+		}
+		bucket[p] = nil
+	}
+	for _, w := range vertex[1:] {
+		if d.idom[w] != vertex[semi[w]] {
+			d.idom[w] = d.idom[d.idom[w]]
+		}
+	}
 }
 
 // postorder returns the block IDs reachable from f's entry in the

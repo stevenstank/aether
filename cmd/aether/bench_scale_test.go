@@ -304,6 +304,56 @@ var scaleAxes = []struct {
 	}},
 }
 
+// adversarialAxes generate programs aimed at the analyses that once grew
+// faster than the program:
+//   - wide: n variables declared first and read after a run of n ifs, so
+//     every variable is live across every block;
+//   - loops: n nested for loops around one assignment, so liveness must
+//     cross n back edges;
+//   - cases: a switch of n cases in a loop, each assigning two variables, so
+//     one block has n predecessors and φs with n edges.
+var adversarialAxes = []struct {
+	name string
+	gen  func(n int) string
+}{
+	{"wide", func(n int) string {
+		var b strings.Builder
+		b.WriteString("package main\n\nvar seed = 1\n\nfunc main() {\n\tx := seed\n")
+		for k := range n {
+			fmt.Fprintf(&b, "\tv%d := seed + %d\n", k, k)
+		}
+		for k := range n {
+			fmt.Fprintf(&b, "\tif x > %d {\n\t\tx = x + v%d\n\t}\n", k, k)
+		}
+		b.WriteString("\ts := 0\n")
+		for k := range n {
+			fmt.Fprintf(&b, "\ts = s ^ v%d\n", k)
+		}
+		b.WriteString("\tprintln(x, s)\n}\n")
+		return b.String()
+	}},
+	{"loops", func(n int) string {
+		var b strings.Builder
+		b.WriteString("package main\n\nvar seed = 1\n\nfunc main() {\n\tx := seed\n")
+		for k := range n {
+			fmt.Fprintf(&b, "for i%d := 0; i%d < 1; i%d++ {\n", k, k, k)
+		}
+		b.WriteString("x = x*3 + 1\n")
+		b.WriteString(strings.Repeat("}\n", n))
+		b.WriteString("\tprintln(x)\n}\n")
+		return b.String()
+	}},
+	{"cases", func(n int) string {
+		var b strings.Builder
+		b.WriteString("package main\n\nvar seed = 1\n\nfunc main() {\n\tx, y := seed, seed\n\tfor k := 0; k < 3; k++ {\n\t\tswitch (x + k) % " + strconv.Itoa(n) + " {\n")
+		for k := range n {
+			fmt.Fprintf(&b, "\t\tcase %d:\n\t\t\tx = x*3 + %d\n\t\t\ty = y + x\n", k, k)
+		}
+		b.WriteString("\t\t}\n\t}\n\tprintln(x, y)\n}\n")
+		return b.String()
+	}},
+}
+
 // scaleSizes are the sizes of every axis: 16 to 4096, doubling.
 var scaleSizes = []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096}
 
@@ -324,7 +374,7 @@ func TestBenchScale(t *testing.T) {
 	var rows, slopes strings.Builder
 	rows.WriteString("axis\tn\tsource bytes\tIR instrs\tlargest func instrs\tfuncs promoted\tfuncs\tparse ms\ttypecheck ms\tgate ms\tlower ms\tpromote ms\tpasses ms\temit ms\tassemble ms\ttotal ms\tallocated MiB\tpeak live MiB\tpeak RSS MiB\ttext bytes\n")
 	slopes.WriteString("axis\tfrom n\tto n\ttotal time\tcompiler time (no assemble)\tallocated\tpeak RSS\n")
-	for _, ax := range scaleAxes {
+	for _, ax := range append(slices.Clone(scaleAxes), adversarialAxes...) {
 		var prev [4]float64
 		for i, n := range scaleSizes {
 			name := fmt.Sprintf("%s%d.go", ax.name, n)
@@ -396,7 +446,7 @@ func TestBenchStages(t *testing.T) {
 		checkStages(t, p.name, p.src)
 	}
 	exe := filepath.Join(t.TempDir(), "out")
-	for _, ax := range scaleAxes {
+	for _, ax := range append(slices.Clone(scaleAxes), adversarialAxes...) {
 		name, src := ax.name+".go", []byte(ax.gen(scaleSizes[0]))
 		checkStages(t, name, src)
 		c, _, _ := stageRun(t, name, src, exe, true)
