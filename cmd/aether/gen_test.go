@@ -30,13 +30,18 @@ import (
 // clause anywhere, empty clauses, and break in a clause; case values may
 // have side effects only through a panic.
 //
+// Since Phase 6 increment 6.1, statements on float64 and float32 values
+// (floatStmt) are interleaved with the others, and float globals follow the
+// integer ones. Their choices come from a second random stream, so the rest
+// of the program is what the same seed generated before.
+//
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
 // Every variable is printed at the end of its block, so none is unused.
 // Every loop runs at most 3 times: its counter is never a target of
 // assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
-	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed))}
+	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7))}
 	g.line(0, "package main")
 	g.line(0, "")
 	// The package scope. Each declaration may use the ones generated
@@ -57,8 +62,21 @@ func generate(seed uint64) string {
 		g.b.WriteString(d)
 		g.line(0, "")
 	}
+	g.floatGlobals()
 	g.line(0, "func main() {")
+	// Float variables that are never constant: zeros, for the special
+	// values of division, and nonzero values.
+	g.scopes, g.order = append(g.scopes, map[string]entry{}), append(g.order, nil)
+	for _, v := range []struct{ name, t, decl string }{
+		{"fz", "float64", "var fz float64"}, {"fo", "float64", "fo := 0.1"},
+		{"gz", "float32", "var gz float32"}, {"gt", "float32", "gt := float32(1) / 3"},
+	} {
+		g.line(1, "%s", v.decl)
+		g.declare(v.name, entry{k: floatVar, t: v.t})
+	}
 	g.block(1)
+	g.line(1, "println(fz, fo, gz, gt)")
+	g.scopes, g.order = g.scopes[:len(g.scopes)-1], g.order[:len(g.order)-1]
 	if globals := g.visible(entry.isVar); len(globals) > 0 {
 		g.line(1, "println(%s)", strings.Join(globals, ", "))
 	}
@@ -74,6 +92,7 @@ const (
 	boolConst             // an untyped bool constant
 	variable              // a variable of the entry's type
 	counter               // a loop counter: an int variable that is never assigned
+	floatVar              // a float64 or float32 variable, which only floatStmt uses
 )
 
 // entry is a declared name: what it denotes and, for a variable, its type.
@@ -82,7 +101,7 @@ type entry struct {
 	t string // "bool" or an integer type name; "int" for a counter
 }
 
-func (e entry) isVar() bool { return e.k == variable || e.k == counter }
+func (e entry) isVar() bool { return e.k == variable || e.k == counter || e.k == floatVar }
 
 // intTypes are the integer types variables are declared with. byte and
 // rune are uint8 and int32 under other names.
@@ -121,6 +140,8 @@ var maxLiteral = map[string]string{
 
 type generator struct {
 	r      *rand.Rand
+	f      *rand.Rand // the float statements' choices
+	fnames int
 	b      strings.Builder
 	scopes []map[string]entry
 	order  [][]string // declaration order, per scope
@@ -211,7 +232,7 @@ func (g *generator) pick(list []string) string { return list[g.r.IntN(len(list))
 // newName returns a name not declared in the current scope: usually a fresh
 // one, sometimes one from an outer scope, which the declaration shadows.
 func (g *generator) newName(taken []string) string {
-	if outer := g.visible(func(entry) bool { return true }); len(outer) > 0 && g.r.IntN(4) == 0 {
+	if outer := g.visible(func(e entry) bool { return e.k != floatVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
 		name := g.pick(outer)
 		if _, inScope := g.scopes[len(g.scopes)-1][name]; !inScope && !contains(taken, name) {
 			return name
@@ -278,6 +299,9 @@ func (g *generator) typed(t string, useVars bool) string {
 }
 
 func (g *generator) stmt(depth int) {
+	if g.f.IntN(3) == 0 {
+		g.floatStmt(depth)
+	}
 	assignable := g.visible(func(e entry) bool { return e.k == variable })
 	ints := g.visible(func(e entry) bool { return e.k == variable && e.t != "bool" })
 	switch k := g.r.IntN(19); {
@@ -689,4 +713,147 @@ func (g *generator) boolExpr(depth int, useVars bool) string {
 		return "(" + g.boolExpr(depth-1, useVars) + ") " + g.pick([]string{"==", "!="}) + " (" + g.boolExpr(depth-1, useVars) + ")"
 	}
 	return "(" + g.boolExpr(depth-1, useVars) + ") " + g.pick([]string{"&&", "||"}) + " (" + g.boolExpr(depth-1, useVars) + ")"
+}
+
+// floatTypes are the float types; floatLiterals gives each its literals,
+// none zero, so that none is a constant divisor of zero, and each
+// representable, so that no constant overflows. Zeros, infinities, and NaN
+// come from arithmetic on variables.
+var (
+	floatTypes    = []string{"float64", "float32"}
+	floatLiterals = map[string][]string{
+		"float64": {"0.1", "1.5", "3", "1e308", "5e-324", "0x1p-1022", "1e-7", "16777217", "9.3e18", "2.5", "1e18", "0.3"},
+		"float32": {"0.1", "1.5", "3", "3.4e38", "1e-45", "1e-38", "16777217", "2.5", "9.3e18", "0.3"},
+	}
+)
+
+// floatGlobals emits up to three package-level float variables, in shuffled
+// order, each initialized from the ones generated before it or a literal.
+func (g *generator) floatGlobals() {
+	var decls []string
+	for n := g.f.IntN(4); n > 0; n-- {
+		g.fnames++
+		name, t := fmt.Sprintf("gf%d", g.fnames), g.floatPick(floatTypes)
+		e, _ := g.floatExpr(2, t)
+		decls = append(decls, fmt.Sprintf("var %s %s = %s\n\n", name, t, e))
+		g.declare(name, entry{k: floatVar, t: t})
+	}
+	g.f.Shuffle(len(decls), func(i, j int) { decls[i], decls[j] = decls[j], decls[i] })
+	for _, d := range decls {
+		g.b.WriteString(d)
+	}
+}
+
+func (g *generator) floatPick(list []string) string { return list[g.f.IntN(len(list))] }
+
+// floatStmt emits a statement on float values: a declaration, an
+// assignment, a compound assignment, ++ or --, or a print of float values,
+// comparisons, and conversions to and from integers.
+func (g *generator) floatStmt(depth int) {
+	t := g.floatPick(floatTypes)
+	vars := g.visible(func(e entry) bool { return e.k == floatVar && e.t == t })
+	switch k := g.f.IntN(8); {
+	case k <= 1:
+		g.fnames++
+		name := fmt.Sprintf("f%d", g.fnames)
+		// A constant may be an integer literal, which := would give type
+		// int, so a constant initializer has the type written out.
+		e, isConst := g.floatExpr(3, t)
+		if t == "float64" && !isConst && g.f.IntN(2) == 0 {
+			g.line(depth, "%s := %s", name, e)
+		} else {
+			g.line(depth, "var %s %s = %s", name, t, e)
+		}
+		g.declare(name, entry{k: floatVar, t: t})
+	case k == 2 && len(vars) > 0:
+		e, _ := g.floatExpr(3, t)
+		g.line(depth, "%s = %s", g.floatPick(vars), e)
+	case k == 3 && len(vars) > 0:
+		e, _ := g.floatExpr(2, t)
+		g.line(depth, "%s %s %s", g.floatPick(vars), g.floatPick([]string{"+=", "-=", "*=", "/="}), e)
+	case k == 4 && len(vars) > 0:
+		g.line(depth, "%s%s", g.floatPick(vars), g.floatPick([]string{"++", "--"}))
+	case k == 5:
+		// Comparisons, NaN with itself included.
+		x, _ := g.floatExpr(2, t)
+		y, _ := g.floatExpr(2, t)
+		var args []string
+		for _, op := range []string{"==", "!=", "<", "<=", ">", ">="} {
+			args = append(args, "("+x+") "+op+" ("+y+")")
+		}
+		g.line(depth, "println(%s)", strings.Join(args, ", "))
+	case k == 6:
+		// Conversions of a non-constant value to every integer type: out of
+		// range, the result is gc's on amd64 (D-032).
+		x := g.floatVarExpr(t)
+		var args []string
+		for _, it := range []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"} {
+			args = append(args, it+"("+x+")")
+		}
+		g.line(depth, "println(%s)", strings.Join(args, ", "))
+	default:
+		var args []string
+		for n := 1 + g.f.IntN(3); n > 0; n-- {
+			e, _ := g.floatExpr(3, g.floatPick(floatTypes))
+			args = append(args, e)
+		}
+		g.line(depth, "%s(%s)", g.floatPick([]string{"println", "print"}), strings.Join(args, ", "))
+	}
+}
+
+// floatVarExpr returns a non-constant expression of float type t, where a
+// variable of type t is in scope (main's own always are).
+func (g *generator) floatVarExpr(t string) string {
+	if e, isConst := g.floatExpr(2, t); !isConst {
+		return e
+	}
+	return g.floatPick(g.visible(func(e entry) bool { return e.k == floatVar && e.t == t }))
+}
+
+// floatExpr returns an expression of float type t of at most the given
+// depth, and whether it is constant. At most one operand of a binary
+// operator is constant, so no constant expression can overflow, and a
+// constant is converted only implicitly.
+func (g *generator) floatExpr(depth int, t string) (string, bool) {
+	vars := g.visible(func(e entry) bool { return e.k == floatVar && e.t == t })
+	if depth <= 0 || g.f.IntN(4) == 0 {
+		switch {
+		case len(vars) > 0 && g.f.IntN(3) > 0:
+			return g.floatPick(vars), false
+		case g.f.IntN(4) == 0:
+			// A conversion from an integer or the other float type.
+			ints := g.visible(func(e entry) bool { return e.k == variable && e.t != "bool" || e.k == counter })
+			other := "float32"
+			if t == other {
+				other = "float64"
+			}
+			others := g.visible(func(e entry) bool { return e.k == floatVar && e.t == other })
+			if len(ints) > 0 && g.f.IntN(2) == 0 {
+				return t + "(" + g.floatPick(ints) + ")", false
+			}
+			if len(others) > 0 {
+				return t + "(" + g.floatPick(others) + ")", false
+			}
+		}
+		return g.floatPick(floatLiterals[t]), true
+	}
+	switch g.f.IntN(4) {
+	case 0:
+		x, isConst := g.floatExpr(depth-1, t)
+		return "- (" + x + ")", isConst
+	case 1:
+		x, isConst := g.floatExpr(depth-1, t)
+		return "(" + x + ")", isConst
+	}
+	x, cx := g.floatExpr(depth-1, t)
+	y, cy := g.floatExpr(depth-1, t)
+	if cx && cy {
+		// Two constants: replace one with a variable, or with none in
+		// scope, as at package level before any float global, keep one.
+		if len(vars) == 0 {
+			return x, true
+		}
+		y = g.floatPick(vars)
+	}
+	return "(" + x + ") " + g.floatPick([]string{"+", "-", "*", "/"}) + " (" + y + ")", false
 }

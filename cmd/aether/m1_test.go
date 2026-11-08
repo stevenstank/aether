@@ -131,7 +131,7 @@ func TestMilestone1(t *testing.T) {
 	// Step 1: the gc reference, built elsewhere and used only as the oracle.
 	refDir := t.TempDir()
 	writeFile(t, filepath.Join(refDir, "m1_arith.go"), src)
-	refEnv := append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
+	refEnv := append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=", "GOAMD64=v1")
 	if r := command(t, refDir, refEnv, gobin, "build", "-o", "ref", "m1_arith.go"); r.code != 0 {
 		t.Fatalf("gc build: %s", r.stderr)
 	}
@@ -379,7 +379,7 @@ func TestMilestone1Rejections(t *testing.T) {
 		{"fallthrough", main("x := 1\nswitch x {\ncase 1:\n\tfallthrough\ndefault:\n}\nprintln(x)"), 3, "fallthrough"},
 		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { f() }\n", 3, "function-declaration"},
 		{"string argument", main(`println("hi")`), 3, "println-argument-type"},
-		{"float literal", main("var x int = 1.0\nprintln(x)"), 3, "float-literal"},
+		{"complex type", main("var c complex64\nprintln(c == 0)"), 3, "non-int-type"},
 		{"package name", "package foo\n\nfunc main() {}\n", 3, "package-name"},
 	}
 	for _, f := range []string{"s1_n01_constant_overflow", "s1_n02_typed_constant_overflow", "s1_n03_unused_variable",

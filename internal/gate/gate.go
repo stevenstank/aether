@@ -4,7 +4,8 @@
 // of increment 4.1 (§Control flow and bool), the multiple results of increment
 // 4.3, the integer types of increment 4.4 (§Integer types), the division and
 // shifts of increment 4.5, the package-level variables and constants of
-// increment 4.6, and the switch statements of increment 4.7.
+// increment 4.6, and the switch statements of increment 4.7, extended by
+// float32 and float64 (Phase 6 increment 6.1, §Floating point).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -57,7 +58,6 @@ const (
 	FeatConversion    = "conversion"
 	FeatVariadic      = "variadic-call"
 	FeatPredeclared   = "predeclared-identifier"
-	FeatFloatLit      = "float-literal"
 	FeatImagLit       = "imaginary-literal"
 	FeatRuneLit       = "rune-literal"
 	FeatStringLit     = "string-literal"
@@ -187,7 +187,7 @@ func init() {
 		FeatPackageDecl, FeatInitFunc, FeatFuncDecl, FeatMethod, FeatLocalType,
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
-		FeatConversion, FeatVariadic, FeatPredeclared, FeatFloatLit, FeatImagLit,
+		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
 		FeatRuneLit, FeatStringLit, FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
@@ -454,11 +454,13 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 	}
 }
 
-// supportedTypeNames are the predeclared types the subset allows: bool and
-// every integer type, with the aliases byte (uint8) and rune (int32).
+// supportedTypeNames are the predeclared types the subset allows: bool,
+// every integer type, with the aliases byte (uint8) and rune (int32), and
+// float32 and float64 (Phase 6 increment 6.1).
 var supportedTypeNames = []string{
 	"bool", "int", "int8", "int16", "int32", "int64",
 	"uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "byte", "rune",
+	"float32", "float64",
 }
 
 // typeExpr allows exactly the predeclared types in supportedTypeNames,
@@ -695,11 +697,8 @@ func (c *checker) expr(e ast.Expr) {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		switch e.Kind {
-		case token.INT:
+		case token.INT, token.FLOAT:
 			c.typed(e)
-		case token.FLOAT:
-			c.reject(e, FeatFloatLit, "floating-point literal "+e.Value)
-			return
 		case token.IMAG:
 			c.reject(e, FeatImagLit, "imaginary literal "+e.Value)
 			return
@@ -837,17 +836,21 @@ func unaryFeature(op token.Token) string {
 	return featOperatorPrefix + "other"
 }
 
-// isSupported reports whether t is bool or an integer type. Only
-// predeclared types reach here: type declarations are rejected.
+// isSupported reports whether t is bool, an integer type, float32, or
+// float64. Only predeclared types reach here: type declarations are
+// rejected. The complex types are not supported.
 func isSupported(t types.Type) bool {
 	b, ok := t.(*types.Basic)
-	return ok && (b.Kind() == types.Bool || b.Kind() >= types.Int && b.Kind() <= types.Uintptr)
+	return ok && (b.Kind() == types.Bool || b.Kind() >= types.Int && b.Kind() <= types.Uintptr ||
+		b.Kind() == types.Float32 || b.Kind() == types.Float64)
 }
 
-// isSupportedOrUntyped reports whether t is bool or an integer type, typed
-// or untyped. An untyped rune constant can only come from a rune literal,
-// which is rejected as such.
+// isSupportedOrUntyped reports whether t is a supported type, typed or
+// untyped. An untyped rune constant can only come from a rune literal,
+// which is rejected as such, and an untyped complex constant from an
+// imaginary literal.
 func isSupportedOrUntyped(t types.Type) bool {
 	return isSupported(t) || types.Identical(t, types.Typ[types.UntypedInt]) ||
-		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune])
+		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||
+		types.Identical(t, types.Typ[types.UntypedFloat])
 }

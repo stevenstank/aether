@@ -35,7 +35,7 @@ func TestCorpusAgainstGc(t *testing.T) {
 			cmd := exec.Command(gobin, "build", "-o", filepath.Join(dir, "out"), abs)
 			// Build outside this module, with the installed toolchain only.
 			cmd.Dir = dir
-			cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
+			cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=", "GOAMD64=v1")
 			out, err := cmd.CombinedOutput()
 			switch {
 			case e.gc == "valid" && err != nil:

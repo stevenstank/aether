@@ -85,7 +85,10 @@ func selectFunc(f *ir.Func) *selection {
 		for _, in := range b.Instrs {
 			switch in.Op {
 			case ir.Const:
-				if fitsImm(in.Const) {
+				// A float operand goes to a vector register, which takes no
+				// immediate: each use of an immediate float would cost a move
+				// through %rax, so a float constant is materialized once.
+				if fitsImm(in.Const) && !in.Type.IsFloat() {
 					s.imm[in] = in.Const
 				}
 			case ir.Conv:
@@ -299,7 +302,11 @@ func (e *emitter) selected(blk *ir.Block, in *ir.Instr) bool {
 	}
 	switch in.Op {
 	case ir.Const:
-		// Too large for an immediate.
+		// Too large for an immediate, or a float constant (selectFunc).
+		if dst := e.val(in); fitsImm(in.Const) && !isReg(dst) {
+			e.op("movq\t$%d, %s", in.Const, dst)
+			break
+		}
 		t := e.target(in)
 		e.materialize(in.Const, t)
 		e.finish(in, t)

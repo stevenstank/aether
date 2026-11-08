@@ -2,8 +2,9 @@
 // increment 4.2, the bool and control flow of increment 4.1, the multiple
 // results of increment 4.3, the integer types of increment 4.4, the
 // division and shifts of increment 4.5, the package-level variables and
-// constants of increment 4.6, and the switch statements of increment 4.7
-// into IR (D-004, D-021, D-023).
+// constants of increment 4.6, the switch statements of increment 4.7, and
+// the float64 and float32 values of Phase 6 increment 6.1 into IR (D-004,
+// D-021, D-023, D-032).
 //
 // Each package-level variable is an IR global. Their initializers are
 // lowered, in types.Info.InitOrder, into the program's Init, which runs
@@ -23,8 +24,8 @@
 // it does not recognize.
 //
 // Lowering does not evaluate constant expressions. go/types has already
-// computed their exact values (D-012); lowering emits each as an I64
-// constant and fails if the exact value is not representable. Machine
+// computed their exact values (D-012); lowering emits each as a constant of
+// its IR type and fails if the exact value is not representable. Machine
 // arithmetic is never used on constants.
 package lower
 
@@ -34,6 +35,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math"
 
 	"github.com/stevenstank/aether/internal/diag"
 	"github.com/stevenstank/aether/internal/frontend"
@@ -306,8 +308,15 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		id := l.ident(s.X)
 		v := l.lookup(id)
 		x := l.load(v, l.pos(id, id.Pos()))
-		one := l.fn.TypedConst(l.b, x.Type, 1, l.pos(s, s.TokPos))
-		l.store(v, l.fn.Binary(l.b, op, x, one, l.pos(s, s.TokPos)), l.pos(id, id.Pos()))
+		pos := l.pos(s, s.TokPos)
+		if x.Type.IsFloat() {
+			// x++ adds the constant 1 of x's type (spec §IncDec statements).
+			one := l.fn.FloatConst(l.b, x.Type, 1, pos)
+			l.store(v, l.arith(op, x, one, nil, pos), l.pos(id, id.Pos()))
+			return
+		}
+		one := l.fn.TypedConst(l.b, x.Type, 1, pos)
+		l.store(v, l.fn.Binary(l.b, op, x, one, pos), l.pos(id, id.Pos()))
 	case *ast.ExprStmt:
 		l.exprStmt(s)
 	case *ast.ReturnStmt:
@@ -462,7 +471,7 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 				if cond.Type != t.Type {
 					l.fail(e, "case value of type %s for a tag of type %s", cond.Type, t.Type)
 				}
-				cond = l.fn.Compare(l.b, ir.Eq, t, cond, pos)
+				cond = l.compare(ir.Eq, t, cond, pos)
 			} else if cond.Type != ir.Bool {
 				l.fail(e, "case condition of type %s", cond.Type)
 			}
@@ -756,12 +765,19 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		if t == ir.Bool {
 			return l.fn.BoolConst(l.b, constant.BoolVal(tv.Value), pos)
 		}
+		if t.IsFloat() {
+			return l.floatConst(e, t, tv.Value, pos)
+		}
 		// go/types has checked that the value is representable in its
 		// type, so it is already in canonical form: unsigned values above
 		// the int64 range keep their 64-bit pattern.
 		var n int64
 		exact := false
-		if tv.Value.Kind() == constant.Int {
+		// An integer constant may be written as a float literal with an
+		// integral value, as in "var i int = 1.0"; ToInt converts it
+		// exactly, and leaves any other value not an Int.
+		if v := constant.ToInt(tv.Value); v.Kind() == constant.Int {
+			tv.Value = v
 			if t.Signed() {
 				n, exact = constant.Int64Val(tv.Value)
 			} else {
@@ -785,13 +801,20 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			// A conversion: between integer types a conv, and between
 			// identical types, such as bool(b), nothing.
 			x := l.expr(e.Args[0])
-			if x.Type == t {
+			pos := l.pos(e, e.Pos())
+			switch {
+			case x.Type == t:
 				return x
+			case x.Type.IsInteger() && t.IsInteger():
+				return l.fn.Conv(l.b, t, x, pos)
+			case x.Type.IsInteger() && t.IsFloat():
+				return l.fn.Convert(l.b, ir.IToF, t, x, pos)
+			case x.Type.IsFloat() && t.IsInteger():
+				return l.fn.Convert(l.b, ir.FToI, t, x, pos)
+			case x.Type.IsFloat() && t.IsFloat():
+				return l.fn.Convert(l.b, ir.FToF, t, x, pos)
 			}
-			if !x.Type.IsInteger() || !t.IsInteger() {
-				l.fail(e, "conversion from %s to %s", x.Type, t)
-			}
-			return l.fn.Conv(l.b, t, x, l.pos(e, e.Pos()))
+			l.fail(e, "conversion from %s to %s", x.Type, t)
 		}
 		v := l.call(e)
 		if v.Type != t {
@@ -803,7 +826,11 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		case token.ADD:
 			return l.expr(e.X)
 		case token.SUB:
-			return l.fn.Neg(l.b, l.expr(e.X), l.pos(e, e.OpPos))
+			x := l.expr(e.X)
+			if x.Type.IsFloat() {
+				return l.fn.Float(l.b, ir.FNeg, l.pos(e, e.OpPos), x)
+			}
+			return l.fn.Neg(l.b, x, l.pos(e, e.OpPos))
 		case token.NOT:
 			return l.fn.Not(l.b, l.expr(e.X), l.pos(e, e.OpPos))
 		case token.XOR:
@@ -818,7 +845,7 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		if op, ok := binaryOps[e.Op]; ok {
 			xy := l.values([]ast.Expr{e.X, e.Y})
 			if op.IsComparison() {
-				return l.fn.Compare(l.b, op, xy[0], xy[1], pos)
+				return l.compare(op, xy[0], xy[1], pos)
 			}
 			return l.arith(op, xy[0], xy[1], e.Y, pos)
 		}
@@ -841,6 +868,15 @@ var binaryOps = map[token.Token]ir.Op{
 // converted to u64. A constant y needs no check: go/types rejects a
 // constant divisor of 0 and a negative constant count.
 func (l *lowerer) arith(op ir.Op, x, y *ir.Instr, ye ast.Expr, pos ir.Pos) *ir.Instr {
+	if x.Type.IsFloat() {
+		// IEEE 754 division by zero is defined, so a float operation
+		// needs no check (D-032).
+		fop, ok := floatOps[op]
+		if !ok || y.Type != x.Type {
+			l.fail(ye, "%s of %s and %s", op, x.Type, y.Type)
+		}
+		return l.fn.Float(l.b, fop, pos, x, y)
+	}
 	constant := l.pkg.Info.Types[ye].Value != nil
 	switch op {
 	case ir.Div, ir.Rem:
@@ -861,6 +897,41 @@ func (l *lowerer) arith(op ir.Op, x, y *ir.Instr, ye ast.Expr, pos ir.Pos) *ir.I
 		return l.fn.Shift(l.b, op, x, y, pos)
 	}
 	return l.fn.Binary(l.b, op, x, y, pos)
+}
+
+// floatOps maps the arithmetic and comparison operations of the integer
+// types to those of the float types, which are distinct (D-032).
+var floatOps = map[ir.Op]ir.Op{
+	ir.Add: ir.FAdd, ir.Sub: ir.FSub, ir.Mul: ir.FMul, ir.Div: ir.FDiv,
+	ir.Eq: ir.FEq, ir.Ne: ir.FNe, ir.Lt: ir.FLt, ir.Le: ir.FLe, ir.Gt: ir.FGt, ir.Ge: ir.FGe,
+}
+
+// compare appends the comparison op of x and y: the float comparison if
+// they are floats.
+func (l *lowerer) compare(op ir.Op, x, y *ir.Instr, pos ir.Pos) *ir.Instr {
+	if x.Type.IsFloat() {
+		return l.fn.Float(l.b, floatOps[op], pos, x, y)
+	}
+	return l.fn.Compare(l.b, op, x, y, pos)
+}
+
+// floatConst appends the constant v as a float of type t. go/types has
+// rounded a typed constant to its type, so its value converts exactly; an
+// inexact result, or an infinity, is an internal error.
+func (l *lowerer) floatConst(e ast.Expr, t ir.Type, v constant.Value, pos ir.Pos) *ir.Instr {
+	var f float64
+	exact := false
+	if t == ir.F32 {
+		var f32 float32
+		f32, exact = constant.Float32Val(v)
+		f = float64(f32)
+	} else {
+		f, exact = constant.Float64Val(v)
+	}
+	if !exact || math.IsInf(f, 0) {
+		l.fail(e, "constant %s is not representable as %s", v, t)
+	}
+	return l.fn.FloatConst(l.b, t, f, pos)
 }
 
 // guard branches to a new block that panics with kind if fail is true, and
@@ -912,6 +983,7 @@ var irTypes = map[types.BasicKind]ir.Type{
 	types.Int8: ir.I8, types.Int16: ir.I16, types.Int32: ir.I32, types.UntypedRune: ir.I32,
 	types.Uint: ir.U64, types.Uint64: ir.U64, types.Uintptr: ir.U64,
 	types.Uint8: ir.U8, types.Uint16: ir.U16, types.Uint32: ir.U32,
+	types.Float64: ir.F64, types.UntypedFloat: ir.F64, types.Float32: ir.F32,
 }
 
 // irType returns the IR type of a bool or integer Go type.

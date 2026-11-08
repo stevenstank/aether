@@ -1,0 +1,396 @@
+global g0 g64 f64 @testdata/check/s3_f04_float_calls.go:14:5
+global g1 g32 f32 @testdata/check/s3_f04_float_calls.go:15:5
+global g2 counter f64 @testdata/check/s3_f04_float_calls.go:16:5
+global g3 scale f64 @testdata/check/s3_f04_float_calls.go:17:5
+
+func halve(f64) f64 @testdata/check/s3_f04_float_calls.go:19:6
+  slot s0 x f64 @19:12
+b0:
+  v0 = param 0 @19:12
+  store s0, v0 @19:12
+  v1 = gload g2 @20:2
+  v2 = const f64 1 @20:9
+  v3 = fadd v1, v2 @20:9
+  gstore g2, v3 @20:2
+  v4 = load s0 @21:9
+  v5 = const f64 2 @21:13
+  v6 = fdiv v4, v5 @21:11
+  ret v6 @21:2
+
+func many(f64, f32, i64, f64, f32, i8, f64, f32, u64, f64) (f64, f32, i64) @testdata/check/s3_f04_float_calls.go:24:6
+  slot s0 a f64 @24:11
+  slot s1 b f32 @24:22
+  slot s2 c i64 @24:33
+  slot s3 d f64 @24:40
+  slot s4 e f32 @24:51
+  slot s5 f i8 @24:62
+  slot s6 g f64 @24:70
+  slot s7 h f32 @24:81
+  slot s8 i u64 @24:92
+  slot s9 j f64 @24:102
+b0:
+  v0 = param 0 @24:11
+  store s0, v0 @24:11
+  v1 = param 1 @24:22
+  store s1, v1 @24:22
+  v2 = param 2 @24:33
+  store s2, v2 @24:33
+  v3 = param 3 @24:40
+  store s3, v3 @24:40
+  v4 = param 4 @24:51
+  store s4, v4 @24:51
+  v5 = param 5 @24:62
+  store s5, v5 @24:62
+  v6 = param 6 @24:70
+  store s6, v6 @24:70
+  v7 = param 7 @24:81
+  store s7, v7 @24:81
+  v8 = param 8 @24:92
+  store s8, v8 @24:92
+  v9 = param 9 @24:102
+  store s9, v9 @24:102
+  v10 = load s0 @25:9
+  v11 = load s1 @25:21
+  v12 = ftof f64, v11 @25:13
+  v13 = fadd v10, v12 @25:11
+  v14 = load s3 @25:26
+  v15 = fadd v13, v14 @25:24
+  v16 = load s4 @25:38
+  v17 = ftof f64, v16 @25:30
+  v18 = fadd v15, v17 @25:28
+  v19 = load s6 @25:43
+  v20 = fadd v18, v19 @25:41
+  v21 = load s7 @25:55
+  v22 = ftof f64, v21 @25:47
+  v23 = fadd v20, v22 @25:45
+  v24 = load s9 @25:60
+  v25 = fadd v23, v24 @25:58
+  v26 = load s1 @25:63
+  v27 = load s4 @25:67
+  v28 = fmul v26, v27 @25:65
+  v29 = load s7 @25:71
+  v30 = fmul v28, v29 @25:69
+  v31 = load s2 @25:74
+  v32 = load s5 @25:82
+  v33 = conv i64, v32 @25:78
+  v34 = add v31, v33 @25:76
+  v35 = load s8 @25:91
+  v36 = conv i64, v35 @25:87
+  v37 = add v34, v36 @25:85
+  ret v25, v30, v37 @25:2
+
+func swap(f64, f32) (f64, f32) @testdata/check/s3_f04_float_calls.go:28:6
+  slot s0 x f64 @28:11
+  slot s1 y f32 @28:22
+b0:
+  v0 = param 0 @28:11
+  store s0, v0 @28:11
+  v1 = param 1 @28:22
+  store s1, v1 @28:22
+  v2 = load s1 @28:69
+  v3 = ftof f64, v2 @28:61
+  v4 = load s0 @28:81
+  v5 = ftof f32, v4 @28:73
+  ret v3, v5 @28:54
+
+func sum(i64, f64) f64 @testdata/check/s3_f04_float_calls.go:30:6
+  slot s0 n i64 @30:10
+  slot s1 acc f64 @30:17
+  slot s2 tmp i64 @34:13
+  slot s3 tmp f64 @34:18
+b0:
+  v0 = param 0 @30:10
+  store s0, v0 @30:10
+  v1 = param 1 @30:17
+  store s1, v1 @30:17
+  v2 = load s0 @31:5
+  v3 = const 0 @31:10
+  v4 = eq v2, v3 @31:7
+  branch v4, b1, b2 @31:2
+b1:
+  v5 = load s1 @32:10
+  ret v5 @32:3
+b2:
+  v6 = load s0 @34:13
+  v7 = const 1 @34:15
+  v8 = sub v6, v7 @34:14
+  store s2, v8 @34:13
+  v9 = load s1 @34:18
+  store s3, v9 @34:18
+  v10 = const f64 1 @34:22
+  v11 = load s0 @34:32
+  v12 = itof f64, v11 @34:24
+  v13 = fdiv v10, v12 @34:23
+  v14 = load s3 @34:18
+  v15 = fadd v14, v13 @34:21
+  v16 = load s2 @34:13
+  v17 = call sum, v16, v15 @34:9
+  ret v17 @34:2
+
+func classify(f64) i64 @testdata/check/s3_f04_float_calls.go:37:6
+  slot s0 x f64 @37:15
+b0:
+  v0 = param 0 @37:15
+  store s0, v0 @37:15
+  v1 = load s0 @39:7
+  v2 = load s0 @39:12
+  v3 = fne v1, v2 @39:9
+  branch v3, b2, b3 @39:7
+b1:
+  v13 = const 2 @46:9
+  ret v13 @46:2
+b2:
+  v10 = const 0 @40:10
+  ret v10 @40:3
+b3:
+  v4 = load s0 @41:7
+  v5 = const f64 0 @41:11
+  v6 = flt v4, v5 @41:9
+  branch v6, b4, b5 @41:7
+b4:
+  v11 = const -1 @42:10
+  ret v11 @42:3
+b5:
+  v7 = load s0 @43:7
+  v8 = const f64 0 @43:11
+  v9 = fgt v7, v8 @43:9
+  branch v9, b6, b7 @43:7
+b6:
+  v12 = const 1 @44:10
+  ret v12 @44:3
+b7:
+  jump b1 @38:2
+
+func pick(f32) i64 @testdata/check/s3_f04_float_calls.go:49:6
+  slot s0 x f32 @49:11
+  slot s1 tmp f32 @50:9
+b0:
+  v0 = param 0 @49:11
+  store s0, v0 @49:11
+  v1 = load s0 @50:9
+  store s1, v1 @50:9
+  v2 = const f32 0.5 @51:7
+  v3 = load s1 @50:9
+  v4 = feq v3, v2 @51:7
+  branch v4, b2, b3 @51:7
+b1:
+  v13 = const 3 @56:9
+  ret v13 @56:2
+b2:
+  v11 = const 1 @52:10
+  ret v11 @52:3
+b3:
+  v5 = const f32 1e-45 @53:7
+  v6 = load s1 @50:9
+  v7 = feq v6, v5 @53:7
+  branch v7, b4, b5 @53:7
+b4:
+  v12 = const 2 @54:10
+  ret v12 @54:3
+b5:
+  v8 = const f32 2 @53:14
+  v9 = load s1 @50:9
+  v10 = feq v9, v8 @53:14
+  branch v10, b4, b6 @53:14
+b6:
+  jump b1 @50:2
+
+func main @testdata/check/s3_f04_float_calls.go:59:6
+  slot s0 p f64 @62:2
+  slot s1 q f32 @62:5
+  slot s2 r i64 @62:8
+  slot s3 s f64 @64:2
+  slot s4 t f32 @64:5
+  slot s5 zero f64 @67:2
+  slot s6 tmp i64 @68:10
+  slot s7 tmp i64 @68:31
+  slot s8 tmp i64 @68:50
+  slot s9 tmp i64 @68:67
+  slot s10 z32 f32 @69:6
+  slot s11 tmp i64 @70:10
+  slot s12 tmp i64 @70:21
+  slot s13 tmp i64 @70:34
+  slot s14 tmp i64 @70:43
+  slot s15 i i64 @71:6
+  slot s16 u u8 @72:6
+  slot s17 h f64 @74:6
+  slot s18 x f64 @82:6
+  slot s19 y f32 @83:6
+b0:
+  v0 = gload g0 @60:10
+  v1 = gload g1 @60:15
+  v2 = const f64 0.3333333333333333 @60:20
+  v3 = const f32 0.33333334 @60:27
+  v4 = const f64 1e+300 @60:36
+  v5 = gload g3 @60:41
+  v6 = gload g2 @60:48
+  println v0, v1, v2, v3, v4, v5, v6 @60:2
+  v7 = const f64 1 @61:15
+  v8 = const f32 2 @61:18
+  v9 = const 3 @61:21
+  v10 = const f64 4 @61:24
+  v11 = const f32 5 @61:27
+  v12 = const i8 6 @61:30
+  v13 = const f64 7 @61:33
+  v14 = const f32 8 @61:36
+  v15 = const u64 9 @61:39
+  v16 = const f64 10 @61:42
+  v17 = call many, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 @61:10
+  v18 = extract 0, v17 @61:10
+  v19 = extract 1, v17 @61:10
+  v20 = extract 2, v17 @61:10
+  println v18, v19, v20 @61:2
+  v21 = const f64 0.1 @62:18
+  v22 = const f32 0.2 @62:23
+  v23 = const -1 @62:28
+  v24 = const f64 0.3 @62:32
+  v25 = const f32 0.4 @62:37
+  v26 = const i8 -128 @62:42
+  v27 = const f64 0.5 @62:48
+  v28 = const f32 0.6 @62:53
+  v29 = const u64 9223372036854775808 @62:58
+  v30 = const f64 0.7 @62:65
+  v31 = call many, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30 @62:13
+  v32 = extract 0, v31 @62:13
+  v33 = extract 1, v31 @62:13
+  v34 = extract 2, v31 @62:13
+  store s0, v32 @62:2
+  store s1, v33 @62:5
+  store s2, v34 @62:8
+  v35 = load s0 @63:10
+  v36 = load s1 @63:13
+  v37 = load s2 @63:16
+  println v35, v36, v37 @63:2
+  v38 = const f64 1.5 @64:20
+  v39 = const f32 2.5 @64:25
+  v40 = call swap, v38, v39 @64:15
+  v41 = extract 0, v40 @64:15
+  v42 = extract 1, v40 @64:15
+  v43 = call swap, v41, v42 @64:10
+  v44 = extract 0, v43 @64:10
+  v45 = extract 1, v43 @64:10
+  store s3, v44 @64:2
+  store s4, v45 @64:5
+  v46 = load s3 @65:10
+  v47 = load s4 @65:13
+  println v46, v47 @65:2
+  v48 = const 1000 @66:14
+  v49 = const f64 0 @66:20
+  v50 = call sum, v48, v49 @66:10
+  v51 = const 50000 @66:28
+  v52 = const f64 0 @66:35
+  v53 = call sum, v51, v52 @66:24
+  println v50, v53 @66:2
+  v54 = const f64 0 @67:10
+  store s5, v54 @67:2
+  v55 = load s5 @68:19
+  v56 = load s5 @68:24
+  v57 = fdiv v55, v56 @68:23
+  v58 = call classify, v57 @68:10
+  store s6, v58 @68:10
+  v59 = const f64 -1e-300 @68:40
+  v60 = call classify, v59 @68:31
+  store s7, v60 @68:31
+  v61 = load s5 @68:60
+  v62 = fneg v61 @68:59
+  v63 = call classify, v62 @68:50
+  store s8, v63 @68:50
+  v64 = const f64 5e-324 @68:76
+  v65 = call classify, v64 @68:67
+  store s9, v65 @68:67
+  v66 = const f64 1 @68:94
+  v67 = load s5 @68:96
+  v68 = fdiv v66, v67 @68:95
+  v69 = call classify, v68 @68:85
+  v70 = load s6 @68:10
+  v71 = load s7 @68:31
+  v72 = load s8 @68:50
+  v73 = load s9 @68:67
+  println v70, v71, v72, v73, v69 @68:2
+  v74 = const f32 0 @69:6
+  store s10, v74 @69:6
+  v75 = const f32 0.5 @70:15
+  v76 = call pick, v75 @70:10
+  store s11, v76 @70:10
+  v77 = const f32 1e-45 @70:26
+  v78 = call pick, v77 @70:21
+  store s12, v78 @70:21
+  v79 = const f32 2 @70:39
+  v80 = call pick, v79 @70:34
+  store s13, v80 @70:34
+  v81 = load s10 @70:49
+  v82 = fneg v81 @70:48
+  v83 = call pick, v82 @70:43
+  store s14, v83 @70:43
+  v84 = load s10 @70:60
+  v85 = load s10 @70:64
+  v86 = fdiv v84, v85 @70:63
+  v87 = call pick, v86 @70:55
+  v88 = load s11 @70:10
+  v89 = load s12 @70:21
+  v90 = load s13 @70:34
+  v91 = load s14 @70:43
+  println v88, v89, v90, v91, v87 @70:2
+  v92 = const 1 @71:14
+  store s15, v92 @71:6
+  v93 = const u8 128 @72:16
+  store s16, v93 @72:6
+  v94 = const f64 3 @74:10
+  store s17, v94 @74:6
+  v95 = load s15 @75:10
+  v96 = load s16 @75:13
+  v97 = const 6 @75:16
+  v98 = load s17 @75:19
+  v99 = const f64 1e+06 @75:22
+  v100 = const f64 1e+21 @75:27
+  v101 = const f64 1.23456789e+08 @75:33
+  v102 = const f64 0.000123 @75:46
+  v103 = const f64 1e-07 @75:56
+  v104 = const f32 1e-07 @75:62
+  println v95, v96, v97, v98, v99, v100, v101, v102, v103, v104 @75:2
+  v105 = const f64 1.5 @76:8
+  v106 = const f64 -0.25 @76:13
+  v107 = const f32 0.1 @76:20
+  v108 = const true @76:34
+  v109 = const 3 @76:40
+  print v105, v106, v107, v108, v109 @76:2
+  println @77:2
+  v110 = const f64 1e+15 @78:12
+  gstore g2, v110 @78:2
+  v111 = gload g2 @79:2
+  v112 = const f64 1 @79:9
+  v113 = fadd v111, v112 @79:9
+  gstore g2, v113 @79:2
+  v114 = gload g2 @80:2
+  v115 = const f64 0.5 @80:13
+  v116 = fadd v114, v115 @80:10
+  gstore g2, v116 @80:2
+  v117 = gload g2 @81:10
+  println v117 @81:2
+  v118 = const f64 0 @82:6
+  store s18, v118 @82:6
+  v119 = const f32 0 @83:6
+  store s19, v119 @83:6
+  v120 = load s18 @84:10
+  v121 = load s19 @84:13
+  v122 = load s18 @84:17
+  v123 = fneg v122 @84:16
+  v124 = load s19 @84:21
+  v125 = fneg v124 @84:20
+  v126 = load s18 @84:24
+  v127 = load s18 @84:30
+  v128 = fneg v127 @84:29
+  v129 = feq v126, v128 @84:26
+  println v120, v121, v123, v125, v129 @84:2
+  ret @85:1
+
+func init @testdata/check/s3_f04_float_calls.go:3:1
+b0:
+  v0 = const f64 1 @14:11
+  gstore g0, v0 @14:5
+  v1 = const f32 1 @15:19
+  gstore g1, v1 @15:5
+  v2 = const f64 10 @17:19
+  v3 = call halve, v2 @17:13
+  gstore g3, v3 @17:5
+  ret @3:1

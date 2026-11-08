@@ -85,7 +85,9 @@ func gcBuild(t *testing.T, gobin string, progs map[string][]byte) string {
 	bin := filepath.Join(dir, "bin") + string(filepath.Separator)
 	cmd := exec.Command(gobin, "build", "-o", bin, "./...")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
+	// GOAMD64=v1, the baseline, has no FMA instructions, so gc rounds every
+	// float operation separately, as D-032 requires; v3 may fuse x*y + z.
+	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=", "GOAMD64=v1")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("gc build failed: %v\n%s", err, out)
 	}
@@ -212,7 +214,7 @@ func gcRejects(t *testing.T, gobin string, progs map[string][]byte) {
 	}
 	cmd := exec.Command(gobin, "build", "-o", os.DevNull, "./...")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
+	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=", "GOAMD64=v1")
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatal("gc accepted programs Aether classified as invalid")

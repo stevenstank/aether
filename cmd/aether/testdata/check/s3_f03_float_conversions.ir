@@ -1,0 +1,291 @@
+func toInts(f64) @testdata/check/s3_f03_float_conversions.go:9:6
+  slot s0 x f64 @9:13
+b0:
+  v0 = param 0 @9:13
+  store s0, v0 @9:13
+  v1 = load s0 @10:10
+  v2 = load s0 @10:18
+  v3 = ftoi i8, v2 @10:13
+  v4 = load s0 @10:28
+  v5 = ftoi i16, v4 @10:22
+  v6 = load s0 @10:38
+  v7 = ftoi i32, v6 @10:32
+  v8 = load s0 @10:48
+  v9 = ftoi i64, v8 @10:42
+  v10 = load s0 @10:56
+  v11 = ftoi i64, v10 @10:52
+  println v1, v3, v5, v7, v9, v11 @10:2
+  v12 = load s0 @11:16
+  v13 = ftoi u8, v12 @11:10
+  v14 = load s0 @11:27
+  v15 = ftoi u16, v14 @11:20
+  v16 = load s0 @11:38
+  v17 = ftoi u32, v16 @11:31
+  v18 = load s0 @11:49
+  v19 = ftoi u64, v18 @11:42
+  v20 = load s0 @11:58
+  v21 = ftoi u64, v20 @11:53
+  v22 = load s0 @11:70
+  v23 = ftoi u64, v22 @11:62
+  println v13, v15, v17, v19, v21, v23 @11:2
+  ret @12:1
+
+func toInts32(f32) @testdata/check/s3_f03_float_conversions.go:14:6
+  slot s0 x f32 @14:15
+b0:
+  v0 = param 0 @14:15
+  store s0, v0 @14:15
+  v1 = load s0 @15:10
+  v2 = load s0 @15:18
+  v3 = ftoi i8, v2 @15:13
+  v4 = load s0 @15:28
+  v5 = ftoi i16, v4 @15:22
+  v6 = load s0 @15:38
+  v7 = ftoi i32, v6 @15:32
+  v8 = load s0 @15:48
+  v9 = ftoi i64, v8 @15:42
+  v10 = load s0 @15:58
+  v11 = ftoi u8, v10 @15:52
+  v12 = load s0 @15:69
+  v13 = ftoi u16, v12 @15:62
+  v14 = load s0 @15:80
+  v15 = ftoi u32, v14 @15:73
+  v16 = load s0 @15:91
+  v17 = ftoi u64, v16 @15:84
+  println v1, v3, v5, v7, v9, v11, v13, v15, v17 @15:2
+  ret @16:1
+
+func fromInts(i8, i16, i32, i64, u8, u16, u32, u64) @testdata/check/s3_f03_float_conversions.go:18:6
+  slot s0 i8 i8 @18:15
+  slot s1 i16 i16 @18:24
+  slot s2 i32 i32 @18:35
+  slot s3 i64 i64 @18:46
+  slot s4 u8 u8 @18:57
+  slot s5 u16 u16 @18:67
+  slot s6 u32 u32 @18:79
+  slot s7 u64 u64 @18:91
+b0:
+  v0 = param 0 @18:15
+  store s0, v0 @18:15
+  v1 = param 1 @18:24
+  store s1, v1 @18:24
+  v2 = param 2 @18:35
+  store s2, v2 @18:35
+  v3 = param 3 @18:46
+  store s3, v3 @18:46
+  v4 = param 4 @18:57
+  store s4, v4 @18:57
+  v5 = param 5 @18:67
+  store s5, v5 @18:67
+  v6 = param 6 @18:79
+  store s6, v6 @18:79
+  v7 = param 7 @18:91
+  store s7, v7 @18:91
+  v8 = load s0 @19:18
+  v9 = itof f64, v8 @19:10
+  v10 = load s1 @19:31
+  v11 = itof f64, v10 @19:23
+  v12 = load s2 @19:45
+  v13 = itof f64, v12 @19:37
+  v14 = load s3 @19:59
+  v15 = itof f64, v14 @19:51
+  v16 = load s4 @19:73
+  v17 = itof f64, v16 @19:65
+  v18 = load s5 @19:86
+  v19 = itof f64, v18 @19:78
+  v20 = load s6 @19:100
+  v21 = itof f64, v20 @19:92
+  v22 = load s7 @19:114
+  v23 = itof f64, v22 @19:106
+  println v9, v11, v13, v15, v17, v19, v21, v23 @19:2
+  v24 = load s0 @20:18
+  v25 = itof f32, v24 @20:10
+  v26 = load s1 @20:31
+  v27 = itof f32, v26 @20:23
+  v28 = load s2 @20:45
+  v29 = itof f32, v28 @20:37
+  v30 = load s3 @20:59
+  v31 = itof f32, v30 @20:51
+  v32 = load s4 @20:73
+  v33 = itof f32, v32 @20:65
+  v34 = load s5 @20:86
+  v35 = itof f32, v34 @20:78
+  v36 = load s6 @20:100
+  v37 = itof f32, v36 @20:92
+  v38 = load s7 @20:114
+  v39 = itof f32, v38 @20:106
+  println v25, v27, v29, v31, v33, v35, v37, v39 @20:2
+  ret @21:1
+
+func main @testdata/check/s3_f03_float_conversions.go:23:6
+  slot s0 zero f64 @24:2
+  slot s1 z32 f32 @63:6
+b0:
+  v0 = const f64 0 @24:10
+  store s0, v0 @24:2
+  v1 = const f64 0 @25:9
+  call toInts, v1 @25:2
+  v2 = load s0 @26:10
+  v3 = fneg v2 @26:9
+  call toInts, v3 @26:2
+  v4 = const f64 0.9 @27:9
+  call toInts, v4 @27:2
+  v5 = const f64 -0.9 @28:9
+  call toInts, v5 @28:2
+  v6 = const f64 127.9 @29:9
+  call toInts, v6 @29:2
+  v7 = const f64 128 @30:9
+  call toInts, v7 @30:2
+  v8 = const f64 -128.9 @31:9
+  call toInts, v8 @31:2
+  v9 = const f64 -129 @32:9
+  call toInts, v9 @32:2
+  v10 = const f64 255.5 @33:9
+  call toInts, v10 @33:2
+  v11 = const f64 256 @34:9
+  call toInts, v11 @34:2
+  v12 = const f64 -1 @35:9
+  call toInts, v12 @35:2
+  v13 = const f64 32767.5 @36:9
+  call toInts, v13 @36:2
+  v14 = const f64 32768 @37:9
+  call toInts, v14 @37:2
+  v15 = const f64 65535.9 @38:9
+  call toInts, v15 @38:2
+  v16 = const f64 65536 @39:9
+  call toInts, v16 @39:2
+  v17 = const f64 -70000 @40:9
+  call toInts, v17 @40:2
+  v18 = const f64 2.1474836479e+09 @41:9
+  call toInts, v18 @41:2
+  v19 = const f64 2.147483648e+09 @42:9
+  call toInts, v19 @42:2
+  v20 = const f64 -2.1474836489e+09 @43:9
+  call toInts, v20 @43:2
+  v21 = const f64 -2.147483649e+09 @44:9
+  call toInts, v21 @44:2
+  v22 = const f64 4.2949672955e+09 @45:9
+  call toInts, v22 @45:2
+  v23 = const f64 4.294967296e+09 @46:9
+  call toInts, v23 @46:2
+  v24 = const f64 4.5e+09 @47:9
+  call toInts, v24 @47:2
+  v25 = const f64 -3e+09 @48:9
+  call toInts, v25 @48:2
+  v26 = const f64 9.223372036854775e+18 @49:9
+  call toInts, v26 @49:2
+  v27 = const f64 9.223372036854776e+18 @50:9
+  call toInts, v27 @50:2
+  v28 = const f64 -9.223372036854776e+18 @51:9
+  call toInts, v28 @51:2
+  v29 = const f64 -9.223372036854778e+18 @52:9
+  call toInts, v29 @52:2
+  v30 = const f64 9.3e+18 @53:9
+  call toInts, v30 @53:2
+  v31 = const f64 -9.3e+18 @54:9
+  call toInts, v31 @54:2
+  v32 = const f64 1.844674407370955e+19 @55:9
+  call toInts, v32 @55:2
+  v33 = const f64 1.8446744073709552e+19 @56:9
+  call toInts, v33 @56:2
+  v34 = const f64 1e+300 @57:9
+  call toInts, v34 @57:2
+  v35 = const f64 -1e+300 @58:9
+  call toInts, v35 @58:2
+  v36 = const f64 1 @59:9
+  v37 = load s0 @59:13
+  v38 = fdiv v36, v37 @59:11
+  call toInts, v38 @59:2
+  v39 = const f64 -1 @60:9
+  v40 = load s0 @60:14
+  v41 = fdiv v39, v40 @60:12
+  call toInts, v41 @60:2
+  v42 = load s0 @61:9
+  v43 = load s0 @61:16
+  v44 = fdiv v42, v43 @61:14
+  call toInts, v44 @61:2
+  v45 = const f64 5e-324 @62:9
+  call toInts, v45 @62:2
+  v46 = const f32 0 @63:6
+  store s1, v46 @63:6
+  v47 = const f32 0.5 @64:11
+  call toInts32, v47 @64:2
+  v48 = const f32 -128.5 @65:11
+  call toInts32, v48 @65:2
+  v49 = const f32 70000 @66:11
+  call toInts32, v49 @66:2
+  v50 = const f32 -70000 @67:11
+  call toInts32, v50 @67:2
+  v51 = const f32 3e+09 @68:11
+  call toInts32, v51 @68:2
+  v52 = const f32 -3e+09 @69:11
+  call toInts32, v52 @69:2
+  v53 = const f32 9.2233715e+18 @70:11
+  call toInts32, v53 @70:2
+  v54 = const f32 1.8446743e+19 @71:11
+  call toInts32, v54 @71:2
+  v55 = const f32 1e+20 @72:11
+  call toInts32, v55 @72:2
+  v56 = const f32 1 @73:11
+  v57 = load s1 @73:15
+  v58 = fdiv v56, v57 @73:13
+  call toInts32, v58 @73:2
+  v59 = load s1 @74:11
+  v60 = load s1 @74:17
+  v61 = fdiv v59, v60 @74:15
+  call toInts32, v61 @74:2
+  v62 = const i8 127 @75:11
+  v63 = const i16 32767 @75:16
+  v64 = const i32 2147483647 @75:23
+  v65 = const 9223372036854775807 @75:35
+  v66 = const u8 255 @75:56
+  v67 = const u16 65535 @75:61
+  v68 = const u32 4294967295 @75:68
+  v69 = const u64 18446744073709551615 @75:80
+  call fromInts, v62, v63, v64, v65, v66, v67, v68, v69 @75:2
+  v70 = const i8 -128 @76:11
+  v71 = const i16 -32768 @76:17
+  v72 = const i32 -2147483648 @76:25
+  v73 = const -9223372036854775808 @76:38
+  v74 = const u8 0 @76:60
+  v75 = const u16 0 @76:63
+  v76 = const u32 0 @76:66
+  v77 = const u64 0 @76:69
+  call fromInts, v70, v71, v72, v73, v74, v75, v76, v77 @76:2
+  v78 = const i8 -1 @77:11
+  v79 = const i16 -1 @77:15
+  v80 = const i32 16777217 @77:19
+  v81 = const 9007199254740993 @77:29
+  v82 = const u8 1 @77:47
+  v83 = const u16 1 @77:50
+  v84 = const u32 16777217 @77:53
+  v85 = const u64 9007199254740993 @77:63
+  call fromInts, v78, v79, v80, v81, v82, v83, v84, v85 @77:2
+  v86 = const i8 0 @78:11
+  v87 = const i16 0 @78:14
+  v88 = const i32 0 @78:17
+  v89 = const 9007199254740993 @78:20
+  v90 = const u8 0 @78:29
+  v91 = const u16 0 @78:32
+  v92 = const u32 0 @78:35
+  v93 = const u64 9223372036854777856 @78:38
+  call fromInts, v86, v87, v88, v89, v90, v91, v92, v93 @78:2
+  v94 = const i8 0 @79:11
+  v95 = const i16 0 @79:14
+  v96 = const i32 0 @79:17
+  v97 = const -9007199254740993 @79:20
+  v98 = const u8 0 @79:34
+  v99 = const u16 0 @79:37
+  v100 = const u32 0 @79:40
+  v101 = const u64 9223372036854777857 @79:43
+  call fromInts, v94, v95, v96, v97, v98, v99, v100, v101 @79:2
+  v102 = const i8 0 @80:11
+  v103 = const i16 0 @80:14
+  v104 = const i32 0 @80:17
+  v105 = const 4611686018427388416 @80:20
+  v106 = const u8 0 @80:32
+  v107 = const u16 0 @80:35
+  v108 = const u32 0 @80:38
+  v109 = const u64 18446744073709549568 @80:41
+  call fromInts, v102, v103, v104, v105, v106, v107, v108, v109 @80:2
+  ret @81:1

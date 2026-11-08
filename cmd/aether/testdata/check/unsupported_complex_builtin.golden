@@ -1,0 +1,1 @@
+testdata/check/unsupported_complex_builtin.go:7:10: unsupported: builtin real is not supported in subset S1 [builtin]

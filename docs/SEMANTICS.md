@@ -404,7 +404,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
-| Literals and identifiers | `float-literal`, `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
+| Literals and identifiers | `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
 | Operators | `operator-address`, `operator-receive`, `operator-other` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
@@ -637,6 +637,37 @@ unchanged. Still `unsupported`: `fallthrough`, labeled switches (`label`),
 type switches (`type-switch`), and switches on other types. The feature name
 `switch` no longer exists.
 
+## Floating point (Phase 6 increment 6.1)
+
+The first part of S3 (`ROADMAP.md` Phase 6). The gate also accepts `float64`
+and `float32` in every position the integer types are accepted (variables,
+parameters, results, globals, constants, `switch` tags and case values), float
+literals in every form, and untyped float constants, including those of integer
+type such as `var i int = 1.0`. The IR is D-032's.
+- **Arithmetic** `+ - * /`, unary `+ -`, their compound assignments, `++`, and
+  `--` follow IEEE 754: each operation rounds to nearest, ties to even, at its
+  type's precision, and none is fused with another (gc reference binaries are
+  built with `GOAMD64=v1`, which has no FMA). Division by zero gives an
+  infinity or NaN and never panics. Unary `-` flips the sign, so `-x` of `+0`
+  is `-0`.
+- **Comparisons** are IEEE 754's: NaN is unordered, so `x != x` holds only for
+  NaN, and `-0 == +0`.
+- **Conversions** between the float types, and between them and every integer
+  type, round to nearest, ties to even, once, from the source value. A float
+  converts to an integer by truncation toward zero; a value the type cannot
+  represent, which the spec leaves implementation-specific, converts as gc does
+  on amd64 (D-032).
+- **Constants** are go/types' exact values, rounded to the type by go/types
+  (D-002). Float constant arithmetic is exact, as the spec requires.
+- **`print` and `println`** write a float as gc go1.26.1 does: the shortest
+  decimal that converts back to the same value (`strconv` `'g'` format with
+  precision -1), with `NaN`, `+Inf`, `-Inf`, and `-0`.
+
+Still `unsupported`: complex types, imaginary literals (`imaginary-literal`),
+and the builtins `real`, `imag`, `complex`, `min`, and `max` (`builtin`). `%`,
+the bitwise operators, and shifts on floats are invalid Go. The feature name
+`float-literal` no longer exists.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -660,6 +691,7 @@ type switches (`type-switch`), and switches on other types. The feature name
 | `/ % << >>` with the run-time panics (V-3) | Arithmetic operators, Run-time panics | S2 / 4.5 | Supported (native), with divergence V-3 | `s2_d01_division_shifts` to `s2_d06_panic_in_loop`; `TestIntegerTypes`, `TestPanics`, `TestPanicPrefix` |
 | Package-level `var` and `const`, initialization in `InitOrder` | Variable declarations, Constant declarations, Package initialization | S2 / 4.6 | Supported (native), with divergence V-4 | `s2_g01_package_vars` to `s2_g05_init_calls_main`; `TestNativeGlobals`, `TestGlobalsAndInit`, `TestVerifyGlobals`, `TestGlobalReadOrder`; gate tests |
 | Expression `switch` on `bool` and integer tags, unlabeled `break` | Switch statements, Break statements | S2 / 4.7 | Supported (native) | `s2_s01_switch`, `s2_s02_switch_panic`; gate tests; `TestLowerSwitch` |
+| `float64`, `float32`: arithmetic, comparisons, conversions, constants, calls, globals, printing | Floating-point types, Arithmetic operators, Comparison operators, Conversions | S3 / 6.1 | Supported (native) | `s3_f01_float_arith` to `s3_f04_float_calls`; generated float programs; `TestNativeFloat`, `TestPrintFloat`, `TestVerifyFloat`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

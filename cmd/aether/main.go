@@ -26,9 +26,10 @@ Commands:
 
 Supported subset (S2):
   one file, package main, no imports; functions with multiple results;
-  bool and every integer type; if, for, and switch; package-level var and
-  const; print and println. Not supported: strings, floats, arrays, structs,
-  pointers, slices, maps, methods, interfaces, closures, defer, goroutines.
+  bool, every integer type, float32, and float64; if, for, and switch;
+  package-level var and const; print and println. Not supported: strings,
+  complex numbers, arrays, structs, pointers, slices, maps, methods,
+  interfaces, closures, defer, goroutines.
   See docs/SEMANTICS.md.
 
 Build flags:

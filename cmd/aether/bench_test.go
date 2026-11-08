@@ -177,7 +177,7 @@ func TestBenchOracle(t *testing.T) {
 		}
 		cmd := exec.Command(gobin, append(args, "./...")...)
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
+		cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=", "GOAMD64=v1")
 		if o, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("gc build failed: %v\n%s", err, o)
 		}

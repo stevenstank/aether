@@ -3,7 +3,6 @@
 package main
 
 func main() {
-	const c = 2.5 * 2
-	var y int = c
-	println(y)
+	var c complex128
+	println(c == 0)
 }

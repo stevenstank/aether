@@ -173,7 +173,9 @@ backend or interpreter may rely on.
   point at earlier instructions. Value numbers are unique in the function and
   assigned in creation order.
 
-**Operations.** `i64` is 64-bit two's complement. No operation traps.
+**Operations.** `i64` is 64-bit two's complement. No operation traps. The
+table is S1's; the later types and operations, the floats of D-032 included,
+are documented on their constants in `ir.go`.
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|
@@ -342,6 +344,12 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   `main.init`; a program without one gets a `main.init` that only returns,
   since `_start` always calls it. `aether.mainstack` covers the larger of
   `main.main`'s and `main.init`'s frames.
+- **Floats (increment 6.1, D-032).** An `f64` or `f32` value is a word like
+  any other: its IEEE 754 bits, an `f32`'s zero-extended. Its float
+  operations (`fadd` … `ftoi`, distinct from the integer ones) move their
+  operands into `%xmm0` and `%xmm1`, compute with scalar SSE2, and move the
+  result back (`internal/amd64/float.go`); no value lives in a vector
+  register, so the allocator and both calling conventions are unchanged.
 - **SSA functions (D-006 part 4, D-025).** Value cells are numbered by
   the rank of the value number, so the gaps that slot promotion leaves
   take no space; for ordinary functions the cell is the value number. A

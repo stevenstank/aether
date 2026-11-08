@@ -103,6 +103,16 @@ func TestAccepted(t *testing.T) {
 		"recursive main":               `main()`,
 		"switch":                       `x := 2; switch y := x + 1; y { case 1, 2: println(1); case 3: default: break }; switch {}; switch { case x > 1: }; switch int8(x) { case -1: }`,
 		"break and continue in switch": `for i := 0; i < 3; i++ { switch i { case 0: continue; case 1: break }; println(i) }`,
+		// Floats (Phase 6 increment 6.1).
+		"float variables":            `var a float64; b := 1.5; var c float32 = 0.1; println(a, b, c)`,
+		"float literal forms":        `println(1.5, .5, 1., 1e3, 1E-3, 0x1p-2, 0X1.8P1, 1_000.5)`,
+		"float arithmetic":           `x, y := 1.5, 2.5; x += y; x -= 1; x *= y; x /= 3; x++; x--; println(x+y, x-y, x*y, x/y, -x, +x)`,
+		"float comparisons":          `x, y := float32(1), float32(2); println(x == y, x != y, x < y, x <= y, x > y, x >= y)`,
+		"float conversions":          `x := 3; f := float64(x); g := float32(f); println(int(f), uint8(g), float64(g), int64(g))`,
+		"float constants":            `const a = 1.0 / 3; const b float32 = a; const c float64 = 2.5 * 4; println(a, b, c)`,
+		"float literal as int":       `var x int = 1.0; var y uint8 = 0x1p4; const c int = 2.0 * 3; println(x, y, c)`,
+		"untyped float constant int": `const c = 2.5 * 2; var y int = c; println(y)`,
+		"float switch":               `x := 1.5; switch x { case 0.5, 1.5: println(1) }`,
 	}
 	for name, body := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -144,23 +154,19 @@ func TestRejected(t *testing.T) {
 		body string
 		want []string
 	}{
-		{"float literal as int", `var x int = 1.0; println(x)`, []string{"float-literal"}},
-		{"hex float literal as int", `var x int = 0x1p4; println(x)`, []string{"float-literal"}},
-		// The 3 is an integer literal of type untyped float here, because
-		// the constant expression around it is a float expression.
-		{"float literal in int constant", `const c int = 2.0 * 3; println(c)`, []string{"float-literal", "non-int-type"}},
-		{"untyped float constant", `const c = 2.5 * 2; var y int = c; println(y)`, []string{"non-int-type"}},
+		{"complex variable", `var c complex128; println(c == 0)`, []string{"non-int-type"}},
+		{"complex64 conversion", `println(complex64(2) == 0)`, []string{"conversion", "non-int-type"}},
+		{"untyped complex constant", `var x float64 = 1.5 + 0i; println(x)`, []string{"imaginary-literal", "non-int-type"}},
+		{"complex builtin", `x := 1.5; println(imag(complex(x, x)))`, []string{"builtin"}},
 		{"rune literal as int", `var x int = 'a'; println(x)`, []string{"rune-literal"}},
 		{"imaginary literal as int", `var x int = 0i; println(x)`, []string{"imaginary-literal"}},
-		{"float variable", `x := 1.5; println(x)`, []string{"println-argument-type", "float-literal"}},
 		{"string", `s := "x"; println(len(s))`, []string{"builtin", "string-literal"}},
 		{"println rune", `println('a')`, []string{"rune-literal"}},
-		{"println float", `println(1.5)`, []string{"println-argument-type"}},
+		{"println complex", `println(1i)`, []string{"println-argument-type"}},
 		{"println string", `println("hi")`, []string{"println-argument-type"}},
 		{"builtin constant", `x := len([3]int{}); println(x)`, []string{"builtin"}},
-		{"float conversion", `x := 1; println(float64(x) > 0)`, []string{"conversion", "non-int-type"}},
 		{"string conversion", `x := 65; println(len(string(rune(x))))`, []string{"builtin"}},
-		{"float32 variable", `var f float32; println(f > 0)`, []string{"non-int-type"}},
+		{"math function", `x := 1.5; println(min(x, 2))`, []string{"builtin"}},
 		{"function literal", `f := func() {}; f()`, []string{"call", "function-literal"}},
 		{"iota", `const c = iota; println(c)`, []string{"predeclared-identifier"}},
 		{"blank assignment", `x := 1; _ = x`, []string{"blank-identifier"}},
@@ -223,7 +229,7 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { x, y := f(); println(x, y) }\n", []string{"function-declaration"}},
 		{"blank result target", "package main\n\nfunc f() (int, int) { return 1, 2 }\n\nfunc main() { x, _ := f(); println(x) }\n", []string{"blank-identifier"}},
 		{"generic function", "package main\n\nfunc f[T any]() {}\n\nfunc main() { f[int]() }\n", []string{"call", "function-declaration"}},
-		{"float parameter", "package main\n\nfunc f(b float64) {}\n\nfunc main() { f(1) }\n", []string{"non-int-type"}},
+		{"complex parameter", "package main\n\nfunc f(b complex128) {}\n\nfunc main() { f(1) }\n", []string{"non-int-type"}},
 		{"variadic function", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { f(1, 2) }\n", []string{"non-int-type"}},
 		{"function without body", "package main\n\nfunc f()\n\nfunc main() { f() }\n", []string{"function-without-body"}},
 		{"function named _", "package main\n\nfunc _() {}\n\nfunc main() {}\n", []string{"blank-identifier"}},

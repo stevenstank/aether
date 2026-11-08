@@ -221,7 +221,7 @@ func TestLowerUnexpected(t *testing.T) {
 		{"blank target", "func main() { _ = 1 }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
 		{"builtin call", "func main() { _ = len([1]int{}) }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
 		{"builtin call statement", "func main() { panic(1) }", "p.go:2:15: internal: lowering: unexpected call of panic"},
-		{"float variable", "func main() { var x float64 = 1; println(x > 0) }", "p.go:2:31: internal: lowering: unexpected type float64"},
+		{"complex variable", "func main() { var x complex128 = 1; println(real(x) > 0) }", "p.go:2:34: internal: lowering: unexpected type complex128"},
 		{"no body", "func main()", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 	}
 	for _, tt := range tests {
