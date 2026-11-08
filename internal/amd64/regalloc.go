@@ -42,12 +42,13 @@ import (
 var allocRegs = [...]string{"%rbx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"}
 
 // maxAllocValues bounds the functions allocate takes on. Its working sets
-// grow with the square of a function's values (a set of live values per
-// instruction), which a program can make arbitrarily large: a println of a
-// million constants needs about 10^11 entries. A larger function keeps
-// every value in its cell, which costs speed and nothing else. It is well
-// above the largest function of the S2 suite and of the workloads, which
-// TestBuildBackendLimits checks.
+// are bit sets of the function's values, two for each block and one for
+// each instruction of the block being visited, so they still grow with the
+// square of a function's size, which a program can make arbitrarily large:
+// at the bound, they take a few MiB (TestAllocateScales). A larger function
+// keeps every value in its cell, which costs speed and nothing else. It is
+// well above the largest function of the S2 suite and of the workloads,
+// which TestBuildBackendLimits checks.
 const maxAllocValues = 2000
 
 // valueSet is a set of values.
@@ -109,18 +110,20 @@ func (l *liveSets) each(s []uint64, fn func(v *ir.Instr)) {
 // is d.
 func liveness(f *ir.Func, d *ir.DomTree) *liveSets {
 	l := &liveSets{index: map[*ir.Instr]int{}}
-	def := map[*ir.Instr]int{} // each value's block
+	block := map[*ir.Instr]int{}
 	for _, b := range f.Blocks {
 		for _, in := range b.Instrs {
 			if in.Type != ir.NoType {
 				l.vals = append(l.vals, in)
-				def[in] = b.ID
+				block[in] = b.ID
 			}
 		}
 	}
 	slices.SortFunc(l.vals, func(x, y *ir.Instr) int { return x.ID - y.ID })
+	def := make([]int, len(l.vals)) // each value's block, by bit
 	for i, v := range l.vals {
 		l.index[v] = i
+		def[i] = block[v]
 	}
 	n := len(f.Blocks)
 	l.w = (len(l.vals) + 63) / 64
@@ -134,11 +137,11 @@ func liveness(f *ir.Func, d *ir.DomTree) *liveSets {
 		}
 	}
 	var work []int // blocks the value being explored is live into
-	// liveOutOf marks v (bit i) live out of block p and, unless v is
-	// defined there, queues p.
-	liveOutOf := func(p int, v *ir.Instr, i int) {
+	// liveOutOf marks the value of bit i live out of block p and, unless it
+	// is defined there, queues p.
+	liveOutOf := func(p, i int) {
 		l.out[p*l.w+i/64] |= 1 << (i % 64)
-		if dv, ok := def[v]; (!ok || dv != p) && l.in[p*l.w+i/64]&(1<<(i%64)) == 0 {
+		if def[i] != p && l.in[p*l.w+i/64]&(1<<(i%64)) == 0 {
 			l.in[p*l.w+i/64] |= 1 << (i % 64)
 			work = append(work, p)
 		}
@@ -155,8 +158,8 @@ func liveness(f *ir.Func, d *ir.DomTree) *liveSets {
 				}
 				switch {
 				case in.Op == ir.Phi:
-					liveOutOf(in.Edges[k].From.ID, a, i)
-				case def[a] != b.ID && l.in[b.ID*l.w+i/64]&(1<<(i%64)) == 0:
+					liveOutOf(in.Edges[k].From.ID, i)
+				case def[i] != b.ID && l.in[b.ID*l.w+i/64]&(1<<(i%64)) == 0:
 					l.in[b.ID*l.w+i/64] |= 1 << (i % 64)
 					work = append(work, b.ID)
 				}
@@ -164,7 +167,7 @@ func liveness(f *ir.Func, d *ir.DomTree) *liveSets {
 					x := work[len(work)-1]
 					work = work[:len(work)-1]
 					for _, p := range preds[x] {
-						liveOutOf(p, a, i)
+						liveOutOf(p, i)
 					}
 				}
 			}
@@ -443,8 +446,29 @@ func countValues(f *ir.Func) (n int) {
 // candidates only lowers the pressure at points already visited, so one
 // pass is enough.
 func spill(f *ir.Func, d *ir.DomTree, lv *liveSets, buf []uint64, cand valueSet, uses map[*ir.Instr]int) []uint64 {
+	// The candidates as a bit set too, so that a point's pressure is a count
+	// of bits and its candidates are listed only where there are too many.
+	cs := make([]uint64, lv.w)
+	for v := range cand {
+		if i, ok := lv.index[v]; ok {
+			cs[i/64] |= 1 << (i % 64)
+		}
+	}
 	var live []*ir.Instr
+	var def [1]*ir.Instr
 	relieve := func(point []uint64, extra []*ir.Instr) {
+		n := 0
+		for k, word := range point {
+			n += bits.OnesCount64(word & cs[k])
+		}
+		for _, v := range extra {
+			if cand[v] && !lv.has(point, v) {
+				n++
+			}
+		}
+		if n <= len(allocRegs) {
+			return
+		}
 		live = live[:0]
 		lv.each(point, func(v *ir.Instr) {
 			if cand[v] {
@@ -456,9 +480,6 @@ func spill(f *ir.Func, d *ir.DomTree, lv *liveSets, buf []uint64, cand valueSet,
 				live = append(live, v)
 			}
 		}
-		if len(live) <= len(allocRegs) {
-			return
-		}
 		slices.SortFunc(live, func(x, y *ir.Instr) int {
 			if uses[x] != uses[y] {
 				return uses[x] - uses[y]
@@ -467,6 +488,9 @@ func spill(f *ir.Func, d *ir.DomTree, lv *liveSets, buf []uint64, cand valueSet,
 		})
 		for _, v := range live[:len(live)-len(allocRegs)] {
 			delete(cand, v)
+			if i, ok := lv.index[v]; ok {
+				cs[i/64] &^= 1 << (i % 64)
+			}
 		}
 	}
 	for _, b := range f.Blocks {
@@ -483,7 +507,8 @@ func spill(f *ir.Func, d *ir.DomTree, lv *liveSets, buf []uint64, cand valueSet,
 		after, buf = lv.afterSets(b, buf)
 		for j, in := range b.Instrs {
 			if in.ID >= 0 && in.Op != ir.Phi {
-				relieve(after[j], []*ir.Instr{in})
+				def[0] = in
+				relieve(after[j], def[:])
 			}
 		}
 	}
