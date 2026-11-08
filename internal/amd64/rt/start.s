@@ -16,7 +16,7 @@
 # aether.stackoverflow if it does not fit (D-011).
 
 	.set	.Lpage, 4096
-	.set	.Lreserve, 4096		# helpers use at most 56 bytes below %rsp
+	.set	.Lreserve, 4096		# helpers use at most 120 bytes below %rsp
 	.set	.Ldefault, 268435456	# 256 MiB
 
 	.text

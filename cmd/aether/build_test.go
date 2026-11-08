@@ -298,15 +298,15 @@ func TestBuildWorkAndLog(t *testing.T) {
 		t.Fatalf("no WORK= line:\n%s", stderr)
 	}
 	defer os.RemoveAll(work)
-	for _, f := range []string{"prog.s", "prog.o", "print.s", "print.o", "start.s", "start.o", "a.out"} {
+	for _, f := range []string{"prog.s", "prog.o", "float.s", "float.o", "pow10.s", "pow10.o", "print.s", "print.o", "start.s", "start.o", "a.out"} {
 		if _, err := os.Stat(filepath.Join(work, f)); err != nil {
 			t.Errorf("work directory: %v", err)
 		}
 	}
 	for _, cmd := range []string{
 		"cd " + work,
-		" --64 -o prog.o prog.s", " --64 -o print.o print.s", " --64 -o start.o start.s",
-		" -static -nostdlib -e _start -o a.out prog.o print.o start.o",
+		" --64 -o prog.o prog.s", " --64 -o float.o float.s", " --64 -o pow10.o pow10.s", " --64 -o print.o print.s", " --64 -o start.o start.s",
+		" -static -nostdlib -e _start -o a.out prog.o float.o pow10.o print.o start.o",
 		"# as version: GNU assembler", "# ld version: GNU ld",
 	} {
 		if !strings.Contains(stderr, cmd) {

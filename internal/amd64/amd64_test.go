@@ -18,7 +18,7 @@ import (
 	"github.com/stevenstank/aether/internal/ir"
 )
 
-var update = flag.Bool("update", false, "rewrite testdata/*.s")
+var update = flag.Bool("update", false, "rewrite testdata/*.s and rt/pow10.s")
 
 var p1 = ir.Pos{Line: 1, Col: 1}
 
@@ -206,7 +206,7 @@ func TestRuntimeFiles(t *testing.T) {
 		names = append(names, f.Name)
 		all += string(f.Data)
 	}
-	if strings.Join(names, " ") != "print.s start.s" {
+	if strings.Join(names, " ") != "float.s pow10.s print.s start.s" {
 		t.Fatalf("runtime files %v", names)
 	}
 	for _, sym := range []string{"_start", symPrintInt, symPrintSpace, symPrintNL} {
