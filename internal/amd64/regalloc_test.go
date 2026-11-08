@@ -390,10 +390,10 @@ func TestCheckAllocationSweep(t *testing.T) {
 	accepted, rejected := 0, 0
 	for name := range raFuncs {
 		f, regs := raAllocate(t, name)
-		liveOut := liveness(f)
+		liveOut := refLiveness(f)
 		def := map[*ir.Instr]valueSet{} // the values live after each definition
 		for _, b := range f.Blocks {
-			after := liveAfter(b, liveOut[b.ID])
+			after := refLiveAfter(b, liveOut[b.ID])
 			phis := 0
 			for phis < len(b.Instrs) && b.Instrs[phis].Op == ir.Phi {
 				phis++

@@ -32,6 +32,7 @@ package amd64
 
 import (
 	"fmt"
+	"math/bits"
 	"slices"
 
 	"github.com/stevenstank/aether/internal/ir"
@@ -62,90 +63,144 @@ func clobbers(in *ir.Instr) bool {
 	return false
 }
 
-// liveness computes the values live out of each block of the SSA function
-// f, by block ID. A φ operand is live out of its edge's source block, not
-// live into the φ's block.
-func liveness(f *ir.Func) []valueSet {
-	n := len(f.Blocks)
-	liveIn, liveOut := make([]valueSet, n), make([]valueSet, n)
-	phiUses := make([]valueSet, n)
-	for i := range n {
-		liveIn[i], liveOut[i], phiUses[i] = valueSet{}, valueSet{}, valueSet{}
+// liveSets is the liveness of an SSA function's values: for each reachable
+// block, the values live on entry, without the block's own φs, and the values
+// live out of it, where a φ operand is live out of its edge's source block,
+// not live into the φ's block. The sets are bit sets in which a value's bit
+// is its rank in value-number order, so a set lists its values in that
+// order.
+//
+// They are found by exploring paths backward from each use (Brandner et al.,
+// "Computing Liveness Sets for SSA-Form Programs", 2011): a value used in a
+// block other than its definition's is live into that block, and a value live
+// into a block is live out of each predecessor, where it is live into the
+// predecessor too unless it is defined there. A value enters a block's set at
+// most once, so the work is the uses plus the size of the sets, with no
+// iteration to a fixed point. Uses in unreachable blocks are ignored; the
+// sets of reachable blocks do not depend on them.
+type liveSets struct {
+	index   map[*ir.Instr]int // a value's bit
+	vals    []*ir.Instr       // the value of each bit
+	w       int               // words per set
+	in, out []uint64          // by block ID, w words each
+}
+
+func (l *liveSets) liveIn(b *ir.Block) []uint64  { return l.in[b.ID*l.w : (b.ID+1)*l.w] }
+func (l *liveSets) liveOut(b *ir.Block) []uint64 { return l.out[b.ID*l.w : (b.ID+1)*l.w] }
+
+// has reports whether v is in the set s.
+func (l *liveSets) has(s []uint64, v *ir.Instr) bool {
+	i, ok := l.index[v]
+	return ok && s[i/64]&(1<<(i%64)) != 0
+}
+
+// each calls fn for the values of s in value-number order.
+func (l *liveSets) each(s []uint64, fn func(v *ir.Instr)) {
+	for k, word := range s {
+		for word != 0 {
+			i := bits.TrailingZeros64(word)
+			fn(l.vals[k*64+i])
+			word &= word - 1
+		}
 	}
+}
+
+// liveness computes the liveness of the SSA function f, whose dominator tree
+// is d.
+func liveness(f *ir.Func, d *ir.DomTree) *liveSets {
+	l := &liveSets{index: map[*ir.Instr]int{}}
+	def := map[*ir.Instr]int{} // each value's block
 	for _, b := range f.Blocks {
 		for _, in := range b.Instrs {
-			if in.Op == ir.Phi {
-				for i, a := range in.Args {
-					phiUses[in.Edges[i].From.ID][a] = true
-				}
+			if in.Type != ir.NoType {
+				l.vals = append(l.vals, in)
+				def[in] = b.ID
 			}
 		}
 	}
-	for changed := true; changed; {
-		changed = false
-		for i := n - 1; i >= 0; i-- {
-			b := f.Blocks[i]
-			out := valueSet{}
+	slices.SortFunc(l.vals, func(x, y *ir.Instr) int { return x.ID - y.ID })
+	for i, v := range l.vals {
+		l.index[v] = i
+	}
+	n := len(f.Blocks)
+	l.w = (len(l.vals) + 63) / 64
+	l.in, l.out = make([]uint64, n*l.w), make([]uint64, n*l.w)
+	preds := make([][]int, n)
+	for _, b := range f.Blocks {
+		if d.Reachable(b) {
 			for _, s := range ir.Succs(b) {
-				for v := range liveIn[s.ID] {
-					out[v] = true
+				preds[s.ID] = append(preds[s.ID], b.ID)
+			}
+		}
+	}
+	var work []int // blocks the value being explored is live into
+	// liveOutOf marks v (bit i) live out of block p and, unless v is
+	// defined there, queues p.
+	liveOutOf := func(p int, v *ir.Instr, i int) {
+		l.out[p*l.w+i/64] |= 1 << (i % 64)
+		if dv, ok := def[v]; (!ok || dv != p) && l.in[p*l.w+i/64]&(1<<(i%64)) == 0 {
+			l.in[p*l.w+i/64] |= 1 << (i % 64)
+			work = append(work, p)
+		}
+	}
+	for _, b := range f.Blocks {
+		if !d.Reachable(b) {
+			continue
+		}
+		for _, in := range b.Instrs {
+			for k, a := range in.Args {
+				i, ok := l.index[a]
+				if !ok {
+					continue
+				}
+				switch {
+				case in.Op == ir.Phi:
+					liveOutOf(in.Edges[k].From.ID, a, i)
+				case def[a] != b.ID && l.in[b.ID*l.w+i/64]&(1<<(i%64)) == 0:
+					l.in[b.ID*l.w+i/64] |= 1 << (i % 64)
+					work = append(work, b.ID)
+				}
+				for len(work) > 0 {
+					x := work[len(work)-1]
+					work = work[:len(work)-1]
+					for _, p := range preds[x] {
+						liveOutOf(p, a, i)
+					}
 				}
 			}
-			for v := range phiUses[b.ID] {
-				out[v] = true
-			}
-			in := liveBefore(b, 0, out)
-			// The sets only grow, so equal sizes mean equal sets.
-			if len(out) != len(liveOut[b.ID]) || len(in) != len(liveIn[b.ID]) {
-				changed = true
-			}
-			liveIn[b.ID], liveOut[b.ID] = in, out
 		}
 	}
-	return liveOut
+	return l
 }
 
-// liveBefore returns the values live before instruction i of b, given those
-// live out of b. Before a φ means at the block's entry, where φs are
-// defined and their operands are not used.
-func liveBefore(b *ir.Block, i int, out valueSet) valueSet {
-	live := valueSet{}
-	for v := range out {
-		live[v] = true
+// afterSets returns, for each instruction of the reachable block b, the
+// values live after it, computed backward from those live out of b into buf,
+// which it may reuse; the sets share buf. After a φ means after all of the
+// block's φs, without the φs after it.
+func (l *liveSets) afterSets(b *ir.Block, buf []uint64) ([][]uint64, []uint64) {
+	k := len(b.Instrs)
+	if cap(buf) < k*l.w {
+		buf = make([]uint64, k*l.w)
 	}
-	for j := len(b.Instrs) - 1; j >= i; j-- {
+	buf = buf[:k*l.w]
+	sets := make([][]uint64, k)
+	live := slices.Clone(l.liveOut(b))
+	for j := k - 1; j >= 0; j-- {
 		x := b.Instrs[j]
-		delete(live, x)
+		sets[j] = buf[j*l.w : (j+1)*l.w]
+		copy(sets[j], live)
+		if i, ok := l.index[x]; ok {
+			live[i/64] &^= 1 << (i % 64)
+		}
 		if x.Op != ir.Phi {
 			for _, a := range x.Args {
-				live[a] = true
+				if i, ok := l.index[a]; ok {
+					live[i/64] |= 1 << (i % 64)
+				}
 			}
 		}
 	}
-	return live
-}
-
-// liveAfter returns, for each instruction of b, the values live after it.
-func liveAfter(b *ir.Block, out valueSet) []valueSet {
-	after := make([]valueSet, len(b.Instrs))
-	live := valueSet{}
-	for v := range out {
-		live[v] = true
-	}
-	for j := len(b.Instrs) - 1; j >= 0; j-- {
-		x := b.Instrs[j]
-		after[j] = valueSet{}
-		for v := range live {
-			after[j][v] = true
-		}
-		delete(live, x)
-		if x.Op != ir.Phi {
-			for _, a := range x.Args {
-				live[a] = true
-			}
-		}
-	}
-	return after
+	return sets, buf
 }
 
 // allocate assigns registers, as indexes into allocRegs, to values of f; a
@@ -163,15 +218,14 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 		return regs, nil
 	}
 	d := ir.Dominators(f)
-	liveOut := liveness(f)
-	after := make([][]valueSet, len(f.Blocks))
+	lv := liveness(f, d)
+	var buf []uint64
 	cand := valueSet{}
 	uses := map[*ir.Instr]int{}
 	for _, b := range f.Blocks {
 		if !d.Reachable(b) {
 			continue
 		}
-		after[b.ID] = liveAfter(b, liveOut[b.ID])
 		for _, in := range b.Instrs {
 			if in.ID >= 0 && in.Type != ir.Tuple && !none[in] {
 				cand[in] = true
@@ -185,13 +239,15 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 		if !d.Reachable(b) {
 			continue
 		}
+		var after [][]uint64
+		after, buf = lv.afterSets(b, buf)
 		for j, in := range b.Instrs {
 			if clobbers(in) {
-				for v := range after[b.ID][j] {
+				lv.each(after[j], func(v *ir.Instr) {
 					if v != in {
 						delete(cand, v)
 					}
-				}
+				})
 			}
 			if in.Op == ir.Println || in.Op == ir.Print {
 				for _, a := range in.Args {
@@ -200,7 +256,7 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 			}
 		}
 	}
-	spill(f, d, liveOut, after, cand, uses)
+	buf = spill(f, d, lv, buf, cand, uses)
 	var prefer func(v *ir.Instr) []int
 	if coalesce {
 		prefer = preferences(f, regs)
@@ -235,11 +291,13 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 		}
 		// The values live into b that have registers already hold them:
 		// their definitions dominate b, so they were colored first.
-		for _, v := range sortedValues(liveBefore(b, 0, liveOut[b.ID])) {
+		lv.each(lv.liveIn(b), func(v *ir.Instr) {
 			if r, ok := regs[v]; ok {
 				used[r] = v
 			}
-		}
+		})
+		var after [][]uint64
+		after, buf = lv.afterSets(b, buf)
 		phis := 0
 		for phis < len(b.Instrs) && b.Instrs[phis].Op == ir.Phi {
 			phis++
@@ -247,7 +305,7 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 		for j, in := range b.Instrs {
 			if in.Op != ir.Phi {
 				for _, a := range in.Args {
-					if !after[b.ID][j][a] {
+					if !lv.has(after[j], a) {
 						release(a)
 					}
 				}
@@ -256,7 +314,7 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 				if err := take(in); err != nil {
 					return nil, err
 				}
-				if in.Op != ir.Phi && !after[b.ID][j][in] {
+				if in.Op != ir.Phi && !lv.has(after[j], in) {
 					release(in)
 				}
 			}
@@ -264,7 +322,7 @@ func allocateExcept(f *ir.Func, none valueSet, coalesce bool) (map[*ir.Instr]int
 			// register only once all of them have one.
 			if j == phis-1 {
 				for _, phi := range b.Instrs[:phis] {
-					if !after[b.ID][j][phi] {
+					if !lv.has(after[j], phi) {
 						release(phi)
 					}
 				}
@@ -384,16 +442,19 @@ func countValues(f *ir.Func) (n int) {
 // uses, and of those the ones defined first, keep their cells. Removing
 // candidates only lowers the pressure at points already visited, so one
 // pass is enough.
-func spill(f *ir.Func, d *ir.DomTree, liveOut []valueSet, after [][]valueSet, cand valueSet, uses map[*ir.Instr]int) {
-	relieve := func(point valueSet, def *ir.Instr) {
-		var live []*ir.Instr
-		for v := range point {
+func spill(f *ir.Func, d *ir.DomTree, lv *liveSets, buf []uint64, cand valueSet, uses map[*ir.Instr]int) []uint64 {
+	var live []*ir.Instr
+	relieve := func(point []uint64, extra []*ir.Instr) {
+		live = live[:0]
+		lv.each(point, func(v *ir.Instr) {
 			if cand[v] {
 				live = append(live, v)
 			}
-		}
-		if def != nil && cand[def] && !point[def] {
-			live = append(live, def)
+		})
+		for _, v := range extra {
+			if cand[v] && !lv.has(point, v) {
+				live = append(live, v)
+			}
 		}
 		if len(live) <= len(allocRegs) {
 			return
@@ -416,17 +477,17 @@ func spill(f *ir.Func, d *ir.DomTree, liveOut []valueSet, after [][]valueSet, ca
 		for first < len(b.Instrs) && b.Instrs[first].Op == ir.Phi {
 			first++
 		}
-		entry := liveBefore(b, first, liveOut[b.ID])
-		for _, phi := range b.Instrs[:first] {
-			entry[phi] = true
-		}
-		relieve(entry, nil)
+		// The entry: the values live into b and all of its φs.
+		relieve(lv.liveIn(b), b.Instrs[:first])
+		var after [][]uint64
+		after, buf = lv.afterSets(b, buf)
 		for j, in := range b.Instrs {
 			if in.ID >= 0 && in.Op != ir.Phi {
-				relieve(after[b.ID][j], in)
+				relieve(after[j], []*ir.Instr{in})
 			}
 		}
 	}
+	return buf
 }
 
 // sortedValues returns s in value-number order.
