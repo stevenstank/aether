@@ -16,20 +16,8 @@ import (
 	"github.com/stevenstank/aether/internal/toolchain"
 )
 
-// TestBenchLatency times the stages of aether build in process, with the
-// compiler's own functions, on the workloads and the three largest S2 corpus
-// programs: the frontend and lowering (compile), promotion, the passes, and
-// emission for the default build and for -O0, and assemble, which finds and
-// identifies as and ld, writes the files, and runs them; identify is
-// assemble's first part alone, timed separately. It writes every run
-// to latency.tsv and the medians to latency_summary.tsv. It runs only when
-// AETHER_BENCH_OUT is set, AETHER_BENCH_RUNS times after a discarded warm-up.
-func TestBenchLatency(t *testing.T) {
-	dir := benchOut(t)
-	runs, err := strconv.Atoi(os.Getenv("AETHER_BENCH_RUNS"))
-	if err != nil || runs < 2 {
-		t.Fatalf("AETHER_BENCH_RUNS=%q: want an integer of at least 2", os.Getenv("AETHER_BENCH_RUNS"))
-	}
+// latencyPrograms are the workloads and the three largest S2 corpus programs.
+func latencyPrograms(t *testing.T) []s2Program {
 	progs := []s2Program{}
 	for _, w := range benchWorkloads(t) {
 		progs = append(progs, s2Program{w.name + ".go", w.src})
@@ -47,6 +35,24 @@ func TestBenchLatency(t *testing.T) {
 		}
 		progs = append(progs, s2Program{filepath.Base(path), src})
 	}
+	return progs
+}
+
+// TestBenchLatency times the stages of aether build in process, with the
+// compiler's own functions, on the workloads and the three largest S2 corpus
+// programs: the frontend and lowering (compile), promotion, the passes, and
+// emission for the default build and for -O0, and assemble, which finds and
+// identifies as and ld, writes the files, and runs them; identify is
+// assemble's first part alone, timed separately. It writes every run
+// to latency.tsv and the medians to latency_summary.tsv. It runs only when
+// AETHER_BENCH_OUT is set, AETHER_BENCH_RUNS times after a discarded warm-up.
+func TestBenchLatency(t *testing.T) {
+	dir := benchOut(t)
+	runs, err := strconv.Atoi(os.Getenv("AETHER_BENCH_RUNS"))
+	if err != nil || runs < 2 {
+		t.Fatalf("AETHER_BENCH_RUNS=%q: want an integer of at least 2", os.Getenv("AETHER_BENCH_RUNS"))
+	}
+	progs := latencyPrograms(t)
 	stages := []string{"compile", "optimize+emit", "emit -O0", "assemble", "identify"}
 	exe := filepath.Join(t.TempDir(), "out")
 	var raw strings.Builder

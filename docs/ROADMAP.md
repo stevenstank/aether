@@ -740,8 +740,14 @@ repeated in each phase below:
       16–53% on the nine workloads, and compile latency by stage, which
       meets D-008's first revisit trigger: `as`/`ld` take 91–98% of the
       build on every workload. Revisiting D-008 is the owner's decision.
-    - Not yet covered: compiler memory per stage and scalability
-      (`BENCHMARKS.md` metric categories).
+    - Compiler memory and scalability 2026-11-08
+      (`benchmarks/2026-11-08-memory/README.md`). Peak RSS of `aether build`
+      is 4.6–8.4 MiB on the workloads and largest corpus programs. Compile
+      cost is linear in functions and statements, apart from the cliffs
+      where the backend limits apply. Deep block nesting is superlinear:
+      promotion's live-slot fixpoint grows about as n³ (299 ms at depth
+      512, until `maxPromoteBlockSlots` stops it), and the IR verifier's
+      definite-assignment check and go/types about as n².
   - optimization flags (`-O0`/`-O1` or similar)
     - `-O0` added 2026-11-06 (D-028), with a cross-check against the default
       build on the S2 suite. No other level exists yet.

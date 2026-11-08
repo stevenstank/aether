@@ -115,6 +115,7 @@ func benchEnvironment() string {
 	fmt.Fprintf(&b, "go\t%s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	fmt.Fprintf(&b, "as\t%s\n", first("as", "--version"))
 	fmt.Fprintf(&b, "ld\t%s\n", first("ld", "--version"))
+	fmt.Fprintf(&b, "GNU time\t%s\n", first("/usr/bin/time", "--version"))
 	fmt.Fprintf(&b, "cpu\t%s\n", field("/proc/cpuinfo", "model name"))
 	fmt.Fprintf(&b, "usable cpus\t%d\n", runtime.NumCPU())
 	fmt.Fprintf(&b, "affinity\t%s\n", field("/proc/self/status", "Cpus_allowed_list"))

@@ -1,6 +1,6 @@
 # Aether Measurement Strategy
 
-Status: **harness and seven measurements.** The workloads and the harness
+Status: **harness and eight measurements.** The workloads and the harness
 are checked in ([The harness](#the-harness)). Six measurements exist, all
 under WSL2: the register-allocation baseline of 2026-11-05
 ([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)),
@@ -14,8 +14,10 @@ the ABI-R1 acceptance evidence of 2026-11-07
 ([`benchmarks/2026-11-07-abir1/README.md`](benchmarks/2026-11-07-abir1/README.md)),
 the Phase 5 report of 2026-11-08, with compile latency
 ([`benchmarks/2026-11-08-phase5/README.md`](benchmarks/2026-11-08-phase5/README.md)),
-and coalescing against it, also of 2026-11-08
-([`benchmarks/2026-11-08-copy/README.md`](benchmarks/2026-11-08-copy/README.md)).
+coalescing against it, also of 2026-11-08
+([`benchmarks/2026-11-08-copy/README.md`](benchmarks/2026-11-08-copy/README.md)),
+and compiler memory and scalability, also of 2026-11-08
+([`benchmarks/2026-11-08-memory/README.md`](benchmarks/2026-11-08-memory/README.md)).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time.
 
@@ -124,8 +126,10 @@ operand parsing and classification, the instrumentation (it only inserts
 lines; instrumented and plain executables of a sample of the S2 suite give
 the same stderr and exit status; call, block, fall-through, and peak-stack
 counts of small programs match counts known from their source), output
-checking, the pressure analysis on hand-checked functions, and the timing
-statistics against Python's `statistics` module. The benchmark tests skip
+checking, the pressure analysis on hand-checked functions, the timing
+statistics against Python's `statistics` module, and the stage split of
+`TestBenchMemory` and `TestBenchScale` against `emitProgram`
+(`TestBenchStages`). The benchmark tests skip
 unless `AETHER_BENCH_OUT` is set.
 
 **Commands.** From the repository root, with `OUT` an empty directory:
@@ -151,6 +155,20 @@ AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=21 taskset -c 6 \
   go test -count=1 ./cmd/aether -run '^TestBenchLatency$' -v
 ```
 
+Compiler memory (`TestBenchMemory`: `memory.tsv`, `memory_summary.tsv`) and
+scalability on generated programs (`TestBenchScale`: `scale.tsv`,
+`scale_slopes.tsv`). Both build the stages in process and check that they
+give `emitProgram`'s assembly; peak RSS is that of an `aether build` process,
+measured with GNU time (`/usr/bin/time -f %M`), because the `ru_maxrss` of a
+child the test starts itself includes the test process's own peak:
+
+```
+AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=11 taskset -c 6 \
+  go test -count=1 ./cmd/aether -run '^TestBenchMemory$' -v
+AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=7 taskset -c 6 \
+  go test -count=1 -timeout 60m ./cmd/aether -run '^TestBenchScale$' -v
+```
+
 The calling-convention model, in the same `OUT`, after the gc variants:
 
 ```
@@ -165,8 +183,8 @@ AETHER_ABI_LAYOUT=1 AETHER_BENCH_OUT=$OUT AETHER_BENCH_RUNS=7 taskset -c 6 \
   go test -count=1 -timeout 60m ./cmd/aether -run '^TestABITime$' -v
 ```
 
-Each writes `environment.txt` (commit, toolchains, CPU, CPU affinity,
-kernel) next to its results. `TestBenchTime` runs the variants round-robin,
+Each writes `environment.txt` (commit, toolchains and GNU time, CPU, CPU
+affinity, kernel) next to its results. `TestBenchTime` runs the variants round-robin,
 one discarded warm-up run each and then `AETHER_BENCH_RUNS` runs (default
 15), and records CPU time (user + system, from `rusage`) and wall time. Pin
 it to one CPU (`taskset`) on an otherwise idle machine. The deterministic
