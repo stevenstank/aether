@@ -2,6 +2,8 @@ package ir
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -95,12 +97,16 @@ func (in *Instr) String() string {
 			ops = append(ops, "true")
 		case in.Type == I64:
 			ops = append(ops, fmt.Sprint(in.Const))
+		case in.Type == F64:
+			ops = append(ops, "f64 "+strconv.FormatFloat(math.Float64frombits(uint64(in.Const)), 'g', -1, 64))
+		case in.Type == F32:
+			ops = append(ops, "f32 "+strconv.FormatFloat(float64(math.Float32frombits(uint32(in.Const))), 'g', -1, 32))
 		case in.Type.IsInteger() && !in.Type.Signed():
 			ops = append(ops, fmt.Sprintf("%s %d", in.Type, uint64(in.Const)))
 		default:
 			ops = append(ops, fmt.Sprintf("%s %d", in.Type, in.Const))
 		}
-	case Conv:
+	case Conv, IToF, FToF, FToI:
 		ops = append(ops, in.Type.String())
 	case Panic:
 		if in.Index >= 0 && in.Index < len(PanicMessages) {

@@ -17,7 +17,10 @@
 // operands refer to such instructions directly.
 package ir
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // Type is the type of a value or slot.
 type Type uint8
@@ -44,11 +47,16 @@ const (
 	U16
 	U32
 	U64
+	// F64 and F32 are IEEE 754 binary64 and binary32 floats (D-032), held
+	// in 64 bits as their bit patterns: an F32's 32 bits zero-extended.
+	F64
+	F32
 )
 
 var typeNames = [...]string{
 	NoType: "none", I64: "i64", Bool: "bool", Tuple: "tuple",
 	I8: "i8", I16: "i16", I32: "i32", U8: "u8", U16: "u16", U32: "u32", U64: "u64",
+	F64: "f64", F32: "f32",
 }
 
 func (t Type) String() string {
@@ -60,6 +68,9 @@ func (t Type) String() string {
 
 // IsInteger reports whether t is one of the integer types.
 func (t Type) IsInteger() bool { return t == I64 || t >= I8 && t <= U64 }
+
+// IsFloat reports whether t is F64 or F32.
+func (t Type) IsFloat() bool { return t == F64 || t == F32 }
 
 // Signed reports whether t is a signed integer type.
 func (t Type) Signed() bool { return t == I64 || t >= I8 && t <= I32 }
@@ -79,8 +90,12 @@ func (t Type) Width() int {
 
 // Canonical returns the canonical form of v reduced modulo 2^width for
 // the integer type t: its low width bits, sign-extended if t is signed and
-// zero-extended if not. For a Bool or I64 it returns v unchanged.
+// zero-extended if not. For an F32 it returns the low 32 bits
+// zero-extended, and for a Bool, I64, or F64 v unchanged.
 func (t Type) Canonical(v int64) int64 {
+	if t == F32 {
+		return int64(uint32(v))
+	}
 	w := t.Width()
 	if !t.IsInteger() || w == 64 {
 		return v
@@ -196,6 +211,41 @@ const (
 	// its other instructions and take their values together, on entry to
 	// the block.
 	Phi
+	// FAdd, FSub, FMul, and FDiv produce the IEEE 754 result of args[0] op
+	// args[1], whose float type they share, rounded to nearest, ties to
+	// even, at that type's precision; each is rounded on its own, never
+	// fused (D-032). FNeg flips the sign bit of args[0].
+	FAdd
+	FSub
+	FMul
+	FDiv
+	FNeg
+	// FEq, FNe, FLt, FLe, FGt, and FGe produce the Bool result of the IEEE
+	// 754 comparison of args[0] with args[1], which have the same float
+	// type: a NaN is unordered, so only FNe is true for it, and -0 equals
+	// +0.
+	FEq
+	FNe
+	FLt
+	FLe
+	FGt
+	FGe
+	// IToF produces args[0], of any integer type, converted to the
+	// instruction's float type, rounded to nearest, ties to even.
+	IToF
+	// FToF produces args[0], of one float type, converted to the
+	// instruction's float type: exactly from F32 to F64, rounded to
+	// nearest, ties to even, from F64 to F32.
+	FToF
+	// FToI produces args[0], of either float type, converted to the
+	// instruction's integer type, truncated toward zero. A value the type
+	// cannot represent, which Go leaves to the implementation, converts as
+	// gc does on amd64 (D-032): with T32(x) the truncation of x if it lies
+	// in [-2^31, 2^31) and -2^31 otherwise (NaN included), and T64(x) the
+	// same for 64 bits, I8, I16, I32, U8, and U16 take the canonical form
+	// of T32(x), I64 and U32 that of T64(x), and U64 is T64(x) if x < 2^63
+	// and T64(x - 2^63) with bit 63 set otherwise.
+	FToI
 )
 
 var opNames = [...]string{
@@ -206,6 +256,9 @@ var opNames = [...]string{
 	Extract: "extract", And: "and", Or: "or", Xor: "xor", AndNot: "andnot", Com: "com",
 	Conv: "conv", Print: "print", Div: "div", Rem: "rem", Shl: "shl", Shr: "shr", Panic: "panic",
 	GLoad: "gload", GStore: "gstore", Phi: "phi",
+	FAdd: "fadd", FSub: "fsub", FMul: "fmul", FDiv: "fdiv", FNeg: "fneg",
+	FEq: "feq", FNe: "fne", FLt: "flt", FLe: "fle", FGt: "fgt", FGe: "fge",
+	IToF: "itof", FToF: "ftof", FToI: "ftoi",
 }
 
 func (op Op) String() string {
@@ -228,8 +281,12 @@ const (
 // "panic: runtime error: ".
 var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount"}
 
-// IsComparison reports whether op is one of Eq through Ge.
+// IsComparison reports whether op is one of Eq through Ge, the integer
+// and Bool comparisons; the float comparisons are IsFloatComparison.
 func (op Op) IsComparison() bool { return op >= Eq && op <= Ge }
+
+// IsFloatComparison reports whether op is one of FEq through FGe.
+func (op Op) IsFloatComparison() bool { return op >= FEq && op <= FGe }
 
 // Pos is a source position, 1-based, in the file of the enclosing function.
 type Pos struct {
@@ -371,6 +428,31 @@ func (f *Func) Const(b *Block, v int64, pos Pos) *Instr {
 // TypedConst appends a constant of type t; v must be in canonical form.
 func (f *Func) TypedConst(b *Block, t Type, v int64, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Const, Type: t, Const: v, Pos: pos})
+}
+
+// FloatConst appends the float constant v of type t, F64 or F32; for F32,
+// v must be exactly representable.
+func (f *Func) FloatConst(b *Block, t Type, v float64, pos Pos) *Instr {
+	bits := int64(math.Float64bits(v))
+	if t == F32 {
+		bits = int64(math.Float32bits(float32(v)))
+	}
+	return f.add(b, &Instr{Op: Const, Type: t, Const: bits, Pos: pos})
+}
+
+// Float appends the float operation op (FAdd through FNeg, FEq through
+// FGe) of args, of the type of args[0].
+func (f *Func) Float(b *Block, op Op, pos Pos, args ...*Instr) *Instr {
+	t := args[0].Type
+	if op.IsFloatComparison() {
+		t = Bool
+	}
+	return f.add(b, &Instr{Op: op, Type: t, Args: args, Pos: pos})
+}
+
+// Convert appends IToF, FToF, or FToI of x to t.
+func (f *Func) Convert(b *Block, op Op, t Type, x *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: op, Type: t, Args: []*Instr{x}, Pos: pos})
 }
 
 // Conv appends the conversion of x to t.

@@ -160,6 +160,22 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 			fr.values[in.ID] = b2i(compare(in.Op, in.Args[0].Type, arg(0), arg(1)))
 		case ir.Not:
 			fr.values[in.ID] = 1 - arg(0)
+		case ir.FAdd, ir.FSub, ir.FMul, ir.FDiv:
+			fr.values[in.ID] = floatArith(in.Op, in.Type, arg(0), arg(1))
+		case ir.FNeg:
+			// The sign bit, as for gc; NaNs keep their payload.
+			fr.values[in.ID] = arg(0) ^ math.MinInt64
+			if in.Type == ir.F32 {
+				fr.values[in.ID] = arg(0) ^ 1<<31
+			}
+		case ir.FEq, ir.FNe, ir.FLt, ir.FLe, ir.FGt, ir.FGe:
+			fr.values[in.ID] = b2i(floatCompare(in.Op, toFloat(in.Args[0].Type, arg(0)), toFloat(in.Args[1].Type, arg(1))))
+		case ir.IToF:
+			fr.values[in.ID] = intToFloat(in.Type, in.Args[0].Type, arg(0))
+		case ir.FToF:
+			fr.values[in.ID] = fromFloat(in.Type, toFloat(in.Args[0].Type, arg(0)))
+		case ir.FToI:
+			fr.values[in.ID] = in.Type.Canonical(floatToInt(in.Type, toFloat(in.Args[0].Type, arg(0))))
 		case ir.Jump:
 			enter(fr, ir.Edge{From: fr.blk, Index: 0})
 		case ir.Branch:
@@ -171,6 +187,10 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 					line = append(line, ' ')
 				}
 				switch {
+				case a.Type == ir.F64:
+					line = strconv.AppendFloat(line, toFloat(a.Type, arg(i)), 'g', -1, 64)
+				case a.Type == ir.F32:
+					line = strconv.AppendFloat(line, toFloat(a.Type, arg(i)), 'g', -1, 32)
 				case a.Type == ir.Bool:
 					line = strconv.AppendBool(line, arg(i) == 1)
 				case a.Type.Signed():
@@ -311,4 +331,121 @@ func shift(op ir.Op, t ir.Type, x int64, count uint64) int64 {
 		return x >> count
 	}
 	return int64(uint64(x) >> count)
+}
+
+// toFloat returns the value of x, the canonical word of a float of type t.
+// An F32 converts to float64 exactly.
+func toFloat(t ir.Type, x int64) float64 {
+	if t == ir.F32 {
+		return float64(math.Float32frombits(uint32(x)))
+	}
+	return math.Float64frombits(uint64(x))
+}
+
+// fromFloat returns the canonical word of v as a float of type t, rounding
+// it to nearest, ties to even, for F32.
+func fromFloat(t ir.Type, v float64) int64 {
+	if t == ir.F32 {
+		return int64(math.Float32bits(float32(v)))
+	}
+	return int64(math.Float64bits(v))
+}
+
+// floatArith applies FAdd, FSub, FMul, or FDiv to canonical floats of type
+// t. Each result is assigned on its own, at its type's precision, which
+// keeps Go from fusing operations (spec §Arithmetic operators).
+func floatArith(op ir.Op, t ir.Type, x, y int64) int64 {
+	if t == ir.F32 {
+		a, b := math.Float32frombits(uint32(x)), math.Float32frombits(uint32(y))
+		var r float32
+		switch op {
+		case ir.FAdd:
+			r = a + b
+		case ir.FSub:
+			r = a - b
+		case ir.FMul:
+			r = a * b
+		default:
+			r = a / b
+		}
+		return int64(math.Float32bits(r))
+	}
+	a, b := math.Float64frombits(uint64(x)), math.Float64frombits(uint64(y))
+	var r float64
+	switch op {
+	case ir.FAdd:
+		r = a + b
+	case ir.FSub:
+		r = a - b
+	case ir.FMul:
+		r = a * b
+	default:
+		r = a / b
+	}
+	return int64(math.Float64bits(r))
+}
+
+// floatCompare applies a float comparison: Go's are IEEE 754's.
+func floatCompare(op ir.Op, x, y float64) bool {
+	switch op {
+	case ir.FEq:
+		return x == y
+	case ir.FNe:
+		return x != y
+	case ir.FLt:
+		return x < y
+	case ir.FLe:
+		return x <= y
+	case ir.FGt:
+		return x > y
+	}
+	return x >= y // ir.FGe
+}
+
+// intToFloat converts x, a canonical integer of type from, to the float
+// type t. Go's conversions round to nearest, ties to even, directly from
+// the integer (spec §Conversions), so an int64 converts to float32 with one
+// rounding.
+func intToFloat(t, from ir.Type, x int64) int64 {
+	switch {
+	case from == ir.U64 && t == ir.F32:
+		return int64(math.Float32bits(float32(uint64(x))))
+	case from == ir.U64:
+		return int64(math.Float64bits(float64(uint64(x))))
+	case t == ir.F32:
+		return int64(math.Float32bits(float32(x)))
+	}
+	return int64(math.Float64bits(float64(x)))
+}
+
+// trunc32 and trunc64 are x86's cvttsd2si into 32 and 64 bits: x truncated
+// toward zero if the result is representable, and the type's minimum
+// otherwise, NaN included.
+func trunc32(x float64) int64 {
+	if x > -2147483649 && x < 2147483648 {
+		return int64(x)
+	}
+	return math.MinInt32
+}
+
+func trunc64(x float64) int64 {
+	if x >= -0x1p63 && x < 0x1p63 {
+		return int64(x)
+	}
+	return math.MinInt64
+}
+
+// floatToInt converts x to the integer type t as FToI defines (D-032), before
+// reduction to t's canonical form.
+func floatToInt(t ir.Type, x float64) int64 {
+	switch t {
+	case ir.I64, ir.U32:
+		return trunc64(x)
+	case ir.U64:
+		if x < 0x1p63 {
+			return trunc64(x)
+		}
+		return trunc64(x-0x1p63) | math.MinInt64
+	}
+	return trunc32(x)
 }

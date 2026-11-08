@@ -626,3 +626,84 @@ func TestVerifyGlobals(t *testing.T) {
 		})
 	}
 }
+
+// floatSample uses every float operation (D-032).
+func floatSample() *Program {
+	p := &Program{}
+	f := p.NewFunc("main", "p.go", Pos{1, 1})
+	b, at := f.Entry(), Pos{1, 1}
+	x := f.FloatConst(b, F64, 1.5, at)                            // v0
+	y := f.FloatConst(b, F32, -0.25, at)                          // v1
+	sum := f.Float(b, FAdd, at, x, x)                             // v2
+	neg := f.Float(b, FNeg, at, y)                                // v3
+	lt := f.Float(b, FLt, at, sum, x)                             // v4
+	i := f.Convert(b, FToI, U64, sum, at)                         // v5
+	g := f.Convert(b, IToF, F32, i, at)                           // v6
+	d := f.Convert(b, FToF, F64, neg, at)                         // v7
+	f.Println(b, []*Instr{f.Float(b, FDiv, at, d, x), lt, g}, at) // v8
+	f.Ret(b, at)
+	return p
+}
+
+func TestPrintFloat(t *testing.T) {
+	want := `func main @p.go:1:1
+b0:
+  v0 = const f64 1.5 @1:1
+  v1 = const f32 -0.25 @1:1
+  v2 = fadd v0, v0 @1:1
+  v3 = fneg v1 @1:1
+  v4 = flt v2, v0 @1:1
+  v5 = ftoi u64, v2 @1:1
+  v6 = itof f32, v5 @1:1
+  v7 = ftof f64, v3 @1:1
+  v8 = fdiv v7, v0 @1:1
+  println v8, v4, v6 @1:1
+  ret @1:1
+`
+	if got := floatSample().String(); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifyFloat checks that float and integer operations stay apart: no
+// integer operation takes a float, no float operation an integer, and an
+// f32 constant is in canonical form.
+func TestVerifyFloat(t *testing.T) {
+	if errs := Verify(floatSample()); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	in := func(p *Program, i int) *Instr { return p.Funcs[0].Blocks[0].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		{"add of floats", func(p *Program) { in(p, 2).Op = Add }, "operand v0 has type f64, want i64"},
+		{"eq of floats", func(p *Program) { in(p, 4).Op = Eq }, "operand v2 has type f64, want i64"},
+		{"lt of floats", func(p *Program) { in(p, 4).Op = Lt }, "operand v2 has type f64, want i64"},
+		{"conv of a float", func(p *Program) { in(p, 5).Op = Conv }, "operand v2 has type f64, want i64"},
+		{"fadd of mixed types", func(p *Program) { in(p, 2).Args[1] = in(p, 1) }, "operand v1 has type f32, want f64"},
+		{"fadd of integers", func(p *Program) { in(p, 6).Op, in(p, 6).Args = FAdd, []*Instr{in(p, 5), in(p, 5)} },
+			"operand v5 has type u64, want f64"},
+		{"fneg result type", func(p *Program) { in(p, 3).Type = F64 }, "fneg has result type f64, want f32"},
+		{"flt result type", func(p *Program) { in(p, 4).Type = F64 }, "flt has result type f64, want bool"},
+		{"ftoi to a float", func(p *Program) { in(p, 5).Type = F32 }, "ftoi to f32, not an integer type"},
+		{"itof to an integer", func(p *Program) { in(p, 6).Type = I64 }, "itof to i64, not a float type"},
+		{"itof of a float", func(p *Program) { in(p, 6).Args[0] = in(p, 0) }, "operand v0 has type f64, want i64"},
+		{"ftof of an integer", func(p *Program) { in(p, 7).Args[0] = in(p, 5) }, "operand v5 has type u64, want f64"},
+		{"f32 constant", func(p *Program) { in(p, 1).Const |= 1 << 40 }, "f32 constant 1102707687424 is not in canonical form"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := floatSample()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors:\n%s\nwant one containing %q", all, tt.want)
+			}
+		})
+	}
+}

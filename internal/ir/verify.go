@@ -494,6 +494,11 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if len(in.Args) > 0 && in.Args[0] != nil && in.Args[0].Type.IsInteger() {
 		integer = in.Args[0].Type
 	}
+	// float is the same for the float operations, with F64 by default.
+	float := F64
+	if len(in.Args) > 0 && in.Args[0] != nil && in.Args[0].Type.IsFloat() {
+		float = in.Args[0].Type
+	}
 	anyArgs, targets := false, 0
 	switch in.Op {
 	case Const:
@@ -544,6 +549,22 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		want, args = Bool, []Type{integer, integer}
 	case Not:
 		want, args = Bool, []Type{Bool}
+	case FAdd, FSub, FMul, FDiv:
+		want, args = float, []Type{float, float}
+	case FNeg:
+		want, args = float, []Type{float}
+	case FEq, FNe, FLt, FLe, FGt, FGe:
+		want, args = Bool, []Type{float, float}
+	case IToF, FToF, FToI:
+		want, args = in.Type, []Type{float}
+		if in.Op == IToF {
+			args[0] = integer
+		}
+		if in.Op == FToI && !in.Type.IsInteger() {
+			v.errorf(bi, i, in, "ftoi to %s, not an integer type", in.Type)
+		} else if in.Op != FToI && !in.Type.IsFloat() {
+			v.errorf(bi, i, in, "%s to %s, not a float type", in.Op, in.Type)
+		}
 	case Println, Print:
 		anyArgs = true
 	case Phi:
@@ -687,6 +708,6 @@ func (v *verifier) slotRef(bi, i int, in *Instr) {
 	}
 }
 
-func validType(t Type) bool { return t == Bool || t.IsInteger() }
+func validType(t Type) bool { return t == Bool || t.IsInteger() || t.IsFloat() }
 
 func validPos(p Pos) bool { return p.Line > 0 && p.Col > 0 }

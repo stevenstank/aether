@@ -3,6 +3,8 @@ package amd64
 import (
 	"bytes"
 	"fmt"
+	"github.com/stevenstank/aether/internal/interp"
+	"github.com/stevenstank/aether/internal/ir"
 	"math"
 	"math/big"
 	"math/rand/v2"
@@ -228,6 +230,177 @@ func TestPrintFloat(t *testing.T) {
 		"\n1.6777216e+07\n", "\n0.33333334\n"} {
 		if !strings.Contains("\n"+got, s) {
 			t.Errorf("output lacks %q", s)
+		}
+	}
+}
+
+// Float edge values: zeros, NaN, infinities, the extremes, values at the
+// integer conversion boundaries, and ties for rounding.
+var (
+	edges64 = []float64{0, math.Copysign(0, -1), 1, -1, 0.5, -2.5, 3.5, 0.1, 1.0 / 3, math.MaxFloat64, -math.MaxFloat64,
+		math.SmallestNonzeroFloat64, 0x1p-1022, math.Inf(1), math.Inf(-1), math.NaN(), 0x1p63, 0x1p64, -0x1p63, 9.3e18,
+		-9.3e18, 3e9, -3e9, 4.5e9, 2147483647.9, -2147483648.9, 70000, -70000, 300, -300, 255.9, 1e300, 16777217}
+	edges32 = []float32{0, float32(math.Copysign(0, -1)), 1, -1, 0.5, -2.5, 0.1, 1.0 / 3, math.MaxFloat32, -math.MaxFloat32,
+		math.SmallestNonzeroFloat32, float32(math.Inf(1)), float32(math.Inf(-1)), float32(math.NaN()), 0x1p63, 0x1p64,
+		3e9, -3e9, 70000, -300, 16777216}
+	intEdges = []int64{0, 1, -1, 127, -128, 255, 65535, math.MaxInt32, math.MinInt32, math.MaxUint32, 1<<53 + 1,
+		1<<62 + 1<<9 + 1, math.MaxInt64, math.MinInt64}
+	floatIntTypes = []ir.Type{ir.I8, ir.I16, ir.I32, ir.I64, ir.U8, ir.U16, ir.U32, ir.U64}
+)
+
+// floatProgram returns a program that applies every float operation to the
+// edge values and prints the results. Each first operand has its own
+// function, keeping each under the allocator's bound; mix takes seven
+// arguments, so ABI-R1 passes one on the stack, and returns a tuple.
+func floatProgram() *ir.Program {
+	p := &ir.Program{}
+	mix := p.NewFunc("mix", "p.go", p1)
+	mix.Params = []ir.Type{ir.F64, ir.F32, ir.F64, ir.F32, ir.F64, ir.F32, ir.F64}
+	mix.Results = []ir.Type{ir.F64, ir.F32}
+	{
+		b := mix.Entry()
+		var ps []*ir.Instr
+		for i := range mix.Params {
+			ps = append(ps, mix.Param(b, i, p1))
+		}
+		r0 := mix.Float(b, ir.FAdd, p1, mix.Float(b, ir.FMul, p1, ps[0], ps[2]), ps[6])
+		r1 := mix.Float(b, ir.FSub, p1, mix.Float(b, ir.FDiv, p1, ps[1], ps[3]), mix.Convert(b, ir.FToF, ir.F32, ps[4], p1))
+		mix.Println(b, []*ir.Instr{ps[5], mix.Float(b, ir.FNeg, p1, ps[6])}, p1)
+		mix.Ret(b, p1, r0, r1)
+	}
+	main := p.NewFunc("main", "p.go", p1)
+	mb := main.Entry()
+	test := func(name string, body func(f *ir.Func, b *ir.Block)) {
+		f := p.NewFunc(name, "p.go", p1)
+		body(f, f.Entry())
+		f.Ret(f.Entry(), p1)
+		main.Call(mb, f, nil, p1)
+	}
+	// A value through a slot, so that promotion leaves a constant.
+	val := func(f *ir.Func, b *ir.Block, t ir.Type, bits int64) *ir.Instr {
+		s := f.NewSlot("x", t, p1)
+		f.Store(b, s, f.TypedConst(b, t, bits, p1), p1)
+		return f.Load(b, s, p1)
+	}
+	binary := []ir.Op{ir.FAdd, ir.FSub, ir.FMul, ir.FDiv, ir.FEq, ir.FNe, ir.FLt, ir.FLe, ir.FGt, ir.FGe}
+	for i, x := range edges64 {
+		test(fmt.Sprintf("d%d", i), func(f *ir.Func, b *ir.Block) {
+			xv := val(f, b, ir.F64, int64(math.Float64bits(x)))
+			for _, y := range edges64 {
+				yv := val(f, b, ir.F64, int64(math.Float64bits(y)))
+				var args []*ir.Instr
+				for _, op := range binary {
+					args = append(args, f.Float(b, op, p1, xv, yv))
+				}
+				f.Println(b, args, p1)
+			}
+			args := []*ir.Instr{xv, f.Float(b, ir.FNeg, p1, xv), f.Convert(b, ir.FToF, ir.F32, xv, p1)}
+			for _, t := range floatIntTypes {
+				args = append(args, f.Convert(b, ir.FToI, t, xv, p1))
+			}
+			f.Println(b, args, p1)
+		})
+	}
+	for i, x := range edges32 {
+		test(fmt.Sprintf("s%d", i), func(f *ir.Func, b *ir.Block) {
+			xv := val(f, b, ir.F32, int64(math.Float32bits(x)))
+			for _, y := range edges32 {
+				yv := val(f, b, ir.F32, int64(math.Float32bits(y)))
+				var args []*ir.Instr
+				for _, op := range binary {
+					args = append(args, f.Float(b, op, p1, xv, yv))
+				}
+				f.Print(b, args, p1)
+				f.Println(b, nil, p1)
+			}
+			args := []*ir.Instr{f.Float(b, ir.FNeg, p1, xv), f.Convert(b, ir.FToF, ir.F64, xv, p1)}
+			for _, t := range floatIntTypes {
+				args = append(args, f.Convert(b, ir.FToI, t, xv, p1))
+			}
+			f.Println(b, args, p1)
+		})
+	}
+	test("ints", func(f *ir.Func, b *ir.Block) {
+		for _, t := range floatIntTypes {
+			for _, x := range intEdges {
+				xv := val(f, b, t, t.Canonical(x))
+				f.Println(b, []*ir.Instr{xv, f.Convert(b, ir.IToF, ir.F64, xv, p1), f.Convert(b, ir.IToF, ir.F32, xv, p1)}, p1)
+			}
+		}
+	})
+	test("calls", func(f *ir.Func, b *ir.Block) {
+		for i := range 4 {
+			var args []*ir.Instr
+			for j, t := range mix.Params {
+				if t == ir.F64 {
+					args = append(args, val(f, b, t, int64(math.Float64bits(edges64[(i*7+j)%len(edges64)]))))
+				} else {
+					args = append(args, val(f, b, t, int64(math.Float32bits(edges32[(i*5+j)%len(edges32)]))))
+				}
+			}
+			call := f.Call(b, mix, args, p1)
+			f.Println(b, []*ir.Instr{f.Extract(b, call, 0, p1), f.Extract(b, call, 1, p1)}, p1)
+		}
+	})
+	main.Ret(mb, p1)
+	return p
+}
+
+// TestNativeFloat runs floatProgram in the interpreter, with the slot-based
+// backend, and with aether build's backend (SSA, registers, selection,
+// two-address arithmetic, and ABI-R1), and requires identical output. The
+// interpreter's results for the edge cases gc decides are checked against
+// gc in cmd/aether; here a few are pinned.
+func TestNativeFloat(t *testing.T) {
+	var want bytes.Buffer
+	if code, err := interp.Run(floatProgram(), &want); err != nil || code != 0 {
+		t.Fatalf("interpreter: exit %d, %v", code, err)
+	}
+	for _, s := range []string{
+		"\nNaN NaN NaN NaN false true false false false false\n", // NaN with itself
+		"\n0 0 -0 NaN true false false true false true\n",        // +0 with -0
+		"\n+Inf NaN +Inf NaN true false false true false true\n", // +Inf with itself
+		// x, -x, float32(x), and x converted to int8 ... int64 and uint8 ...
+		// uint64, as gc-built go1.26.1 binaries print them (D-032).
+		"\nNaN NaN NaN 0 0 -2147483648 -9223372036854775808 0 0 0 9223372036854775808\n",
+		"\n3e+09 -3e+09 3e+09 0 0 -2147483648 3000000000 0 0 3000000000 3000000000\n",
+		"\n-3e+09 3e+09 -3e+09 0 0 -2147483648 -3000000000 0 0 1294967296 18446744070709551616\n",
+		"\n-70000 70000 -70000 -112 -4464 -70000 -70000 144 61072 4294897296 18446744073709481616\n",
+		"\n9.3e+18 -9.3e+18 9.3e+18 0 0 -2147483648 -9223372036854775808 0 0 0 9300000000000000000\n",
+		"\n4.5e+09 -4.5e+09 4.5e+09 0 0 -2147483648 4500000000 0 0 205032704 4500000000\n",
+	} {
+		if !strings.Contains("\n"+want.String(), s) {
+			t.Errorf("interpreter output lacks %q", s)
+		}
+	}
+	slots, err := Emit(floatProgram())
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog := floatProgram()
+	for _, f := range prog.Funcs {
+		if err := ir.Promote(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	regs, err := EmitWith(prog, EmitOptions{Registers: true, Select: true, ABIR1: true, TwoAddress: true, Coalesce: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(regs, []byte("%xmm0, %r")) {
+		t.Error("no float result is written to a register")
+	}
+	for name, asm := range map[string][]byte{"slots": slots, "registers": regs} {
+		got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil)
+		if code != 0 || got != want.String() {
+			t.Errorf("%s: exit %d; native output differs from the interpreter's", name, code)
+			g, w := strings.Split(got, "\n"), strings.Split(want.String(), "\n")
+			for i := range min(len(g), len(w)) {
+				if g[i] != w[i] {
+					t.Errorf("line %d: native %q, interpreter %q", i+1, g[i], w[i])
+					break
+				}
+			}
 		}
 	}
 }

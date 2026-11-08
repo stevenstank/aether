@@ -40,6 +40,8 @@ const (
 	symPrintUint  = "aether.printuint"
 	symPrintBool  = "aether.printbool"
 	symPrintSpace = "aether.printsp"
+	symPrintF64   = "aether.printfloat64"
+	symPrintF32   = "aether.printfloat32"
 	symPrintNL    = "aether.printnl"
 )
 
@@ -510,6 +512,8 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		e.load(in.Args[0], "%rax")
 		op("xorq\t$1, %%rax")
 		op("movq\t%%rax, %s", res())
+	case ir.FAdd, ir.FSub, ir.FMul, ir.FDiv, ir.FNeg, ir.FEq, ir.FNe, ir.FLt, ir.FLe, ir.FGt, ir.FGe, ir.IToF, ir.FToF, ir.FToI:
+		return e.float(in)
 	case ir.Phi:
 		// Its cell is written on each edge into the block (edgeCopies).
 	case ir.Jump:
@@ -552,12 +556,18 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 			}
 			e.load(a, "%rdi")
 			switch {
+			case a.Type == ir.F64:
+				op("call\t%s", symPrintF64)
+			case a.Type == ir.F32:
+				op("call\t%s", symPrintF32)
 			case a.Type == ir.Bool:
 				op("call\t%s", symPrintBool)
 			case a.Type.Signed():
 				op("call\t%s", symPrintInt)
-			default:
+			case a.Type.IsInteger():
 				op("call\t%s", symPrintUint)
+			default:
+				return fmt.Errorf("cannot print %s", a.Type)
 			}
 		}
 		if in.Op == ir.Print {

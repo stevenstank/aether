@@ -60,7 +60,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-029 | Instruction selection for comparisons, branches, and constants | Accepted (2026-11-06, owner direction; accepted as the default with one unresolved regression, b08_ackermann) |
 | D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment complete, all criteria met; shipped by D-031) |
 | D-031 | `aether build` uses ABI-R1; `-O0` keeps ABI-S0 | Accepted (2026-11-07, owner approval) |
-| D-032 | Floating point in the IR and the runtime (Phase 6 increment 6.1) | Proposed (2026-11-09) |
+| D-032 | Floating point in the IR and the runtime (Phase 6 increment 6.1) | Accepted (2026-11-09, owner approval) |
 
 ## Review log
 
@@ -102,6 +102,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-07 | Owner settles three D-030 criteria: frame sizes may shrink while the stack check's mechanism, frame chain, and epilogue stay unchanged; the 2% limit applies to aggregates, with per-offset results reported and significant outliers investigated; peak stack stays within the `isel` baseline, and b03 and b04 stay byte-identical only if they avoid ABI-R1's call paths. Implementation had not started. | D-030 |
 | 2026-11-07 | Owner approves ABI-R1 as the default convention of `aether build` after the D-030 criteria were met; `-O0` keeps ABI-S0. D-031 created. | D-011, D-028, D-030, D-031 |
 | 2026-11-09 | Phase 6 started with floating point; D-032 created as Proposed. Only its runtime formatter exists, with tests; no IR or gate change yet. | D-011, D-032 |
+| 2026-11-09 | Owner accepts D-032 as proposed, with its three constraints | D-032 |
 
 ---
 
@@ -2618,8 +2619,9 @@ path; or a later convention is proposed.
 
 ## D-032: Floating point in the IR and the runtime (Phase 6 increment 6.1)
 
-**Status:** Proposed (2026-11-09). Needs owner acceptance before the gate accepts
-any float construct. Implemented so far: the runtime formatter only.
+**Status:** Accepted (2026-11-09, owner approval as proposed, with three
+constraints: a well-defined `f32` representation, strict separation of float and
+integer operations, and gc-compatible amd64 float-to-integer conversion).
 
 **Context.** Phase 6 adds `float64` and `float32` (`ROADMAP.md` Phase 6), and
 requires gc's print format. go1.26.1 prints a float with

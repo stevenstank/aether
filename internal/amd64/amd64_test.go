@@ -357,6 +357,12 @@ main.main:
 	call	aether.printsp
 	movq	$-1000000, %rdi
 	call	aether.printint
+	call	aether.printsp
+	movabsq	$0x3ff8000000000000, %rdi
+	call	aether.printfloat64
+	call	aether.printsp
+	movabsq	$0xffffffffbfc00000, %rdi
+	call	aether.printfloat32
 	call	aether.printnl
 	cmpq	$0x1111, %rbx
 	jne	1f
@@ -396,12 +402,12 @@ func mainStack(n int) string {
 }
 
 // TestRuntimeABI checks the runtime-helper interface: formatting of the
-// extreme values, preservation of %rbx, %rbp, %r12-%r15, and %rsp, and that
+// extreme values, that printfloat32 reads only the low 32 bits, preservation of %rbx, %rbp, %r12-%r15, and %rsp, and that
 // write errors are ignored (the program still exits 0).
 func TestRuntimeABI(t *testing.T) {
 	exe := link(t, t.TempDir(), withRuntime([]byte(abiHarness)))
 	got, code := execute(t, exe, nil)
-	if want := "-9223372036854775808 9223372036854775807 0 -1000000\n"; code != 0 || got != want {
+	if want := "-9223372036854775808 9223372036854775807 0 -1000000 1.5 -1.5\n"; code != 0 || got != want {
 		t.Errorf("exit %d, stderr %q; want exit 0, %q", code, got, want)
 	}
 	full, err := os.OpenFile("/dev/full", os.O_WRONLY, 0)
