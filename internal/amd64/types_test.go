@@ -193,6 +193,9 @@ func TestConversions(t *testing.T) {
 // and exit status 2, also when stderr is unwritable.
 func TestPanics(t *testing.T) {
 	for kind, msg := range ir.PanicMessages {
+		if kind == ir.PanicIndex {
+			continue // TestPanicIndex
+		}
 		for _, newline := range []bool{true, false} {
 			p := &ir.Program{}
 			f := p.NewFunc("main", "p.go", p1)

@@ -525,7 +525,7 @@ func TestVerifyDivisionAndShifts(t *testing.T) {
 		want string
 	}{
 		{build(I8, PanicDivide), "operand v1 has type i8, want u64"},
-		{build(U64, 2), "panic of unknown kind 2"},
+		{build(U64, 3), "panic of unknown kind 3"},
 		{build(U64, -1), "panic of unknown kind -1"},
 	} {
 		var msgs []string
@@ -696,6 +696,85 @@ func TestVerifyFloat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := floatSample()
+			tt.break_(p)
+			var msgs []string
+			for _, e := range Verify(p) {
+				msgs = append(msgs, e.Error())
+			}
+			if all := strings.Join(msgs, "\n"); !strings.Contains(all, tt.want) {
+				t.Errorf("errors:\n%s\nwant one containing %q", all, tt.want)
+			}
+		})
+	}
+}
+
+// stringSample uses every string operation (D-033): v0 and v1 are a
+// string, v2 and v3 the empty one.
+func stringSample() *Program {
+	p := &Program{}
+	f := p.NewFunc("main", "p.go", Pos{1, 1})
+	b, at := f.Entry(), Pos{1, 1}
+	ptr := f.Str(b, p.Intern("hé\x00"), at) // v0
+	n := f.Const(b, 4, at)                  // v1
+	e := f.TypedConst(b, Ptr, 0, at)        // v2
+	z := f.Const(b, 0, at)                  // v3
+	c := f.LoadB(b, ptr, z, at)             // v4
+	f.Println(b, []*Instr{ptr, n, c, e, z}, at)
+	f.Panic(b, PanicIndex, at, f.TypedConst(b, U8, 9, at), n) // v5
+	return p
+}
+
+func TestPrintString(t *testing.T) {
+	want := `string s0 "hé\x00"
+
+func main @p.go:1:1
+b0:
+  v0 = str s0 @1:1
+  v1 = const 4 @1:1
+  v2 = const ptr 0 @1:1
+  v3 = const 0 @1:1
+  v4 = loadb v0, v3 @1:1
+  println v0, v1, v4, v2, v3 @1:1
+  v5 = const u8 9 @1:1
+  panic index, v5, v1 @1:1
+`
+	if got := stringSample().String(); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestVerifyStrings checks the string invariants: a ptr is used only by
+// loadb, as a print operand followed by its length, and as a word moved
+// whole; the program's strings are distinct and not empty.
+func TestVerifyStrings(t *testing.T) {
+	if errs := Verify(stringSample()); len(errs) != 0 {
+		t.Fatalf("valid program rejected: %v", errs)
+	}
+	in := func(p *Program, i int) *Instr { return p.Funcs[0].Blocks[0].Instrs[i] }
+	tests := []struct {
+		name   string
+		break_ func(p *Program)
+		want   string
+	}{
+		{"ptr in add", func(p *Program) { in(p, 4).Op, in(p, 4).Type = Add, I64 }, "operand v0 has type ptr, want i64"},
+		{"ptr compared", func(p *Program) { in(p, 4).Op, in(p, 4).Type = Eq, Bool }, "operand v0 has type ptr, want i64"},
+		{"ptr converted", func(p *Program) { in(p, 4).Op, in(p, 4).Args = Conv, in(p, 4).Args[:1] }, "operand v0 has type ptr, want i64"},
+		{"loadb of an integer", func(p *Program) { in(p, 4).Args[0] = in(p, 1) }, "operand v1 has type i64, want ptr"},
+		{"loadb offset type", func(p *Program) { in(p, 4).Args[1] = in(p, 0) }, "operand v0 has type ptr, want i64"},
+		{"loadb result type", func(p *Program) { in(p, 4).Type = I64 }, "loadb has result type i64, want u8"},
+		{"string without length", func(p *Program) { in(p, 5).Args = in(p, 5).Args[:4] }, "println operand v2, a ptr, is not followed by an i64 length"},
+		{"length of the wrong type", func(p *Program) { in(p, 5).Args[1] = in(p, 4) }, "println operand v0, a ptr, is not followed by an i64 length"},
+		{"nonzero ptr constant", func(p *Program) { in(p, 2).Const = 8 }, "ptr constant 8 is not 0"},
+		{"str out of range", func(p *Program) { in(p, 0).Index = 1 }, "str s1 of a program with 1 strings"},
+		{"empty string", func(p *Program) { p.Strings[0] = "" }, "string s0 is empty"},
+		{"repeated string", func(p *Program) { p.Strings = append(p.Strings, p.Strings[0]) }, "string s1 repeats an earlier string"},
+		{"index panic without operands", func(p *Program) { in(p, 7).Args = nil }, "panic has 0 operands, want 2"},
+		{"index panic length type", func(p *Program) { in(p, 7).Args[1] = in(p, 6) }, "operand v5 has type u8, want i64"},
+		{"divide panic with operands", func(p *Program) { in(p, 7).Index = PanicDivide }, "panic has 2 operands, want 0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := stringSample()
 			tt.break_(p)
 			var msgs []string
 			for _, e := range Verify(p) {

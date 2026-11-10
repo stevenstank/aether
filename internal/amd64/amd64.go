@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 
 	"github.com/stevenstank/aether/internal/ir"
 )
@@ -42,12 +43,21 @@ const (
 	symPrintSpace = "aether.printsp"
 	symPrintF64   = "aether.printfloat64"
 	symPrintF32   = "aether.printfloat32"
-	symPrintNL    = "aether.printnl"
+	// symPrintStr takes its string's address in %rdi and length in %rsi.
+	symPrintStr = "aether.printstr"
+	symPrintNL  = "aether.printnl"
 )
 
 // panicSyms are the runtime's panic helpers, by run-time error (D-023):
 // each writes its message and exits with status 2, and never returns.
-var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift"}
+// PanicIndex's helper takes the index in %rdi and the length in %rsi; its
+// signed index form is symPanicIndex.
+var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift", ir.PanicIndex: "aether.panicindexu"}
+
+const symPanicIndex = "aether.panicindex"
+
+// strSym is the local symbol of the program's string i, in .rodata.
+func strSym(i int) string { return fmt.Sprintf(".Lstr.%d", i) }
 
 // symMainStack is the read-only 8-byte datum through which the program tells
 // the runtime how many bytes of stack main.main or main.init, whichever
@@ -181,6 +191,19 @@ func EmitWith(prog *ir.Program, opts EmitOptions) ([]byte, error) {
 	}
 	fmt.Fprintf(&b, "\t.section\t.rodata\n\t.p2align\t3\n\t.globl\t%s\n\t.type\t%s, @object\n\t.size\t%s, 8\n%s:\n\t.quad\t%d\n",
 		symMainStack, symMainStack, symMainStack, symMainStack, stack)
+	// The bytes of each string, exactly, with no terminator (D-033).
+	for i, str := range prog.Strings {
+		fmt.Fprintf(&b, "%s:\n", strSym(i))
+		for len(str) > 0 {
+			n := min(len(str), 16)
+			parts := make([]string, n)
+			for j := range n {
+				parts[j] = fmt.Sprint(str[j])
+			}
+			fmt.Fprintf(&b, "\t.byte\t%s\n", strings.Join(parts, ", "))
+			str = str[n:]
+		}
+	}
 	// No executable stack.
 	b.WriteString("\t.section\t.note.GNU-stack,\"\",@progbits\n")
 	return b.Bytes(), nil
@@ -483,7 +506,28 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		canon(op, in.Type)
 		op("movq\t%%rax, %s", res())
 	case ir.Panic:
-		op("call\t%s", panicSyms[in.Index])
+		sym := panicSyms[in.Index]
+		if in.Index == ir.PanicIndex {
+			// Through the scratch registers, so that neither load
+			// overwrites the other operand.
+			e.load(in.Args[0], "%rax")
+			e.load(in.Args[1], "%rcx")
+			op("movq\t%%rax, %%rdi")
+			op("movq\t%%rcx, %%rsi")
+			if in.Args[0].Type.Signed() {
+				sym = symPanicIndex
+			}
+		}
+		op("call\t%s", sym)
+	case ir.Str:
+		op("leaq\t%s(%%rip), %%rax", strSym(in.Index))
+		op("movq\t%%rax, %s", res())
+	case ir.LoadB:
+		// Lowering has checked the offset against the length.
+		e.load(in.Args[0], "%rax")
+		e.load(in.Args[1], "%rcx")
+		op("movzbl\t(%%rax,%%rcx), %%eax")
+		op("movq\t%%rax, %s", res())
 	case ir.Neg, ir.Com, ir.Conv:
 		// negq maps the minimum to itself, as the IR requires; a conversion
 		// is only the canonicalization to the new type.
@@ -550,9 +594,20 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		// The operands are already in the frame, which the helpers do not
 		// touch, so they survive the calls. Each call is made with %rsp
 		// aligned (see Frame). Print has no separators and no newline.
-		for i, a := range in.Args {
+		for i := 0; i < len(in.Args); i++ {
+			a := in.Args[i]
 			if i > 0 && in.Op == ir.Println {
 				op("call\t%s", symPrintSpace)
+			}
+			if a.Type == ir.Ptr {
+				// A string: its address and length (D-033).
+				e.load(a, "%rax")
+				e.load(in.Args[i+1], "%rcx")
+				op("movq\t%%rax, %%rdi")
+				op("movq\t%%rcx, %%rsi")
+				op("call\t%s", symPrintStr)
+				i++
+				continue
 			}
 			e.load(a, "%rdi")
 			switch {

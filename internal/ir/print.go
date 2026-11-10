@@ -20,7 +20,10 @@ import (
 //	  println v1 @5:2
 //	  ret @6:1
 //
-// Globals come first, one per line, then the functions:
+// The program's strings come first, quoted, then the globals, one per line,
+// then the functions:
+//
+//	string s0 "héllo"
 //
 //	global g0 x i64 @p.go:3:5
 //
@@ -41,11 +44,14 @@ import (
 //	  v7 = phi i64, b1.0: v2, b2.0: v5 @10:3
 func (p *Program) String() string {
 	var b strings.Builder
+	for i, s := range p.Strings {
+		fmt.Fprintf(&b, "string s%d %s\n", i, strconv.Quote(s))
+	}
 	for _, g := range p.Globals {
 		fmt.Fprintf(&b, "global g%d %s %s @%s:%s\n", g.ID, g.Name, g.Type, g.File, g.Pos)
 	}
 	for i, f := range p.Funcs {
-		if i > 0 || len(p.Globals) > 0 {
+		if i > 0 || len(p.Globals)+len(p.Strings) > 0 {
 			b.WriteString("\n")
 		}
 		f.write(&b)
@@ -128,6 +134,8 @@ func (in *Instr) String() string {
 		}
 	case Param, Extract:
 		ops = append(ops, fmt.Sprint(in.Index))
+	case Str:
+		ops = append(ops, fmt.Sprintf("s%d", in.Index))
 	case Call:
 		if in.Callee != nil {
 			ops = append(ops, in.Callee.Name)
@@ -188,4 +196,4 @@ func types(ts []Type) string {
 }
 
 // panicNames are the printed names of the run-time errors.
-var panicNames = [...]string{PanicDivide: "divide", PanicShift: "shift"}
+var panicNames = [...]string{PanicDivide: "divide", PanicShift: "shift", PanicIndex: "index"}

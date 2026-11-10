@@ -51,12 +51,16 @@ const (
 	// in 64 bits as their bit patterns: an F32's 32 bits zero-extended.
 	F64
 	F32
+	// Ptr is the address of a program string's bytes (D-033), or 0. Lowering
+	// represents a Go string as a Ptr and an I64 length. Only Str and the
+	// constant 0 produce a Ptr, and only LoadB reads through one.
+	Ptr
 )
 
 var typeNames = [...]string{
 	NoType: "none", I64: "i64", Bool: "bool", Tuple: "tuple",
 	I8: "i8", I16: "i16", I32: "i32", U8: "u8", U16: "u16", U32: "u32", U64: "u64",
-	F64: "f64", F32: "f32",
+	F64: "f64", F32: "f32", Ptr: "ptr",
 }
 
 func (t Type) String() string {
@@ -150,9 +154,10 @@ const (
 	// signed type is arithmetic.
 	Shl
 	Shr
-	// Panic ends the program with the run-time error Index (PanicDivide or
-	// PanicShift): the message and exit status 2. It is a terminator. No
-	// args.
+	// Panic ends the program with the run-time error Index (PanicDivide,
+	// PanicShift, or PanicIndex): the message and exit status 2. It is a
+	// terminator. PanicIndex has args: the index, of any integer type, and
+	// the I64 length it is out of range of; the others have none.
 	Panic
 	// Conv produces args[0], of any integer type, converted to the
 	// instruction's integer type: the canonical form of its value reduced
@@ -246,6 +251,13 @@ const (
 	// of T32(x), I64 and U32 that of T64(x), and U64 is T64(x) if x < 2^63
 	// and T64(x - 2^63) with bit 63 set otherwise.
 	FToI
+	// Str produces the address of Program.Strings[Index], a Ptr (D-033). No
+	// args.
+	Str
+	// LoadB produces the U8 byte at offset args[1], an I64, of the string
+	// whose address is args[0], a Ptr. Precondition: 0 <= args[1] < the
+	// string's length (lowering checks it first, D-033).
+	LoadB
 )
 
 var opNames = [...]string{
@@ -258,7 +270,7 @@ var opNames = [...]string{
 	GLoad: "gload", GStore: "gstore", Phi: "phi",
 	FAdd: "fadd", FSub: "fsub", FMul: "fmul", FDiv: "fdiv", FNeg: "fneg",
 	FEq: "feq", FNe: "fne", FLt: "flt", FLe: "fle", FGt: "fgt", FGe: "fge",
-	IToF: "itof", FToF: "ftof", FToI: "ftoi",
+	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
 }
 
 func (op Op) String() string {
@@ -275,11 +287,27 @@ func (op Op) IsTerminator() bool { return op == Ret || op == Jump || op == Branc
 const (
 	PanicDivide = iota
 	PanicShift
+	PanicIndex
 )
 
 // PanicMessages are the run-time errors' messages, as gc prints them after
 // "panic: runtime error: ".
-var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount"}
+// PanicIndex's message is followed by the index and length, as IndexMessage
+// formats them.
+var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount", PanicIndex: "index out of range"}
+
+// IndexMessage is PanicIndex's message for index i, of a signed type if
+// signed, and length n, as gc writes it (go1.26.1, D-033): a negative index
+// has no length.
+func IndexMessage(i int64, signed bool, n int64) string {
+	if signed && i < 0 {
+		return fmt.Sprintf("index out of range [%d]", i)
+	}
+	if signed {
+		return fmt.Sprintf("index out of range [%d] with length %d", i, n)
+	}
+	return fmt.Sprintf("index out of range [%d] with length %d", uint64(i), n)
+}
 
 // IsComparison reports whether op is one of Eq through Ge, the integer
 // and Bool comparisons; the float comparisons are IsFloatComparison.
@@ -298,10 +326,25 @@ func (p Pos) String() string { return fmt.Sprintf("%d:%d", p.Line, p.Col) }
 // Program is a whole program. Its entry point is the function named "main".
 // If Init is not nil, it runs before main: it is one of Funcs, named "init",
 // takes no parameters, returns no results, and is never called (D-023).
+// Strings are the bytes of its string constants, which Str addresses
+// (D-033); none is empty, and none repeats.
 type Program struct {
 	Funcs   []*Func
 	Globals []*Global
 	Init    *Func
+	Strings []string
+}
+
+// Intern returns the index of s in p.Strings, adding it if it is new. s
+// must not be empty.
+func (p *Program) Intern(s string) int {
+	for i, t := range p.Strings {
+		if t == s {
+			return i
+		}
+	}
+	p.Strings = append(p.Strings, s)
+	return len(p.Strings) - 1
 }
 
 // Global is a package-level variable. It holds the zero value of its type
@@ -530,9 +573,19 @@ func (f *Func) Shift(b *Block, op Op, x, count *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: op, Type: x.Type, Args: []*Instr{x, count}, Pos: pos})
 }
 
-// Panic appends a panic with the run-time error kind.
-func (f *Func) Panic(b *Block, kind int, pos Pos) *Instr {
-	return f.add(b, &Instr{Op: Panic, Index: kind, Pos: pos})
+// Panic appends a panic with the run-time error kind and its args.
+func (f *Func) Panic(b *Block, kind int, pos Pos, args ...*Instr) *Instr {
+	return f.add(b, &Instr{Op: Panic, Index: kind, Args: args, Pos: pos})
+}
+
+// Str appends the address of string i of the program.
+func (f *Func) Str(b *Block, i int, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Str, Type: Ptr, Index: i, Pos: pos})
+}
+
+// LoadB appends the load of byte i of the string at ptr.
+func (f *Func) LoadB(b *Block, ptr, i *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: LoadB, Type: U8, Args: []*Instr{ptr, i}, Pos: pos})
 }
 
 // Com appends the complement of x.

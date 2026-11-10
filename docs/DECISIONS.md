@@ -61,6 +61,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment complete, all criteria met; shipped by D-031) |
 | D-031 | `aether build` uses ABI-R1; `-O0` keeps ABI-S0 | Accepted (2026-11-07, owner approval) |
 | D-032 | Floating point in the IR and the runtime (Phase 6 increment 6.1) | Accepted (2026-11-09, owner approval) |
+| D-033 | String constants in the IR and the runtime (Phase 6 increment 6.2) | Proposed (2026-11-09) |
 
 ## Review log
 
@@ -103,6 +104,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-07 | Owner approves ABI-R1 as the default convention of `aether build` after the D-030 criteria were met; `-O0` keeps ABI-S0. D-031 created. | D-011, D-028, D-030, D-031 |
 | 2026-11-09 | Phase 6 started with floating point; D-032 created as Proposed. Only its runtime formatter exists, with tests; no IR or gate change yet. | D-011, D-032 |
 | 2026-11-09 | Owner accepts D-032 as proposed, with its three constraints | D-032 |
+| 2026-11-09 | Phase 6.2 started with string constants; D-033 created as Proposed. Its IR, interpreter, backend, and runtime parts exist with tests; the gate does not accept strings yet. | D-033 |
 
 ---
 
@@ -2666,6 +2668,59 @@ specific Go release; a later change to gc's format is a new divergence to record
 neighbors, short decimals, and random bit patterns) and requires the exact
 `strconv` output for each. Two planted bugs, in the `e == -77` tie rule and in the
 parity test, each made it fail.
+
+---
+
+## D-033: String constants in the IR and the runtime (Phase 6 increment 6.2)
+
+**Status:** Proposed (2026-11-09). Needs owner acceptance before the gate accepts
+strings.
+
+**Context.** Phase 6 adds string constants: static data, `len`, indexing with
+bounds-check panics, and printing (`ROADMAP.md` Phase 6). Concatenation, slicing,
+pointers, and conversions are excluded. Measured with gc-built go1.26.1 binaries on
+2026-11-09: `print` and `println` write a string's bytes exactly, NUL and invalid
+UTF-8 included; an index out of range panics with `index out of range [3] with
+length 3`, an unsigned index printed unsigned (`[9223372036854775808] with length
+3`), and a negative signed index with no length (`index out of range [-1]`), exit
+status 2.
+
+**Decision.**
+- **Values.** Lowering represents a Go string as two words: a `ptr`, the address of
+  constant bytes, and an `i64` length. Variables, globals, parameters, and results
+  of type `string` become two slots, globals, parameters, or results, so slots,
+  phis, the allocator, ABI-S0, and ABI-R1 move strings as words and do not change.
+  Every string value refers to constant data; nothing creates string bytes at run
+  time.
+- **Data.** `Program.Strings` holds the distinct, non-empty constants. `str k`
+  produces the address of string k; the empty string is the `ptr` constant 0 with
+  length 0, which is also the zero value. The backend emits each string's exact
+  bytes, with no terminator, under a local `.rodata` label.
+- **Operations.** `loadb p, i` reads the byte at offset i, an `i64`, as a `u8`; its
+  precondition is 0 ≤ i < the length, which lowering checks first with an unsigned
+  comparison, branching to `panic index, i, n`, a new run-time error whose operands
+  are the original index, of any integer type, and the length. A `ptr` is used
+  only by `loadb`, by `print` and `println` as an operand immediately followed by
+  its `i64` length, and as a word that is stored, loaded, passed, and returned.
+- **Runtime.** `aether.printstr` (address in `%rdi`, length in `%rsi`) and
+  `aether.panicindex`/`aether.panicindexu` (signed or unsigned index in `%rdi`,
+  length in `%rsi`), under the helper interface (`ARCHITECTURE.md` §Runtime
+  integration boundary).
+
+**Alternatives.** A two-word string type in the IR, which every pass, the allocator,
+and both calling conventions would have to learn. A `print` instruction per
+string, which splits `println` and changes the IR of every existing program.
+
+**Consequences.** Comparison of strings is not part of this increment; it needs a
+runtime comparison of bytes and stays `unsupported`. The interpreter holds a `ptr`
+as the string's index plus 1.
+
+**Evidence.** `TestNativeStrings` prints and indexes strings holding all 256 byte
+values, a NUL, and multibyte and invalid UTF-8, through slots, globals, a call with
+seven string arguments, and a returned string, in the interpreter, the slot-based
+backend, and the default backend, with identical output. `TestPanicIndex` checks
+the panic message at the signed and unsigned extremes natively and in the
+interpreter.
 
 ---
 

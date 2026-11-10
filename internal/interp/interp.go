@@ -54,13 +54,13 @@ func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
 	globals := make([]int64, len(prog.Globals))
 	var executed int64
 	if prog.Init != nil {
-		if code, err := run(prog.Init, globals, stderr, steps, &executed); code != 0 || err != nil {
+		if code, err := run(prog.Init, prog.Strings, globals, stderr, steps, &executed); code != 0 || err != nil {
 			return code, err
 		}
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, globals, stderr, steps, &executed)
+			return run(f, prog.Strings, globals, stderr, steps, &executed)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
@@ -82,7 +82,10 @@ type frame struct {
 // interpreter's own Go stack does not grow with the IR call depth (D-023).
 // It counts the instructions it executes in *executed, against the budget
 // steps.
-func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, executed *int64) (int, error) {
+//
+// A Ptr is held as the index of its program string plus 1, so that the
+// constant 0 is the empty string's address (D-033).
+func run(entry *ir.Func, strs []string, globals []int64, stderr io.Writer, steps int64, executed *int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
@@ -154,8 +157,21 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 		case ir.Shl, ir.Shr:
 			fr.values[in.ID] = in.Type.Canonical(shift(in.Op, in.Type, arg(0), uint64(arg(1))))
 		case ir.Panic:
-			_, _ = io.WriteString(stderr, "panic: runtime error: "+ir.PanicMessages[in.Index]+"\n")
+			msg := ir.PanicMessages[in.Index]
+			if in.Index == ir.PanicIndex {
+				msg = ir.IndexMessage(arg(0), in.Args[0].Type.Signed(), arg(1))
+			}
+			_, _ = io.WriteString(stderr, "panic: runtime error: "+msg+"\n")
 			return 2, nil
+		case ir.Str:
+			fr.values[in.ID] = int64(in.Index) + 1
+		case ir.LoadB:
+			p, i := arg(0), arg(1)
+			if p < 1 || p > int64(len(strs)) || i < 0 || i >= int64(len(strs[p-1])) {
+				// Lowering checks every index first (D-033).
+				return 0, fmt.Errorf("interp: func %s: %s out of range", fr.f.Name, in)
+			}
+			fr.values[in.ID] = int64(strs[p-1][i])
 		case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
 			fr.values[in.ID] = b2i(compare(in.Op, in.Args[0].Type, arg(0), arg(1)))
 		case ir.Not:
@@ -182,11 +198,23 @@ func run(entry *ir.Func, globals []int64, stderr io.Writer, steps int64, execute
 			enter(fr, ir.Edge{From: fr.blk, Index: int(1 - arg(0))})
 		case ir.Println, ir.Print:
 			var line []byte
-			for i, a := range in.Args {
+			for i := 0; i < len(in.Args); i++ {
+				a := in.Args[i]
 				if i > 0 && in.Op == ir.Println {
 					line = append(line, ' ')
 				}
 				switch {
+				case a.Type == ir.Ptr:
+					// A string: its address and then its length (D-033).
+					p, n := arg(i), arg(i+1)
+					i++
+					switch {
+					case p == 0 && n == 0:
+					case p >= 1 && p <= int64(len(strs)) && n >= 0 && n <= int64(len(strs[p-1])):
+						line = append(line, strs[p-1][:n]...)
+					default:
+						return 0, fmt.Errorf("interp: func %s: %s prints a string out of range", fr.f.Name, in)
+					}
 				case a.Type == ir.F64:
 					line = strconv.AppendFloat(line, toFloat(a.Type, arg(i)), 'g', -1, 64)
 				case a.Type == ir.F32:

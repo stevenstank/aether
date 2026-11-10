@@ -79,6 +79,16 @@ aether.printbool:
 	jmp	aether.write
 	.size	aether.printbool, .-aether.printbool
 
+# aether.printstr writes the %rsi bytes at %rdi, a string's (D-033). It uses
+# 8 bytes below %rsp, aether.write's return address.
+	.globl	aether.printstr
+	.type	aether.printstr, @function
+aether.printstr:
+	movq	%rsi, %rdx
+	movq	%rdi, %rsi
+	jmp	aether.write
+	.size	aether.printstr, .-aether.printstr
+
 	.globl	aether.printsp
 	.type	aether.printsp, @function
 aether.printsp:

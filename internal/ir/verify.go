@@ -100,6 +100,16 @@ func verifyProgram(p *Program) ([]error, map[*Func]bool, map[*Global]bool) {
 		}
 		errs = append(errs, e)
 	}
+	seen := map[string]bool{}
+	for i, str := range p.Strings {
+		switch {
+		case str == "":
+			errs = append(errs, &VerifyError{Func: "?", Block: -1, Index: -1, Msg: fmt.Sprintf("string s%d is empty", i)})
+		case seen[str]:
+			errs = append(errs, &VerifyError{Func: "?", Block: -1, Index: -1, Msg: fmt.Sprintf("string s%d repeats an earlier string", i)})
+		}
+		seen[str] = true
+	}
 	if p.Init != nil && !funcs[p.Init] {
 		errs = append(errs, &VerifyError{Func: p.Init.Name, Block: -1, Index: -1, Msg: "Init is not a function of the program"})
 	}
@@ -506,6 +516,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		switch {
 		case !validType(in.Type):
 			v.errorf(bi, i, in, "const has invalid type %s", in.Type)
+		case in.Type == Ptr && in.Const != 0:
+			v.errorf(bi, i, in, "ptr constant %d is not 0", in.Const)
 		case in.Type == Bool && in.Const != 0 && in.Const != 1:
 			v.errorf(bi, i, in, "bool constant %d is not 0 or 1", in.Const)
 		case in.Type.Canonical(in.Const) != in.Const:
@@ -530,6 +542,16 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if in.Index < 0 || in.Index >= len(PanicMessages) {
 			v.errorf(bi, i, in, "panic of unknown kind %d", in.Index)
 		}
+		if in.Index == PanicIndex {
+			args = []Type{integer, I64}
+		}
+	case Str:
+		want = Ptr
+		if in.Index < 0 || in.Index >= len(v.p.Strings) {
+			v.errorf(bi, i, in, "str s%d of a program with %d strings", in.Index, len(v.p.Strings))
+		}
+	case LoadB:
+		want, args = U8, []Type{Ptr, I64}
 	case Add, Sub, Mul, And, Or, Xor, AndNot, Div, Rem:
 		want, args = integer, []Type{integer, integer}
 	case Neg, Com:
@@ -567,6 +589,15 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		}
 	case Println, Print:
 		anyArgs = true
+		// A string is its Ptr and then its I64 length (D-033).
+		for j := 0; j < len(in.Args); j++ {
+			if a := in.Args[j]; a != nil && a.Type == Ptr {
+				if j+1 == len(in.Args) || in.Args[j+1] == nil || in.Args[j+1].Type != I64 {
+					v.errorf(bi, i, in, "%s operand v%d, a ptr, is not followed by an i64 length", in.Op, a.ID)
+				}
+				j++
+			}
+		}
 	case Phi:
 		want = in.Type
 		if !v.f.SSA {
@@ -677,7 +708,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != Load && in.Op != Store && in.Slot != nil {
 		v.errorf(bi, i, in, "%s has a slot operand", in.Op)
 	}
-	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Index != 0 {
+	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Op != Str && in.Index != 0 {
 		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
 	}
 	if in.Op != Call && in.Callee != nil {
@@ -708,6 +739,6 @@ func (v *verifier) slotRef(bi, i int, in *Instr) {
 	}
 }
 
-func validType(t Type) bool { return t == Bool || t.IsInteger() || t.IsFloat() }
+func validType(t Type) bool { return t == Bool || t.IsInteger() || t.IsFloat() || t == Ptr }
 
 func validPos(p Pos) bool { return p.Line > 0 && p.Col > 0 }

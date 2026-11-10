@@ -110,7 +110,62 @@ aether.panicshift:
 	hlt				# not reached
 	.size	aether.panicshift, .-aether.panicshift
 
+# aether.panicindex and aether.panicindexu end the program with an index out
+# of range (D-033): the index in %rdi, signed or unsigned, and the length in
+# %rsi. They write "panic: runtime error: index out of range [", the index,
+# and "] with length " and the length, or for a negative index only "]",
+# then a newline, as gc does, and exit with status 2. They use at most 72
+# bytes below %rsp: their return address, 8 bytes of alignment, and
+# aether.printint's 56.
+	.globl	aether.panicindex
+	.type	aether.panicindex, @function
+aether.panicindex:
+	movl	$1, %r13d		# signed
+	jmp	1f
+	.size	aether.panicindex, .-aether.panicindex
+
+	.globl	aether.panicindexu
+	.type	aether.panicindexu, @function
+aether.panicindexu:
+	xorl	%r13d, %r13d
+1:	subq	$8, %rsp		# align for the helpers' calls
+	movq	%rdi, %rbx		# the helpers preserve %rbx, %r12, %r13
+	movq	%rsi, %r12
+	leaq	.Lpanicindex(%rip), %rsi
+	movl	$.Lpanicindexlen, %edx
+	call	aether.write
+	movq	%rbx, %rdi
+	testl	%r13d, %r13d
+	jz	2f
+	call	aether.printint
+	testq	%rbx, %rbx
+	jns	3f
+	leaq	.Lpanicclose(%rip), %rsi	# a negative index: no length
+	movl	$1, %edx
+	call	aether.write
+	jmp	4f
+2:	call	aether.printuint
+3:	leaq	.Lpaniclength(%rip), %rsi
+	movl	$.Lpaniclengthlen, %edx
+	call	aether.write
+	movq	%r12, %rdi
+	call	aether.printint
+4:	call	aether.printnl
+	movl	$231, %eax		# exit_group
+	movl	$2, %edi
+	syscall
+	hlt				# not reached
+	.size	aether.panicindexu, .-aether.panicindexu
+
 	.section	.rodata
+.Lpanicindex:
+	.ascii	"panic: runtime error: index out of range ["
+	.set	.Lpanicindexlen, .-.Lpanicindex
+.Lpaniclength:
+	.ascii	"] with length "
+	.set	.Lpaniclengthlen, .-.Lpaniclength
+.Lpanicclose:
+	.ascii	"]"
 .Lpanicdivide:
 	.ascii	"panic: runtime error: integer divide by zero\n"
 	.set	.Lpanicdividelen, .-.Lpanicdivide
