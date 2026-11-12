@@ -21,9 +21,10 @@ import (
 // some programs panic. Since increment 4.6, a program may begin with
 // package-level var and const declarations, whose initializers refer to
 // other ones; they are printed in shuffled order, so the initialization
-// order (types.Info.InitOrder) differs from the declaration order. There is
-// no function besides main, so no call assigns a global while an
-// expression reads it (SEMANTICS.md V-4). main assigns globals like locals
+// order (types.Info.InitOrder) differs from the declaration order. No
+// function assigns a global (the only ones besides main are those of
+// gen_agg_test.go), so no call assigns a global while an expression reads
+// it (SEMANTICS.md V-4). main assigns globals like locals
 // and prints them all at its end. Since increment 4.7, a program may
 // contain switch statements on bool and integer tags, or without a tag,
 // with an optional init statement, several values per case, a default
@@ -35,7 +36,8 @@ import (
 // integer ones. Their choices come from a second random stream, so the rest
 // of the program is what the same seed generated before. Since increment
 // 6.2, string statements (stringStmt) and globals are added the same way,
-// from a third stream.
+// from a third stream, and since increment 6.3 array and struct types,
+// functions, globals, and statements (gen_agg_test.go) from a fourth.
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -43,7 +45,8 @@ import (
 // Every loop runs at most 3 times: its counter is never a target of
 // assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
-	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7)), s: rand.New(rand.NewPCG(seed, 0x57217))}
+	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7)), s: rand.New(rand.NewPCG(seed, 0x57217)),
+		a: rand.New(rand.NewPCG(seed, 0xa66))}
 	g.line(0, "package main")
 	g.line(0, "")
 	// The package scope. Each declaration may use the ones generated
@@ -66,6 +69,7 @@ func generate(seed uint64) string {
 	}
 	g.floatGlobals()
 	g.stringGlobals()
+	g.aggDecls()
 	g.line(0, "func main() {")
 	// Float variables that are never constant: zeros, for the special
 	// values of division, and nonzero values.
@@ -81,7 +85,7 @@ func generate(seed uint64) string {
 	g.line(1, "println(fz, fo, gz, gt)")
 	g.scopes, g.order = g.scopes[:len(g.scopes)-1], g.order[:len(g.order)-1]
 	if globals := g.visible(entry.isVar); len(globals) > 0 {
-		g.line(1, "println(%s)", strings.Join(globals, ", "))
+		g.line(1, "println(%s)", strings.Join(g.uses(globals), ", "))
 	}
 	g.line(0, "}")
 	return g.b.String()
@@ -97,16 +101,30 @@ const (
 	counter               // a loop counter: an int variable that is never assigned
 	floatVar              // a float64 or float32 variable, which only floatStmt uses
 	strVar                // a string variable, which only stringStmt uses
+	aggVar                // an array or struct variable, which only aggStmt uses
 )
 
 // entry is a declared name: what it denotes and, for a variable, its type.
 type entry struct {
 	k kind
-	t string // "bool" or an integer type name; "int" for a counter
+	t string // "bool" or an integer type name; "int" for a counter; an aggVar's type name
 }
 
 func (e entry) isVar() bool {
-	return e.k == variable || e.k == counter || e.k == floatVar || e.k == strVar
+	return e.k == variable || e.k == counter || e.k == floatVar || e.k == strVar || e.k == aggVar
+}
+
+// uses returns expressions that use the variables names: each itself, or
+// for an array or struct one of its scalars (aggUse).
+func (g *generator) uses(names []string) []string {
+	out := make([]string, len(names))
+	for i, name := range names {
+		out[i] = name
+		if e, _ := g.lookup(name); e.k == aggVar {
+			out[i] = g.aggUse(name, g.typeOf(e.t))
+		}
+	}
+	return out
 }
 
 // intTypes are the integer types variables are declared with. byte and
@@ -145,17 +163,21 @@ var maxLiteral = map[string]string{
 }
 
 type generator struct {
-	r      *rand.Rand
-	f      *rand.Rand // the float statements' choices
-	fnames int
-	s      *rand.Rand // the string statements' choices
-	snames int
-	b      strings.Builder
-	scopes []map[string]entry
-	order  [][]string // declaration order, per scope
-	names  int
-	loops  int // enclosing loops
-	breaks int // enclosing loops and switches
+	r        *rand.Rand
+	f        *rand.Rand // the float statements' choices
+	fnames   int
+	s        *rand.Rand // the string statements' choices
+	snames   int
+	a        *rand.Rand // the array and struct choices
+	anames   int
+	aggStmts int
+	aggTypes []*gtype
+	b        strings.Builder
+	scopes   []map[string]entry
+	order    [][]string // declaration order, per scope
+	names    int
+	loops    int // enclosing loops
+	breaks   int // enclosing loops and switches
 }
 
 // capture returns what emit writes, instead of writing it.
@@ -191,7 +213,7 @@ func (g *generator) stmts(depth, n int) {
 		}
 	}
 	if len(vars) > 0 {
-		g.line(depth, "println(%s)", strings.Join(vars, ", "))
+		g.line(depth, "println(%s)", strings.Join(g.uses(vars), ", "))
 	}
 	g.scopes = g.scopes[:len(g.scopes)-1]
 	g.order = g.order[:len(g.order)-1]
@@ -240,7 +262,7 @@ func (g *generator) pick(list []string) string { return list[g.r.IntN(len(list))
 // newName returns a name not declared in the current scope: usually a fresh
 // one, sometimes one from an outer scope, which the declaration shadows.
 func (g *generator) newName(taken []string) string {
-	if outer := g.visible(func(e entry) bool { return e.k != floatVar && e.k != strVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
+	if outer := g.visible(func(e entry) bool { return e.k != floatVar && e.k != strVar && e.k != aggVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
 		name := g.pick(outer)
 		if _, inScope := g.scopes[len(g.scopes)-1][name]; !inScope && !contains(taken, name) {
 			return name
@@ -312,6 +334,10 @@ func (g *generator) stmt(depth int) {
 	}
 	if g.s.IntN(4) == 0 {
 		g.stringStmt(depth)
+	}
+	if g.a.IntN(5) == 0 && g.aggStmts < maxAggStmts {
+		g.aggStmts++
+		g.aggStmt(depth)
 	}
 	assignable := g.visible(func(e entry) bool { return e.k == variable })
 	ints := g.visible(func(e entry) bool { return e.k == variable && e.t != "bool" })

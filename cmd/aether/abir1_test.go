@@ -376,8 +376,9 @@ func TestABIR1SelectPrograms(t *testing.T) {
 // path that ABI-R1 changes: only main.main and main.init, which take and return
 // nothing, are Aether functions, and neither is called from the program.
 func avoidsR1(asm []byte) bool {
-	for _, m := range funcType.FindAllSubmatch(asm, -1) {
-		if s := string(m[1]); s != "main.main" && s != "main.init" {
+	// funcType matches one line.
+	for line := range strings.SplitSeq(string(asm), "\n") {
+		if m := funcType.FindStringSubmatch(line); m != nil && m[1] != "main.main" && m[1] != "main.init" {
 			return false
 		}
 	}

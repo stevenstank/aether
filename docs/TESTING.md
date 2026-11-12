@@ -252,6 +252,33 @@ first value of each case tested (10), and `break` leaving the enclosing
 `for` (2 generated programs give wrong output, and 59 fail lowering with an
 internal error because no loop encloses the switch).
 
+Since Phase 6 increment 6.3, a fourth random stream (`gen_agg_test.go`)
+declares up to three array or struct types, of scalars and the types before
+them, with blank fields and lengths of 0 to 33 (17 and 33 exceed the
+lowering's unrolling, so copies and comparisons loop); a function per type
+that changes its parameter's copy and returns it; and up to two globals.
+Statements on them, at most `maxAggStmts` (30) per program so that `main`
+stays within the limits on promotion, are declarations, whole and tuple
+assignments, stores to and arithmetic on fields and elements, comparisons,
+calls whose argument is printed beside the result, and prints. An element is
+selected by constant indices, or by a variable index guarded by a test of the
+length, or unguarded: rarely by any variable, and often, inside a loop, by
+`c + n-2` for the loop counter `c` and the array's length `n`, which reaches
+the first index out of range on the loop's last iteration. On 2026-11-13, of
+seeds 1001 to 3000, 1,162 were valid, 878 of them with aggregates; 126 of
+those panic, 60 with an index out of range. All 878 gave gc's output in the
+interpreter, `aether build`, and `-O0`. Negative controls in lowering, run by
+hand and reverted, against `TestDifferentialAgainstGc`: a whole variable read
+without a copy (11 of its 200 generated programs and 2 corpus programs fail)
+and a bounds check off by one (3 generated programs and 1 corpus program).
+
+`TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
+gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
+types chosen for padding, nesting, embedding, blank and zero-size fields,
+and an array element's offset, and each must equal what Aether's emitted IR
+uses: a global's memory object, and the lowest offset at which a function
+storing one field writes into it. Lowering the 386 layout instead fails it.
+
 #### The S2 suite
 
 The S2 suite is the evidence for Phase 4's acceptance criteria
