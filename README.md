@@ -121,12 +121,12 @@ potentially long-term dependencies. The exact ownership boundaries are in
 
 ## Current limitations
 
-- Only S2, floats, and string constants (Phase 6 increments 6.1 and 6.2) are
-  supported: no string concatenation or comparison, complex numbers, arrays,
-  structs, pointers, slices,
+- Only S2, floats, string constants, and arrays and structs (Phase 6
+  increments 6.1 to 6.3) are supported: no string concatenation or comparison,
+  complex numbers, pointers, slices,
   maps, methods, interfaces, closures, `defer`, `panic`, or goroutines; no
   `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
-  declarations or `init` functions. Panics print no traceback.
+  declarations other than of arrays and structs, and no `init` functions. Panics print no traceback.
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).

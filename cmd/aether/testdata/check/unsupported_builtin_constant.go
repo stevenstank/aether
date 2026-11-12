@@ -3,6 +3,6 @@
 package main
 
 func main() {
-	x := len([3]int{})
+	x := cap([3]int{})
 	println(x)
 }

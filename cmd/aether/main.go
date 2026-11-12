@@ -26,11 +26,11 @@ Commands:
 
 Supported subset (S2):
   one file, package main, no imports; functions with multiple results;
-  bool, every integer type, float32, float64, and string constants with
-  len and indexing; if, for, and switch; package-level var and const; print
-  and println. Not supported: string concatenation and comparison, complex
-  numbers, arrays, structs, pointers, slices, maps, methods, interfaces,
-  closures, defer, goroutines.
+  bool, every integer type, float32, float64, string constants with len
+  and indexing, and arrays and structs of them; if, for, and switch;
+  package-level var and const; print and println. Not supported: string
+  concatenation and comparison, complex numbers, pointers, slices, maps,
+  methods, interfaces, closures, defer, goroutines.
   See docs/SEMANTICS.md.
 
 Build flags:

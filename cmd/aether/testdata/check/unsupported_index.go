@@ -3,6 +3,6 @@
 package main
 
 func main() {
-	var a [2]int
-	println(a[1])
+	m := map[int]int{}
+	println(m[1])
 }

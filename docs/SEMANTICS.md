@@ -692,6 +692,45 @@ conversions to `string` and from it to slices (`conversion`); slicing
 (`rune-literal`); `&s` and pointers. The feature name `string-literal` no longer
 exists.
 
+## Arrays and structs (Phase 6 increment 6.3)
+
+The gate also accepts array and struct types whose elements and fields are of
+supported types, nested to any depth, of at most 2²⁴ bytes: type literals, and
+defined types declared by `type T [N]E` or `type T struct{…}`, at package level
+or locally (an alias, a generic type, or a defined type of another underlying
+type is still `local-type-declaration` or `package-level-declaration`). Their
+values may be variables, globals and their initializers, parameters, results,
+and multiple results, as the other types; each lives in memory laid out as
+`types.SizesFor("gc", "amd64")` gives, which is what `unsafe.Sizeof` and
+`unsafe.Offsetof` report for gc (D-034).
+- **Values.** Assignment, passing, and returning copy the whole value; a
+  callee's changes to its parameter never reach the caller. A variable without
+  an initializer is the zero value.
+- **Literals.** Array and struct composite literals, positional or keyed, `[...]T`,
+  and nested literals with elided types; omitted elements are zero.
+- **Selectors** `x.f` name a field, including one promoted through embedded
+  struct fields. **Indexing** `a[i]` of an array takes an index of any integer
+  type; an index out of range panics as for strings (§String constants, V-3),
+  and a constant one is checked by the compiler. **`len(a)`** is the array's
+  length, a constant unless `a` contains a call, which is then evaluated.
+- **Targets.** Fields and elements, through any number of selectors and
+  indices, may be assigned, with `op=`, and with `++` and `--`. The operands of
+  a target's index expressions are evaluated with the right side, and its
+  bounds are checked when it is assigned (spec §Assignment statements), so in
+  `a[i()] = f()` and `a[i()] += f()` both calls come before an index panic, as
+  with gc. An index read in an expression is checked where it is evaluated,
+  left to right (V-4).
+- **`==` and `!=`** compare corresponding elements and non-blank fields: floats
+  by IEEE 754, so a NaN makes a value unequal to itself.
+- **Conversions** between array or struct types of identical underlying types.
+
+Still `unsupported`: `==`, `!=`, and `switch` on a type that holds a string
+(`string-comparison`) or on any array or struct value (`non-int-type`); printing
+one (`println-argument-type`); slicing an array (`slice-expression`); `for
+range` (`for-range`); slice and map literals (`composite-literal`); `cap`
+(`builtin`); methods, pointers, and `&`; parenthesized assignment targets
+(`assignment-target`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -717,6 +756,7 @@ exists.
 | Expression `switch` on `bool` and integer tags, unlabeled `break` | Switch statements, Break statements | S2 / 4.7 | Supported (native) | `s2_s01_switch`, `s2_s02_switch_panic`; gate tests; `TestLowerSwitch` |
 | `float64`, `float32`: arithmetic, comparisons, conversions, constants, calls, globals, printing | Floating-point types, Arithmetic operators, Comparison operators, Conversions | S3 / 6.1 | Supported (native) | `s3_f01_float_arith` to `s3_f04_float_calls`; generated float programs; `TestNativeFloat`, `TestPrintFloat`, `TestVerifyFloat`; gate tests |
 | `string`: constants, variables, calls, globals, `len`, indexing with index panics, printing | String types, String literals, Length and capacity, Index expressions | S3 / 6.2 | Supported (native), with divergence V-3 | `s3_s01_string_basics` to `s3_s07_index_empty`; generated string programs; `TestNativeStrings`, `TestPanicIndex`, `TestVerifyStrings`; gate tests |
+| Arrays and structs: type declarations, literals, fields, indexing with index panics, copies, parameters, results, globals, `len`, `==`, `!=` | Array types, Struct types, Composite literals, Selectors, Index expressions, Assignment statements, Comparison operators | S3 / 6.3 | Supported (native), with divergences V-3 and V-4 | `s3_a01_struct_basics` to `s3_a09_aggregate_swap`; `TestNativeMemory`, `TestFrameMems`, `TestMemoryRoundTrip`, `TestVerifyMem`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

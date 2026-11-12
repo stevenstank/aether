@@ -1,0 +1,61 @@
+string s0 "i"
+string s1 "f"
+
+func i() i64 @testdata/check/s3_a08_compound_index_panic.go:12:6
+b0:
+  v0 = str s0 @13:10
+  v1 = const 1 @13:10
+  println v0, v1 @13:2
+  v2 = const -1 @14:9
+  ret v2 @14:2
+
+func f() i8 @testdata/check/s3_a08_compound_index_panic.go:17:6
+b0:
+  v0 = str s1 @18:10
+  v1 = const 1 @18:10
+  println v0, v1 @18:2
+  v2 = const i8 1 @19:9
+  ret v2 @19:2
+
+func main @testdata/check/s3_a08_compound_index_panic.go:22:6
+  slot s0 tmp i64 @26:5
+  slot s1 tmp i8 @26:2
+  mem m0 s 2 align 1 @23:6
+b0:
+  v0 = const i8 0 @23:6
+  v1 = addr m0 @23:6
+  v2 = const 0 @23:6
+  stm v1, v2, v0 @23:6
+  v3 = const i8 0 @23:6
+  v4 = const 1 @23:6
+  stm v1, v4, v3 @23:6
+  v5 = call f @24:12
+  v6 = const 1 @24:2
+  v7 = ldm i8, v1, v6 @24:2
+  v8 = add v7, v5 @24:9
+  v9 = const 1 @24:2
+  stm v1, v9, v8 @24:2
+  v10 = const 1 @25:10
+  v11 = ldm i8, v1, v10 @25:10
+  println v11 @25:2
+  v12 = call i @26:6
+  store s0, v12 @26:5
+  v13 = call f @26:14
+  store s1, v13 @26:2
+  v14 = conv u64, v12 @26:5
+  v15 = const u64 2 @26:5
+  v16 = ge v14, v15 @26:5
+  branch v16, b1, b2 @26:5
+b1:
+  v17 = load s0 @26:5
+  v18 = const 2 @26:5
+  panic index, v17, v18 @26:5
+b2:
+  v19 = addr m0 @26:2
+  v20 = load s0 @26:5
+  v21 = ldm i8, v19, v20 @26:2
+  v22 = load s1 @26:2
+  v23 = add v21, v22 @26:11
+  v24 = load s0 @26:5
+  stm v19, v24, v23 @26:2
+  ret @27:1

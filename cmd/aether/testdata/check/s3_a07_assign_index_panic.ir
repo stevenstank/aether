@@ -1,0 +1,51 @@
+string s0 "i"
+string s1 "f"
+mem gm0 a 24 align 8 @testdata/check/s3_a07_assign_index_panic.go:10:5
+
+func i() i64 @testdata/check/s3_a07_assign_index_panic.go:12:6
+b0:
+  v0 = str s0 @13:10
+  v1 = const 1 @13:10
+  println v0, v1 @13:2
+  v2 = const 5 @14:9
+  ret v2 @14:2
+
+func f() i64 @testdata/check/s3_a07_assign_index_panic.go:17:6
+b0:
+  v0 = str s1 @18:10
+  v1 = const 1 @18:10
+  println v0, v1 @18:2
+  v2 = const 1 @19:9
+  ret v2 @19:2
+
+func main @testdata/check/s3_a07_assign_index_panic.go:22:6
+  slot s0 tmp i64 @25:3
+  slot s1 tmp i64 @25:2
+b0:
+  v0 = const 4 @23:9
+  v1 = addr gm0 @23:2
+  v2 = const 0 @23:2
+  stm v1, v2, v0 @23:2
+  v3 = const 0 @24:10
+  v4 = ldm i64, v1, v3 @24:10
+  println v4 @24:2
+  v5 = call i @25:4
+  store s0, v5 @25:3
+  v6 = call f @25:11
+  store s1, v6 @25:2
+  v7 = conv u64, v5 @25:3
+  v8 = const u64 3 @25:3
+  v9 = ge v7, v8 @25:3
+  branch v9, b1, b2 @25:3
+b1:
+  v10 = load s0 @25:3
+  v11 = const 3 @25:3
+  panic index, v10, v11 @25:3
+b2:
+  v12 = load s1 @25:2
+  v13 = addr gm0 @25:2
+  v14 = load s0 @25:3
+  v15 = const 8 @25:2
+  v16 = mul v14, v15 @25:2
+  stm v13, v16, v12 @25:2
+  ret @26:1

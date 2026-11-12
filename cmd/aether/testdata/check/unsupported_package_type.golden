@@ -1,1 +1,1 @@
-testdata/check/unsupported_package_type.go:5:1: unsupported: package-level type declaration is not supported in subset S1 [package-level-declaration]
+testdata/check/unsupported_package_type.go:5:6: unsupported: type T of underlying type int (only arrays and structs) is not supported in subset S1 [package-level-declaration]

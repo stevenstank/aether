@@ -50,13 +50,17 @@ func TestBenchClassify(t *testing.T) {
 		{"main.g(%rip)", mGlobal},
 		{"aether.stacklimit(%rip)", mLimit},
 		{"(%rax,%rcx)", mData},
+		{"8(%rax)", mData},
+		{"0(%rbx)", mData},
+		{"(%rbx,%r8)", mData},
+		{"(%rsi,%rdi)", mData},
 	} {
 		got, err := classify(c.op, slots)
 		if err != nil || got != c.want {
 			t.Errorf("classify(%q) = %v, %v; want %v", c.op, got, err, c.want)
 		}
 	}
-	for _, op := range []string{"(%rax)", "x(%rbp)", "8(%rcx)"} {
+	for _, op := range []string{"(%rax)", "x(%rbp)", "8(%rcx)", "8(%rdx)", "(%rcx,%rax)", "(%rax,%rdx)"} {
 		if _, err := classify(op, slots); err == nil {
 			t.Errorf("classify(%q) succeeded, want an error", op)
 		}

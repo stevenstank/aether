@@ -1,0 +1,1481 @@
+string s0 "pair"
+
+func add(ptr, ptr, ptr) @testdata/check/s3_a03_aggregate_calls.go:19:6
+  slot s0 a ptr @19:10
+  slot s1 b ptr @19:13
+  slot s2 result ptr @19:6
+  mem m0 tmp 24 align 8 @20:9
+b0:
+  v0 = param 0 @19:10
+  store s0, v0 @19:10
+  v1 = param 1 @19:13
+  store s1, v1 @19:13
+  v2 = param 2 @19:6
+  store s2, v2 @19:6
+  v3 = load s0 @20:13
+  v4 = const 0 @20:13
+  v5 = ldm f64, v3, v4 @20:13
+  v6 = load s1 @20:19
+  v7 = const 0 @20:19
+  v8 = ldm f64, v6, v7 @20:19
+  v9 = fadd v5, v8 @20:17
+  v10 = addr m0 @20:9
+  v11 = const 0 @20:13
+  stm v10, v11, v9 @20:13
+  v12 = load s0 @20:24
+  v13 = const 8 @20:24
+  v14 = ldm f64, v12, v13 @20:24
+  v15 = load s1 @20:30
+  v16 = const 8 @20:30
+  v17 = ldm f64, v15, v16 @20:30
+  v18 = fadd v14, v17 @20:28
+  v19 = const 8 @20:24
+  stm v10, v19, v18 @20:24
+  v20 = load s0 @20:35
+  v21 = const 16 @20:35
+  v22 = ldm f64, v20, v21 @20:35
+  v23 = load s1 @20:41
+  v24 = const 16 @20:41
+  v25 = ldm f64, v23, v24 @20:41
+  v26 = fadd v22, v25 @20:39
+  v27 = const 16 @20:35
+  stm v10, v27, v26 @20:35
+  v28 = const 0 @20:2
+  v29 = ldm f64, v10, v28 @20:2
+  v30 = load s2 @20:2
+  v31 = const 0 @20:2
+  stm v30, v31, v29 @20:2
+  v32 = const 8 @20:2
+  v33 = ldm f64, v10, v32 @20:2
+  v34 = load s2 @20:2
+  v35 = const 8 @20:2
+  stm v34, v35, v33 @20:2
+  v36 = const 16 @20:2
+  v37 = ldm f64, v10, v36 @20:2
+  v38 = load s2 @20:2
+  v39 = const 16 @20:2
+  stm v38, v39, v37 @20:2
+  ret @20:2
+
+func scale(ptr, f64, ptr) @testdata/check/s3_a03_aggregate_calls.go:23:6
+  slot s0 v ptr @23:12
+  slot s1 k f64 @23:19
+  slot s2 result ptr @23:6
+  mem m0 tmp 24 align 8 @27:9
+b0:
+  v0 = param 0 @23:12
+  store s0, v0 @23:12
+  v1 = param 1 @23:19
+  store s1, v1 @23:19
+  v2 = param 2 @23:6
+  store s2, v2 @23:6
+  v3 = load s1 @24:9
+  v4 = load s0 @24:2
+  v5 = const 0 @24:2
+  v6 = ldm f64, v4, v5 @24:2
+  v7 = fmul v6, v3 @24:6
+  v8 = load s0 @24:2
+  v9 = const 0 @24:2
+  stm v8, v9, v7 @24:2
+  v10 = load s1 @25:9
+  v11 = load s0 @25:2
+  v12 = const 8 @25:2
+  v13 = ldm f64, v11, v12 @25:2
+  v14 = fmul v13, v10 @25:6
+  v15 = load s0 @25:2
+  v16 = const 8 @25:2
+  stm v15, v16, v14 @25:2
+  v17 = load s1 @26:9
+  v18 = load s0 @26:2
+  v19 = const 16 @26:2
+  v20 = ldm f64, v18, v19 @26:2
+  v21 = fmul v20, v17 @26:6
+  v22 = load s0 @26:2
+  v23 = const 16 @26:2
+  stm v22, v23, v21 @26:2
+  v24 = load s0 @27:9
+  v25 = const 0 @27:9
+  v26 = ldm f64, v24, v25 @27:9
+  v27 = addr m0 @27:9
+  v28 = const 0 @27:9
+  stm v27, v28, v26 @27:9
+  v29 = load s0 @27:9
+  v30 = const 8 @27:9
+  v31 = ldm f64, v29, v30 @27:9
+  v32 = const 8 @27:9
+  stm v27, v32, v31 @27:9
+  v33 = load s0 @27:9
+  v34 = const 16 @27:9
+  v35 = ldm f64, v33, v34 @27:9
+  v36 = const 16 @27:9
+  stm v27, v36, v35 @27:9
+  v37 = const 0 @27:2
+  v38 = ldm f64, v27, v37 @27:2
+  v39 = load s2 @27:2
+  v40 = const 0 @27:2
+  stm v39, v40, v38 @27:2
+  v41 = const 8 @27:2
+  v42 = ldm f64, v27, v41 @27:2
+  v43 = load s2 @27:2
+  v44 = const 8 @27:2
+  stm v43, v44, v42 @27:2
+  v45 = const 16 @27:2
+  v46 = ldm f64, v27, v45 @27:2
+  v47 = load s2 @27:2
+  v48 = const 16 @27:2
+  stm v47, v48, v46 @27:2
+  ret @27:2
+
+func bump(ptr, ptr) @testdata/check/s3_a03_aggregate_calls.go:30:6
+  slot s0 a ptr @30:11
+  slot s1 result ptr @30:6
+  mem m0 tmp 24 align 8 @32:9
+b0:
+  v0 = param 0 @30:11
+  store s0, v0 @30:11
+  v1 = param 1 @30:6
+  store s1, v1 @30:6
+  v2 = load s0 @31:2
+  v3 = const 0 @31:2
+  v4 = ldm i64, v2, v3 @31:2
+  v5 = const 1 @31:6
+  v6 = add v4, v5 @31:6
+  v7 = load s0 @31:2
+  v8 = const 0 @31:2
+  stm v7, v8, v6 @31:2
+  v9 = load s0 @32:9
+  v10 = const 0 @32:9
+  v11 = ldm i64, v9, v10 @32:9
+  v12 = addr m0 @32:9
+  v13 = const 0 @32:9
+  stm v12, v13, v11 @32:9
+  v14 = load s0 @32:9
+  v15 = const 8 @32:9
+  v16 = ldm i64, v14, v15 @32:9
+  v17 = const 8 @32:9
+  stm v12, v17, v16 @32:9
+  v18 = load s0 @32:9
+  v19 = const 16 @32:9
+  v20 = ldm i64, v18, v19 @32:9
+  v21 = const 16 @32:9
+  stm v12, v21, v20 @32:9
+  v22 = const 0 @32:2
+  v23 = ldm i64, v12, v22 @32:2
+  v24 = load s1 @32:2
+  v25 = const 0 @32:2
+  stm v24, v25, v23 @32:2
+  v26 = const 8 @32:2
+  v27 = ldm i64, v12, v26 @32:2
+  v28 = load s1 @32:2
+  v29 = const 8 @32:2
+  stm v28, v29, v27 @32:2
+  v30 = const 16 @32:2
+  v31 = ldm i64, v12, v30 @32:2
+  v32 = load s1 @32:2
+  v33 = const 16 @32:2
+  stm v32, v33, v31 @32:2
+  ret @32:2
+
+func split(ptr, ptr) (i64, ptr, i64, bool) @testdata/check/s3_a03_aggregate_calls.go:35:6
+  slot s0 p ptr @35:12
+  slot s1 result ptr @35:6
+  slot s2 tmp i64 @37:2
+  slot s3 tmp ptr @37:2
+  slot s4 tmp i64 @37:2
+  slot s5 tmp bool @37:2
+  mem m0 tmp 16 align 8 @37:17
+b0:
+  v0 = param 0 @35:12
+  store s0, v0 @35:12
+  v1 = param 1 @35:6
+  store s1, v1 @35:6
+  v2 = load s0 @36:12
+  v3 = const 0 @36:12
+  v4 = ldm i64, v2, v3 @36:12
+  v5 = neg v4 @36:11
+  v6 = load s0 @36:2
+  v7 = const 0 @36:2
+  stm v6, v7, v5 @36:2
+  v8 = load s0 @37:9
+  v9 = const 0 @37:9
+  v10 = ldm i64, v8, v9 @37:9
+  v11 = load s0 @37:17
+  v12 = const 0 @37:17
+  v13 = ldm i64, v11, v12 @37:17
+  v14 = addr m0 @37:17
+  v15 = const 0 @37:17
+  stm v14, v15, v13 @37:17
+  v16 = load s0 @37:17
+  v17 = const 8 @37:17
+  v18 = ldm i64, v16, v17 @37:17
+  v19 = const 8 @37:17
+  stm v14, v19, v18 @37:17
+  v20 = load s0 @37:22
+  v21 = const 16 @37:22
+  v22 = ldm ptr, v20, v21 @37:22
+  v23 = load s0 @37:22
+  v24 = const 24 @37:22
+  v25 = ldm i64, v23, v24 @37:22
+  v26 = load s0 @37:31
+  v27 = const 16 @37:31
+  v28 = ldm ptr, v26, v27 @37:31
+  v29 = load s0 @37:31
+  v30 = const 24 @37:31
+  v31 = ldm i64, v29, v30 @37:31
+  v32 = const 1 @37:38
+  v33 = gt v31, v32 @37:36
+  store s2, v10 @37:2
+  store s3, v22 @37:2
+  store s4, v25 @37:2
+  store s5, v33 @37:2
+  v34 = const 0 @37:2
+  v35 = ldm i64, v14, v34 @37:2
+  v36 = load s1 @37:2
+  v37 = const 0 @37:2
+  stm v36, v37, v35 @37:2
+  v38 = const 8 @37:2
+  v39 = ldm i64, v14, v38 @37:2
+  v40 = load s1 @37:2
+  v41 = const 8 @37:2
+  stm v40, v41, v39 @37:2
+  v42 = load s2 @37:2
+  v43 = load s3 @37:2
+  v44 = load s4 @37:2
+  v45 = load s5 @37:2
+  ret v42, v43, v44, v45 @37:2
+
+func make8(i64, ptr) @testdata/check/s3_a03_aggregate_calls.go:40:6
+  slot s0 n i64 @40:12
+  slot s1 result ptr @40:6
+  slot s2 i i64 @42:6
+  slot s3 tmp i64 @43:4
+  slot s4 tmp i64 @43:3
+  mem m0 r 64 align 8 @41:6
+  mem m1 tmp 64 align 8 @45:9
+b0:
+  v0 = param 0 @40:12
+  store s0, v0 @40:12
+  v1 = param 1 @40:6
+  store s1, v1 @40:6
+  v2 = const 0 @41:6
+  v3 = addr m0 @41:6
+  v4 = const 0 @41:6
+  stm v3, v4, v2 @41:6
+  v5 = const 0 @41:6
+  v6 = const 8 @41:6
+  stm v3, v6, v5 @41:6
+  v7 = const 0 @41:6
+  v8 = const 16 @41:6
+  stm v3, v8, v7 @41:6
+  v9 = const 0 @41:6
+  v10 = const 24 @41:6
+  stm v3, v10, v9 @41:6
+  v11 = const 0 @41:6
+  v12 = const 32 @41:6
+  stm v3, v12, v11 @41:6
+  v13 = const 0 @41:6
+  v14 = const 40 @41:6
+  stm v3, v14, v13 @41:6
+  v15 = const 0 @41:6
+  v16 = const 48 @41:6
+  stm v3, v16, v15 @41:6
+  v17 = const 0 @41:6
+  v18 = const 56 @41:6
+  stm v3, v18, v17 @41:6
+  v19 = const 0 @42:11
+  store s2, v19 @42:6
+  jump b1 @42:2
+b1:
+  v20 = load s2 @42:14
+  v21 = const 8 @42:18
+  v22 = lt v20, v21 @42:16
+  branch v22, b2, b3 @42:2
+b2:
+  v23 = load s2 @43:5
+  store s3, v23 @43:4
+  v24 = load s0 @43:10
+  v25 = load s2 @43:14
+  v26 = mul v24, v25 @43:12
+  store s4, v26 @43:3
+  v27 = conv u64, v23 @43:4
+  v28 = const u64 8 @43:4
+  v29 = ge v27, v28 @43:4
+  branch v29, b5, b6 @43:4
+b3:
+  v40 = addr m0 @45:9
+  v41 = const 0 @45:9
+  v42 = ldm i64, v40, v41 @45:9
+  v43 = addr m1 @45:9
+  v44 = const 0 @45:9
+  stm v43, v44, v42 @45:9
+  v45 = const 8 @45:9
+  v46 = ldm i64, v40, v45 @45:9
+  v47 = const 8 @45:9
+  stm v43, v47, v46 @45:9
+  v48 = const 16 @45:9
+  v49 = ldm i64, v40, v48 @45:9
+  v50 = const 16 @45:9
+  stm v43, v50, v49 @45:9
+  v51 = const 24 @45:9
+  v52 = ldm i64, v40, v51 @45:9
+  v53 = const 24 @45:9
+  stm v43, v53, v52 @45:9
+  v54 = const 32 @45:9
+  v55 = ldm i64, v40, v54 @45:9
+  v56 = const 32 @45:9
+  stm v43, v56, v55 @45:9
+  v57 = const 40 @45:9
+  v58 = ldm i64, v40, v57 @45:9
+  v59 = const 40 @45:9
+  stm v43, v59, v58 @45:9
+  v60 = const 48 @45:9
+  v61 = ldm i64, v40, v60 @45:9
+  v62 = const 48 @45:9
+  stm v43, v62, v61 @45:9
+  v63 = const 56 @45:9
+  v64 = ldm i64, v40, v63 @45:9
+  v65 = const 56 @45:9
+  stm v43, v65, v64 @45:9
+  v66 = const 0 @45:2
+  v67 = ldm i64, v43, v66 @45:2
+  v68 = load s1 @45:2
+  v69 = const 0 @45:2
+  stm v68, v69, v67 @45:2
+  v70 = const 8 @45:2
+  v71 = ldm i64, v43, v70 @45:2
+  v72 = load s1 @45:2
+  v73 = const 8 @45:2
+  stm v72, v73, v71 @45:2
+  v74 = const 16 @45:2
+  v75 = ldm i64, v43, v74 @45:2
+  v76 = load s1 @45:2
+  v77 = const 16 @45:2
+  stm v76, v77, v75 @45:2
+  v78 = const 24 @45:2
+  v79 = ldm i64, v43, v78 @45:2
+  v80 = load s1 @45:2
+  v81 = const 24 @45:2
+  stm v80, v81, v79 @45:2
+  v82 = const 32 @45:2
+  v83 = ldm i64, v43, v82 @45:2
+  v84 = load s1 @45:2
+  v85 = const 32 @45:2
+  stm v84, v85, v83 @45:2
+  v86 = const 40 @45:2
+  v87 = ldm i64, v43, v86 @45:2
+  v88 = load s1 @45:2
+  v89 = const 40 @45:2
+  stm v88, v89, v87 @45:2
+  v90 = const 48 @45:2
+  v91 = ldm i64, v43, v90 @45:2
+  v92 = load s1 @45:2
+  v93 = const 48 @45:2
+  stm v92, v93, v91 @45:2
+  v94 = const 56 @45:2
+  v95 = ldm i64, v43, v94 @45:2
+  v96 = load s1 @45:2
+  v97 = const 56 @45:2
+  stm v96, v97, v95 @45:2
+  ret @45:2
+b4:
+  v37 = load s2 @42:21
+  v38 = const 1 @42:22
+  v39 = add v37, v38 @42:22
+  store s2, v39 @42:21
+  jump b1 @42:21
+b5:
+  v30 = load s3 @43:4
+  v31 = const 8 @43:4
+  panic index, v30, v31 @43:4
+b6:
+  v32 = load s4 @43:3
+  v33 = addr m0 @43:3
+  v34 = load s3 @43:4
+  v35 = const 8 @43:3
+  v36 = mul v34, v35 @43:3
+  stm v33, v36, v32 @43:3
+  jump b4 @44:2
+
+func sum(ptr) i64 @testdata/check/s3_a03_aggregate_calls.go:48:6
+  slot s0 a ptr @48:10
+  slot s1 s i64 @49:2
+  slot s2 i i64 @50:6
+  slot s3 tmp i64 @51:3
+  slot s4 tmp i64 @51:9
+b0:
+  v0 = param 0 @48:10
+  store s0, v0 @48:10
+  v1 = const 0 @49:7
+  store s1, v1 @49:2
+  v2 = const 0 @50:11
+  store s2, v2 @50:6
+  jump b1 @50:2
+b1:
+  v3 = load s2 @50:14
+  v4 = const 40 @50:18
+  v5 = lt v3, v4 @50:16
+  branch v5, b2, b3 @50:2
+b2:
+  v6 = load s1 @51:3
+  store s3, v6 @51:3
+  v7 = load s2 @51:10
+  store s4, v7 @51:9
+  v8 = conv u64, v7 @51:9
+  v9 = const u64 40 @51:9
+  v10 = ge v8, v9 @51:9
+  branch v10, b5, b6 @51:9
+b3:
+  v23 = load s1 @53:9
+  ret v23 @53:2
+b4:
+  v20 = load s2 @50:26
+  v21 = const 1 @50:27
+  v22 = add v20, v21 @50:27
+  store s2, v22 @50:26
+  jump b1 @50:26
+b5:
+  v11 = load s4 @51:9
+  v12 = const 40 @51:9
+  panic index, v11, v12 @51:9
+b6:
+  v13 = load s0 @51:8
+  v14 = load s4 @51:9
+  v15 = const 8 @51:8
+  v16 = mul v14, v15 @51:8
+  v17 = ldm i64, v13, v16 @51:8
+  v18 = load s3 @51:3
+  v19 = add v18, v17 @51:5
+  store s1, v19 @51:3
+  jump b4 @52:2
+
+func fill(i64, ptr, ptr) @testdata/check/s3_a03_aggregate_calls.go:56:6
+  slot s0 depth i64 @56:11
+  slot s1 a ptr @56:22
+  slot s2 result ptr @56:6
+  slot s3 tmp i64 @57:3
+  slot s4 tmp i64 @57:2
+  mem m0 tmp 32 align 8 @59:10
+  mem m1 tmp 32 align 8 @61:21
+  mem m2 tmp 32 align 8 @61:7
+  mem m3 b 32 align 8 @61:2
+  mem m4 tmp 32 align 8 @63:9
+b0:
+  v0 = param 0 @56:11
+  store s0, v0 @56:11
+  v1 = param 1 @56:22
+  store s1, v1 @56:22
+  v2 = param 2 @56:6
+  store s2, v2 @56:6
+  v3 = load s0 @57:4
+  v4 = const 4 @57:10
+  v5 = rem v3, v4 @57:9
+  store s3, v5 @57:3
+  v6 = load s0 @57:16
+  store s4, v6 @57:2
+  v7 = conv u64, v5 @57:3
+  v8 = const u64 4 @57:3
+  v9 = ge v7, v8 @57:3
+  branch v9, b1, b2 @57:3
+b1:
+  v10 = load s3 @57:3
+  v11 = const 4 @57:3
+  panic index, v10, v11 @57:3
+b2:
+  v12 = load s1 @57:2
+  v13 = load s3 @57:3
+  v14 = const 8 @57:2
+  v15 = mul v13, v14 @57:2
+  v16 = ldm i64, v12, v15 @57:2
+  v17 = load s4 @57:2
+  v18 = add v16, v17 @57:13
+  v19 = load s1 @57:2
+  v20 = load s3 @57:3
+  v21 = const 8 @57:2
+  v22 = mul v20, v21 @57:2
+  stm v19, v22, v18 @57:2
+  v23 = load s0 @58:5
+  v24 = const 0 @58:14
+  v25 = eq v23, v24 @58:11
+  branch v25, b3, b4 @58:2
+b3:
+  v26 = load s1 @59:10
+  v27 = const 0 @59:10
+  v28 = ldm i64, v26, v27 @59:10
+  v29 = addr m0 @59:10
+  v30 = const 0 @59:10
+  stm v29, v30, v28 @59:10
+  v31 = load s1 @59:10
+  v32 = const 8 @59:10
+  v33 = ldm i64, v31, v32 @59:10
+  v34 = const 8 @59:10
+  stm v29, v34, v33 @59:10
+  v35 = load s1 @59:10
+  v36 = const 16 @59:10
+  v37 = ldm i64, v35, v36 @59:10
+  v38 = const 16 @59:10
+  stm v29, v38, v37 @59:10
+  v39 = load s1 @59:10
+  v40 = const 24 @59:10
+  v41 = ldm i64, v39, v40 @59:10
+  v42 = const 24 @59:10
+  stm v29, v42, v41 @59:10
+  v43 = const 0 @59:3
+  v44 = ldm i64, v29, v43 @59:3
+  v45 = load s2 @59:3
+  v46 = const 0 @59:3
+  stm v45, v46, v44 @59:3
+  v47 = const 8 @59:3
+  v48 = ldm i64, v29, v47 @59:3
+  v49 = load s2 @59:3
+  v50 = const 8 @59:3
+  stm v49, v50, v48 @59:3
+  v51 = const 16 @59:3
+  v52 = ldm i64, v29, v51 @59:3
+  v53 = load s2 @59:3
+  v54 = const 16 @59:3
+  stm v53, v54, v52 @59:3
+  v55 = const 24 @59:3
+  v56 = ldm i64, v29, v55 @59:3
+  v57 = load s2 @59:3
+  v58 = const 24 @59:3
+  stm v57, v58, v56 @59:3
+  ret @59:3
+b4:
+  v59 = load s0 @61:12
+  v60 = const 1 @61:18
+  v61 = sub v59, v60 @61:17
+  v62 = load s1 @61:21
+  v63 = const 0 @61:21
+  v64 = ldm i64, v62, v63 @61:21
+  v65 = addr m1 @61:21
+  v66 = const 0 @61:21
+  stm v65, v66, v64 @61:21
+  v67 = load s1 @61:21
+  v68 = const 8 @61:21
+  v69 = ldm i64, v67, v68 @61:21
+  v70 = const 8 @61:21
+  stm v65, v70, v69 @61:21
+  v71 = load s1 @61:21
+  v72 = const 16 @61:21
+  v73 = ldm i64, v71, v72 @61:21
+  v74 = const 16 @61:21
+  stm v65, v74, v73 @61:21
+  v75 = load s1 @61:21
+  v76 = const 24 @61:21
+  v77 = ldm i64, v75, v76 @61:21
+  v78 = const 24 @61:21
+  stm v65, v78, v77 @61:21
+  v79 = addr m2 @61:7
+  call fill, v61, v65, v79 @61:7
+  v80 = const 0 @61:2
+  v81 = ldm i64, v79, v80 @61:2
+  v82 = addr m3 @61:2
+  v83 = const 0 @61:2
+  stm v82, v83, v81 @61:2
+  v84 = const 8 @61:2
+  v85 = ldm i64, v79, v84 @61:2
+  v86 = const 8 @61:2
+  stm v82, v86, v85 @61:2
+  v87 = const 16 @61:2
+  v88 = ldm i64, v79, v87 @61:2
+  v89 = const 16 @61:2
+  stm v82, v89, v88 @61:2
+  v90 = const 24 @61:2
+  v91 = ldm i64, v79, v90 @61:2
+  v92 = const 24 @61:2
+  stm v82, v92, v91 @61:2
+  v93 = load s1 @62:10
+  v94 = const 0 @62:10
+  v95 = ldm i64, v93, v94 @62:10
+  v96 = const 0 @62:2
+  v97 = ldm i64, v82, v96 @62:2
+  v98 = add v97, v95 @62:7
+  v99 = const 0 @62:2
+  stm v82, v99, v98 @62:2
+  v100 = const 0 @63:9
+  v101 = ldm i64, v82, v100 @63:9
+  v102 = addr m4 @63:9
+  v103 = const 0 @63:9
+  stm v102, v103, v101 @63:9
+  v104 = const 8 @63:9
+  v105 = ldm i64, v82, v104 @63:9
+  v106 = const 8 @63:9
+  stm v102, v106, v105 @63:9
+  v107 = const 16 @63:9
+  v108 = ldm i64, v82, v107 @63:9
+  v109 = const 16 @63:9
+  stm v102, v109, v108 @63:9
+  v110 = const 24 @63:9
+  v111 = ldm i64, v82, v110 @63:9
+  v112 = const 24 @63:9
+  stm v102, v112, v111 @63:9
+  v113 = const 0 @63:2
+  v114 = ldm i64, v102, v113 @63:2
+  v115 = load s2 @63:2
+  v116 = const 0 @63:2
+  stm v115, v116, v114 @63:2
+  v117 = const 8 @63:2
+  v118 = ldm i64, v102, v117 @63:2
+  v119 = load s2 @63:2
+  v120 = const 8 @63:2
+  stm v119, v120, v118 @63:2
+  v121 = const 16 @63:2
+  v122 = ldm i64, v102, v121 @63:2
+  v123 = load s2 @63:2
+  v124 = const 16 @63:2
+  stm v123, v124, v122 @63:2
+  v125 = const 24 @63:2
+  v126 = ldm i64, v102, v125 @63:2
+  v127 = load s2 @63:2
+  v128 = const 24 @63:2
+  stm v127, v128, v126 @63:2
+  ret @63:2
+
+func two(i64, ptr, ptr) i64 @testdata/check/s3_a03_aggregate_calls.go:68:6
+  slot s0 n i64 @68:10
+  slot s1 result ptr @68:6
+  slot s2 result ptr @68:6
+  slot s3 i i64 @69:6
+  slot s4 i i64 @71:9
+  slot s5 tmp i64 @71:2
+  slot s6 i i64 @71:2
+  mem m0 a 160 align 8 @69:6
+  mem m1 tmp 160 align 8 @71:9
+  mem m2 tmp 2 align 1 @71:12
+b0:
+  v0 = param 0 @68:10
+  store s0, v0 @68:10
+  v1 = param 1 @68:6
+  store s1, v1 @68:6
+  v2 = param 2 @68:6
+  store s2, v2 @68:6
+  v3 = const 0 @69:6
+  store s3, v3 @69:6
+  jump b1 @69:6
+b1:
+  v4 = load s3 @69:6
+  v5 = const 20 @69:6
+  v6 = lt v4, v5 @69:6
+  branch v6, b2, b3 @69:6
+b2:
+  v7 = const 0 @69:6
+  v8 = addr m0 @69:6
+  v9 = load s3 @69:6
+  v10 = const 8 @69:6
+  v11 = mul v9, v10 @69:6
+  stm v8, v11, v7 @69:6
+  v12 = load s3 @69:6
+  v13 = const 1 @69:6
+  v14 = add v12, v13 @69:6
+  store s3, v14 @69:6
+  jump b1 @69:6
+b3:
+  v15 = load s0 @70:10
+  v16 = addr m0 @70:2
+  v17 = const 152 @70:2
+  stm v16, v17, v15 @70:2
+  v18 = const 0 @71:9
+  store s4, v18 @71:9
+  jump b4 @71:9
+b4:
+  v19 = load s4 @71:9
+  v20 = const 20 @71:9
+  v21 = lt v19, v20 @71:9
+  branch v21, b5, b6 @71:9
+b5:
+  v22 = addr m0 @71:9
+  v23 = load s4 @71:9
+  v24 = const 8 @71:9
+  v25 = mul v23, v24 @71:9
+  v26 = ldm i64, v22, v25 @71:9
+  v27 = addr m1 @71:9
+  v28 = load s4 @71:9
+  v29 = const 8 @71:9
+  v30 = mul v28, v29 @71:9
+  stm v27, v30, v26 @71:9
+  v31 = load s4 @71:9
+  v32 = const 1 @71:9
+  v33 = add v31, v32 @71:9
+  store s4, v33 @71:9
+  jump b4 @71:9
+b6:
+  v34 = addr m1 @71:9
+  v35 = load s0 @71:25
+  v36 = conv i8, v35 @71:20
+  v37 = addr m2 @71:12
+  v38 = const 0 @71:20
+  stm v37, v38, v36 @71:20
+  v39 = load s0 @71:35
+  v40 = conv i8, v39 @71:30
+  v41 = neg v40 @71:29
+  v42 = const 1 @71:29
+  stm v37, v42, v41 @71:29
+  v43 = load s0 @71:40
+  v44 = const 2 @71:44
+  v45 = mul v43, v44 @71:42
+  store s5, v45 @71:2
+  v46 = const 0 @71:2
+  store s6, v46 @71:2
+  jump b7 @71:2
+b7:
+  v47 = load s6 @71:2
+  v48 = const 20 @71:2
+  v49 = lt v47, v48 @71:2
+  branch v49, b8, b9 @71:2
+b8:
+  v50 = addr m1 @71:2
+  v51 = load s6 @71:2
+  v52 = const 8 @71:2
+  v53 = mul v51, v52 @71:2
+  v54 = ldm i64, v50, v53 @71:2
+  v55 = load s1 @71:2
+  v56 = load s6 @71:2
+  v57 = const 8 @71:2
+  v58 = mul v56, v57 @71:2
+  stm v55, v58, v54 @71:2
+  v59 = load s6 @71:2
+  v60 = const 1 @71:2
+  v61 = add v59, v60 @71:2
+  store s6, v61 @71:2
+  jump b7 @71:2
+b9:
+  v62 = addr m2 @71:2
+  v63 = const 0 @71:2
+  v64 = ldm i8, v62, v63 @71:2
+  v65 = load s2 @71:2
+  v66 = const 0 @71:2
+  stm v65, v66, v64 @71:2
+  v67 = const 1 @71:2
+  v68 = ldm i8, v62, v67 @71:2
+  v69 = load s2 @71:2
+  v70 = const 1 @71:2
+  stm v69, v70, v68 @71:2
+  v71 = load s5 @71:2
+  ret v71 @71:2
+
+func main @testdata/check/s3_a03_aggregate_calls.go:74:6
+  slot s0 tmp i64 @83:10
+  slot s1 tmp i64 @83:16
+  slot s2 tmp i64 @83:22
+  slot s3 tmp i64 @86:2
+  slot s4 tmp ptr @86:2
+  slot s5 tmp ptr @86:2
+  slot s6 tmp i64 @86:2
+  slot s7 tmp bool @86:2
+  slot s8 n i64 @86:2
+  slot s9 tmp ptr @86:5
+  slot s10 s ptr @86:10
+  slot s11 s i64 @86:10
+  slot s12 long bool @86:13
+  slot s13 tmp i64 @87:10
+  slot s14 tmp i64 @87:13
+  slot s15 tmp i64 @87:21
+  slot s16 tmp ptr @87:29
+  slot s17 tmp i64 @87:29
+  slot s18 tmp bool @87:32
+  slot s19 tmp i64 @88:2
+  slot s20 tmp ptr @88:2
+  slot s21 tmp ptr @88:2
+  slot s22 tmp i64 @88:2
+  slot s23 tmp bool @88:2
+  slot s24 tmp ptr @88:5
+  slot s25 tmp i64 @89:10
+  slot s26 i i64 @92:6
+  slot s27 i i64 @93:6
+  slot s28 tmp i64 @94:6
+  slot s29 tmp i64 @94:3
+  slot s30 i i64 @96:14
+  slot s31 tmp i64 @96:10
+  slot s32 tmp i64 @98:10
+  slot s33 tmp i64 @98:16
+  slot s34 tmp i64 @98:22
+  slot s35 tmp ptr @99:2
+  slot s36 tmp ptr @99:2
+  slot s37 tmp i64 @99:2
+  slot s38 tmp ptr @99:2
+  slot s39 i i64 @99:2
+  slot s40 tmp ptr @99:8
+  slot s41 m i64 @99:15
+  slot s42 tmp i64 @100:10
+  slot s43 tmp i8 @100:20
+  mem m0 tmp 24 align 8 @75:7
+  mem m1 v 24 align 8 @75:2
+  mem m2 tmp 24 align 8 @76:13
+  mem m3 tmp 24 align 8 @76:7
+  mem m4 w 24 align 8 @76:2
+  mem m5 tmp 24 align 8 @78:11
+  mem m6 tmp 24 align 8 @78:18
+  mem m7 tmp 24 align 8 @78:21
+  mem m8 tmp 24 align 8 @78:14
+  mem m9 tmp 24 align 8 @78:7
+  mem m10 u 24 align 8 @78:2
+  mem m11 tmp 24 align 8 @79:29
+  mem m12 tmp 24 align 8 @79:32
+  mem m13 tmp 24 align 8 @79:25
+  mem m14 tmp 24 align 8 @79:44
+  mem m15 tmp 24 align 8 @79:38
+  mem m16 tmp 24 align 8 @81:7
+  mem m17 a 24 align 8 @81:2
+  mem m18 tmp 24 align 8 @82:12
+  mem m19 tmp 24 align 8 @82:7
+  mem m20 b 24 align 8 @82:2
+  mem m21 tmp 24 align 8 @83:32
+  mem m22 tmp 24 align 8 @83:27
+  mem m23 tmp 24 align 8 @83:22
+  mem m24 tmp 24 align 8 @83:45
+  mem m25 tmp 24 align 8 @83:40
+  mem m26 tmp 32 align 8 @85:7
+  mem m27 p 32 align 8 @85:2
+  mem m28 tmp 32 align 8 @86:27
+  mem m29 tmp 16 align 8 @86:21
+  mem m30 arr 16 align 8 @86:5
+  mem m31 tmp 32 align 8 @88:26
+  mem m32 tmp 16 align 8 @88:20
+  mem m33 _2 16 align 8 @88:5
+  mem m34 tmp 64 align 8 @91:10
+  mem m35 tmp 64 align 8 @91:27
+  mem m36 big 320 align 8 @92:6
+  mem m37 tmp 320 align 8 @96:14
+  mem m38 tmp 32 align 8 @97:15
+  mem m39 tmp 32 align 8 @97:7
+  mem m40 r 32 align 8 @97:2
+  mem m41 tmp 160 align 8 @99:20
+  mem m42 tmp 2 align 1 @99:20
+  mem m43 big2 160 align 8 @99:2
+  mem m44 small 2 align 1 @99:8
+b0:
+  v0 = const f64 1 @75:11
+  v1 = addr m0 @75:7
+  v2 = const 0 @75:11
+  stm v1, v2, v0 @75:11
+  v3 = const f64 2 @75:14
+  v4 = const 8 @75:14
+  stm v1, v4, v3 @75:14
+  v5 = const f64 3 @75:17
+  v6 = const 16 @75:17
+  stm v1, v6, v5 @75:17
+  v7 = const 0 @75:2
+  v8 = ldm f64, v1, v7 @75:2
+  v9 = addr m1 @75:2
+  v10 = const 0 @75:2
+  stm v9, v10, v8 @75:2
+  v11 = const 8 @75:2
+  v12 = ldm f64, v1, v11 @75:2
+  v13 = const 8 @75:2
+  stm v9, v13, v12 @75:2
+  v14 = const 16 @75:2
+  v15 = ldm f64, v1, v14 @75:2
+  v16 = const 16 @75:2
+  stm v9, v16, v15 @75:2
+  v17 = const 0 @76:13
+  v18 = ldm f64, v9, v17 @76:13
+  v19 = addr m2 @76:13
+  v20 = const 0 @76:13
+  stm v19, v20, v18 @76:13
+  v21 = const 8 @76:13
+  v22 = ldm f64, v9, v21 @76:13
+  v23 = const 8 @76:13
+  stm v19, v23, v22 @76:13
+  v24 = const 16 @76:13
+  v25 = ldm f64, v9, v24 @76:13
+  v26 = const 16 @76:13
+  stm v19, v26, v25 @76:13
+  v27 = const f64 2 @76:16
+  v28 = addr m3 @76:7
+  call scale, v19, v27, v28 @76:7
+  v29 = const 0 @76:2
+  v30 = ldm f64, v28, v29 @76:2
+  v31 = addr m4 @76:2
+  v32 = const 0 @76:2
+  stm v31, v32, v30 @76:2
+  v33 = const 8 @76:2
+  v34 = ldm f64, v28, v33 @76:2
+  v35 = const 8 @76:2
+  stm v31, v35, v34 @76:2
+  v36 = const 16 @76:2
+  v37 = ldm f64, v28, v36 @76:2
+  v38 = const 16 @76:2
+  stm v31, v38, v37 @76:2
+  v39 = const 0 @77:10
+  v40 = ldm f64, v9, v39 @77:10
+  v41 = const 8 @77:15
+  v42 = ldm f64, v9, v41 @77:15
+  v43 = const 16 @77:20
+  v44 = ldm f64, v9, v43 @77:20
+  v45 = const 0 @77:25
+  v46 = ldm f64, v31, v45 @77:25
+  v47 = const 8 @77:30
+  v48 = ldm f64, v31, v47 @77:30
+  v49 = const 16 @77:35
+  v50 = ldm f64, v31, v49 @77:35
+  println v40, v42, v44, v46, v48, v50 @77:2
+  v51 = const 0 @78:11
+  v52 = ldm f64, v9, v51 @78:11
+  v53 = addr m5 @78:11
+  v54 = const 0 @78:11
+  stm v53, v54, v52 @78:11
+  v55 = const 8 @78:11
+  v56 = ldm f64, v9, v55 @78:11
+  v57 = const 8 @78:11
+  stm v53, v57, v56 @78:11
+  v58 = const 16 @78:11
+  v59 = ldm f64, v9, v58 @78:11
+  v60 = const 16 @78:11
+  stm v53, v60, v59 @78:11
+  v61 = const 0 @78:18
+  v62 = ldm f64, v31, v61 @78:18
+  v63 = addr m6 @78:18
+  v64 = const 0 @78:18
+  stm v63, v64, v62 @78:18
+  v65 = const 8 @78:18
+  v66 = ldm f64, v31, v65 @78:18
+  v67 = const 8 @78:18
+  stm v63, v67, v66 @78:18
+  v68 = const 16 @78:18
+  v69 = ldm f64, v31, v68 @78:18
+  v70 = const 16 @78:18
+  stm v63, v70, v69 @78:18
+  v71 = const f64 0 @78:21
+  v72 = addr m7 @78:21
+  v73 = const 0 @78:21
+  stm v72, v73, v71 @78:21
+  v74 = const f64 0 @78:21
+  v75 = const 8 @78:21
+  stm v72, v75, v74 @78:21
+  v76 = const f64 0 @78:21
+  v77 = const 16 @78:21
+  stm v72, v77, v76 @78:21
+  v78 = const f64 0.5 @78:28
+  v79 = const 16 @78:28
+  stm v72, v79, v78 @78:28
+  v80 = addr m8 @78:14
+  call add, v63, v72, v80 @78:14
+  v81 = addr m9 @78:7
+  call add, v53, v80, v81 @78:7
+  v82 = const 0 @78:2
+  v83 = ldm f64, v81, v82 @78:2
+  v84 = addr m10 @78:2
+  v85 = const 0 @78:2
+  stm v84, v85, v83 @78:2
+  v86 = const 8 @78:2
+  v87 = ldm f64, v81, v86 @78:2
+  v88 = const 8 @78:2
+  stm v84, v88, v87 @78:2
+  v89 = const 16 @78:2
+  v90 = ldm f64, v81, v89 @78:2
+  v91 = const 16 @78:2
+  stm v84, v91, v90 @78:2
+  v92 = const 0 @79:10
+  v93 = ldm f64, v84, v92 @79:10
+  v94 = const 8 @79:15
+  v95 = ldm f64, v84, v94 @79:15
+  v96 = const 16 @79:20
+  v97 = ldm f64, v84, v96 @79:20
+  v98 = const 0 @79:29
+  v99 = ldm f64, v9, v98 @79:29
+  v100 = addr m11 @79:29
+  v101 = const 0 @79:29
+  stm v100, v101, v99 @79:29
+  v102 = const 8 @79:29
+  v103 = ldm f64, v9, v102 @79:29
+  v104 = const 8 @79:29
+  stm v100, v104, v103 @79:29
+  v105 = const 16 @79:29
+  v106 = ldm f64, v9, v105 @79:29
+  v107 = const 16 @79:29
+  stm v100, v107, v106 @79:29
+  v108 = const 0 @79:32
+  v109 = ldm f64, v9, v108 @79:32
+  v110 = addr m12 @79:32
+  v111 = const 0 @79:32
+  stm v110, v111, v109 @79:32
+  v112 = const 8 @79:32
+  v113 = ldm f64, v9, v112 @79:32
+  v114 = const 8 @79:32
+  stm v110, v114, v113 @79:32
+  v115 = const 16 @79:32
+  v116 = ldm f64, v9, v115 @79:32
+  v117 = const 16 @79:32
+  stm v110, v117, v116 @79:32
+  v118 = addr m13 @79:25
+  call add, v100, v110, v118 @79:25
+  v119 = const 8 @79:25
+  v120 = ldm f64, v118, v119 @79:25
+  v121 = const 0 @79:44
+  v122 = ldm f64, v9, v121 @79:44
+  v123 = addr m14 @79:44
+  v124 = const 0 @79:44
+  stm v123, v124, v122 @79:44
+  v125 = const 8 @79:44
+  v126 = ldm f64, v9, v125 @79:44
+  v127 = const 8 @79:44
+  stm v123, v127, v126 @79:44
+  v128 = const 16 @79:44
+  v129 = ldm f64, v9, v128 @79:44
+  v130 = const 16 @79:44
+  stm v123, v130, v129 @79:44
+  v131 = const f64 -1 @79:47
+  v132 = addr m15 @79:38
+  call scale, v123, v131, v132 @79:38
+  v133 = const 16 @79:38
+  v134 = ldm f64, v132, v133 @79:38
+  println v93, v95, v97, v120, v134 @79:2
+  v135 = const 1 @81:14
+  v136 = addr m16 @81:7
+  v137 = const 0 @81:14
+  stm v136, v137, v135 @81:14
+  v138 = const 2 @81:17
+  v139 = const 8 @81:17
+  stm v136, v139, v138 @81:17
+  v140 = const 3 @81:20
+  v141 = const 16 @81:20
+  stm v136, v141, v140 @81:20
+  v142 = const 0 @81:2
+  v143 = ldm i64, v136, v142 @81:2
+  v144 = addr m17 @81:2
+  v145 = const 0 @81:2
+  stm v144, v145, v143 @81:2
+  v146 = const 8 @81:2
+  v147 = ldm i64, v136, v146 @81:2
+  v148 = const 8 @81:2
+  stm v144, v148, v147 @81:2
+  v149 = const 16 @81:2
+  v150 = ldm i64, v136, v149 @81:2
+  v151 = const 16 @81:2
+  stm v144, v151, v150 @81:2
+  v152 = const 0 @82:12
+  v153 = ldm i64, v144, v152 @82:12
+  v154 = addr m18 @82:12
+  v155 = const 0 @82:12
+  stm v154, v155, v153 @82:12
+  v156 = const 8 @82:12
+  v157 = ldm i64, v144, v156 @82:12
+  v158 = const 8 @82:12
+  stm v154, v158, v157 @82:12
+  v159 = const 16 @82:12
+  v160 = ldm i64, v144, v159 @82:12
+  v161 = const 16 @82:12
+  stm v154, v161, v160 @82:12
+  v162 = addr m19 @82:7
+  call bump, v154, v162 @82:7
+  v163 = const 0 @82:2
+  v164 = ldm i64, v162, v163 @82:2
+  v165 = addr m20 @82:2
+  v166 = const 0 @82:2
+  stm v165, v166, v164 @82:2
+  v167 = const 8 @82:2
+  v168 = ldm i64, v162, v167 @82:2
+  v169 = const 8 @82:2
+  stm v165, v169, v168 @82:2
+  v170 = const 16 @82:2
+  v171 = ldm i64, v162, v170 @82:2
+  v172 = const 16 @82:2
+  stm v165, v172, v171 @82:2
+  v173 = const 0 @83:10
+  v174 = ldm i64, v144, v173 @83:10
+  store s0, v174 @83:10
+  v175 = const 0 @83:16
+  v176 = ldm i64, v165, v175 @83:16
+  store s1, v176 @83:16
+  v177 = const 0 @83:32
+  v178 = ldm i64, v144, v177 @83:32
+  v179 = addr m21 @83:32
+  v180 = const 0 @83:32
+  stm v179, v180, v178 @83:32
+  v181 = const 8 @83:32
+  v182 = ldm i64, v144, v181 @83:32
+  v183 = const 8 @83:32
+  stm v179, v183, v182 @83:32
+  v184 = const 16 @83:32
+  v185 = ldm i64, v144, v184 @83:32
+  v186 = const 16 @83:32
+  stm v179, v186, v185 @83:32
+  v187 = addr m22 @83:27
+  call bump, v179, v187 @83:27
+  v188 = addr m23 @83:22
+  call bump, v187, v188 @83:22
+  v189 = const 0 @83:22
+  v190 = ldm i64, v188, v189 @83:22
+  store s2, v190 @83:22
+  v191 = const 0 @83:45
+  v192 = ldm i64, v165, v191 @83:45
+  v193 = addr m24 @83:45
+  v194 = const 0 @83:45
+  stm v193, v194, v192 @83:45
+  v195 = const 8 @83:45
+  v196 = ldm i64, v165, v195 @83:45
+  v197 = const 8 @83:45
+  stm v193, v197, v196 @83:45
+  v198 = const 16 @83:45
+  v199 = ldm i64, v165, v198 @83:45
+  v200 = const 16 @83:45
+  stm v193, v200, v199 @83:45
+  v201 = addr m25 @83:40
+  call bump, v193, v201 @83:40
+  v202 = const 8 @83:40
+  v203 = ldm i64, v201, v202 @83:40
+  v204 = load s0 @83:10
+  v205 = load s1 @83:16
+  v206 = load s2 @83:22
+  println v204, v205, v206, v203 @83:2
+  v207 = const 5 @85:19
+  v208 = addr m26 @85:7
+  v209 = const 0 @85:19
+  stm v208, v209, v207 @85:19
+  v210 = const 6 @85:22
+  v211 = const 8 @85:22
+  stm v208, v211, v210 @85:22
+  v212 = str s0 @85:26
+  v213 = const 4 @85:26
+  v214 = const 16 @85:26
+  stm v208, v214, v212 @85:26
+  v215 = const 24 @85:26
+  stm v208, v215, v213 @85:26
+  v216 = const 0 @85:2
+  v217 = ldm i64, v208, v216 @85:2
+  v218 = addr m27 @85:2
+  v219 = const 0 @85:2
+  stm v218, v219, v217 @85:2
+  v220 = const 8 @85:2
+  v221 = ldm i64, v208, v220 @85:2
+  v222 = const 8 @85:2
+  stm v218, v222, v221 @85:2
+  v223 = const 16 @85:2
+  v224 = ldm ptr, v208, v223 @85:2
+  v225 = const 16 @85:2
+  stm v218, v225, v224 @85:2
+  v226 = const 24 @85:2
+  v227 = ldm i64, v208, v226 @85:2
+  v228 = const 24 @85:2
+  stm v218, v228, v227 @85:2
+  v229 = const 0 @86:27
+  v230 = ldm i64, v218, v229 @86:27
+  v231 = addr m28 @86:27
+  v232 = const 0 @86:27
+  stm v231, v232, v230 @86:27
+  v233 = const 8 @86:27
+  v234 = ldm i64, v218, v233 @86:27
+  v235 = const 8 @86:27
+  stm v231, v235, v234 @86:27
+  v236 = const 16 @86:27
+  v237 = ldm ptr, v218, v236 @86:27
+  v238 = const 16 @86:27
+  stm v231, v238, v237 @86:27
+  v239 = const 24 @86:27
+  v240 = ldm i64, v218, v239 @86:27
+  v241 = const 24 @86:27
+  stm v231, v241, v240 @86:27
+  v242 = addr m29 @86:21
+  v243 = call split, v231, v242 @86:21
+  v244 = extract 0, v243 @86:21
+  v245 = extract 1, v243 @86:21
+  v246 = extract 2, v243 @86:21
+  v247 = extract 3, v243 @86:21
+  store s3, v244 @86:2
+  store s4, v242 @86:2
+  store s5, v245 @86:2
+  store s6, v246 @86:2
+  store s7, v247 @86:2
+  v248 = load s3 @86:2
+  store s8, v248 @86:2
+  v249 = load s4 @86:2
+  store s9, v249 @86:5
+  v250 = const 0 @86:5
+  v251 = ldm i64, v249, v250 @86:5
+  v252 = addr m30 @86:5
+  v253 = const 0 @86:5
+  stm v252, v253, v251 @86:5
+  v254 = const 8 @86:5
+  v255 = ldm i64, v249, v254 @86:5
+  v256 = const 8 @86:5
+  stm v252, v256, v255 @86:5
+  v257 = load s5 @86:2
+  v258 = load s6 @86:2
+  store s10, v257 @86:10
+  store s11, v258 @86:10
+  v259 = load s7 @86:2
+  store s12, v259 @86:13
+  v260 = load s8 @87:10
+  store s13, v260 @87:10
+  v261 = const 0 @87:13
+  v262 = ldm i64, v252, v261 @87:13
+  store s14, v262 @87:13
+  v263 = const 8 @87:21
+  v264 = ldm i64, v252, v263 @87:21
+  store s15, v264 @87:21
+  v265 = load s10 @87:29
+  v266 = load s11 @87:29
+  store s16, v265 @87:29
+  store s17, v266 @87:29
+  v267 = load s12 @87:32
+  store s18, v267 @87:32
+  v268 = const 0 @87:38
+  v269 = ldm i64, v218, v268 @87:38
+  v270 = load s13 @87:10
+  v271 = load s14 @87:13
+  v272 = load s15 @87:21
+  v273 = load s16 @87:29
+  v274 = load s17 @87:29
+  v275 = load s18 @87:32
+  println v270, v271, v272, v273, v274, v275, v269 @87:2
+  v276 = const 0 @88:26
+  v277 = addr m31 @88:26
+  v278 = const 0 @88:26
+  stm v277, v278, v276 @88:26
+  v279 = const 0 @88:26
+  v280 = const 8 @88:26
+  stm v277, v280, v279 @88:26
+  v281 = const ptr 0 @88:26
+  v282 = const 16 @88:26
+  stm v277, v282, v281 @88:26
+  v283 = const 0 @88:26
+  v284 = const 24 @88:26
+  stm v277, v284, v283 @88:26
+  v285 = addr m32 @88:20
+  v286 = call split, v277, v285 @88:20
+  v287 = extract 0, v286 @88:20
+  v288 = extract 1, v286 @88:20
+  v289 = extract 2, v286 @88:20
+  v290 = extract 3, v286 @88:20
+  store s19, v287 @88:2
+  store s20, v285 @88:2
+  store s21, v288 @88:2
+  store s22, v289 @88:2
+  store s23, v290 @88:2
+  v291 = load s19 @88:2
+  store s8, v291 @88:2
+  v292 = load s20 @88:2
+  store s24, v292 @88:5
+  v293 = const 0 @88:5
+  v294 = ldm i64, v292, v293 @88:5
+  v295 = addr m33 @88:5
+  v296 = const 0 @88:5
+  stm v295, v296, v294 @88:5
+  v297 = const 8 @88:5
+  v298 = ldm i64, v292, v297 @88:5
+  v299 = const 8 @88:5
+  stm v295, v299, v298 @88:5
+  v300 = load s21 @88:2
+  v301 = load s22 @88:2
+  store s10, v300 @88:9
+  store s11, v301 @88:9
+  v302 = load s23 @88:2
+  store s12, v302 @88:12
+  v303 = load s8 @89:10
+  store s25, v303 @89:10
+  v304 = const 8 @89:13
+  v305 = ldm i64, v295, v304 @89:13
+  v306 = load s10 @89:20
+  v307 = load s11 @89:20
+  v308 = load s12 @89:23
+  v309 = load s25 @89:10
+  println v309, v305, v306, v307, v308 @89:2
+  v310 = const 3 @91:16
+  v311 = addr m34 @91:10
+  call make8, v310, v311 @91:10
+  v312 = const 56 @91:10
+  v313 = ldm i64, v311, v312 @91:10
+  v314 = const 1 @91:33
+  v315 = addr m35 @91:27
+  call make8, v314, v315 @91:27
+  v316 = const 8 @91:23
+  println v313, v316 @91:2
+  v317 = const 0 @92:6
+  store s26, v317 @92:6
+  jump b1 @92:6
+b1:
+  v318 = load s26 @92:6
+  v319 = const 40 @92:6
+  v320 = lt v318, v319 @92:6
+  branch v320, b2, b3 @92:6
+b2:
+  v321 = const 0 @92:6
+  v322 = addr m36 @92:6
+  v323 = load s26 @92:6
+  v324 = const 8 @92:6
+  v325 = mul v323, v324 @92:6
+  stm v322, v325, v321 @92:6
+  v326 = load s26 @92:6
+  v327 = const 1 @92:6
+  v328 = add v326, v327 @92:6
+  store s26, v328 @92:6
+  jump b1 @92:6
+b3:
+  v329 = const 0 @93:11
+  store s27, v329 @93:6
+  jump b4 @93:2
+b4:
+  v330 = load s27 @93:14
+  v331 = const 40 @93:18
+  v332 = lt v330, v331 @93:16
+  branch v332, b5, b6 @93:2
+b5:
+  v333 = load s27 @94:7
+  store s28, v333 @94:6
+  v334 = load s27 @94:12
+  store s29, v334 @94:3
+  v335 = conv u64, v333 @94:6
+  v336 = const u64 40 @94:6
+  v337 = ge v335, v336 @94:6
+  branch v337, b8, b9 @94:6
+b6:
+  v348 = const 0 @96:14
+  store s30, v348 @96:14
+  jump b10 @96:14
+b7:
+  v345 = load s27 @93:22
+  v346 = const 1 @93:23
+  v347 = add v345, v346 @93:23
+  store s27, v347 @93:22
+  jump b4 @93:22
+b8:
+  v338 = load s28 @94:6
+  v339 = const 40 @94:6
+  panic index, v338, v339 @94:6
+b9:
+  v340 = load s29 @94:3
+  v341 = addr m36 @94:3
+  v342 = load s28 @94:6
+  v343 = const 8 @94:3
+  v344 = mul v342, v343 @94:3
+  stm v341, v344, v340 @94:3
+  jump b7 @95:2
+b10:
+  v349 = load s30 @96:14
+  v350 = const 40 @96:14
+  v351 = lt v349, v350 @96:14
+  branch v351, b11, b12 @96:14
+b11:
+  v352 = addr m36 @96:14
+  v353 = load s30 @96:14
+  v354 = const 8 @96:14
+  v355 = mul v353, v354 @96:14
+  v356 = ldm i64, v352, v355 @96:14
+  v357 = addr m37 @96:14
+  v358 = load s30 @96:14
+  v359 = const 8 @96:14
+  v360 = mul v358, v359 @96:14
+  stm v357, v360, v356 @96:14
+  v361 = load s30 @96:14
+  v362 = const 1 @96:14
+  v363 = add v361, v362 @96:14
+  store s30, v363 @96:14
+  jump b10 @96:14
+b12:
+  v364 = addr m37 @96:14
+  v365 = call sum, v364 @96:10
+  store s31, v365 @96:10
+  v366 = addr m36 @96:20
+  v367 = const 312 @96:20
+  v368 = ldm i64, v366, v367 @96:20
+  v369 = load s31 @96:10
+  println v369, v368 @96:2
+  v370 = const 6 @97:12
+  v371 = const 0 @97:15
+  v372 = addr m38 @97:15
+  v373 = const 0 @97:15
+  stm v372, v373, v371 @97:15
+  v374 = const 0 @97:15
+  v375 = const 8 @97:15
+  stm v372, v375, v374 @97:15
+  v376 = const 0 @97:15
+  v377 = const 16 @97:15
+  stm v372, v377, v376 @97:15
+  v378 = const 0 @97:15
+  v379 = const 24 @97:15
+  stm v372, v379, v378 @97:15
+  v380 = addr m39 @97:7
+  call fill, v370, v372, v380 @97:7
+  v381 = const 0 @97:2
+  v382 = ldm i64, v380, v381 @97:2
+  v383 = addr m40 @97:2
+  v384 = const 0 @97:2
+  stm v383, v384, v382 @97:2
+  v385 = const 8 @97:2
+  v386 = ldm i64, v380, v385 @97:2
+  v387 = const 8 @97:2
+  stm v383, v387, v386 @97:2
+  v388 = const 16 @97:2
+  v389 = ldm i64, v380, v388 @97:2
+  v390 = const 16 @97:2
+  stm v383, v390, v389 @97:2
+  v391 = const 24 @97:2
+  v392 = ldm i64, v380, v391 @97:2
+  v393 = const 24 @97:2
+  stm v383, v393, v392 @97:2
+  v394 = const 0 @98:10
+  v395 = ldm i64, v383, v394 @98:10
+  store s32, v395 @98:10
+  v396 = const 8 @98:16
+  v397 = ldm i64, v383, v396 @98:16
+  store s33, v397 @98:16
+  v398 = const 16 @98:22
+  v399 = ldm i64, v383, v398 @98:22
+  store s34, v399 @98:22
+  v400 = const 24 @98:28
+  v401 = ldm i64, v383, v400 @98:28
+  v402 = load s32 @98:10
+  v403 = load s33 @98:16
+  v404 = load s34 @98:22
+  println v402, v403, v404, v401 @98:2
+  v405 = const 7 @99:24
+  v406 = addr m41 @99:20
+  v407 = addr m42 @99:20
+  v408 = call two, v405, v406, v407 @99:20
+  store s35, v406 @99:2
+  store s36, v407 @99:2
+  store s37, v408 @99:2
+  v409 = load s35 @99:2
+  store s38, v409 @99:2
+  v410 = const 0 @99:2
+  store s39, v410 @99:2
+  jump b13 @99:2
+b13:
+  v411 = load s39 @99:2
+  v412 = const 20 @99:2
+  v413 = lt v411, v412 @99:2
+  branch v413, b14, b15 @99:2
+b14:
+  v414 = load s38 @99:2
+  v415 = load s39 @99:2
+  v416 = const 8 @99:2
+  v417 = mul v415, v416 @99:2
+  v418 = ldm i64, v414, v417 @99:2
+  v419 = addr m43 @99:2
+  v420 = load s39 @99:2
+  v421 = const 8 @99:2
+  v422 = mul v420, v421 @99:2
+  stm v419, v422, v418 @99:2
+  v423 = load s39 @99:2
+  v424 = const 1 @99:2
+  v425 = add v423, v424 @99:2
+  store s39, v425 @99:2
+  jump b13 @99:2
+b15:
+  v426 = load s36 @99:2
+  store s40, v426 @99:8
+  v427 = const 0 @99:8
+  v428 = ldm i8, v426, v427 @99:8
+  v429 = addr m44 @99:8
+  v430 = const 0 @99:8
+  stm v429, v430, v428 @99:8
+  v431 = const 1 @99:8
+  v432 = ldm i8, v426, v431 @99:8
+  v433 = const 1 @99:8
+  stm v429, v433, v432 @99:8
+  v434 = load s37 @99:2
+  store s41, v434 @99:15
+  v435 = addr m43 @100:10
+  v436 = const 152 @100:10
+  v437 = ldm i64, v435, v436 @100:10
+  store s42, v437 @100:10
+  v438 = const 0 @100:20
+  v439 = ldm i8, v429, v438 @100:20
+  store s43, v439 @100:20
+  v440 = const 1 @100:30
+  v441 = ldm i8, v429, v440 @100:30
+  v442 = load s41 @100:40
+  v443 = load s42 @100:10
+  v444 = load s43 @100:20
+  println v443, v444, v441, v442 @100:2
+  ret @101:1

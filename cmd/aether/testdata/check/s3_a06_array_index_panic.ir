@@ -1,0 +1,46 @@
+func main @testdata/check/s3_a06_array_index_panic.go:8:6
+  slot s0 k u8 @11:2
+  slot s1 tmp u8 @13:11
+  mem m0 a 8 align 2 @9:6
+b0:
+  v0 = const i16 0 @9:6
+  v1 = addr m0 @9:6
+  v2 = const 0 @9:6
+  stm v1, v2, v0 @9:6
+  v3 = const i16 0 @9:6
+  v4 = const 2 @9:6
+  stm v1, v4, v3 @9:6
+  v5 = const i16 0 @9:6
+  v6 = const 4 @9:6
+  stm v1, v6, v5 @9:6
+  v7 = const i16 0 @9:6
+  v8 = const 6 @9:6
+  stm v1, v8, v7 @9:6
+  v9 = const i16 7 @10:9
+  v10 = const 6 @10:2
+  stm v1, v10, v9 @10:2
+  v11 = const u8 4 @11:7
+  store s0, v11 @11:2
+  v12 = const 6 @12:10
+  v13 = ldm i16, v1, v12 @12:10
+  v14 = const 4 @12:16
+  println v13, v14 @12:2
+  v15 = load s0 @13:12
+  store s1, v15 @13:11
+  v16 = conv u64, v15 @13:11
+  v17 = const u64 4 @13:11
+  v18 = ge v16, v17 @13:11
+  branch v18, b1, b2 @13:11
+b1:
+  v19 = load s1 @13:11
+  v20 = const 4 @13:11
+  panic index, v19, v20 @13:11
+b2:
+  v21 = addr m0 @13:10
+  v22 = load s1 @13:11
+  v23 = conv i64, v22 @13:11
+  v24 = const 2 @13:10
+  v25 = mul v23, v24 @13:10
+  v26 = ldm i16, v21, v25 @13:10
+  println v26 @13:2
+  ret @14:1

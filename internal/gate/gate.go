@@ -5,8 +5,9 @@
 // 4.3, the integer types of increment 4.4 (§Integer types), the division and
 // shifts of increment 4.5, the package-level variables and constants of
 // increment 4.6, and the switch statements of increment 4.7, extended by
-// float32 and float64 (Phase 6 increment 6.1, §Floating point) and string
-// constants (increment 6.2, §String constants).
+// float32 and float64 (Phase 6 increment 6.1, §Floating point), string
+// constants (increment 6.2, §String constants), and arrays and structs
+// (increment 6.3, §Arrays and structs).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -240,6 +241,10 @@ func (c *checker) topDecl(d ast.Decl) {
 			c.internal(d, "import declaration reached the typed check")
 			return
 		}
+		if d.Tok == token.TYPE {
+			c.typeDecl(d, FeatPackageDecl)
+			return
+		}
 		if d.Tok != token.VAR && d.Tok != token.CONST {
 			c.reject(d, FeatPackageDecl, "package-level "+d.Tok.String()+" declaration")
 			return
@@ -288,8 +293,9 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		return
 	}
 	mark := len(c.ds)
+	ok := true
 	for _, field := range d.Type.Params.List {
-		c.typeExpr(field.Type)
+		ok = c.typeExpr(field.Type) && ok
 	}
 	// An empty result list, "func f() ()", means no result. Precheck has
 	// rejected it on main and init.
@@ -299,11 +305,11 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 			c.reject(results, FeatFuncDecl, "function "+name+" with named results")
 		} else {
 			for _, field := range results.List {
-				c.typeExpr(field.Type)
+				ok = c.typeExpr(field.Type) && ok
 			}
 		}
 	}
-	if len(c.ds) > mark {
+	if len(c.ds) > mark || !ok {
 		return
 	}
 	c.stmts(d.Body.List)
@@ -363,6 +369,10 @@ func (c *checker) stmt(s ast.Stmt) {
 				c.reject(s.Tag, FeatStringCompare, "switch on a string")
 				return
 			}
+			if tv, ok := c.info.Types[s.Tag]; ok && isAggregate(tv.Type) {
+				c.reject(s.Tag, FeatNonIntType, fmt.Sprintf("switch on a value of type %s", tv.Type))
+				return
+			}
 			c.expr(s.Tag)
 		}
 		for _, cc := range s.Body.List {
@@ -412,7 +422,7 @@ func (c *checker) declStmt(d *ast.GenDecl) {
 			c.valueSpec(d.Tok, spec.(*ast.ValueSpec))
 		}
 	case token.TYPE:
-		c.reject(d, FeatLocalType, "local type declaration")
+		c.typeDecl(d, FeatLocalType)
 	default:
 		c.reject(d, FeatStatement, d.Tok.String()+" declaration")
 	}
@@ -431,9 +441,7 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 		return
 	}
 	mark := len(c.ds)
-	if spec.Type != nil {
-		c.typeExpr(spec.Type)
-	}
+	typeOK := spec.Type == nil || c.typeExpr(spec.Type)
 	if !multi {
 		for _, v := range spec.Values {
 			c.expr(v)
@@ -442,7 +450,7 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 	// A declared name's type follows from its type or initializer. Report it
 	// only if those were not already reported, to avoid restating one
 	// problem several times.
-	explained := len(c.ds) > mark
+	explained := len(c.ds) > mark || !typeOK
 	for _, name := range spec.Names {
 		if name.Name == "_" {
 			c.reject(name, FeatBlank, "the blank identifier")
@@ -453,7 +461,7 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 			c.internal(name, "no object for declared name %s", name.Name)
 			continue
 		}
-		ok := isSupported(obj.Type()) || tok == token.CONST && isSupportedOrUntyped(obj.Type())
+		ok := c.supported(obj.Type()) || tok == token.CONST && c.supportedOrUntyped(obj.Type())
 		if !ok && !explained {
 			c.reject(name, FeatNonIntType, fmt.Sprintf("%s %s of type %s", tok, name.Name, obj.Type()))
 		}
@@ -469,18 +477,95 @@ var supportedTypeNames = []string{
 	"float32", "float64", "string",
 }
 
-// typeExpr allows exactly the predeclared types in supportedTypeNames,
-// identified by object identity so that a shadowed or redefined name cannot
-// stand in for them.
-func (c *checker) typeExpr(e ast.Expr) {
-	if id, ok := ast.Unparen(e).(*ast.Ident); ok {
+// typeExpr allows the predeclared types in supportedTypeNames, identified by
+// object identity so that a shadowed or redefined name cannot stand in for
+// them, the array and struct types of the program's type declarations, and
+// array and struct type literals of supported types (§Arrays and structs).
+// It reports whether it allowed e.
+func (c *checker) typeExpr(e ast.Expr) bool {
+	switch t := ast.Unparen(e).(type) {
+	case *ast.Ident:
 		for _, name := range supportedTypeNames {
-			if c.info.Uses[id] == types.Universe.Lookup(name) {
-				return
+			if c.info.Uses[t] == types.Universe.Lookup(name) {
+				return true
 			}
 		}
+		if tn, ok := c.info.Uses[t].(*types.TypeName); ok && tn.Pkg() == c.pkg.Types && tn.Parent() != types.Universe {
+			// A type declaration of the program, checked where it is: one
+			// it rejects is not reported again at each use.
+			return c.supported(tn.Type())
+		}
+	case *ast.ArrayType:
+		if t.Len == nil {
+			break // a slice type
+		}
+		mark := len(c.ds)
+		if _, ok := t.Len.(*ast.Ellipsis); !ok {
+			c.expr(t.Len)
+		}
+		if len(c.ds) == mark && c.typeExpr(t.Elt) {
+			return c.sized(e)
+		}
+		return false
+	case *ast.StructType:
+		mark := len(c.ds)
+		for _, f := range t.Fields.List {
+			c.typeExpr(f.Type)
+		}
+		if len(c.ds) == mark {
+			return c.sized(e)
+		}
+		return false
 	}
 	c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
+	return false
+}
+
+// maxAggregate bounds the size of an array or struct type, so that the
+// objects a function needs for its variables and temporaries fit its frame
+// (D-034).
+const maxAggregate = 1 << 24
+
+// sized reports whether the array or struct type of e is at most
+// maxAggregate bytes, rejecting it if not.
+func (c *checker) sized(e ast.Expr) bool {
+	tv, ok := c.info.Types[e]
+	if !ok {
+		c.internal(e, "no type for type expression %s", types.ExprString(e))
+		return false
+	}
+	if !c.supported(tv.Type) {
+		c.reject(e, FeatNonIntType, fmt.Sprintf("type %s (larger than %d bytes)", types.ExprString(e), maxAggregate))
+		return false
+	}
+	return true
+}
+
+// typeDecl checks a type declaration: only a defined array or struct type,
+// not generic and not an alias, is allowed. feature names a rejected one.
+func (c *checker) typeDecl(d *ast.GenDecl, feature string) {
+	for _, spec := range d.Specs {
+		spec := spec.(*ast.TypeSpec)
+		tn, ok := c.info.Defs[spec.Name].(*types.TypeName)
+		switch {
+		case spec.Name.Name == "_":
+			c.reject(spec.Name, FeatBlank, "type named _")
+			continue
+		case !ok:
+			c.internal(spec, "no type name for %s", spec.Name.Name)
+			continue
+		}
+		switch {
+		case spec.Assign.IsValid():
+			c.reject(spec, feature, "type alias "+spec.Name.Name)
+		case spec.TypeParams != nil:
+			c.reject(spec, feature, "generic type "+spec.Name.Name)
+		case !isAggregate(tn.Type()):
+			c.reject(spec, feature, fmt.Sprintf("type %s of underlying type %s (only arrays and structs)", spec.Name.Name, tn.Type().Underlying()))
+		default:
+			c.typeExpr(spec.Type)
+		}
+	}
 }
 
 func (c *checker) assign(s *ast.AssignStmt) {
@@ -545,9 +630,24 @@ func (c *checker) assign(s *ast.AssignStmt) {
 	}
 }
 
-// target checks the left-hand side of an assignment or increment: it must be
-// the plain name of an S1 variable.
+// target checks the left-hand side of an assignment or increment: the name
+// of a variable of the program, or a field or array element of one,
+// selected through any number of fields and elements (§Arrays and
+// structs). go/types has checked that it is addressable.
 func (c *checker) target(e ast.Expr) {
+	switch t := e.(type) {
+	case *ast.SelectorExpr:
+		if sel := c.info.Selections[t]; sel != nil && sel.Kind() == types.FieldVal && !sel.Indirect() {
+			c.target(t.X)
+			return
+		}
+	case *ast.IndexExpr:
+		if tv, ok := c.info.Types[t.X]; ok && isArray(tv.Type) {
+			c.target(t.X)
+			c.expr(t.Index)
+			return
+		}
+	}
 	id, ok := e.(*ast.Ident)
 	if !ok {
 		c.reject(e, FeatAssignTarget, "assignment to "+types.ExprString(e))
@@ -573,7 +673,7 @@ func (c *checker) intVar(id *ast.Ident, obj types.Object, reportType bool) {
 	if !c.declared(id, v) {
 		return
 	}
-	if reportType && !isSupported(v.Type()) {
+	if reportType && !c.supported(v.Type()) {
 		c.reject(id, FeatNonIntType, fmt.Sprintf("variable %s of type %s", id.Name, v.Type()))
 	}
 }
@@ -595,9 +695,15 @@ func (c *checker) exprStmt(s *ast.ExprStmt) {
 		c.reject(call, FeatVariadic, "variadic call")
 		return
 	}
-	// println(f()) prints every result of f, whose types its declaration
-	// has checked.
+	// println(f()) prints every result of f, which go/types allows of any
+	// type, and gc only of a type print can print.
 	if c.multiValue(call.Args) {
+		for v := range c.info.Types[call.Args[0]].Type.(*types.Tuple).Variables() {
+			if !isScalar(v.Type()) {
+				c.reject(call.Args[0], FeatPrintlnArg, fmt.Sprintf("%s argument of type %s", name, v.Type()))
+				return
+			}
+		}
 		return
 	}
 	for _, a := range call.Args {
@@ -606,7 +712,7 @@ func (c *checker) exprStmt(s *ast.ExprStmt) {
 			c.internal(a, "no type for println argument")
 			continue
 		}
-		if !isSupported(tv.Type) {
+		if !isScalar(tv.Type) {
 			c.reject(a, FeatPrintlnArg, fmt.Sprintf("%s argument of type %s", name, tv.Type))
 			continue
 		}
@@ -639,8 +745,7 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			return false
 		}
 		mark := len(c.ds)
-		c.typeExpr(call.Fun)
-		if len(c.ds) > mark {
+		if !c.typeExpr(call.Fun) {
 			c.ds = c.ds[:mark]
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
@@ -651,8 +756,8 @@ func (c *checker) call(call *ast.CallExpr) bool {
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		switch obj := c.info.Uses[id].(type) {
 		case *types.Builtin:
-			// len of a string, its length in bytes (D-033).
-			if obj.Name() == "len" && len(call.Args) == 1 && !call.Ellipsis.IsValid() && c.isString(call.Args[0]) {
+			// len of a string, its length in bytes (D-033), or of an array.
+			if obj.Name() == "len" && len(call.Args) == 1 && !call.Ellipsis.IsValid() && (c.isString(call.Args[0]) || c.isArray(call.Args[0])) {
 				c.expr(call.Args[0])
 				return true
 			}
@@ -756,6 +861,13 @@ func (c *checker) expr(e ast.Expr) {
 			}
 			return
 		}
+		// Arrays and structs compare with == and != (go/types allows no
+		// other operator), element by element: a string among them needs
+		// string comparison.
+		if tv, ok := c.info.Types[e.X]; ok && isAggregate(tv.Type) && holdsString(tv.Type) {
+			c.reject(e, FeatStringCompare, fmt.Sprintf("comparison of type %s, which holds strings", tv.Type))
+			return
+		}
 		switch e.Op {
 		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.LAND, token.LOR,
 			token.AND, token.OR, token.XOR, token.AND_NOT, token.SHL, token.SHR,
@@ -775,13 +887,31 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.FuncLit:
 		c.reject(e, FeatFuncLit, "function literal")
 	case *ast.CompositeLit:
-		c.reject(e, FeatCompositeLit, "composite literal")
+		// Only array and struct literals: a slice or map literal needs the
+		// heap.
+		if tv, ok := c.info.Types[e]; ok && !c.supported(tv.Type) {
+			c.reject(e, FeatCompositeLit, fmt.Sprintf("composite literal of type %s", tv.Type))
+			return
+		}
+		if c.typed(e) {
+			c.compositeLit(e)
+		}
 	case *ast.SelectorExpr:
-		c.reject(e, FeatSelector, "selector "+types.ExprString(e))
+		// A field of an array or struct value, perhaps promoted through
+		// embedded structs (never through a pointer, which is not
+		// supported).
+		if sel := c.info.Selections[e]; sel == nil || sel.Kind() != types.FieldVal || sel.Indirect() {
+			c.reject(e, FeatSelector, "selector "+types.ExprString(e))
+			return
+		}
+		if c.typed(e) {
+			c.expr(e.X)
+		}
 	case *ast.IndexExpr:
-		// Indexing a string gives one of its bytes (D-033); every other
-		// index expression is unsupported.
-		if !c.isString(e.X) {
+		// Indexing a string gives one of its bytes (D-033), and indexing
+		// an array one of its elements; every other index expression is
+		// unsupported.
+		if !c.isString(e.X) && !c.isArray(e.X) {
 			c.reject(e, FeatIndex, "index expression")
 			return
 		}
@@ -804,15 +934,50 @@ func (c *checker) expr(e ast.Expr) {
 	}
 }
 
-// typed reports whether e has type int or bool, typed or untyped, rejecting
-// it if not.
+// compositeLit checks an array or struct literal, whose type typed has
+// allowed: its type as written, unless elided, the keys of an array literal,
+// which are constants, and the elements, of which an elided literal is
+// checked in turn. A struct literal's keys are field names.
+func (c *checker) compositeLit(e *ast.CompositeLit) {
+	if at, ok := e.Type.(*ast.ArrayType); ok && at.Len != nil {
+		if _, ok := at.Len.(*ast.Ellipsis); ok {
+			// [...]T: the length is the literal's.
+			if !c.typeExpr(at.Elt) {
+				return
+			}
+		} else if !c.typeExpr(e.Type) {
+			return
+		}
+	} else if e.Type != nil && !c.typeExpr(e.Type) {
+		return
+	}
+	array := isArray(c.info.Types[e].Type)
+	for _, elt := range e.Elts {
+		if kv, ok := elt.(*ast.KeyValueExpr); ok {
+			if array {
+				c.expr(kv.Key)
+			}
+			elt = kv.Value
+		}
+		if lit, ok := elt.(*ast.CompositeLit); ok && lit.Type == nil {
+			if c.typed(lit) {
+				c.compositeLit(lit)
+			}
+			continue
+		}
+		c.expr(elt)
+	}
+}
+
+// typed reports whether e has a supported type, typed or untyped,
+// rejecting it if not.
 func (c *checker) typed(e ast.Expr) bool {
 	tv, ok := c.info.Types[e]
 	if !ok {
 		c.internal(e, "no type for expression %s", types.ExprString(e))
 		return false
 	}
-	if !isSupportedOrUntyped(tv.Type) {
+	if !c.supportedOrUntyped(tv.Type) {
 		c.reject(e, FeatNonIntType, fmt.Sprintf("expression of type %s", tv.Type))
 		return false
 	}
@@ -874,13 +1039,90 @@ func unaryFeature(op token.Token) string {
 	return featOperatorPrefix + "other"
 }
 
-// isSupported reports whether t is bool, an integer type, float32, or
-// float64. Only predeclared types reach here: type declarations are
-// rejected. The complex types are not supported.
-func isSupported(t types.Type) bool {
-	b, ok := t.(*types.Basic)
+// isScalar reports whether t is bool, an integer type, float32, float64, or
+// string: a predeclared type of the subset. The complex types are not
+// supported.
+func isScalar(t types.Type) bool {
+	b, ok := types.Unalias(t).(*types.Basic)
 	return ok && (b.Kind() == types.Bool || b.Kind() >= types.Int && b.Kind() <= types.Uintptr ||
 		b.Kind() == types.Float32 || b.Kind() == types.Float64 || b.Kind() == types.String)
+}
+
+// sizes is the layout lowering gives arrays and structs (D-034).
+var sizes = types.SizesFor("gc", "amd64")
+
+// supported reports whether t is a scalar type, or an array or struct type,
+// of at most maxAggregate bytes, whose elements or fields are of supported
+// types; a defined one must be a declaration of the program, not generic.
+func (c *checker) supported(t types.Type) bool {
+	if isScalar(t) {
+		return true
+	}
+	if !c.composite(t) {
+		return false
+	}
+	return sizes.Sizeof(t) <= maxAggregate
+}
+
+// composite reports whether t is an array or struct type whose elements or
+// fields are of supported types, regardless of its size.
+func (c *checker) composite(t types.Type) bool {
+	t = types.Unalias(t)
+	if n, ok := t.(*types.Named); ok {
+		if n.Obj().Pkg() != c.pkg.Types || n.Obj().Parent() == types.Universe || n.TypeParams().Len() > 0 || n.TypeArgs().Len() > 0 {
+			return false
+		}
+		t = n.Underlying()
+	}
+	switch t := t.(type) {
+	case *types.Array:
+		return isScalar(t.Elem()) || c.composite(t.Elem())
+	case *types.Struct:
+		for f := range t.Fields() {
+			if !isScalar(f.Type()) && !c.composite(f.Type()) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// isAggregate reports whether t is an array or struct type.
+func isAggregate(t types.Type) bool {
+	switch t.Underlying().(type) {
+	case *types.Array, *types.Struct:
+		return true
+	}
+	return false
+}
+
+func isArray(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Array)
+	return ok
+}
+
+// isArray reports whether the expression e has an array type.
+func (c *checker) isArray(e ast.Expr) bool {
+	tv, ok := c.info.Types[e]
+	return ok && isArray(tv.Type)
+}
+
+// holdsString reports whether a value of t contains a string.
+func holdsString(t types.Type) bool {
+	switch u := t.Underlying().(type) {
+	case *types.Basic:
+		return isString(u)
+	case *types.Array:
+		return holdsString(u.Elem())
+	case *types.Struct:
+		for f := range u.Fields() {
+			if holdsString(f.Type()) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // isString reports whether t is string or untyped string.
@@ -895,12 +1137,12 @@ func (c *checker) isString(e ast.Expr) bool {
 	return ok && isString(tv.Type)
 }
 
-// isSupportedOrUntyped reports whether t is a supported type, typed or
+// supportedOrUntyped reports whether t is a supported type, typed or
 // untyped. An untyped rune constant can only come from a rune literal,
 // which is rejected as such, and an untyped complex constant from an
 // imaginary literal.
-func isSupportedOrUntyped(t types.Type) bool {
-	return isSupported(t) || types.Identical(t, types.Typ[types.UntypedInt]) ||
+func (c *checker) supportedOrUntyped(t types.Type) bool {
+	return c.supported(t) || types.Identical(t, types.Typ[types.UntypedInt]) ||
 		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||
 		types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.UntypedString])
 }

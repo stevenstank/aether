@@ -71,6 +71,10 @@ var (
 	reLabel    = regexp.MustCompile(`^(\.L[\w.]+|\d+|main\.\w+):$`)
 	reMainMain = regexp.MustCompile(`main\.main\b`)
 	reStackQ   = regexp.MustCompile(`(aether\.mainstack:\n\t\.quad\t)(\d+)`)
+	// reObject is an ldm or stm operand (amd64 memOperand): a displacement
+	// from, or an index added to, %rax or an allocatable register, the
+	// index in %rcx or an allocatable register.
+	reObject = regexp.MustCompile(`^(-?\d+\(%(?:rax|rbx|rsi|rdi|r\d+)\)|\(%(?:rax|rbx|rsi|rdi|r\d+),%(?:rcx|rbx|rsi|rdi|r\d+)\))$`)
 )
 
 // splitOperands splits an AT&T operand list at top-level commas.
@@ -104,7 +108,9 @@ func classify(op string, slots int) (memClass, error) {
 		return mNone, nil
 	}
 	switch {
-	case op == "(%rax,%rcx)":
+	case op == "(%rax,%rcx)", reObject.MatchString(op):
+		// String bytes (D-033), or a memory object through its address
+		// in a register (D-034).
 		return mData, nil
 	case strings.HasSuffix(op, "(%rip)"):
 		if strings.HasPrefix(op, "aether.stacklimit") {

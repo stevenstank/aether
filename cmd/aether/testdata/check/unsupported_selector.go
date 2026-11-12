@@ -2,7 +2,12 @@
 
 package main
 
+type T struct{}
+
+func (T) m() {}
+
 func main() {
-	var s struct{ f int }
-	println(s.f)
+	var t T
+	g := t.m
+	g()
 }
