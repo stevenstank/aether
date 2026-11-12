@@ -51,9 +51,12 @@ const (
 	// in 64 bits as their bit patterns: an F32's 32 bits zero-extended.
 	F64
 	F32
-	// Ptr is the address of a program string's bytes (D-033), or 0. Lowering
-	// represents a Go string as a Ptr and an I64 length. Only Str and the
-	// constant 0 produce a Ptr, and only LoadB reads through one.
+	// Ptr is the address of a program string's bytes (D-033) or of a
+	// memory object (D-034), or 0. Lowering represents a Go string as a Ptr
+	// and an I64 length, and an array or struct value as the address of
+	// the memory holding it. Only Str, Addr, and the constant 0 produce a
+	// Ptr; LoadB reads through a string's, and LdM and StM through a
+	// memory object's. There is no arithmetic on a Ptr.
 	Ptr
 )
 
@@ -68,6 +71,23 @@ func (t Type) String() string {
 		return typeNames[t]
 	}
 	return fmt.Sprintf("Type(%d)", uint8(t))
+}
+
+// MemSize returns the bytes a value of type t occupies in memory (D-034):
+// 1 for a Bool, I8, or U8, 2 for I16 and U16, 4 for I32, U32, and F32, and
+// 8 for I64, U64, F64, and Ptr; 0 for the others, which have no memory form.
+func (t Type) MemSize() int64 {
+	switch t {
+	case Bool, I8, U8:
+		return 1
+	case I16, U16:
+		return 2
+	case I32, U32, F32:
+		return 4
+	case I64, U64, F64, Ptr:
+		return 8
+	}
+	return 0
 }
 
 // IsInteger reports whether t is one of the integer types.
@@ -258,6 +278,22 @@ const (
 	// whose address is args[0], a Ptr. Precondition: 0 <= args[1] < the
 	// string's length (lowering checks it first, D-033).
 	LoadB
+	// Addr produces the address of Mem, a Ptr (D-034): of the function's
+	// own instance of a local memory object, fresh for each call, or of a
+	// global one. No args.
+	Addr
+	// LdM produces the value of its type held in memory at offset args[1],
+	// an I64, of the memory object whose address is args[0], a Ptr; StM
+	// writes args[2] there and produces no value. A value occupies
+	// MemSize of its type bytes, little-endian: a Bool 0 or 1, an integer
+	// its low width bits (LdM puts them in canonical form), an F32 its 32
+	// bits, and an F64 or Ptr all 64. Preconditions (lowering guarantees
+	// them, D-034): the bytes lie within the object, the offset is a
+	// multiple of MemSize, and every byte LdM reads was written since the
+	// object came into being, by StM, or for a global one by its zero
+	// initialization.
+	LdM
+	StM
 )
 
 var opNames = [...]string{
@@ -271,6 +307,7 @@ var opNames = [...]string{
 	FAdd: "fadd", FSub: "fsub", FMul: "fmul", FDiv: "fdiv", FNeg: "fneg",
 	FEq: "feq", FNe: "fne", FLt: "flt", FLe: "fle", FGt: "fgt", FGe: "fge",
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
+	Addr: "addr", LdM: "ldm", StM: "stm",
 }
 
 func (op Op) String() string {
@@ -327,12 +364,32 @@ func (p Pos) String() string { return fmt.Sprintf("%d:%d", p.Line, p.Col) }
 // If Init is not nil, it runs before main: it is one of Funcs, named "init",
 // takes no parameters, returns no results, and is never called (D-023).
 // Strings are the bytes of its string constants, which Str addresses
-// (D-033); none is empty, and none repeats.
+// (D-033); none is empty, and none repeats. Mems are its global memory
+// objects (D-034), which hold its package-level arrays and structs.
 type Program struct {
 	Funcs   []*Func
 	Globals []*Global
 	Init    *Func
 	Strings []string
+	Mems    []*Mem
+}
+
+// MaxMemSize bounds a memory object's size, so that every offset into one
+// and every frame holding one fit comfortably in 32 bits (D-034).
+const MaxMemSize = 1 << 30
+
+// Mem is a memory object (D-034): Size bytes, at an address that is a
+// multiple of Align, 1, 2, 4, or 8. A local one, of Func.Mems, exists once
+// for each call of its function, from the call to its return, and holds
+// nothing defined until stored to; a global one, of Program.Mems, exists for
+// the whole run and starts as zero bytes.
+type Mem struct {
+	ID          int    // index in Func.Mems or Program.Mems
+	Name        string // the source name, for printing and symbols
+	Size, Align int64
+	Global      bool
+	File        string // for a global one, the source file of Pos
+	Pos         Pos
 }
 
 // Intern returns the index of s in p.Strings, adding it if it is new. s
@@ -367,6 +424,8 @@ type Func struct {
 	// Slots are the function's local variables. A slot has no defined
 	// contents until it is stored to.
 	Slots []*Slot
+	// Mems are its local memory objects (D-034).
+	Mems []*Mem
 	// Blocks are the function's basic blocks; Blocks[0] is the entry.
 	Blocks []*Block
 	// SSA reports whether the function is in SSA form (D-025): it has no
@@ -404,6 +463,7 @@ type Instr struct {
 	Index   int      // for Param, Extract, and Panic
 	Callee  *Func    // for Call
 	Global  *Global  // for GLoad and GStore
+	Mem     *Mem     // for Addr
 	Targets []*Block // for Jump and Branch
 	Edges   []Edge   // for Phi: the incoming edge of each arg
 	Pos     Pos
@@ -430,6 +490,20 @@ func (p *Program) NewGlobal(name string, t Type, file string, pos Pos) *Global {
 	g := &Global{ID: len(p.Globals), Name: name, Type: t, File: file, Pos: pos}
 	p.Globals = append(p.Globals, g)
 	return g
+}
+
+// NewMem adds a global memory object to p.
+func (p *Program) NewMem(name string, size, align int64, file string, pos Pos) *Mem {
+	m := &Mem{ID: len(p.Mems), Name: name, Size: size, Align: align, Global: true, File: file, Pos: pos}
+	p.Mems = append(p.Mems, m)
+	return m
+}
+
+// NewMem adds a local memory object to f.
+func (f *Func) NewMem(name string, size, align int64, pos Pos) *Mem {
+	m := &Mem{ID: len(f.Mems), Name: name, Size: size, Align: align, Pos: pos}
+	f.Mems = append(f.Mems, m)
+	return m
 }
 
 // NewBlock adds an empty block to f.
@@ -586,6 +660,21 @@ func (f *Func) Str(b *Block, i int, pos Pos) *Instr {
 // LoadB appends the load of byte i of the string at ptr.
 func (f *Func) LoadB(b *Block, ptr, i *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: LoadB, Type: U8, Args: []*Instr{ptr, i}, Pos: pos})
+}
+
+// Addr appends the address of m.
+func (f *Func) Addr(b *Block, m *Mem, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Addr, Type: Ptr, Mem: m, Pos: pos})
+}
+
+// LdM appends the load of a t at offset off of the memory object at p.
+func (f *Func) LdM(b *Block, t Type, p, off *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: LdM, Type: t, Args: []*Instr{p, off}, Pos: pos})
+}
+
+// StM appends the store of v at offset off of the memory object at p.
+func (f *Func) StM(b *Block, p, off, v *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: StM, Args: []*Instr{p, off, v}, Pos: pos})
 }
 
 // Com appends the complement of x.

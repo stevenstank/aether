@@ -27,6 +27,12 @@ import (
 //
 //	global g0 x i64 @p.go:3:5
 //
+// Global memory objects (D-034) follow the globals, and a function's own
+// follow its slots, with their size and alignment:
+//
+//	mem gm0 a 24 align 8 @p.go:4:5
+//	  mem m0 p 16 align 8 @6:2
+//
 // A function with parameters or results lists their types:
 //
 //	func f(i64) i64 @p.go:8:6
@@ -50,8 +56,11 @@ func (p *Program) String() string {
 	for _, g := range p.Globals {
 		fmt.Fprintf(&b, "global g%d %s %s @%s:%s\n", g.ID, g.Name, g.Type, g.File, g.Pos)
 	}
+	for _, m := range p.Mems {
+		fmt.Fprintf(&b, "mem %s %s %d align %d @%s:%s\n", m, m.Name, m.Size, m.Align, m.File, m.Pos)
+	}
 	for i, f := range p.Funcs {
-		if i > 0 || len(p.Globals)+len(p.Strings) > 0 {
+		if i > 0 || len(p.Globals)+len(p.Strings)+len(p.Mems) > 0 {
 			b.WriteString("\n")
 		}
 		f.write(&b)
@@ -77,6 +86,9 @@ func (f *Func) write(b *strings.Builder) {
 	fmt.Fprintf(b, " @%s:%s\n", f.File, f.Pos)
 	for _, s := range f.Slots {
 		fmt.Fprintf(b, "  slot s%d %s %s @%s\n", s.ID, s.Name, s.Type, s.Pos)
+	}
+	for _, m := range f.Mems {
+		fmt.Fprintf(b, "  mem %s %s %d align %d @%s\n", m, m.Name, m.Size, m.Align, m.Pos)
 	}
 	for _, blk := range f.Blocks {
 		fmt.Fprintf(b, "b%d:\n", blk.ID)
@@ -112,8 +124,14 @@ func (in *Instr) String() string {
 		default:
 			ops = append(ops, fmt.Sprintf("%s %d", in.Type, in.Const))
 		}
-	case Conv, IToF, FToF, FToI:
+	case Conv, IToF, FToF, FToI, LdM:
 		ops = append(ops, in.Type.String())
+	case Addr:
+		if in.Mem != nil {
+			ops = append(ops, in.Mem.String())
+		} else {
+			ops = append(ops, "m?")
+		}
 	case Panic:
 		if in.Index >= 0 && in.Index < len(PanicMessages) {
 			ops = append(ops, panicNames[in.Index])
@@ -177,6 +195,15 @@ func (in *Instr) String() string {
 		b.WriteString(strings.Join(ops, ", "))
 	}
 	return b.String()
+}
+
+// String returns m's printed name: mN for a local memory object, gmN for
+// a global one.
+func (m *Mem) String() string {
+	if m.Global {
+		return fmt.Sprintf("gm%d", m.ID)
+	}
+	return fmt.Sprintf("m%d", m.ID)
 }
 
 // String returns the edge as bN.I: target I of block N's terminator.

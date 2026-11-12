@@ -112,6 +112,27 @@ b0:
   ret v0 @6:2
 `,
 	},
+	{
+		// A store to memory stays though nothing loads it; an unused load
+		// and its offset go (D-034).
+		name: "memory",
+		build: func(_ *ir.Program, f *ir.Func) {
+			b := f.Entry()
+			a := f.Addr(b, f.NewMem("m", 8, 8, ir.Pos{Line: 2, Col: 2}), at)
+			f.StM(b, a, f.Const(b, 0, at), f.Const(b, 5, at), at)
+			f.LdM(b, ir.I64, a, f.Const(b, 0, at), at)
+			f.Ret(b, at)
+		},
+		want: `func main ssa @p.go:1:6
+  mem m0 m 8 align 8 @2:2
+b0:
+  v0 = addr m0 @6:2
+  v1 = const 0 @6:2
+  v2 = const 5 @6:2
+  stm v0, v1, v2 @6:2
+  ret @6:2
+`,
+	},
 }
 
 func TestDCE(t *testing.T) {

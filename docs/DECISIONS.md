@@ -62,6 +62,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-031 | `aether build` uses ABI-R1; `-O0` keeps ABI-S0 | Accepted (2026-11-07, owner approval) |
 | D-032 | Floating point in the IR and the runtime (Phase 6 increment 6.1) | Accepted (2026-11-09, owner approval) |
 | D-033 | String constants in the IR and the runtime (Phase 6 increment 6.2) | Accepted (2026-11-10, owner approval) |
+| D-034 | Arrays and structs in memory objects (Phase 6 increment 6.3) | Accepted (2026-11-12, owner approval) |
 
 ## Review log
 
@@ -106,6 +107,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-09 | Owner accepts D-032 as proposed, with its three constraints | D-032 |
 | 2026-11-09 | Phase 6.2 started with string constants; D-033 created as Proposed. Its IR, interpreter, backend, and runtime parts exist with tests; the gate does not accept strings yet. | D-033 |
 | 2026-11-10 | Owner accepts D-033 | D-033 |
+| 2026-11-12 | Phase 6.3 started with arrays and structs; owner accepts D-034 as proposed before any code depended on it. Its IR, verifier, and interpreter parts exist with tests; the backend and gate do not handle them yet. | D-034 |
 
 ---
 
@@ -2721,6 +2723,59 @@ seven string arguments, and a returned string, in the interpreter, the slot-base
 backend, and the default backend, with identical output. `TestPanicIndex` checks
 the panic message at the signed and unsigned extremes natively and in the
 interpreter.
+
+---
+
+## D-034: Arrays and structs in memory objects (Phase 6 increment 6.3)
+
+**Status:** Accepted (2026-11-12, owner approval as proposed).
+
+**Context.** Phase 6 adds arrays and structs with value semantics, copying, and
+comparison, and requires layout tests against `types.Sizes` (`ROADMAP.md`
+Phase 6). The string representation of D-033, a fixed number of words, cannot
+hold an array indexed at run time, and an array of structs needs the structs'
+real layout. Pointers, `&`, and slices are Phase 7.
+
+**Decision.**
+- **Memory objects.** A function has local memory objects (`Func.Mems`), one
+  instance per call, in its frame, and the program global ones
+  (`Program.Mems`), zero at startup. Each has a size and an alignment of 1, 2,
+  4, or 8, at most 2³⁰ bytes. Lowering gives every array or struct variable,
+  global, and temporary one, laid out by `types.SizesFor("gc", "amd64")`.
+- **Operations.** `addr m` produces a `Ptr`, the address of m. `ldm.T p, i`
+  loads a T at byte offset i, an `i64`, of the object at p, and `stm p, i, v`
+  stores v there; a value takes `MemSize` bytes (1, 2, 4, or 8), little-endian,
+  and `ldm` puts it in canonical form. Preconditions, which lowering
+  guarantees: the access lies in the object, its offset is a multiple of its
+  size, and an `ldm` reads only bytes written since the object came into being.
+  There is no arithmetic on a `Ptr`, and no block copy: lowering emits copies,
+  zeroing, and comparisons as typed `ldm`/`stm` sequences, unrolled for small
+  aggregates and as IR loops for large arrays. Padding is never read.
+- **Values.** In lowering, an array or struct value is the `Ptr` of a temporary
+  object that holds it and that nothing else writes while it is in use. A
+  parameter of such a type is a `Ptr` to a copy the caller made for the call;
+  a result is written by the callee, before it returns, into an object the
+  caller passes the address of as a hidden `Ptr` parameter after the others.
+  So ABI-S0 and ABI-R1 still pass only words and do not change.
+- **Passes.** `stm` is an effect; `ldm` is not, but no pass moves either
+  (D-024). Promotion applies to slots only.
+- **Interpreter.** A memory object is a handle above 2³², distinct from a string
+  `Ptr`; each records which bytes were written, so a read of an unwritten byte,
+  an access outside a live object, or a misaligned one is an error. The local
+  objects in existence are bounded by 2³⁰ bytes, beyond which `addr` is a
+  stack overflow, as on the native stack.
+
+**Alternatives.** Flattening structs into words, as strings are, with only arrays
+in memory: no IR change for small structs, but two representations once a
+struct holds an array or an array holds structs. A block-copy operation or
+runtime `memmove`: fewer instructions for large copies, but a new clobbering
+instruction for the allocator and a precondition on overlap.
+
+**Consequences.** Aggregates live in memory and are not promoted to registers, so
+a field in a loop is loaded and stored each time; scalar replacement can follow
+as an optimization. Passing an aggregate copies it once, at the call. String
+comparison stays excluded (D-033), so comparing an aggregate that holds a
+string is `unsupported`.
 
 ---
 

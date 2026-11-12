@@ -175,7 +175,9 @@ backend or interpreter may rely on.
 
 **Operations.** `i64` is 64-bit two's complement. No operation traps. The
 table is S1's; the later types and operations, the floats of D-032 included,
-are documented on their constants in `ir.go`.
+are documented on their constants in `ir.go`. Arrays and structs live in
+memory objects, local to a call or global, which `addr`, `ldm`, and `stm`
+address, read, and write (D-034).
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|

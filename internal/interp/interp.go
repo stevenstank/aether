@@ -52,15 +52,16 @@ func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
 		return 0, fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
 	}
 	globals := make([]int64, len(prog.Globals))
+	mem := newMemory(prog)
 	var executed int64
 	if prog.Init != nil {
-		if code, err := run(prog.Init, prog.Strings, globals, stderr, steps, &executed); code != 0 || err != nil {
+		if code, err := run(prog.Init, prog.Strings, globals, mem, stderr, steps, &executed); code != 0 || err != nil {
 			return code, err
 		}
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, prog.Strings, globals, stderr, steps, &executed)
+			return run(f, prog.Strings, globals, mem, stderr, steps, &executed)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
@@ -75,6 +76,7 @@ type frame struct {
 	slots  []int64
 	values []int64         // indexed by value number
 	tuples map[int][]int64 // the results of Tuple calls, by value number
+	mems   []int64         // the handle of each local memory object, 0 until its first addr
 }
 
 // run executes entry (Init or main) and every call it makes on an explicit
@@ -84,8 +86,9 @@ type frame struct {
 // steps.
 //
 // A Ptr is held as the index of its program string plus 1, so that the
-// constant 0 is the empty string's address (D-033).
-func run(entry *ir.Func, strs []string, globals []int64, stderr io.Writer, steps int64, executed *int64) (int, error) {
+// constant 0 is the empty string's address (D-033), or as the handle of a
+// memory object (D-034).
+func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.Writer, steps int64, executed *int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
@@ -97,7 +100,7 @@ func run(entry *ir.Func, strs []string, globals []int64, stderr io.Writer, steps
 			}
 			nvalues[f] = n
 		}
-		return frame{f: f, blk: f.Entry(), args: args, slots: make([]int64, len(f.Slots)), values: make([]int64, n)}
+		return frame{f: f, blk: f.Entry(), args: args, slots: make([]int64, len(f.Slots)), values: make([]int64, n), mems: make([]int64, len(f.Mems))}
 	}
 	stack := []frame{newFrame(entry, nil)}
 	for {
@@ -172,6 +175,34 @@ func run(entry *ir.Func, strs []string, globals []int64, stderr io.Writer, steps
 				return 0, fmt.Errorf("interp: func %s: %s out of range", fr.f.Name, in)
 			}
 			fr.values[in.ID] = int64(strs[p-1][i])
+		case ir.Addr:
+			m := in.Mem
+			switch {
+			case m.Global:
+				fr.values[in.ID] = mem.globals[m.ID]
+			case fr.mems[m.ID] != 0:
+				fr.values[in.ID] = fr.mems[m.ID]
+			default:
+				if mem.live+m.Size > MaxMemory {
+					// The frames' memory, like the native stack, is
+					// bounded (D-034).
+					_, _ = io.WriteString(stderr, stackOverflow)
+					return 2, nil
+				}
+				fr.mems[m.ID] = mem.alloc(m.Size, false)
+				mem.live += m.Size
+				fr.values[in.ID] = fr.mems[m.ID]
+			}
+		case ir.LdM:
+			v, err := mem.load(in.Type, arg(0), arg(1))
+			if err != nil {
+				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+			}
+			fr.values[in.ID] = v
+		case ir.StM:
+			if err := mem.store(in.Args[2].Type, arg(0), arg(1), arg(2)); err != nil {
+				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+			}
 		case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
 			fr.values[in.ID] = b2i(compare(in.Op, in.Args[0].Type, arg(0), arg(1)))
 		case ir.Not:
@@ -247,6 +278,13 @@ func run(entry *ir.Func, strs []string, globals []int64, stderr io.Writer, steps
 			results := make([]int64, len(in.Args))
 			for i := range results {
 				results[i] = arg(i)
+			}
+			// The frame's memory objects end with it (D-034).
+			for i, h := range fr.mems {
+				if h != 0 {
+					mem.free(h)
+					mem.live -= fr.f.Mems[i].Size
+				}
 			}
 			stack = stack[:len(stack)-1]
 			if len(stack) == 0 {

@@ -110,6 +110,13 @@ func verifyProgram(p *Program) ([]error, map[*Func]bool, map[*Global]bool) {
 		}
 		seen[str] = true
 	}
+	for i, m := range p.Mems {
+		if msg := badMem(m, i, true); msg != "" {
+			errs = append(errs, &VerifyError{Func: "?", Block: -1, Index: -1, Msg: msg})
+		} else if m.File == "" {
+			errs = append(errs, &VerifyError{Func: "?", Block: -1, Index: -1, Msg: fmt.Sprintf("global mem gm%d has no source file", i)})
+		}
+	}
 	if p.Init != nil && !funcs[p.Init] {
 		errs = append(errs, &VerifyError{Func: p.Init.Name, Block: -1, Index: -1, Msg: "Init is not a function of the program"})
 	}
@@ -178,6 +185,11 @@ func verifyFunc(p *Program, f *Func, funcs map[*Func]bool, globals map[*Global]b
 			v.errorf(-1, -1, nil, "slot s%d has invalid type %s", i, s.Type)
 		case !validPos(s.Pos):
 			v.errorf(-1, -1, nil, "slot s%d has no source position", i)
+		}
+	}
+	for i, m := range f.Mems {
+		if msg := badMem(m, i, false); msg != "" {
+			v.errorf(-1, -1, nil, "%s", msg)
 		}
 	}
 	if f.SSA && len(f.Slots) > 0 {
@@ -552,6 +564,24 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		}
 	case LoadB:
 		want, args = U8, []Type{Ptr, I64}
+	case Addr:
+		want = Ptr
+		if !v.isMem(in.Mem) {
+			v.errorf(bi, i, in, "addr operand is not a memory object of this function or the program")
+		}
+	case LdM:
+		want, args = in.Type, []Type{Ptr, I64}
+		if in.Type.MemSize() == 0 {
+			v.errorf(bi, i, in, "ldm of %s, which has no memory form", in.Type)
+		}
+	case StM:
+		args = []Type{Ptr, I64, I64}
+		if len(in.Args) == 3 && in.Args[2] != nil {
+			args[2] = in.Args[2].Type
+			if in.Args[2].Type.MemSize() == 0 {
+				v.errorf(bi, i, in, "stm of %s, which has no memory form", in.Args[2].Type)
+			}
+		}
 	case Add, Sub, Mul, And, Or, Xor, AndNot, Div, Rem:
 		want, args = integer, []Type{integer, integer}
 	case Neg, Com:
@@ -717,6 +747,9 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != GLoad && in.Op != GStore && in.Global != nil {
 		v.errorf(bi, i, in, "%s has a global operand", in.Op)
 	}
+	if in.Op != Addr && in.Mem != nil {
+		v.errorf(bi, i, in, "%s has a memory object operand", in.Op)
+	}
 	if in.Op != Phi && in.Edges != nil {
 		v.errorf(bi, i, in, "%s has incoming edges", in.Op)
 	}
@@ -737,6 +770,42 @@ func (v *verifier) slotRef(bi, i int, in *Instr) {
 	if in.Op == Load && v.unstored[in] {
 		v.errorf(bi, i, in, "load of s%d (%s) before any store to it on every path", s.ID, s.Name)
 	}
+}
+
+// isMem reports whether m is a memory object of the function or a global
+// one of the program.
+func (v *verifier) isMem(m *Mem) bool {
+	if m == nil || m.ID < 0 {
+		return false
+	}
+	if m.Global {
+		return m.ID < len(v.p.Mems) && v.p.Mems[m.ID] == m
+	}
+	return m.ID < len(v.f.Mems) && v.f.Mems[m.ID] == m
+}
+
+// badMem describes what is wrong with m, memory object i of a function or,
+// if global, of the program; "" if nothing is.
+func badMem(m *Mem, i int, global bool) string {
+	kind := "mem m"
+	if global {
+		kind = "global mem gm"
+	}
+	switch {
+	case m == nil:
+		return fmt.Sprintf("%s%d is nil", kind, i)
+	case m.ID != i:
+		return fmt.Sprintf("%s%d has ID %d", kind, i, m.ID)
+	case m.Global != global:
+		return fmt.Sprintf("%s%d has the wrong Global flag", kind, i)
+	case m.Size < 0 || m.Size > MaxMemSize:
+		return fmt.Sprintf("%s%d has size %d", kind, i, m.Size)
+	case m.Align != 1 && m.Align != 2 && m.Align != 4 && m.Align != 8:
+		return fmt.Sprintf("%s%d has alignment %d", kind, i, m.Align)
+	case !validPos(m.Pos):
+		return fmt.Sprintf("%s%d has no source position", kind, i)
+	}
+	return ""
 }
 
 func validType(t Type) bool { return t == Bool || t.IsInteger() || t.IsFloat() || t == Ptr }
