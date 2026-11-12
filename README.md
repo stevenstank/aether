@@ -121,8 +121,9 @@ potentially long-term dependencies. The exact ownership boundaries are in
 
 ## Current limitations
 
-- Only S2 and floats (Phase 6 increment 6.1) are supported: no strings,
-  complex numbers, arrays, structs, pointers, slices,
+- Only S2, floats, and string constants (Phase 6 increments 6.1 and 6.2) are
+  supported: no string concatenation or comparison, complex numbers, arrays,
+  structs, pointers, slices,
   maps, methods, interfaces, closures, `defer`, `panic`, or goroutines; no
   `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
   declarations or `init` functions. Panics print no traceback.

@@ -1,0 +1,3 @@
+testdata/check/unsupported_string_bytes.go:7:7: unsupported: conversion to []byte is not supported in subset S1 [conversion]
+testdata/check/unsupported_string_bytes.go:8:10: unsupported: conversion to string is not supported in subset S1 [conversion]
+testdata/check/unsupported_string_bytes.go:8:24: unsupported: builtin len is not supported in subset S1 [builtin]

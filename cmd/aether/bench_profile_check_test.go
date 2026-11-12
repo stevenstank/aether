@@ -49,6 +49,7 @@ func TestBenchClassify(t *testing.T) {
 		{"8(%rsp)", mArgOut},
 		{"main.g(%rip)", mGlobal},
 		{"aether.stacklimit(%rip)", mLimit},
+		{"(%rax,%rcx)", mData},
 	} {
 		got, err := classify(c.op, slots)
 		if err != nil || got != c.want {

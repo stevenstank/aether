@@ -61,7 +61,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-030 | Experiment ABI-R1, a register calling convention for internal calls | Accepted (2026-11-06, owner approval; experiment complete, all criteria met; shipped by D-031) |
 | D-031 | `aether build` uses ABI-R1; `-O0` keeps ABI-S0 | Accepted (2026-11-07, owner approval) |
 | D-032 | Floating point in the IR and the runtime (Phase 6 increment 6.1) | Accepted (2026-11-09, owner approval) |
-| D-033 | String constants in the IR and the runtime (Phase 6 increment 6.2) | Proposed (2026-11-09) |
+| D-033 | String constants in the IR and the runtime (Phase 6 increment 6.2) | Accepted (2026-11-10, owner approval) |
 
 ## Review log
 
@@ -105,6 +105,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-09 | Phase 6 started with floating point; D-032 created as Proposed. Only its runtime formatter exists, with tests; no IR or gate change yet. | D-011, D-032 |
 | 2026-11-09 | Owner accepts D-032 as proposed, with its three constraints | D-032 |
 | 2026-11-09 | Phase 6.2 started with string constants; D-033 created as Proposed. Its IR, interpreter, backend, and runtime parts exist with tests; the gate does not accept strings yet. | D-033 |
+| 2026-11-10 | Owner accepts D-033 | D-033 |
 
 ---
 
@@ -2673,8 +2674,7 @@ parity test, each made it fail.
 
 ## D-033: String constants in the IR and the runtime (Phase 6 increment 6.2)
 
-**Status:** Proposed (2026-11-09). Needs owner acceptance before the gate accepts
-strings.
+**Status:** Accepted (2026-11-10, owner approval).
 
 **Context.** Phase 6 adds string constants: static data, `len`, indexing with
 bounds-check panics, and printing (`ROADMAP.md` Phase 6). Concatenation, slicing,

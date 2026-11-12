@@ -404,8 +404,8 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression` |
-| Literals and identifiers | `imaginary-literal`, `rune-literal`, `string-literal`, `predeclared-identifier` |
-| Operators | `operator-address`, `operator-receive`, `operator-other` |
+| Literals and identifiers | `imaginary-literal`, `rune-literal`, `predeclared-identifier` |
+| Operators | `operator-address`, `operator-receive`, `operator-other`, `string-concatenation`, `string-comparison` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
 
@@ -668,6 +668,30 @@ and the builtins `real`, `imag`, `complex`, `min`, and `max` (`builtin`). `%`,
 the bitwise operators, and shifts on floats are invalid Go. The feature name
 `float-literal` no longer exists.
 
+## String constants (Phase 6 increment 6.2)
+
+The gate also accepts the type `string`, string literals (interpreted and raw),
+and string constants, in every position the other types are accepted:
+variables, `:=`, parameters, results, multiple results, globals and their
+initializers, and `print` and `println` arguments. Every string value is a
+constant's bytes or the empty string; no operation creates string data (D-033).
+- **`len(s)`** is the number of bytes, not of code points. Of a constant it is a
+  constant, as go/types computes it.
+- **`s[i]`** is the byte at offset `i`, of type `byte` (`uint8`), for an index of
+  any integer type or an untyped constant. An index out of range, negative
+  included, panics with gc's message, `index out of range [i] with length n`, or
+  `index out of range [i]` for a negative index of a signed type; an unsigned
+  index is printed unsigned. Both follow the panic rule of V-3.
+- **`print` and `println`** write a string's bytes exactly, NUL bytes and invalid
+  UTF-8 included; the empty string writes nothing.
+
+Still `unsupported`: concatenation, `+` and `+=` (`string-concatenation`);
+comparison, `== != < <= > >=`, and `switch` on a string (`string-comparison`);
+conversions to `string` and from it to slices (`conversion`); slicing
+(`slice-expression`); `for range` over a string (`for-range`); rune literals
+(`rune-literal`); `&s` and pointers. The feature name `string-literal` no longer
+exists.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -692,6 +716,7 @@ the bitwise operators, and shifts on floats are invalid Go. The feature name
 | Package-level `var` and `const`, initialization in `InitOrder` | Variable declarations, Constant declarations, Package initialization | S2 / 4.6 | Supported (native), with divergence V-4 | `s2_g01_package_vars` to `s2_g05_init_calls_main`; `TestNativeGlobals`, `TestGlobalsAndInit`, `TestVerifyGlobals`, `TestGlobalReadOrder`; gate tests |
 | Expression `switch` on `bool` and integer tags, unlabeled `break` | Switch statements, Break statements | S2 / 4.7 | Supported (native) | `s2_s01_switch`, `s2_s02_switch_panic`; gate tests; `TestLowerSwitch` |
 | `float64`, `float32`: arithmetic, comparisons, conversions, constants, calls, globals, printing | Floating-point types, Arithmetic operators, Comparison operators, Conversions | S3 / 6.1 | Supported (native) | `s3_f01_float_arith` to `s3_f04_float_calls`; generated float programs; `TestNativeFloat`, `TestPrintFloat`, `TestVerifyFloat`; gate tests |
+| `string`: constants, variables, calls, globals, `len`, indexing with index panics, printing | String types, String literals, Length and capacity, Index expressions | S3 / 6.2 | Supported (native), with divergence V-3 | `s3_s01_string_basics` to `s3_s07_index_empty`; generated string programs; `TestNativeStrings`, `TestPanicIndex`, `TestVerifyStrings`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

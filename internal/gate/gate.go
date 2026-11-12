@@ -5,7 +5,8 @@
 // 4.3, the integer types of increment 4.4 (§Integer types), the division and
 // shifts of increment 4.5, the package-level variables and constants of
 // increment 4.6, and the switch statements of increment 4.7, extended by
-// float32 and float64 (Phase 6 increment 6.1, §Floating point).
+// float32 and float64 (Phase 6 increment 6.1, §Floating point) and string
+// constants (increment 6.2, §String constants).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -60,7 +61,8 @@ const (
 	FeatPredeclared   = "predeclared-identifier"
 	FeatImagLit       = "imaginary-literal"
 	FeatRuneLit       = "rune-literal"
-	FeatStringLit     = "string-literal"
+	FeatStringConcat  = "string-concatenation"
+	FeatStringCompare = "string-comparison"
 	FeatFuncLit       = "function-literal"
 	FeatCompositeLit  = "composite-literal"
 	FeatSelector      = "selector"
@@ -188,7 +190,7 @@ func init() {
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
-		FeatRuneLit, FeatStringLit, FeatFuncLit, FeatCompositeLit,
+		FeatRuneLit, FeatStringConcat, FeatStringCompare, FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
 		// Statement kinds, named by the statement keyword (see stmt).
@@ -357,6 +359,10 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.stmt(s.Init)
 		}
 		if s.Tag != nil {
+			if c.isString(s.Tag) {
+				c.reject(s.Tag, FeatStringCompare, "switch on a string")
+				return
+			}
 			c.expr(s.Tag)
 		}
 		for _, cc := range s.Body.List {
@@ -460,7 +466,7 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 var supportedTypeNames = []string{
 	"bool", "int", "int8", "int16", "int32", "int64",
 	"uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "byte", "rune",
-	"float32", "float64",
+	"float32", "float64", "string",
 }
 
 // typeExpr allows exactly the predeclared types in supportedTypeNames,
@@ -525,6 +531,10 @@ func (c *checker) assign(s *ast.AssignStmt) {
 		}
 	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN,
 		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
+		if c.isString(s.Lhs[0]) {
+			c.reject(s, FeatStringConcat, "string concatenation "+s.Tok.String())
+			return
+		}
 		c.target(s.Lhs[0])
 	default:
 		c.reject(s, featOperatorPrefix+"other", "compound assignment "+s.Tok.String())
@@ -622,7 +632,12 @@ func (c *checker) isBuiltin(e ast.Expr, name string) bool {
 func (c *checker) call(call *ast.CallExpr) bool {
 	if tv, ok := c.info.Types[call.Fun]; ok && tv.IsType() {
 		// go/types has checked that the conversion is valid, so a
-		// supported target type has an integer or bool operand.
+		// supported target type other than string has a numeric or bool
+		// operand. A conversion to string may create bytes (D-033).
+		if isString(tv.Type) {
+			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
+			return false
+		}
 		mark := len(c.ds)
 		c.typeExpr(call.Fun)
 		if len(c.ds) > mark {
@@ -636,6 +651,11 @@ func (c *checker) call(call *ast.CallExpr) bool {
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		switch obj := c.info.Uses[id].(type) {
 		case *types.Builtin:
+			// len of a string, its length in bytes (D-033).
+			if obj.Name() == "len" && len(call.Args) == 1 && !call.Ellipsis.IsValid() && c.isString(call.Args[0]) {
+				c.expr(call.Args[0])
+				return true
+			}
 			c.reject(call, FeatBuiltin, "builtin "+obj.Name())
 			return false
 		case *types.Func:
@@ -697,16 +717,13 @@ func (c *checker) expr(e ast.Expr) {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		switch e.Kind {
-		case token.INT, token.FLOAT:
+		case token.INT, token.FLOAT, token.STRING:
 			c.typed(e)
 		case token.IMAG:
 			c.reject(e, FeatImagLit, "imaginary literal "+e.Value)
 			return
 		case token.CHAR:
 			c.reject(e, FeatRuneLit, "rune literal "+e.Value)
-			return
-		case token.STRING:
-			c.reject(e, FeatStringLit, "string literal")
 			return
 		default:
 			c.internal(e, "unknown literal kind %s", e.Kind)
@@ -729,6 +746,16 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.X)
 		}
 	case *ast.BinaryExpr:
+		// Strings have no operators in the subset (D-033): concatenation
+		// creates bytes, and comparison needs the runtime to compare them.
+		if c.isString(e.X) {
+			if e.Op == token.ADD {
+				c.reject(e, FeatStringConcat, "string concatenation")
+			} else {
+				c.reject(e, FeatStringCompare, "string comparison "+e.Op.String())
+			}
+			return
+		}
 		switch e.Op {
 		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.LAND, token.LOR,
 			token.AND, token.OR, token.XOR, token.AND_NOT, token.SHL, token.SHR,
@@ -751,7 +778,18 @@ func (c *checker) expr(e ast.Expr) {
 		c.reject(e, FeatCompositeLit, "composite literal")
 	case *ast.SelectorExpr:
 		c.reject(e, FeatSelector, "selector "+types.ExprString(e))
-	case *ast.IndexExpr, *ast.IndexListExpr:
+	case *ast.IndexExpr:
+		// Indexing a string gives one of its bytes (D-033); every other
+		// index expression is unsupported.
+		if !c.isString(e.X) {
+			c.reject(e, FeatIndex, "index expression")
+			return
+		}
+		if c.typed(e) {
+			c.expr(e.X)
+			c.expr(e.Index)
+		}
+	case *ast.IndexListExpr:
 		c.reject(e, FeatIndex, "index expression")
 	case *ast.SliceExpr:
 		c.reject(e, FeatSlice, "slice expression")
@@ -842,7 +880,19 @@ func unaryFeature(op token.Token) string {
 func isSupported(t types.Type) bool {
 	b, ok := t.(*types.Basic)
 	return ok && (b.Kind() == types.Bool || b.Kind() >= types.Int && b.Kind() <= types.Uintptr ||
-		b.Kind() == types.Float32 || b.Kind() == types.Float64)
+		b.Kind() == types.Float32 || b.Kind() == types.Float64 || b.Kind() == types.String)
+}
+
+// isString reports whether t is string or untyped string.
+func isString(t types.Type) bool {
+	b, ok := t.(*types.Basic)
+	return ok && (b.Kind() == types.String || b.Kind() == types.UntypedString)
+}
+
+// isString reports whether the expression e has a string type.
+func (c *checker) isString(e ast.Expr) bool {
+	tv, ok := c.info.Types[e]
+	return ok && isString(tv.Type)
 }
 
 // isSupportedOrUntyped reports whether t is a supported type, typed or
@@ -852,5 +902,5 @@ func isSupported(t types.Type) bool {
 func isSupportedOrUntyped(t types.Type) bool {
 	return isSupported(t) || types.Identical(t, types.Typ[types.UntypedInt]) ||
 		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||
-		types.Identical(t, types.Typ[types.UntypedFloat])
+		types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.UntypedString])
 }

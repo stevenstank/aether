@@ -1,0 +1,212 @@
+string s0 "The quick brown fox"
+string s1 "日本語 ✓ 🙂"
+string s2 "a\x00b\x00"
+string s3 "\xff\xfe\xc3( \xe2\x82"
+string s4 "raw \\n \"quoted\" \\x00"
+string s5 "\a\b\f\n\r\t\v\\\"Aé😀"
+string s6 "héllo, 世界"
+string s7 "typed"
+string s8 "\n"
+string s9 "héllo"
+
+func main @testdata/check/s3_s01_string_basics.go:13:6
+  slot s0 empty ptr @14:6
+  slot s1 empty i64 @14:6
+  slot s2 e ptr @15:2
+  slot s3 e i64 @15:2
+  slot s4 ascii ptr @16:2
+  slot s5 ascii i64 @16:2
+  slot s6 utf8 ptr @17:2
+  slot s7 utf8 i64 @17:2
+  slot s8 nul ptr @18:2
+  slot s9 nul i64 @18:2
+  slot s10 bad ptr @19:2
+  slot s11 bad i64 @19:2
+  slot s12 raw ptr @20:2
+  slot s13 raw i64 @20:2
+  slot s14 esc ptr @21:2
+  slot s15 esc i64 @21:2
+  slot s16 same ptr @37:2
+  slot s17 same i64 @37:2
+  slot s18 sub ptr @38:2
+  slot s19 sub i64 @38:2
+  slot s20 a ptr @41:2
+  slot s21 a i64 @41:2
+  slot s22 b ptr @41:5
+  slot s23 b i64 @41:5
+b0:
+  v0 = const ptr 0 @14:6
+  store s0, v0 @14:6
+  v1 = const 0 @14:6
+  store s1, v1 @14:6
+  v2 = const ptr 0 @15:7
+  v3 = const 0 @15:7
+  store s2, v2 @15:2
+  store s3, v3 @15:2
+  v4 = str s0 @16:11
+  v5 = const 19 @16:11
+  store s4, v4 @16:2
+  store s5, v5 @16:2
+  v6 = str s1 @17:10
+  v7 = const 18 @17:10
+  store s6, v6 @17:2
+  store s7, v7 @17:2
+  v8 = str s2 @18:9
+  v9 = const 4 @18:9
+  store s8, v8 @18:2
+  store s9, v9 @18:2
+  v10 = str s3 @19:9
+  v11 = const 7 @19:9
+  store s10, v10 @19:2
+  store s11, v11 @19:2
+  v12 = str s4 @20:9
+  v13 = const 20 @20:9
+  store s12, v12 @20:2
+  store s13, v13 @20:2
+  v14 = str s5 @21:9
+  v15 = const 16 @21:9
+  store s14, v14 @21:2
+  store s15, v15 @21:2
+  v16 = load s0 @22:10
+  v17 = load s1 @22:10
+  v18 = load s0 @22:21
+  v19 = load s1 @22:21
+  v20 = load s2 @22:29
+  v21 = load s3 @22:29
+  v22 = load s2 @22:36
+  v23 = load s3 @22:36
+  v24 = load s0 @22:40
+  v25 = load s1 @22:40
+  v26 = load s2 @22:47
+  v27 = load s3 @22:47
+  println v16, v17, v19, v20, v21, v23, v24, v25, v26, v27 @22:2
+  v28 = load s4 @23:10
+  v29 = load s5 @23:10
+  v30 = load s4 @23:21
+  v31 = load s5 @23:21
+  println v28, v29, v31 @23:2
+  v32 = load s6 @24:10
+  v33 = load s7 @24:10
+  v34 = load s6 @24:20
+  v35 = load s7 @24:20
+  println v32, v33, v35 @24:2
+  v36 = load s8 @25:10
+  v37 = load s9 @25:10
+  v38 = load s8 @25:19
+  v39 = load s9 @25:19
+  println v36, v37, v39 @25:2
+  v40 = load s10 @26:10
+  v41 = load s11 @26:10
+  v42 = load s10 @26:19
+  v43 = load s11 @26:19
+  println v40, v41, v43 @26:2
+  v44 = load s12 @27:10
+  v45 = load s13 @27:10
+  v46 = load s12 @27:19
+  v47 = load s13 @27:19
+  println v44, v45, v47 @27:2
+  v48 = load s14 @28:10
+  v49 = load s15 @28:10
+  v50 = load s14 @28:19
+  v51 = load s15 @28:19
+  println v48, v49, v51 @28:2
+  v52 = str s6 @29:10
+  v53 = const 14 @29:10
+  v54 = str s7 @29:20
+  v55 = const 5 @29:20
+  v56 = const 14 @29:27
+  v57 = const 14 @29:30
+  v58 = const 5 @29:45
+  v59 = const 6 @29:57
+  println v52, v53, v54, v55, v56, v57, v58, v59 @29:2
+  v60 = load s4 @30:8
+  v61 = load s5 @30:8
+  v62 = load s0 @30:15
+  v63 = load s1 @30:15
+  v64 = load s6 @30:22
+  v65 = load s7 @30:22
+  v66 = const 1 @30:28
+  v67 = const true @30:31
+  v68 = const f64 2.5 @30:37
+  v69 = load s8 @30:42
+  v70 = load s9 @30:42
+  v71 = str s8 @30:47
+  v72 = const 1 @30:47
+  print v60, v61, v62, v63, v64, v65, v66, v67, v68, v69, v70, v71, v72 @30:2
+  print @31:2
+  v73 = const ptr 0 @32:8
+  v74 = const 0 @32:8
+  v75 = const ptr 0 @32:12
+  v76 = const 0 @32:12
+  print v73, v74, v75, v76 @32:2
+  v77 = const ptr 0 @33:10
+  v78 = const 0 @33:10
+  println v77, v78 @33:2
+  v79 = const ptr 0 @34:10
+  v80 = const 0 @34:10
+  v81 = const ptr 0 @34:14
+  v82 = const 0 @34:14
+  v83 = const ptr 0 @34:18
+  v84 = const 0 @34:18
+  println v79, v80, v81, v82, v83, v84 @34:2
+  println @35:2
+  v85 = str s6 @37:10
+  v86 = const 14 @37:10
+  store s16, v85 @37:2
+  store s17, v86 @37:2
+  v87 = str s9 @38:9
+  v88 = const 6 @38:9
+  store s18, v87 @38:2
+  store s19, v88 @38:2
+  v89 = load s16 @39:10
+  v90 = load s17 @39:10
+  v91 = load s18 @39:16
+  v92 = load s19 @39:16
+  v93 = load s16 @39:25
+  v94 = load s17 @39:25
+  v95 = const 14 @39:34
+  v96 = eq v94, v95 @39:31
+  println v89, v90, v91, v92, v96 @39:2
+  v97 = load s4 @41:10
+  v98 = load s5 @41:10
+  v99 = load s0 @41:17
+  v100 = load s1 @41:17
+  store s20, v97 @41:2
+  store s21, v98 @41:2
+  store s22, v99 @41:5
+  store s23, v100 @41:5
+  v101 = load s22 @42:9
+  v102 = load s23 @42:9
+  v103 = load s20 @42:12
+  v104 = load s21 @42:12
+  store s20, v101 @42:2
+  store s21, v102 @42:2
+  store s22, v103 @42:5
+  store s23, v104 @42:5
+  v105 = load s20 @43:10
+  v106 = load s21 @43:10
+  v107 = load s20 @43:17
+  v108 = load s21 @43:17
+  v109 = load s22 @43:21
+  v110 = load s23 @43:21
+  v111 = load s22 @43:28
+  v112 = load s23 @43:28
+  println v105, v106, v108, v109, v110, v112 @43:2
+  v113 = load s6 @44:10
+  v114 = load s7 @44:10
+  store s0, v113 @44:2
+  store s1, v114 @44:2
+  v115 = const ptr 0 @45:9
+  v116 = const 0 @45:9
+  store s6, v115 @45:2
+  store s7, v116 @45:2
+  v117 = load s0 @46:10
+  v118 = load s1 @46:10
+  v119 = load s6 @46:17
+  v120 = load s7 @46:17
+  v121 = load s0 @46:27
+  v122 = load s1 @46:27
+  v123 = load s6 @46:39
+  v124 = load s7 @46:39
+  println v117, v118, v119, v120, v122, v124 @46:2
+  ret @47:1

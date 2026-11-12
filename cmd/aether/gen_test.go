@@ -33,7 +33,9 @@ import (
 // Since Phase 6 increment 6.1, statements on float64 and float32 values
 // (floatStmt) are interleaved with the others, and float globals follow the
 // integer ones. Their choices come from a second random stream, so the rest
-// of the program is what the same seed generated before.
+// of the program is what the same seed generated before. Since increment
+// 6.2, string statements (stringStmt) and globals are added the same way,
+// from a third stream.
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -41,7 +43,7 @@ import (
 // Every loop runs at most 3 times: its counter is never a target of
 // assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
-	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7))}
+	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7)), s: rand.New(rand.NewPCG(seed, 0x57217))}
 	g.line(0, "package main")
 	g.line(0, "")
 	// The package scope. Each declaration may use the ones generated
@@ -63,6 +65,7 @@ func generate(seed uint64) string {
 		g.line(0, "")
 	}
 	g.floatGlobals()
+	g.stringGlobals()
 	g.line(0, "func main() {")
 	// Float variables that are never constant: zeros, for the special
 	// values of division, and nonzero values.
@@ -93,6 +96,7 @@ const (
 	variable              // a variable of the entry's type
 	counter               // a loop counter: an int variable that is never assigned
 	floatVar              // a float64 or float32 variable, which only floatStmt uses
+	strVar                // a string variable, which only stringStmt uses
 )
 
 // entry is a declared name: what it denotes and, for a variable, its type.
@@ -101,7 +105,9 @@ type entry struct {
 	t string // "bool" or an integer type name; "int" for a counter
 }
 
-func (e entry) isVar() bool { return e.k == variable || e.k == counter || e.k == floatVar }
+func (e entry) isVar() bool {
+	return e.k == variable || e.k == counter || e.k == floatVar || e.k == strVar
+}
 
 // intTypes are the integer types variables are declared with. byte and
 // rune are uint8 and int32 under other names.
@@ -142,6 +148,8 @@ type generator struct {
 	r      *rand.Rand
 	f      *rand.Rand // the float statements' choices
 	fnames int
+	s      *rand.Rand // the string statements' choices
+	snames int
 	b      strings.Builder
 	scopes []map[string]entry
 	order  [][]string // declaration order, per scope
@@ -232,7 +240,7 @@ func (g *generator) pick(list []string) string { return list[g.r.IntN(len(list))
 // newName returns a name not declared in the current scope: usually a fresh
 // one, sometimes one from an outer scope, which the declaration shadows.
 func (g *generator) newName(taken []string) string {
-	if outer := g.visible(func(e entry) bool { return e.k != floatVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
+	if outer := g.visible(func(e entry) bool { return e.k != floatVar && e.k != strVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
 		name := g.pick(outer)
 		if _, inScope := g.scopes[len(g.scopes)-1][name]; !inScope && !contains(taken, name) {
 			return name
@@ -301,6 +309,9 @@ func (g *generator) typed(t string, useVars bool) string {
 func (g *generator) stmt(depth int) {
 	if g.f.IntN(3) == 0 {
 		g.floatStmt(depth)
+	}
+	if g.s.IntN(4) == 0 {
+		g.stringStmt(depth)
 	}
 	assignable := g.visible(func(e entry) bool { return e.k == variable })
 	ints := g.visible(func(e entry) bool { return e.k == variable && e.t != "bool" })
@@ -856,4 +867,102 @@ func (g *generator) floatExpr(depth int, t string) (string, bool) {
 		y = g.floatPick(vars)
 	}
 	return "(" + x + ") " + g.floatPick([]string{"+", "-", "*", "/"}) + " (" + y + ")", false
+}
+
+// stringLiterals are the string constants: empty, ASCII, multibyte UTF-8,
+// NUL bytes, and invalid UTF-8.
+var stringLiterals = []string{`""`, `"a"`, `"abc"`, `"héllo"`, `"日本"`, `"x\x00y"`, `"\xff\xfe"`, `"The end."`, "`raw\\`"}
+
+func (g *generator) stringPick(list []string) string { return list[g.s.IntN(len(list))] }
+
+// stringGlobals emits up to three package-level string variables, in
+// shuffled order, each initialized from a literal or a global generated
+// before it.
+func (g *generator) stringGlobals() {
+	var decls []string
+	for n := g.s.IntN(4); n > 0; n-- {
+		g.snames++
+		name := fmt.Sprintf("gs%d", g.snames)
+		decls = append(decls, fmt.Sprintf("var %s = %s\n\n", name, g.stringExpr()))
+		g.declare(name, entry{k: strVar, t: "string"})
+	}
+	g.s.Shuffle(len(decls), func(i, j int) { decls[i], decls[j] = decls[j], decls[i] })
+	for _, d := range decls {
+		g.b.WriteString(d)
+	}
+}
+
+// stringExpr returns a string expression: a literal or a variable,
+// perhaps parenthesized.
+func (g *generator) stringExpr() string {
+	e := g.stringPick(stringLiterals)
+	if vars := g.visible(func(e entry) bool { return e.k == strVar }); len(vars) > 0 && g.s.IntN(2) == 0 {
+		e = g.stringPick(vars)
+	}
+	if g.s.IntN(4) == 0 {
+		e = "(" + e + ")"
+	}
+	return e
+}
+
+// stringStmt emits a statement on strings: a declaration, an assignment, a
+// print of strings and lengths, or an index of a string. An index is
+// usually guarded by a test of the length, and otherwise may be out of
+// range, of either sign, so that the program panics. Some prints mix in
+// integer operands that branch, which the strings' words must survive.
+func (g *generator) stringStmt(depth int) {
+	vars := g.visible(func(e entry) bool { return e.k == strVar })
+	ints := g.visible(func(e entry) bool { return (e.k == variable || e.k == counter) && e.t != "bool" })
+	switch k := g.s.IntN(7); {
+	case k <= 1 || len(vars) == 0:
+		g.snames++
+		name := fmt.Sprintf("s%d", g.snames)
+		switch g.s.IntN(3) {
+		case 0:
+			g.line(depth, "%s := %s", name, g.stringExpr())
+		case 1:
+			g.line(depth, "var %s string = %s", name, g.stringExpr())
+		default:
+			g.line(depth, "var %s string", name)
+		}
+		g.declare(name, entry{k: strVar, t: "string"})
+	case k == 2:
+		g.line(depth, "%s = %s", g.stringPick(vars), g.stringExpr())
+	case k == 3:
+		// Two strings, swapped.
+		a, b := g.stringPick(vars), g.stringPick(vars)
+		if a != b {
+			g.line(depth, "%s, %s = %s, %s", a, b, b, a)
+		}
+	case k == 4 && len(ints) > 0:
+		// An index by a variable of any integer type, guarded unless
+		// the program may panic.
+		s, i := g.stringPick(vars), g.stringPick(ints)
+		if g.s.IntN(8) > 0 {
+			g.line(depth, "if %s >= 0 && uint64(%s) < uint64(len(%s)) {", i, i, s)
+			g.line(depth+1, "println(%s[%s], %s)", s, i, s)
+			g.line(depth, "}")
+		} else {
+			g.line(depth, "println(%s[%s])", s, i)
+		}
+	case k == 5:
+		// Strings around operands that branch: && and a division.
+		s := g.stringPick(vars)
+		args := []string{s, "len(" + s + ")", "(len(" + s + ") > 0) && (len(" + s + ") < 4)", s}
+		if len(ints) > 0 {
+			i := g.stringPick(ints)
+			args = append(args, i+" / ("+i+" | 1)", s)
+		}
+		g.line(depth, "%s(%s)", g.stringPick([]string{"println", "print"}), strings.Join(args, ", "))
+	default:
+		var args []string
+		for n := 1 + g.s.IntN(3); n > 0; n-- {
+			e := g.stringExpr()
+			if g.s.IntN(3) == 0 {
+				e = "len(" + e + ")"
+			}
+			args = append(args, e)
+		}
+		g.line(depth, "%s(%s)", g.stringPick([]string{"println", "print"}), strings.Join(args, ", "))
+	}
 }

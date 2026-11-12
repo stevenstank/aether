@@ -45,10 +45,11 @@ const (
 	mGlobal                     // sym(%rip), program globals
 	mLimit                      // aether.stacklimit(%rip), the prologue check
 	mStack                      // push, pop, call, ret
+	mData                       // (%rax,%rcx): a byte of string data (loadb, D-033)
 	nClass
 )
 
-var classNames = [nClass]string{"slot", "value", "argin", "argout", "global", "limit", "stack"}
+var classNames = [nClass]string{"slot", "value", "argin", "argout", "global", "limit", "stack", "data"}
 
 // regionStat is the static content of one straight-line region.
 type regionStat struct {
@@ -103,6 +104,8 @@ func classify(op string, slots int) (memClass, error) {
 		return mNone, nil
 	}
 	switch {
+	case op == "(%rax,%rcx)":
+		return mData, nil
 	case strings.HasSuffix(op, "(%rip)"):
 		if strings.HasPrefix(op, "aether.stacklimit") {
 			return mLimit, nil

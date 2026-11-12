@@ -1,0 +1,3 @@
+testdata/check/unsupported_string_comparison.go:7:10: unsupported: string comparison == is not supported in subset S1 [string-comparison]
+testdata/check/unsupported_string_comparison.go:7:20: unsupported: string comparison < is not supported in subset S1 [string-comparison]
+testdata/check/unsupported_string_comparison.go:8:9: unsupported: switch on a string is not supported in subset S1 [string-comparison]

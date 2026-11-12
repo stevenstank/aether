@@ -214,7 +214,7 @@ func TestLowerUnexpected(t *testing.T) {
 		{"statement", "func main() { x := 1; for range x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.RangeStmt"},
 		{"fallthrough", "func main() { switch { case true: fallthrough; default: } }", "p.go:2:35: internal: lowering: unexpected fallthrough statement"},
 		{"operator", "func main() { x := 1; println(x + *&x) }", "p.go:2:35: internal: lowering: unexpected expression *&x"},
-		{"type", "func main() { var s string; println(s) }", "p.go:2:19: internal: lowering: unexpected type string"},
+		{"type", "func main() { var b []byte; println(len(b)) }", "p.go:2:19: internal: lowering: unexpected type []byte"},
 		{"named results", "func f() (a, b int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected result var a int"},
 		{"function value", "func f() {}\nfunc main() { g := f; g() }", "p.go:3:20: internal: lowering: unexpected type func()"},
 		{"package type", "type T int\nfunc main() {}", "p.go:2:1: internal: lowering: unexpected package-level type declaration"},

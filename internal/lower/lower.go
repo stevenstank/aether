@@ -3,8 +3,8 @@
 // results of increment 4.3, the integer types of increment 4.4, the
 // division and shifts of increment 4.5, the package-level variables and
 // constants of increment 4.6, the switch statements of increment 4.7, and
-// the float64 and float32 values of Phase 6 increment 6.1 into IR (D-004,
-// D-021, D-023, D-032).
+// the float64 and float32 values of Phase 6 increment 6.1, and the string
+// constants of increment 6.2 into IR (D-004, D-021, D-023, D-032, D-033).
 //
 // Each package-level variable is an IR global. Their initializers are
 // lowered, in types.Info.InitOrder, into the program's Init, which runs
@@ -46,7 +46,7 @@ import (
 // returns either a program or Internal diagnostics, never both. It does not
 // verify the program; the caller runs ir.Verify.
 func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
-	l := &lowerer{pkg: pkg, slots: map[*types.Var]*ir.Slot{}, globals: map[*types.Var]*ir.Global{}, funcs: map[*types.Func]*ir.Func{}}
+	l := &lowerer{pkg: pkg, slots: map[*types.Var][]*ir.Slot{}, globals: map[*types.Var][]*ir.Global{}, funcs: map[*types.Func]*ir.Func{}}
 	defer func() {
 		if r := recover(); r != nil {
 			b, ok := r.(bailout)
@@ -57,6 +57,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		}
 	}()
 	prog = &ir.Program{}
+	l.prog = prog
 	// Every function and global is created before any body is lowered, so
 	// that a use can refer to one declared later.
 	var decls []*ast.FuncDecl
@@ -93,13 +94,20 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 // bailout carries the first lowering failure out of the recursive descent.
 type bailout diag.Diagnostic
 
+// A Go value is one IR value, its word, or for a string two: the address of
+// its bytes (a Ptr, 0 for the empty string) and its I64 length (D-033).
+// Variables, parameters, and results of type string are two slots, globals,
+// parameters, or results, and every Go value is lowered as the list of its
+// words.
 type lowerer struct {
 	pkg     *frontend.Package
+	prog    *ir.Program
 	fn      *ir.Func
-	b       *ir.Block // the block instructions are appended to
-	done    bool      // the block has its terminator: the rest is unreachable
-	slots   map[*types.Var]*ir.Slot
-	globals map[*types.Var]*ir.Global
+	sig     *types.Signature // fn's Go signature; nil for Init
+	b       *ir.Block        // the block instructions are appended to
+	done    bool             // the block has its terminator: the rest is unreachable
+	slots   map[*types.Var][]*ir.Slot
+	globals map[*types.Var][]*ir.Global
 	funcs   map[*types.Func]*ir.Func
 	targets []*target // the enclosing for and switch statements, innermost last
 }
@@ -144,13 +152,13 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
 	f := prog.NewFunc(fd.Name.Name, file, l.pos(fd.Name, fd.Name.Pos()))
 	for v := range sig.Params().Variables() {
-		f.Params = append(f.Params, l.irType(fd, v.Type()))
+		f.Params = append(f.Params, l.words(fd, v.Type())...)
 	}
 	for v := range sig.Results().Variables() {
 		if v.Name() != "" {
 			l.fail(fd, "unexpected result %s", v)
 		}
-		f.Results = append(f.Results, l.irType(fd, v.Type()))
+		f.Results = append(f.Results, l.words(fd, v.Type())...)
 	}
 	l.funcs[obj] = f
 }
@@ -172,7 +180,16 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 				l.fail(id, "%s does not declare a variable", id.Name)
 			}
 			file := frontend.Position(l.pkg.Fset, id.Pos()).File
-			l.globals[v] = prog.NewGlobal(id.Name, l.irType(id, v.Type()), file, l.pos(id, id.Pos()))
+			// A string's words are the globals name.ptr and name.len, names
+			// no Go identifier has.
+			ts := l.words(id, v.Type())
+			for i, t := range ts {
+				name := id.Name
+				if len(ts) == 2 {
+					name += [2]string{".ptr", ".len"}[i]
+				}
+				l.globals[v] = append(l.globals[v], prog.NewGlobal(name, t, file, l.pos(id, id.Pos())))
+			}
 		}
 	}
 }
@@ -195,11 +212,10 @@ func (l *lowerer) init(prog *ir.Program) {
 	for _, init := range order {
 		vals := l.valuesOrResults([]ast.Expr{init.Rhs}, len(init.Lhs))
 		for i, v := range init.Lhs {
-			g := l.globals[v]
-			if g == nil {
+			if l.globals[v] == nil {
 				l.fail(init.Rhs, "initializer of %s, which is not a global", v.Name())
 			}
-			l.fn.GStore(l.b, g, vals[i], l.pos(init.Rhs, v.Pos()))
+			l.store(variable{globals: l.globals[v]}, vals[i], l.pos(init.Rhs, v.Pos()))
 		}
 	}
 	l.fn.Ret(l.b, l.fn.Pos)
@@ -210,20 +226,24 @@ func (l *lowerer) init(prog *ir.Program) {
 // function lowers fd's body. Each named parameter gets a slot, stored from
 // its param at entry; blank and unnamed parameters are never read.
 func (l *lowerer) function(fd *ast.FuncDecl) {
-	l.fn = l.funcs[l.pkg.Info.Defs[fd.Name].(*types.Func)]
+	obj := l.pkg.Info.Defs[fd.Name].(*types.Func)
+	l.fn, l.sig = l.funcs[obj], obj.Type().(*types.Signature)
 	l.b = l.fn.Entry()
 	l.done = false
-	i := 0
+	i := 0 // the first IR parameter of the next Go one
 	for _, field := range fd.Type.Params.List {
+		n := len(l.words(field.Type, l.pkg.Info.Types[field.Type].Type))
 		if len(field.Names) == 0 {
-			i++
+			i += n
 		}
 		for _, id := range field.Names {
 			if id.Name != "_" {
-				p := l.fn.Param(l.b, i, l.pos(id, id.Pos()))
-				l.fn.Store(l.b, l.define(id), p, l.pos(id, id.Pos()))
+				pos := l.pos(id, id.Pos())
+				for j, slot := range l.define(id) {
+					l.fn.Store(l.b, slot, l.fn.Param(l.b, i+j, pos), pos)
+				}
 			}
-			i++
+			i += n
 		}
 	}
 	l.stmts(fd.Body.List)
@@ -238,7 +258,7 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 		l.fn.Ret(l.b, l.pos(fd.Body, fd.Body.Rbrace))
 	}
 	prune(l.fn)
-	l.fn = nil
+	l.fn, l.sig = nil, nil
 }
 
 // prune removes the blocks that no path from the entry reaches and
@@ -307,21 +327,21 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		}
 		id := l.ident(s.X)
 		v := l.lookup(id)
-		x := l.load(v, l.pos(id, id.Pos()))
+		x := l.scalar(id, l.load(v, l.pos(id, id.Pos())))
 		pos := l.pos(s, s.TokPos)
 		if x.Type.IsFloat() {
 			// x++ adds the constant 1 of x's type (spec §IncDec statements).
 			one := l.fn.FloatConst(l.b, x.Type, 1, pos)
-			l.store(v, l.arith(op, x, one, nil, pos), l.pos(id, id.Pos()))
+			l.store(v, []*ir.Instr{l.arith(op, x, one, nil, pos)}, l.pos(id, id.Pos()))
 			return
 		}
 		one := l.fn.TypedConst(l.b, x.Type, 1, pos)
-		l.store(v, l.fn.Binary(l.b, op, x, one, pos), l.pos(id, id.Pos()))
+		l.store(v, []*ir.Instr{l.fn.Binary(l.b, op, x, one, pos)}, l.pos(id, id.Pos()))
 	case *ast.ExprStmt:
 		l.exprStmt(s)
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
-		l.fn.Ret(l.b, l.pos(s, s.Return), l.valuesOrResults(s.Results, len(l.fn.Results))...)
+		l.fn.Ret(l.b, l.pos(s, s.Return), flatten(l.valuesOrResults(s.Results, l.sig.Results().Len()))...)
 		l.done = true
 	case *ast.IfStmt:
 		l.ifStmt(s)
@@ -508,15 +528,18 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 	if len(spec.Values) == 0 {
 		for _, id := range spec.Names {
-			slot := l.define(id)
 			pos := l.pos(id, id.Pos())
-			l.fn.Store(l.b, slot, l.fn.TypedConst(l.b, slot.Type, 0, pos), pos)
+			// Every zero value, the empty string's (0, 0) included, is
+			// all zero words.
+			for _, slot := range l.define(id) {
+				l.fn.Store(l.b, slot, l.fn.TypedConst(l.b, slot.Type, 0, pos), pos)
+			}
 		}
 		return
 	}
 	vals := l.valuesOrResults(spec.Values, len(spec.Names))
 	for i, id := range spec.Names {
-		l.fn.Store(l.b, l.define(id), vals[i], l.pos(id, id.Pos()))
+		l.store(variable{slots: l.define(id)}, vals[i], l.pos(id, id.Pos()))
 	}
 }
 
@@ -533,7 +556,7 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			id := l.ident(e)
 			var v variable
 			if s.Tok == token.DEFINE && l.pkg.Info.Defs[id] != nil {
-				v.slot = l.define(id)
+				v.slots = l.define(id)
 			} else {
 				v = l.lookup(id)
 			}
@@ -557,13 +580,13 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		// that call is unspecified (spec §Order of evaluation), and
 		// lowering reads it first, left to right.
 		pos := l.pos(id, id.Pos())
-		x := l.load(v, pos)
+		x := l.scalar(id, l.load(v, pos))
 		get := func() *ir.Instr { return x }
 		if l.branches(s.Rhs) {
 			get = l.spill(x, pos)
 		}
 		y := l.expr(s.Rhs[0])
-		l.store(v, l.arith(op, get(), y, s.Rhs[0], l.pos(s, s.TokPos)), pos)
+		l.store(v, []*ir.Instr{l.arith(op, get(), y, s.Rhs[0], l.pos(s, s.TokPos))}, pos)
 	default:
 		l.fail(s, "unexpected assignment %s", s.Tok)
 	}
@@ -585,7 +608,7 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 					n = t.Len() // println(f()) prints every result of f
 				}
 			}
-			args, pos := l.valuesOrResults(call.Args, n), l.pos(call, call.Pos())
+			args, pos := flatten(l.valuesOrResults(call.Args, n)), l.pos(call, call.Pos())
 			if b.Name() == "print" {
 				l.fn.Print(l.b, args, pos)
 			} else {
@@ -609,14 +632,70 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 		l.fail(call, "unexpected call of %s", id.Name)
 	}
 	f := l.funcs[obj]
-	return l.fn.Call(l.b, f, l.valuesOrResults(call.Args, len(f.Params)), l.pos(call, call.Pos()))
+	n := obj.Type().(*types.Signature).Params().Len()
+	return l.fn.Call(l.b, f, flatten(l.valuesOrResults(call.Args, n)), l.pos(call, call.Pos()))
+}
+
+// results returns the Go values a call produces, from the IR call v: its
+// single word, or its words extracted right after it, in its block, and
+// grouped by its Go results.
+func (l *lowerer) results(call *ast.CallExpr, v *ir.Instr) [][]*ir.Instr {
+	var ts []types.Type
+	switch t := l.pkg.Info.Types[call].Type.(type) {
+	case *types.Tuple:
+		for r := range t.Variables() {
+			ts = append(ts, r.Type())
+		}
+	default:
+		ts = []types.Type{t}
+	}
+	if v.Type != ir.Tuple {
+		if len(ts) != 1 || len(l.words(call, ts[0])) != 1 {
+			l.fail(call, "call has one word for %d results", len(ts))
+		}
+		return [][]*ir.Instr{{v}}
+	}
+	var vals [][]*ir.Instr
+	i := 0
+	for _, t := range ts {
+		var w []*ir.Instr
+		for range l.words(call, t) {
+			if i >= len(v.Callee.Results) {
+				l.fail(call, "call has too few result words")
+			}
+			w = append(w, l.fn.Extract(l.b, v, i, l.pos(call, call.Pos())))
+			i++
+		}
+		vals = append(vals, w)
+	}
+	if i != len(v.Callee.Results) {
+		l.fail(call, "call has %d result words, its type %d", len(v.Callee.Results), i)
+	}
+	return vals
+}
+
+// flatten returns the words of vals, in order.
+func flatten(vals [][]*ir.Instr) []*ir.Instr {
+	var out []*ir.Instr
+	for _, w := range vals {
+		out = append(out, w...)
+	}
+	return out
+}
+
+// scalar returns the one word of a Go value that has one.
+func (l *lowerer) scalar(n ast.Node, w []*ir.Instr) *ir.Instr {
+	if len(w) != 1 {
+		l.fail(n, "a value of %d words where one is needed", len(w))
+	}
+	return w[0]
 }
 
 // valuesOrResults lowers list, which supplies n values: either n
 // expressions (values), or a single call with n results, as in "return
 // f()", "a, b := f()", and "g(f())". The results are extracted right after
 // the call, in its block.
-func (l *lowerer) valuesOrResults(list []ast.Expr, n int) []*ir.Instr {
+func (l *lowerer) valuesOrResults(list []ast.Expr, n int) [][]*ir.Instr {
 	if len(list) == n {
 		return l.values(list)
 	}
@@ -624,13 +703,9 @@ func (l *lowerer) valuesOrResults(list []ast.Expr, n int) []*ir.Instr {
 	if len(list) != 1 || !ok || n < 2 {
 		l.fail(list[0], "%d values where %d are needed", len(list), n)
 	}
-	t := l.call(call)
-	if t.Type != ir.Tuple || len(t.Callee.Results) != n {
+	vals := l.results(call, l.call(call))
+	if len(vals) != n {
 		l.fail(call, "call does not have %d results", n)
-	}
-	vals := make([]*ir.Instr, n)
-	for i := range vals {
-		vals[i] = l.fn.Extract(l.b, t, i, l.pos(call, call.Pos()))
 	}
 	return vals
 }
@@ -644,8 +719,9 @@ func (l *lowerer) ident(e ast.Expr) *ast.Ident {
 	return id
 }
 
-// define creates the slot for the int or bool variable that id declares.
-func (l *lowerer) define(id *ast.Ident) *ir.Slot {
+// define creates the slots, one per word, for the variable that id
+// declares.
+func (l *lowerer) define(id *ast.Ident) []*ir.Slot {
 	v, ok := l.pkg.Info.Defs[id].(*types.Var)
 	if !ok {
 		l.fail(id, "%s does not declare a variable", id.Name)
@@ -653,16 +729,17 @@ func (l *lowerer) define(id *ast.Ident) *ir.Slot {
 	if l.slots[v] != nil {
 		l.fail(id, "variable %s declared twice", id.Name)
 	}
-	slot := l.fn.NewSlot(id.Name, l.irType(id, v.Type()), l.pos(id, id.Pos()))
-	l.slots[v] = slot
-	return slot
+	for _, t := range l.words(id, v.Type()) {
+		l.slots[v] = append(l.slots[v], l.fn.NewSlot(id.Name, t, l.pos(id, id.Pos())))
+	}
+	return l.slots[v]
 }
 
-// variable is the storage of a variable: a slot if it is local, or a
-// global if it is declared at package level.
+// variable is the storage of a variable, one slot or global per word:
+// slots if it is local, or globals if it is declared at package level.
 type variable struct {
-	slot   *ir.Slot
-	global *ir.Global
+	slots   []*ir.Slot
+	globals []*ir.Global
 }
 
 // lookup returns the storage of the variable that id uses.
@@ -671,52 +748,77 @@ func (l *lowerer) lookup(id *ast.Ident) variable {
 	switch {
 	case !ok:
 	case l.slots[v] != nil:
-		return variable{slot: l.slots[v]}
+		return variable{slots: l.slots[v]}
 	case l.globals[v] != nil:
-		return variable{global: l.globals[v]}
+		return variable{globals: l.globals[v]}
 	}
 	l.fail(id, "%s does not denote a variable", id.Name)
 	return variable{}
 }
 
-func (l *lowerer) load(v variable, pos ir.Pos) *ir.Instr {
-	if v.global != nil {
-		return l.fn.GLoad(l.b, v.global, pos)
+// load returns the words of v.
+func (l *lowerer) load(v variable, pos ir.Pos) []*ir.Instr {
+	var w []*ir.Instr
+	for _, g := range v.globals {
+		w = append(w, l.fn.GLoad(l.b, g, pos))
 	}
-	return l.fn.Load(l.b, v.slot, pos)
+	for _, s := range v.slots {
+		w = append(w, l.fn.Load(l.b, s, pos))
+	}
+	return w
 }
 
-func (l *lowerer) store(v variable, x *ir.Instr, pos ir.Pos) {
-	if v.global != nil {
-		l.fn.GStore(l.b, v.global, x, pos)
-	} else {
-		l.fn.Store(l.b, v.slot, x, pos)
+// store stores the words w in v, in order.
+func (l *lowerer) store(v variable, w []*ir.Instr, pos ir.Pos) {
+	if len(w) != len(v.globals)+len(v.slots) {
+		l.fail(nil, "storing %d words in a variable of %d", len(w), len(v.globals)+len(v.slots))
+	}
+	for i, g := range v.globals {
+		l.fn.GStore(l.b, g, w[i], pos)
+	}
+	for i, s := range v.slots {
+		l.fn.Store(l.b, s, w[i], pos)
 	}
 }
 
 // values lowers list left to right. A value computed before a later
 // operand that branches is stored in a temporary slot and loaded again
 // after the last operand, in the block where the values are used.
-func (l *lowerer) values(list []ast.Expr) []*ir.Instr {
+func (l *lowerer) values(list []ast.Expr) [][]*ir.Instr {
 	// later[i] reports whether an operand after list[i] branches. It is
 	// computed in one pass, since println may have very many operands.
 	later := make([]bool, len(list))
 	for i := len(list) - 2; i >= 0; i-- {
 		later[i] = later[i+1] || l.branches(list[i+1:i+2])
 	}
-	get := make([]func() *ir.Instr, len(list))
+	get := make([]func() []*ir.Instr, len(list))
 	for i, e := range list {
-		v, pos := l.expr(e), l.pos(e, e.Pos())
-		get[i] = func() *ir.Instr { return v }
+		w, pos := l.value(e), l.pos(e, e.Pos())
+		get[i] = func() []*ir.Instr { return w }
 		if later[i] {
-			get[i] = l.spill(v, pos)
+			get[i] = l.spillWords(w, pos)
 		}
 	}
-	vals := make([]*ir.Instr, len(list))
+	vals := make([][]*ir.Instr, len(list))
 	for i := range get {
 		vals[i] = get[i]()
 	}
 	return vals
+}
+
+// spillWords is spill for each word of a Go value.
+func (l *lowerer) spillWords(w []*ir.Instr, pos ir.Pos) func() []*ir.Instr {
+	gets := make([]func() *ir.Instr, len(w))
+	for i, v := range w {
+		gets[i] = l.spill(v, pos)
+	}
+	return func() []*ir.Instr {
+		out := make([]*ir.Instr, len(gets))
+		for i, get := range gets {
+			out[i] = get()
+		}
+		return out
+	}
 }
 
 // spill stores v in a temporary slot and returns a function that loads it
@@ -728,7 +830,7 @@ func (l *lowerer) spill(v *ir.Instr, pos ir.Pos) func() *ir.Instr {
 }
 
 // branches reports whether lowering any of list might branch: whether it
-// contains a non-constant &&, ||, division, or shift.
+// contains a non-constant &&, ||, division, shift, or index expression.
 func (l *lowerer) branches(list []ast.Expr) bool {
 	found := false
 	for _, e := range list {
@@ -743,6 +845,9 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 				case token.LAND, token.LOR, token.QUO, token.REM, token.SHL, token.SHR:
 					found = true // may branch: a conservative test
 				}
+			}
+			if _, ok := n.(*ast.IndexExpr); ok {
+				found = true // the bounds check
 			}
 			return !found
 		})
@@ -793,10 +898,22 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	}
 	switch e := e.(type) {
 	case *ast.Ident:
-		return l.load(l.lookup(e), l.pos(e, e.Pos()))
+		return l.scalar(e, l.load(l.lookup(e), l.pos(e, e.Pos())))
 	case *ast.ParenExpr:
 		return l.expr(e.X)
+	case *ast.IndexExpr:
+		return l.index(e)
 	case *ast.CallExpr:
+		if id, ok := ast.Unparen(e.Fun).(*ast.Ident); ok {
+			if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "len" && len(e.Args) == 1 {
+				// The length of a string is its second word: its bytes.
+				w := l.value(e.Args[0])
+				if len(w) != 2 {
+					l.fail(e, "len of a value of %d words", len(w))
+				}
+				return w[1]
+			}
+		}
 		if l.pkg.Info.Types[e.Fun].IsType() {
 			// A conversion: between integer types a conv, and between
 			// identical types, such as bool(b), nothing.
@@ -816,7 +933,7 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			}
 			l.fail(e, "conversion from %s to %s", x.Type, t)
 		}
-		v := l.call(e)
+		v := l.scalar(e, flatten(l.results(e, l.call(e))))
 		if v.Type != t {
 			l.fail(e, "call of type %s used as a value of type %s", v.Type, t)
 		}
@@ -844,14 +961,99 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		}
 		if op, ok := binaryOps[e.Op]; ok {
 			xy := l.values([]ast.Expr{e.X, e.Y})
+			x, y := l.scalar(e.X, xy[0]), l.scalar(e.Y, xy[1])
 			if op.IsComparison() {
-				return l.compare(op, xy[0], xy[1], pos)
+				return l.compare(op, x, y, pos)
 			}
-			return l.arith(op, xy[0], xy[1], e.Y, pos)
+			return l.arith(op, x, y, e.Y, pos)
 		}
 	}
 	l.fail(e, "unexpected expression %s", types.ExprString(e))
 	return nil
+}
+
+// value lowers an expression of any supported type and returns its words.
+func (l *lowerer) value(e ast.Expr) []*ir.Instr {
+	tv, ok := l.pkg.Info.Types[e]
+	if !ok {
+		l.fail(e, "no type for expression %s", types.ExprString(e))
+	}
+	if !isString(tv.Type) {
+		return []*ir.Instr{l.expr(e)}
+	}
+	pos := l.pos(e, e.Pos())
+	if tv.Value != nil {
+		// A constant: its bytes, interned once per program, or the empty
+		// string's (0, 0) (D-033).
+		if tv.Value.Kind() != constant.String {
+			l.fail(e, "string constant of kind %s", tv.Value.Kind())
+		}
+		str := constant.StringVal(tv.Value)
+		if str == "" {
+			return []*ir.Instr{l.fn.TypedConst(l.b, ir.Ptr, 0, pos), l.fn.Const(l.b, 0, pos)}
+		}
+		return []*ir.Instr{l.fn.Str(l.b, l.prog.Intern(str), pos), l.fn.Const(l.b, int64(len(str)), pos)}
+	}
+	switch e := e.(type) {
+	case *ast.Ident:
+		return l.load(l.lookup(e), pos)
+	case *ast.ParenExpr:
+		return l.value(e.X)
+	case *ast.CallExpr:
+		if !l.pkg.Info.Types[e.Fun].IsType() {
+			vals := l.results(e, l.call(e))
+			if len(vals) != 1 {
+				l.fail(e, "call of %d results used as one value", len(vals))
+			}
+			return vals[0]
+		}
+	}
+	l.fail(e, "unexpected string expression %s", types.ExprString(e))
+	return nil
+}
+
+func isString(t types.Type) bool {
+	b, ok := t.(*types.Basic)
+	return ok && (b.Kind() == types.String || b.Kind() == types.UntypedString)
+}
+
+// index lowers s[i], a byte of a string. The string is evaluated, then the
+// index; the index, as an unsigned 64-bit number, must be below the length,
+// so that a negative one fails too, or the program panics with the index, as
+// written, and the length (D-033). Both blocks reload the values they need
+// from temporary slots, since values are local to their block.
+func (l *lowerer) index(e *ast.IndexExpr) *ir.Instr {
+	if !isString(l.pkg.Info.Types[e.X].Type) {
+		l.fail(e, "index of a non-string")
+	}
+	pos := l.pos(e, e.Lbrack)
+	w := l.value(e.X)
+	get := func() []*ir.Instr { return w }
+	if l.branches([]ast.Expr{e.Index}) {
+		get = l.spillWords(w, pos)
+	}
+	i := l.expr(e.Index)
+	w = get()
+	if !i.Type.IsInteger() {
+		l.fail(e.Index, "index of type %s", i.Type)
+	}
+	u, n := i, w[1]
+	if u.Type != ir.U64 {
+		u = l.fn.Conv(l.b, ir.U64, u, pos)
+	}
+	fail := l.fn.Compare(l.b, ir.Ge, u, l.fn.Conv(l.b, ir.U64, n, pos), pos)
+	ptr, idx, length := l.spill(w[0], pos), l.spill(i, pos), l.spill(n, pos)
+	panicking, ok := l.fn.NewBlock(), l.fn.NewBlock()
+	l.fn.Branch(l.b, fail, panicking, ok, pos)
+	l.b = panicking
+	l.fn.Panic(panicking, ir.PanicIndex, pos, idx(), length())
+	l.b = ok
+	p, x := ptr(), idx()
+	if x.Type != ir.I64 {
+		// Below the length, so the same number as an I64.
+		x = l.fn.Conv(l.b, ir.I64, x, pos)
+	}
+	return l.fn.LoadB(l.b, p, x, pos)
 }
 
 var binaryOps = map[token.Token]ir.Op{
@@ -984,6 +1186,15 @@ var irTypes = map[types.BasicKind]ir.Type{
 	types.Uint: ir.U64, types.Uint64: ir.U64, types.Uintptr: ir.U64,
 	types.Uint8: ir.U8, types.Uint16: ir.U16, types.Uint32: ir.U32,
 	types.Float64: ir.F64, types.UntypedFloat: ir.F64, types.Float32: ir.F32,
+}
+
+// words returns the IR types of the words of a Go type: Ptr and I64 for a
+// string (D-033), and its one IR type otherwise.
+func (l *lowerer) words(n ast.Node, t types.Type) []ir.Type {
+	if isString(t) {
+		return []ir.Type{ir.Ptr, ir.I64}
+	}
+	return []ir.Type{l.irType(n, t)}
 }
 
 // irType returns the IR type of a bool or integer Go type.

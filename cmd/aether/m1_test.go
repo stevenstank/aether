@@ -378,7 +378,7 @@ func TestMilestone1Rejections(t *testing.T) {
 		{"import", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(1) }\n", 3, "import"},
 		{"fallthrough", main("x := 1\nswitch x {\ncase 1:\n\tfallthrough\ndefault:\n}\nprintln(x)"), 3, "fallthrough"},
 		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { f() }\n", 3, "function-declaration"},
-		{"string argument", main(`println("hi")`), 3, "println-argument-type"},
+		{"string concatenation", main("s := \"hi\"\nprintln(s + s)"), 3, "string-concatenation"},
 		{"complex type", main("var c complex64\nprintln(c == 0)"), 3, "non-int-type"},
 		{"package name", "package foo\n\nfunc main() {}\n", 3, "package-name"},
 	}

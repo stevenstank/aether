@@ -1,0 +1,2 @@
+testdata/check/unsupported_string_concatenation.go:7:2: unsupported: string concatenation += is not supported in subset S1 [string-concatenation]
+testdata/check/unsupported_string_concatenation.go:8:10: unsupported: string concatenation is not supported in subset S1 [string-concatenation]
