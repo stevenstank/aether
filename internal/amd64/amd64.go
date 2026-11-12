@@ -26,6 +26,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/bits"
 	"slices"
 	"strings"
 
@@ -87,15 +88,22 @@ const (
 //	 0(%rbp)                 saved %rbp
 //	-8(%rbp) .. -8*S(%rbp)   slot s0 .. s(S-1)
 //	-8*(S+1)(%rbp) ..        value cell 0 .. V-1
+//	Mem[m](%rbp)             local memory object m (D-034), MemBytes in all
 //	 8*k(%rsp)               outgoing word k, k < Out
 //
-// Size is 8*(S+V+Out) rounded up to a multiple of 16. On entry %rsp is 8
+// The memory objects follow the cells in ID order, each at the highest
+// offset below the previous one that is a multiple of its alignment; %rbp is
+// 16-byte aligned, so each object's address is aligned too. MemBytes, the
+// bytes from the last cell down to the last object, is a multiple of 8.
+// Size is 8*(S+V+Out) + MemBytes rounded up to a multiple of 16. On entry %rsp is 8
 // mod 16 (the caller's call pushed the return address onto an aligned
 // stack); the push of %rbp makes it 0 mod 16, and subtracting Size keeps it
 // so, which is the alignment every call requires. The prologue checks the
 // whole frame against the runtime's stack limit before writing to it.
 type Frame struct {
 	Slots, Values, Out int
+	Mem                []int // the %rbp-relative offset of each local memory object
+	MemBytes           int
 	Size               int
 }
 
@@ -103,15 +111,35 @@ type Frame struct {
 // outgoing words. It fails, rather than emit invalid assembly, if the frame
 // would be larger than maxFrame.
 func NewFrame(slots, values, out int) (Frame, error) {
+	return newFrame(slots, values, out, nil)
+}
+
+// newFrame is NewFrame with the function's local memory objects.
+func newFrame(slots, values, out int, mems []*ir.Mem) (Frame, error) {
 	if slots < 0 || values < 0 || out < 0 || slots > maxFrame/8 || values > maxFrame/8-slots || out > maxFrame/8-slots-values {
 		return Frame{}, fmt.Errorf("frame of %d slots, %d values, and %d outgoing words exceeds %d bytes", slots, values, out, maxFrame)
 	}
-	size := 8 * (slots + values + out)
+	// below is the bytes from %rbp down to the lowest byte laid out so far.
+	below := 8 * (slots + values)
+	var offsets []int
+	for _, m := range mems {
+		// Verify bounds each object by ir.MaxMemSize, so the sum cannot
+		// overflow before it is checked.
+		below += int(m.Size)
+		below = (below + int(m.Align) - 1) &^ (int(m.Align) - 1)
+		if below > maxFrame {
+			return Frame{}, fmt.Errorf("frame with memory object %s exceeds %d bytes", m.Name, maxFrame)
+		}
+		offsets = append(offsets, -below)
+	}
+	below = (below + 7) &^ 7
+	memBytes := below - 8*(slots+values)
+	size := below + 8*out
 	size = (size + 15) &^ 15
 	if size > maxFrame {
 		return Frame{}, fmt.Errorf("frame of %d bytes exceeds %d bytes", size, maxFrame)
 	}
-	return Frame{Slots: slots, Values: values, Out: out, Size: size}, nil
+	return Frame{Slots: slots, Values: values, Out: out, Mem: offsets, MemBytes: memBytes, Size: size}, nil
 }
 
 // SlotOffset returns the %rbp-relative offset of slot i.
@@ -189,6 +217,9 @@ func EmitWith(prog *ir.Program, opts EmitOptions) ([]byte, error) {
 			fmt.Fprintf(&b, "\t.type\t%s, @object\n\t.size\t%s, 8\n%s:\n\t.zero\t8\n", sym, sym, sym)
 		}
 	}
+	if err := emitMems(&b, prog); err != nil {
+		return nil, err
+	}
 	fmt.Fprintf(&b, "\t.section\t.rodata\n\t.p2align\t3\n\t.globl\t%s\n\t.type\t%s, @object\n\t.size\t%s, 8\n%s:\n\t.quad\t%d\n",
 		symMainStack, symMainStack, symMainStack, symMainStack, stack)
 	// The bytes of each string, exactly, with no terminator (D-033).
@@ -219,6 +250,34 @@ const symInit = "main.init"
 // object file. Go gives package-level variables and functions distinct
 // names, and no variable is named init or main.
 func globalSym(g *ir.Global) string { return "main." + g.Name }
+
+// memSym is the symbol of a global memory object (D-034), like a global
+// variable's local to the program's object file.
+func memSym(m *ir.Mem) string { return "main." + m.Name }
+
+// emitMems emits the program's global memory objects in .bss, zero at
+// startup, each aligned as it requires. A symbol that another global or
+// memory object also has is an error, never a silent alias.
+func emitMems(b *bytes.Buffer, prog *ir.Program) error {
+	if len(prog.Mems) == 0 {
+		return nil
+	}
+	syms := map[string]bool{}
+	for _, g := range prog.Globals {
+		syms[globalSym(g)] = true
+	}
+	b.WriteString("\t.bss\n")
+	for _, m := range prog.Mems {
+		sym := memSym(m)
+		if syms[sym] {
+			return fmt.Errorf("amd64: global memory object %s: symbol %s is not unique", m, sym)
+		}
+		syms[sym] = true
+		fmt.Fprintf(b, "\t.p2align\t%d\n\t.type\t%s, @object\n\t.size\t%s, %d\n%s:\n\t.zero\t%d\n",
+			bits.TrailingZeros64(uint64(m.Align)), sym, sym, m.Size, sym, m.Size)
+	}
+	return nil
+}
 
 // emitFunc emits f, the program's function number fi, and returns its
 // frame.
@@ -283,7 +342,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 			}
 		}
 	}
-	fr, err := NewFrame(len(f.Slots), values, out)
+	fr, err := newFrame(len(f.Slots), values, out, f.Mems)
 	if err != nil {
 		return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
 	}
@@ -528,6 +587,33 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		e.load(in.Args[1], "%rcx")
 		op("movzbl\t(%%rax,%%rcx), %%eax")
 		op("movq\t%%rax, %s", res())
+	case ir.Addr:
+		t := e.target(in)
+		if in.Mem.Global {
+			op("leaq\t%s(%%rip), %s", memSym(in.Mem), t)
+		} else {
+			op("leaq\t%d(%%rbp), %s", fr.Mem[in.Mem.ID], t)
+		}
+		e.finish(in, t)
+	case ir.LdM:
+		t := e.target(in)
+		ld := ldmOps[in.Type]
+		op("%s\t%s, %s", ld.mnemonic, e.memOperand(in), sized(t, ld.n))
+		e.finish(in, t)
+	case ir.StM:
+		mem := e.memOperand(in)
+		v := in.Args[2]
+		n := v.Type.MemSize()
+		src := val(v)
+		if !isReg(src) && !isImm(src) {
+			// %rdx: memOperand uses only %rax and %rcx.
+			op("movq\t%s, %%rdx", src)
+			src = "%rdx"
+		}
+		if isReg(src) {
+			src = sized(src, n)
+		}
+		op("mov%s\t%s, %s", map[int64]string{1: "b", 2: "w", 4: "l", 8: "q"}[n], src, mem)
 	case ir.Neg, ir.Com, ir.Conv:
 		// negq maps the minimum to itself, as the IR requires; a conversion
 		// is only the canonicalization to the new type.
@@ -678,6 +764,56 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		return fmt.Errorf("no instruction selection for %s", in.Op)
 	}
 	return nil
+}
+
+// ldmOps gives, for each type with a memory form, the instruction that
+// loads it from memory in canonical form (D-023, D-034), and the size of
+// the register it writes: a narrow signed type sign-extends to 64 bits,
+// and an unsigned type, Bool, or F32 zero-extends through a 32-bit write.
+var ldmOps = map[ir.Type]struct {
+	mnemonic string
+	n        int64
+}{
+	ir.I8: {"movsbq", 8}, ir.U8: {"movzbl", 4}, ir.Bool: {"movzbl", 4},
+	ir.I16: {"movswq", 8}, ir.U16: {"movzwl", 4},
+	ir.I32: {"movslq", 8}, ir.U32: {"movl", 4}, ir.F32: {"movl", 4},
+	ir.I64: {"movq", 8}, ir.U64: {"movq", 8}, ir.F64: {"movq", 8}, ir.Ptr: {"movq", 8},
+}
+
+// sized returns the n-byte name of the 64-bit register r.
+func sized(r string, n int64) string {
+	switch n {
+	case 4:
+		return subRegs[r][0]
+	case 2:
+		return subRegs[r][1]
+	case 1:
+		return subRegs[r][2]
+	}
+	return r
+}
+
+// memOperand returns the memory operand of an LdM or StM: its address
+// args[0] plus its offset args[1]. The address is used in its register, or
+// loaded into %rax; the offset is a displacement if it is an immediate, or
+// used in its register, or loaded into %rcx. So it uses no scratch register
+// but %rax and %rcx.
+func (e *emitter) memOperand(in *ir.Instr) string {
+	base := e.val(in.Args[0])
+	if !isReg(base) {
+		e.load(in.Args[0], "%rax")
+		base = "%rax"
+	}
+	off := e.val(in.Args[1])
+	if isImm(off) {
+		// An offset into an object of at most ir.MaxMemSize bytes.
+		return fmt.Sprintf("%s(%s)", off[1:], base)
+	}
+	if !isReg(off) {
+		e.load(in.Args[1], "%rcx")
+		off = "%rcx"
+	}
+	return fmt.Sprintf("(%s,%s)", base, off)
 }
 
 // canon emits the canonicalization of %rax to the integer type t, if t is

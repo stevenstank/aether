@@ -352,6 +352,16 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   operands into `%xmm0` and `%xmm1`, compute with scalar SSE2, and move the
   result back (`internal/amd64/float.go`); no value lives in a vector
   register, so the allocator and both calling conventions are unchanged.
+- **Memory objects (increment 6.3, D-034).** A function's local objects lie
+  below its value cells, in ID order, each at an `%rbp` offset that is a
+  multiple of its alignment, and count in Size, so the prologue's check
+  covers them and each call has its own. A global object is a `.bss` area
+  of its size under `main.<name>`, aligned as it requires, zero at startup.
+  `addr` is a `leaq` of either; `ldm` and `stm` address the object as
+  `disp(base)` for a constant offset or `(base,index)` otherwise, through
+  `%rax` and `%rcx` for operands in cells (and `%rdx` for a stored value),
+  and move 1, 2, 4, or 8 bytes, sign- or zero-extending a load to the
+  value's canonical form.
 - **SSA functions (D-006 part 4, D-025).** Value cells are numbered by
   the rank of the value number, so the gaps that slot promotion leaves
   take no space; for ordinary functions the cell is the value number. A
