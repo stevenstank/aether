@@ -525,7 +525,7 @@ func TestVerifyDivisionAndShifts(t *testing.T) {
 		want string
 	}{
 		{build(I8, PanicDivide), "operand v1 has type i8, want u64"},
-		{build(U64, 3), "panic of unknown kind 3"},
+		{build(U64, 4), "panic of unknown kind 4"},
 		{build(U64, -1), "panic of unknown kind -1"},
 	} {
 		var msgs []string
@@ -744,8 +744,9 @@ b0:
 }
 
 // TestVerifyStrings checks the string invariants: a ptr is used only by
-// loadb, as a print operand followed by its length, and as a word moved
-// whole; the program's strings are distinct and not empty.
+// loadb, as a print operand followed by its length, as a word moved whole,
+// and since D-035 in eq and ne with another ptr; the program's strings are
+// distinct and not empty.
 func TestVerifyStrings(t *testing.T) {
 	if errs := Verify(stringSample()); len(errs) != 0 {
 		t.Fatalf("valid program rejected: %v", errs)
@@ -757,7 +758,8 @@ func TestVerifyStrings(t *testing.T) {
 		want   string
 	}{
 		{"ptr in add", func(p *Program) { in(p, 4).Op, in(p, 4).Type = Add, I64 }, "operand v0 has type ptr, want i64"},
-		{"ptr compared", func(p *Program) { in(p, 4).Op, in(p, 4).Type = Eq, Bool }, "operand v0 has type ptr, want i64"},
+		{"ptr ordered", func(p *Program) { in(p, 4).Op, in(p, 4).Type = Lt, Bool }, "operand v0 has type ptr, want i64"},
+		{"ptr compared with an integer", func(p *Program) { in(p, 4).Op, in(p, 4).Type = Eq, Bool }, "operand v3 has type i64, want ptr"},
 		{"ptr converted", func(p *Program) { in(p, 4).Op, in(p, 4).Args = Conv, in(p, 4).Args[:1] }, "operand v0 has type ptr, want i64"},
 		{"loadb of an integer", func(p *Program) { in(p, 4).Args[0] = in(p, 1) }, "operand v1 has type i64, want ptr"},
 		{"loadb offset type", func(p *Program) { in(p, 4).Args[1] = in(p, 0) }, "operand v0 has type ptr, want i64"},

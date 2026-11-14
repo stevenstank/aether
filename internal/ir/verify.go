@@ -574,6 +574,10 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if in.Type.MemSize() == 0 {
 			v.errorf(bi, i, in, "ldm of %s, which has no memory form", in.Type)
 		}
+	case Alloc:
+		want, args = Ptr, []Type{I64}
+	case PAdd:
+		want, args = Ptr, []Type{Ptr, I64}
 	case StM:
 		args = []Type{Ptr, I64, I64}
 		if len(in.Args) == 3 && in.Args[2] != nil {
@@ -593,8 +597,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		}
 	case Eq, Ne:
 		t := integer
-		if len(in.Args) > 0 && in.Args[0] != nil && in.Args[0].Type == Bool {
-			t = Bool
+		if len(in.Args) > 0 && in.Args[0] != nil && (in.Args[0].Type == Bool || in.Args[0].Type == Ptr) {
+			t = in.Args[0].Type // Ptrs compare as addresses (D-035)
 		}
 		want, args = Bool, []Type{t, t}
 	case Lt, Le, Gt, Ge:

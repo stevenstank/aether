@@ -38,7 +38,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-007 | Executable path: GNU assembler text, `as`, `ld` | Accepted |
 | D-008 | GNU `as`/`ld` as the long-term encoding and linking path; no in-house encoder, ELF writer, or linker without a concrete requirement | Accepted |
 | D-009 | Aether-owned minimal runtime; no gc runtime, no libc | Accepted (early phases only; Phase 4 stack amended 2026-10-26) |
-| D-010 | Memory management and garbage collection | Proposed |
+| D-010 | Memory management and garbage collection | Accepted (2026-11-14, owner decision: bump allocator for Phase 7; collector open until Phase 9) |
 | D-011 | Calling convention for Aether-compiled functions | Accepted (ABI-S0, 2026-10-26); since D-031 the convention of `aether build -O0` only |
 | D-012 | Initial supported Go subset (S1) | Accepted |
 | D-013 | Dependency policy | Accepted |
@@ -63,6 +63,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-032 | Floating point in the IR and the runtime (Phase 6 increment 6.1) | Accepted (2026-11-09, owner approval) |
 | D-033 | String constants in the IR and the runtime (Phase 6 increment 6.2) | Accepted (2026-11-10, owner approval) |
 | D-034 | Arrays and structs in memory objects (Phase 6 increment 6.3) | Accepted (2026-11-12, owner approval) |
+| D-035 | Pointers and heap memory in the IR (Phase 7 increment 7.1) | Accepted (2026-11-14, owner approval of its outline) |
 
 ## Review log
 
@@ -108,6 +109,7 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-09 | Phase 6.2 started with string constants; D-033 created as Proposed. Its IR, interpreter, backend, and runtime parts exist with tests; the gate does not accept strings yet. | D-033 |
 | 2026-11-10 | Owner accepts D-033 | D-033 |
 | 2026-11-12 | Phase 6.3 started with arrays and structs; owner accepts D-034 as proposed before any code depended on it. Its IR, verifier, and interpreter parts exist with tests; the backend and gate do not handle them yet. | D-034 |
+| 2026-11-14 | Phase 7 starts. Owner resolves D-010 (a non-collecting bump allocator for Phase 7), splits Phase 7 into 7.1 pointers and heap, 7.2 slices, and 7.3 string concatenation and conversions, chooses gc's exact `append` growth for 7.2, and approves D-035's outline before any code depends on it. | D-010, D-035 |
 
 ---
 
@@ -881,7 +883,18 @@ reusing or adapting gc's runtime must be re-evaluated explicitly.
 
 ## D-010: Memory management and garbage collection
 
-**Status:** Proposed (open)
+**Status:** Accepted (2026-11-14, owner decision): option 1 for Phase 7, without
+the resolving experiment. The choice between options 2 and 3 stays open until
+Phase 9.
+
+**Decision (Phase 7).** A non-collecting bump allocator. The runtime reserves a
+64 GiB heap with `MAP_NORESERVE` on the first allocation and hands out
+8-byte-aligned, zeroed blocks from it in order; nothing is ever freed. A
+zero-size allocation returns one fixed address, `aether.zerobase`. When the
+reservation is used up, the program writes `fatal error: runtime: out of memory`
+and exits with status 2. Memory therefore grows with every allocation: a
+documented divergence from gc (`SEMANTICS.md`), not conforming Go, until Phase 9.
+The interpreter allocates the same way, with the same limit.
 
 **Context.** Heap allocation enters with pointers, slices, and closures
 (Phases 7 and 8). Go requires automatic memory management, but no program in
@@ -2776,6 +2789,57 @@ a field in a loop is loaded and stored each time; scalar replacement can follow
 as an optimization. Passing an aggregate copies it once, at the call. String
 comparison stays excluded (D-033), so comparing an aggregate that holds a
 string is `unsupported`.
+
+---
+
+## D-035: Pointers and heap memory in the IR (Phase 7 increment 7.1)
+
+**Status:** Accepted (2026-11-14, owner approval of its outline: an `alloc`
+runtime helper, `padd` for interior pointers, `==` on pointers, explicit nil
+checks).
+
+**Context.** Phase 7 adds `&`, pointers, `new`, and heap allocation of
+address-taken variables (`ROADMAP.md`), split by the owner into 7.1 (pointers
+and the heap), 7.2 (slices), and 7.3 (string concatenation and conversions). A
+pointer may address the inside of an object (`&a[i]`, `&s.f`), which D-034's
+memory operations cannot express, and it may outlive the frame that created it.
+Measured with gc-built go1.26.1 binaries on 2026-11-14: a nil dereference writes
+`panic: runtime error: invalid memory address or nil pointer dereference`, then
+a `[signal SIGSEGV …]` line with an address that varies, and exits 2.
+
+**Decision.**
+- **Values.** A Go pointer is one `Ptr` word: 0 for nil, or the address of a
+  byte of a heap object (D-010), a global memory object, or a global variable
+  made into one. `Ptr` gains `eq` and `ne`, true exactly when the addresses are
+  equal.
+- **Operations.** `alloc n` produces the `Ptr` of a new heap object of n bytes,
+  an `i64`, all zero; it is an effect (a runtime call, never removed or moved).
+  `padd p, i` produces p plus i bytes, an `i64`; precondition: the result lies
+  in p's object or just past its end. `ldm` and `stm` accept any such pointer,
+  with D-034's preconditions relative to the object it lies in.
+- **Address-taken variables.** Lowering puts every local variable or parameter
+  whose address is taken in a heap object allocated where it is declared (a
+  parameter at entry), so no pointer ever addresses a frame; a global becomes a
+  global memory object. Taking the address of a variable declared in a `for`
+  statement's init, whose per-iteration copies Go 1.22 defines, is
+  `unsupported` in 7.1.
+- **Nil checks.** Lowering tests a pointer for nil before every access through
+  it, branching to `panic nil`, a new run-time error that writes gc's message
+  without the signal line. In an assignment, the check of a pointer on the left
+  comes when it is assigned, as for index checks (D-034).
+- **Runtime.** `aether.alloc` (size in `%rdi`, address returned in `%rax`, a new
+  return register for helpers) and `aether.panicnil`, under the helper interface.
+- **Interpreter.** A `Ptr` into an object is its object number times 2³¹ plus the
+  offset, above every string `Ptr`; heap objects live for the whole run.
+
+**Alternatives.** Escape analysis, which would keep non-escaping variables in
+the frame; it can follow as an optimization. Fat pointers (object and offset as
+two words), which every pass and both conventions would have to carry. Relying
+on the hardware fault for nil, which needs a signal handler (D-011).
+
+**Consequences.** Every `&` of a local variable costs a heap allocation that is
+never freed. A pointer is never printed: gc prints its address, which varies,
+so `print` of a pointer stays `unsupported`.
 
 ---
 

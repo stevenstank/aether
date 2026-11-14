@@ -53,7 +53,12 @@ const (
 // each writes its message and exits with status 2, and never returns.
 // PanicIndex's helper takes the index in %rdi and the length in %rsi; its
 // signed index form is symPanicIndex.
-var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift", ir.PanicIndex: "aether.panicindexu"}
+var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift", ir.PanicIndex: "aether.panicindexu",
+	ir.PanicNil: "aether.panicnil"}
+
+// symAlloc is the heap allocator (D-010, D-035): the size in %rdi, the
+// address returned in %rax, under the helper interface otherwise.
+const symAlloc = "aether.alloc"
 
 const symPanicIndex = "aether.panicindex"
 
@@ -614,6 +619,18 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 			src = sized(src, n)
 		}
 		op("mov%s\t%s, %s", map[int64]string{1: "b", 2: "w", 4: "l", 8: "q"}[n], src, mem)
+	case ir.Alloc:
+		// A call of the runtime: no value stays in a register across it
+		// (clobbers).
+		e.load(in.Args[0], "%rdi")
+		op("call\t%s", symAlloc)
+		e.finish(in, "%rax")
+	case ir.PAdd:
+		// Through %rax, so that the result's register is written only
+		// after both operands are read.
+		e.load(in.Args[0], "%rax")
+		op("addq\t%s, %%rax", val(in.Args[1]))
+		e.finish(in, "%rax")
 	case ir.Neg, ir.Com, ir.Conv:
 		// negq maps the minimum to itself, as the IR requires; a conversion
 		// is only the canonicalization to the new type.

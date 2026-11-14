@@ -223,4 +223,4 @@ func types(ts []Type) string {
 }
 
 // panicNames are the printed names of the run-time errors.
-var panicNames = [...]string{PanicDivide: "divide", PanicShift: "shift", PanicIndex: "index"}
+var panicNames = [...]string{PanicDivide: "divide", PanicShift: "shift", PanicIndex: "index", PanicNil: "nil"}

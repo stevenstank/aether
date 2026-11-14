@@ -10,7 +10,8 @@ package amd64
 // values go in the 11 registers of allocRegs or keep their cells:
 //   - only SSA functions are allocated, and only values of reachable blocks;
 //   - a function of more than maxAllocValues values gets no registers;
-//   - a value live across a call (an Aether call, println, print, or panic)
+//   - a value live across a call (an Aether call, println, print, panic, or
+//     the allocator's alloc)
 //     keeps its cell: under ABI-S0 (D-011) no register survives a call, and
 //     the runtime helpers clobber %rdi and %rsi;
 //   - an operand of println or print keeps its cell, since the helper
@@ -58,7 +59,7 @@ type valueSet map[*ir.Instr]bool
 // it cannot stay in registers.
 func clobbers(in *ir.Instr) bool {
 	switch in.Op {
-	case ir.Call, ir.Println, ir.Print, ir.Panic:
+	case ir.Call, ir.Println, ir.Print, ir.Panic, ir.Alloc:
 		return true
 	}
 	return false

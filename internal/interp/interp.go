@@ -28,6 +28,10 @@ const MaxDepth = 100_000
 // (D-009, SEMANTICS.md V-2).
 const stackOverflow = "fatal error: stack overflow\n"
 
+// outOfMemory is what the native runtime writes when the heap is exhausted
+// (D-010).
+const outOfMemory = "fatal error: runtime: out of memory\n"
+
 // Run executes the program's Init function, if it has one, and then its
 // entry function, main, with the globals starting at zero, writes the output
 // of println to stderr, and returns the program's exit status: 0 when main
@@ -86,8 +90,8 @@ type frame struct {
 // steps.
 //
 // A Ptr is held as the index of its program string plus 1, so that the
-// constant 0 is the empty string's address (D-033), or as the handle of a
-// memory object (D-034).
+// constant 0 is the empty string's address (D-033), or as an object's
+// number and an offset in it (memory.go, D-034, D-035).
 func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.Writer, steps int64, executed *int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
@@ -203,6 +207,22 @@ func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.
 			if err := mem.store(in.Args[2].Type, arg(0), arg(1), arg(2)); err != nil {
 				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
 			}
+		case ir.Alloc:
+			p, ok, err := mem.heapAlloc(arg(0))
+			if err != nil {
+				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+			}
+			if !ok {
+				_, _ = io.WriteString(stderr, outOfMemory)
+				return 2, nil
+			}
+			fr.values[in.ID] = p
+		case ir.PAdd:
+			p, err := mem.padd(arg(0), arg(1))
+			if err != nil {
+				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+			}
+			fr.values[in.ID] = p
 		case ir.Eq, ir.Ne, ir.Lt, ir.Le, ir.Gt, ir.Ge:
 			fr.values[in.ID] = b2i(compare(in.Op, in.Args[0].Type, arg(0), arg(1)))
 		case ir.Not:

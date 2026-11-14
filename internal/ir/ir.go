@@ -51,12 +51,13 @@ const (
 	// in 64 bits as their bit patterns: an F32's 32 bits zero-extended.
 	F64
 	F32
-	// Ptr is the address of a program string's bytes (D-033) or of a
-	// memory object (D-034), or 0. Lowering represents a Go string as a Ptr
-	// and an I64 length, and an array or struct value as the address of
-	// the memory holding it. Only Str, Addr, and the constant 0 produce a
-	// Ptr; LoadB reads through a string's, and LdM and StM through a
-	// memory object's. There is no arithmetic on a Ptr.
+	// Ptr is the address of a program string's bytes (D-033), or of a
+	// byte of a memory object (D-034) or of a heap object (D-035), or 0
+	// (nil). Lowering represents a Go string as a Ptr and an I64 length, an
+	// array or struct value as the address of the memory holding it, and a
+	// Go pointer as a Ptr. Str, Addr, Alloc, PAdd, and the constant 0
+	// produce one; LoadB reads through a string's, and LdM and StM through
+	// an object's. Eq and Ne compare two Ptrs as addresses.
 	Ptr
 )
 
@@ -294,6 +295,15 @@ const (
 	// initialization.
 	LdM
 	StM
+	// Alloc produces the Ptr of a new heap object of args[0] bytes, an I64,
+	// all zero (D-035). Heap objects are never freed (D-010). It is an
+	// effect: a call of the runtime. If the heap is exhausted, the program
+	// ends with a fatal error.
+	Alloc
+	// PAdd produces args[0], a Ptr into an object, plus args[1] bytes, an
+	// I64 (D-035). Precondition: the result lies in the same object or just
+	// past its end.
+	PAdd
 )
 
 var opNames = [...]string{
@@ -307,7 +317,7 @@ var opNames = [...]string{
 	FAdd: "fadd", FSub: "fsub", FMul: "fmul", FDiv: "fdiv", FNeg: "fneg",
 	FEq: "feq", FNe: "fne", FLt: "flt", FLe: "fle", FGt: "fgt", FGe: "fge",
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
-	Addr: "addr", LdM: "ldm", StM: "stm",
+	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd",
 }
 
 func (op Op) String() string {
@@ -325,13 +335,15 @@ const (
 	PanicDivide = iota
 	PanicShift
 	PanicIndex
+	PanicNil
 )
 
 // PanicMessages are the run-time errors' messages, as gc prints them after
 // "panic: runtime error: ".
 // PanicIndex's message is followed by the index and length, as IndexMessage
 // formats them.
-var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount", PanicIndex: "index out of range"}
+var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount", PanicIndex: "index out of range",
+	PanicNil: "invalid memory address or nil pointer dereference"}
 
 // IndexMessage is PanicIndex's message for index i, of a signed type if
 // signed, and length n, as gc writes it (go1.26.1, D-033): a negative index
@@ -670,6 +682,16 @@ func (f *Func) Addr(b *Block, m *Mem, pos Pos) *Instr {
 // LdM appends the load of a t at offset off of the memory object at p.
 func (f *Func) LdM(b *Block, t Type, p, off *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: LdM, Type: t, Args: []*Instr{p, off}, Pos: pos})
+}
+
+// Alloc appends the allocation of a heap object of n bytes.
+func (f *Func) Alloc(b *Block, n *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Alloc, Type: Ptr, Args: []*Instr{n}, Pos: pos})
+}
+
+// PAdd appends p plus i bytes.
+func (f *Func) PAdd(b *Block, p, i *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: PAdd, Type: Ptr, Args: []*Instr{p, i}, Pos: pos})
 }
 
 // StM appends the store of v at offset off of the memory object at p.

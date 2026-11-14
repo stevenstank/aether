@@ -84,8 +84,9 @@ aether.stackoverflow:
 	hlt				# not reached
 	.size	aether.stackoverflow, .-aether.stackoverflow
 
-# aether.panicdivide and aether.panicshift end the program with a run-time
-# error (D-023): they write "panic: runtime error: " and the message, and
+# aether.panicdivide, aether.panicshift, and aether.panicnil end the program
+# with a run-time error (D-023, D-035): they write "panic: runtime error: "
+# and the message, and
 # exit with status 2, even if the write fails. They are called from a
 # function body, where %rsp is at least L, and use 16 bytes below it: their
 # return address and aether.write's (D-011 reserve).
@@ -96,6 +97,14 @@ aether.panicdivide:
 	movl	$.Lpanicdividelen, %edx
 	jmp	.Lpanic
 	.size	aether.panicdivide, .-aether.panicdivide
+
+	.globl	aether.panicnil
+	.type	aether.panicnil, @function
+aether.panicnil:
+	leaq	.Lpanicnil(%rip), %rsi
+	movl	$.Lpanicnillen, %edx
+	jmp	.Lpanic
+	.size	aether.panicnil, .-aether.panicnil
 
 	.globl	aether.panicshift
 	.type	aether.panicshift, @function
@@ -172,6 +181,9 @@ aether.panicindexu:
 .Lpanicshift:
 	.ascii	"panic: runtime error: negative shift amount\n"
 	.set	.Lpanicshiftlen, .-.Lpanicshift
+.Lpanicnil:
+	.ascii	"panic: runtime error: invalid memory address or nil pointer dereference\n"
+	.set	.Lpanicnillen, .-.Lpanicnil
 .Lnostack:
 	.ascii	"fatal error: cannot allocate the main stack\n"
 	.set	.Lnostacklen, .-.Lnostack
