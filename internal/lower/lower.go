@@ -4,8 +4,9 @@
 // division and shifts of increment 4.5, the package-level variables and
 // constants of increment 4.6, the switch statements of increment 4.7, and
 // the float64 and float32 values of Phase 6 increment 6.1, the string
-// constants of increment 6.2, and the arrays and structs of increment 6.3
-// (aggregate.go) into IR (D-004, D-021, D-023, D-032, D-033, D-034).
+// constants of increment 6.2, the arrays and structs of increment 6.3
+// (aggregate.go), and the pointers of Phase 7 increment 7.1 (pointer.go)
+// into IR (D-004, D-021, D-023, D-032, D-033, D-034, D-035).
 //
 // Each package-level variable is an IR global. Their initializers are
 // lowered, in types.Info.InitOrder, into the program's Init, which runs
@@ -48,7 +49,8 @@ import (
 // verify the program; the caller runs ir.Verify.
 func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 	l := &lowerer{pkg: pkg, slots: map[*types.Var][]*ir.Slot{}, globals: map[*types.Var][]*ir.Global{}, funcs: map[*types.Func]*ir.Func{},
-		mems: map[*types.Var]*ir.Mem{}, ptrs: map[*types.Var]*ir.Slot{}, temps: map[*ir.Instr][]*ir.Mem{}}
+		mems: map[*types.Var]*ir.Mem{}, ptrs: map[*types.Var]*ir.Slot{}, temps: map[*ir.Instr][]*ir.Mem{},
+		addrTaken: addressTaken(pkg.Info, pkg.Files)}
 	defer func() {
 		if r := recover(); r != nil {
 			b, ok := r.(bailout)
@@ -114,8 +116,9 @@ type lowerer struct {
 	funcs   map[*types.Func]*ir.Func
 	targets []*target // the enclosing for and switch statements, innermost last
 
-	mems      map[*types.Var]*ir.Mem  // array and struct variables, local and global
-	ptrs      map[*types.Var]*ir.Slot // array and struct parameters: the slot of the copy's Ptr
+	mems      map[*types.Var]*ir.Mem  // array and struct variables, local and global, and address-taken globals
+	ptrs      map[*types.Var]*ir.Slot // array and struct parameters and address-taken locals: the slot of their object's Ptr
+	addrTaken map[*types.Var]bool     // the variables whose address is taken (pointer.go)
 	temps     map[*ir.Instr][]*ir.Mem // each call's objects for its array and struct results
 	retPtrs   []*ir.Slot              // fn's array and struct results: the slot of the Ptr to each
 	addrs     map[*ir.Mem]*ir.Instr   // the addresses computed in addrBlock
@@ -204,7 +207,7 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 				l.fail(id, "%s does not declare a variable", id.Name)
 			}
 			file := frontend.Position(l.pkg.Fset, id.Pos()).File
-			if isAggregate(v.Type()) {
+			if isAggregate(v.Type()) || l.addrTaken[v] {
 				l.mems[v] = prog.NewMem(id.Name, sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
 				continue
 			}
@@ -260,7 +263,8 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 	l.b = l.fn.Entry()
 	l.done = false
 	l.retPtrs = nil
-	i := 0 // the first IR parameter of the next Go one
+	i := 0                // the first IR parameter of the next Go one
+	var heap []*ast.Ident // the address-taken parameters
 	for _, field := range fd.Type.Params.List {
 		n := len(l.words(field.Type, l.pkg.Info.Types[field.Type].Type))
 		if len(field.Names) == 0 {
@@ -269,7 +273,11 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 		for _, id := range field.Names {
 			if id.Name != "_" {
 				pos := l.pos(id, id.Pos())
-				if v, ok := l.pkg.Info.Defs[id].(*types.Var); ok && isAggregate(v.Type()) {
+				v, ok := l.pkg.Info.Defs[id].(*types.Var)
+				if ok && l.addrTaken[v] {
+					heap = append(heap, id)
+				}
+				if ok && isAggregate(v.Type()) {
 					// The Ptr of the caller's copy (D-034).
 					s := l.fn.NewSlot(id.Name, ir.Ptr, pos)
 					l.fn.Store(l.b, s, l.fn.Param(l.b, i, pos), pos)
@@ -288,6 +296,10 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 		s := l.fn.NewSlot("result", ir.Ptr, pos)
 		l.fn.Store(l.b, s, l.fn.Param(l.b, i, pos), pos)
 		l.retPtrs = append(l.retPtrs, s)
+	}
+	// After every param is read in the entry block: the copies may loop.
+	for _, id := range heap {
+		l.moveToHeap(id, l.pkg.Info.Defs[id].(*types.Var))
 	}
 	l.stmts(fd.Body.List)
 	if !l.done {
@@ -580,6 +592,9 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 		for _, id := range spec.Names {
 			pos := l.pos(id, id.Pos())
 			v := l.defineVar(id)
+			if obj, ok := l.pkg.Info.Defs[id].(*types.Var); ok && l.addrTaken[obj] {
+				continue // a new heap object holds zeros
+			}
 			if v.mem != nil {
 				l.zero(*v.mem, pos)
 				continue
@@ -851,9 +866,8 @@ func (l *lowerer) lookup(id *ast.Ident) variable {
 	case l.slots[v] != nil:
 		return variable{slots: l.slots[v]}
 	case l.ptrs[v] != nil:
-		// A parameter: the caller's copy.
-		s, pos := l.ptrs[v], l.pos(id, id.Pos())
-		return variable{mem: &place{base: func() *ir.Instr { return l.fn.Load(l.b, s, pos) }, t: v.Type()}}
+		// A parameter, the caller's copy, or a variable on the heap.
+		return l.heapVar(v, l.ptrs[v], l.pos(id, id.Pos()))
 	default:
 		if gv, ok := l.globalVar(v, l.pos(id, id.Pos())); ok {
 			return gv
@@ -876,10 +890,14 @@ func (l *lowerer) globalVar(v *types.Var, pos ir.Pos) (variable, bool) {
 	return variable{}, false
 }
 
-// defineVar creates the storage of the variable that id declares: an object
-// for an array or struct (D-034), and slots otherwise.
+// defineVar creates the storage of the variable that id declares: a heap
+// object if its address is taken (D-035), an object for an array or struct
+// (D-034), and slots otherwise.
 func (l *lowerer) defineVar(id *ast.Ident) variable {
 	v, ok := l.pkg.Info.Defs[id].(*types.Var)
+	if ok && l.addrTaken[v] {
+		return l.defineHeap(id, v)
+	}
 	if !ok || !isAggregate(v.Type()) {
 		return variable{slots: l.define(id)}
 	}
@@ -892,11 +910,11 @@ func (l *lowerer) defineVar(id *ast.Ident) variable {
 }
 
 // lvalue returns the storage that the assignment target e denotes: a
-// variable, or a field or element of one, whose bounds checks are deferred
-// to its use (spec §Assignment statements).
+// variable, *p, or a field or element of one, whose nil and bounds checks
+// are deferred to its use (spec §Assignment statements).
 func (l *lowerer) lvalue(e ast.Expr) variable {
 	switch e.(type) {
-	case *ast.SelectorExpr, *ast.IndexExpr:
+	case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
 		p := l.addrOf(e, true)
 		return variable{mem: &p}
 	}
@@ -1012,7 +1030,8 @@ func (l *lowerer) spill(v *ir.Instr, pos ir.Pos) func() *ir.Instr {
 }
 
 // branches reports whether lowering any of list might branch: whether it
-// contains a non-constant &&, ||, division, shift, or index expression.
+// contains a non-constant &&, ||, division, shift, index expression, or
+// indirection, explicit or in a selector, which has a nil check.
 func (l *lowerer) branches(list []ast.Expr) bool {
 	found := false
 	for _, e := range list {
@@ -1028,8 +1047,13 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 					found = true // may branch: a conservative test
 				}
 			}
-			if _, ok := n.(*ast.IndexExpr); ok {
-				found = true // the bounds check
+			switch n := n.(type) {
+			case *ast.IndexExpr, *ast.StarExpr:
+				found = true // the bounds or nil check
+			case *ast.SelectorExpr:
+				if sel := l.pkg.Info.Selections[n]; sel != nil && sel.Indirect() {
+					found = true
+				}
 			}
 			if e, ok := n.(ast.Expr); ok {
 				// Copying, zeroing, or comparing an array or struct may
@@ -1053,6 +1077,10 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	tv, ok := l.pkg.Info.Types[e]
 	if !ok {
 		l.fail(e, "no type for expression %s", types.ExprString(e))
+	}
+	if tv.IsNil() {
+		// Untyped nil, a pointer in the subset.
+		return l.fn.TypedConst(l.b, ir.Ptr, 0, l.pos(e, e.Pos()))
 	}
 	t := l.irType(e, tv.Type)
 	if tv.Value != nil {
@@ -1098,15 +1126,30 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			return l.index(e)
 		}
 		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
-	case *ast.SelectorExpr:
+	case *ast.SelectorExpr, *ast.StarExpr:
 		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
 	case *ast.CallExpr:
 		if id, ok := ast.Unparen(e.Fun).(*ast.Ident); ok {
-			if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "len" && len(e.Args) == 1 {
-				if a, ok := l.pkg.Info.Types[e.Args[0]].Type.Underlying().(*types.Array); ok {
+			b, _ := l.pkg.Info.Uses[id].(*types.Builtin)
+			if b != nil && b.Name() == "new" && len(e.Args) == 1 && l.pkg.Info.Types[e.Args[0]].IsType() {
+				return l.alloc(l.pkg.Info.Types[e.Args[0]].Type, l.pos(e, e.Pos()))
+			}
+			if b != nil && b.Name() == "len" && len(e.Args) == 1 {
+				at := l.pkg.Info.Types[e.Args[0]].Type
+				if a, ok := at.Underlying().(*types.Array); ok {
 					// Not a constant, so the array has a call to
 					// evaluate (spec §Length and capacity).
 					l.aggValue(e.Args[0])
+					return l.fn.Const(l.b, a.Len(), l.pos(e, e.Pos()))
+				}
+				if t, ok := pointee(at); ok {
+					// A pointer to an array, evaluated for its call but
+					// not dereferenced: gc does not check it for nil.
+					a, ok := t.Underlying().(*types.Array)
+					if !ok {
+						l.fail(e, "len of a pointer to %s", t)
+					}
+					l.expr(e.Args[0])
 					return l.fn.Const(l.b, a.Len(), l.pos(e, e.Pos()))
 				}
 				// The length of a string is its second word: its bytes.
@@ -1143,6 +1186,8 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return v
 	case *ast.UnaryExpr:
 		switch e.Op {
+		case token.AND:
+			return l.addressOf(e)
 		case token.ADD:
 			return l.expr(e.X)
 		case token.SUB:
@@ -1208,8 +1253,9 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 		return l.load(l.lookup(e), pos)
 	case *ast.ParenExpr:
 		return l.value(e.X)
-	case *ast.SelectorExpr, *ast.IndexExpr:
-		// A string field or element (a string's own index is a byte).
+	case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
+		// A string field or element (a string's own index is a byte), or
+		// *p.
 		return l.loadPlace(l.addrOf(e, false), pos)
 	case *ast.CallExpr:
 		if !l.pkg.Info.Types[e.Fun].IsType() {
@@ -1413,12 +1459,15 @@ func (l *lowerer) words(n ast.Node, t types.Type) []ir.Type {
 	return []ir.Type{l.irType(n, t)}
 }
 
-// irType returns the IR type of a bool or integer Go type.
+// irType returns the IR type of a bool, integer, float, or pointer Go type.
 func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
 	if b, ok := t.(*types.Basic); ok {
 		if it, ok := irTypes[b.Kind()]; ok {
 			return it
 		}
+	}
+	if _, ok := pointee(t); ok {
+		return ir.Ptr
 	}
 	l.fail(n, "unexpected type %s", t)
 	return ir.NoType

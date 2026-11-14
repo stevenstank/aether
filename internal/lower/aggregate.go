@@ -74,19 +74,22 @@ func mayLoop(t types.Type) bool { return leaves(t) > unrollLeaves }
 
 // place is the memory holding a Go value of type t: the object at base, at
 // byte offset dyn + c; dyn is nil if the offset is a constant. checks are
-// the bounds checks of the index expressions selecting it, if an assignment
-// to it has deferred them (spec §Assignment statements); they come before
-// any access.
+// the nil checks of the pointers it is reached through (pointer.go) and the
+// bounds checks of the index expressions selecting it, if an assignment to
+// it has deferred them (spec §Assignment statements); they come, in order,
+// before any access.
 type place struct {
 	base   func() *ir.Instr
 	dyn    func() *ir.Instr
 	c      int64
 	t      types.Type
-	checks []boundsCheck
+	checks []check
 }
 
-// boundsCheck is a deferred check that the index idx is below n.
-type boundsCheck struct {
+// check is a deferred check: that the pointer ptr is not nil, if ptr is
+// set, and otherwise that the index idx is below n.
+type check struct {
+	ptr func() *ir.Instr
 	idx func() *ir.Instr
 	n   int64
 	pos ir.Pos
@@ -267,15 +270,15 @@ func (l *lowerer) zero(p place, pos ir.Pos) {
 
 // equal returns whether the values at x and y, of the same type, are equal:
 // every pair of corresponding leaves, blank fields excepted, is equal, a
-// float by IEEE 754 (spec §Comparison operators). The leaves are compared in
+// float by IEEE 754 and a pointer by address (spec §Comparison operators). The leaves are compared in
 // order until one pair differs.
 func (l *lowerer) equal(x, y place, pos ir.Pos) *ir.Instr {
+	if holdsString(x.t) {
+		l.fail(nil, "comparison of a string") // excluded by the gate
+	}
 	res := l.fn.NewSlot("tmp", ir.Bool, pos)
 	differ := l.fn.NewBlock()
 	l.walk(x.t, []place{x, y}, true, pos, func(t ir.Type, ps []place) {
-		if t == ir.Ptr {
-			l.fail(nil, "comparison of a string") // excluded by the gate
-		}
 		eq := l.compare(ir.Eq, l.ldm(t, ps[0], pos), l.ldm(t, ps[1], pos), pos)
 		next := l.fn.NewBlock()
 		l.fn.Branch(l.b, eq, next, differ, pos)
@@ -330,7 +333,11 @@ func (l *lowerer) storePlace(p place, w []*ir.Instr, pos ir.Pos) {
 // without them.
 func (l *lowerer) checkAll(p place) place {
 	for _, c := range p.checks {
-		l.checkIndex(c.idx, c.n, c.pos)
+		if c.ptr != nil {
+			l.checkNil(c.ptr, c.pos)
+		} else {
+			l.checkIndex(c.idx, c.n, c.pos)
+		}
 	}
 	p.checks = nil
 	return p
@@ -352,11 +359,13 @@ func (l *lowerer) checkIndex(idx func() *ir.Instr, n int64, pos ir.Pos) {
 	l.b = ok
 }
 
-// addrOf returns the place of e, an expression of array or struct type, or
-// a field or element of one: a variable, or its field or element, in place;
-// anything else is evaluated into a temporary. The index of an element is
-// evaluated, and its bounds checked, as the expression is, unless lhs, for
-// the target of an assignment, defers the checks to the place's use.
+// addrOf returns the place of e, an expression of array or struct type, a
+// variable whose address is taken, *p, or a field or element of one of
+// these: a variable, or its field or element, in place; anything else is
+// evaluated into a temporary. The index of an element is evaluated, and its
+// bounds checked, as the expression is, unless lhs, for the target of an
+// assignment, defers the checks to the place's use. A nil check is always
+// deferred to the place's first access (pointer.go).
 func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 	pos := l.pos(e, e.Pos())
 	t := l.pkg.Info.Types[e].Type
@@ -368,14 +377,25 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 			return *v.mem
 		}
 		l.fail(e, "%s is not an array or struct variable", e.Name)
+	case *ast.StarExpr:
+		return l.deref(e.X)
 	case *ast.SelectorExpr:
 		sel := l.pkg.Info.Selections[e]
-		if sel == nil || sel.Kind() != types.FieldVal || sel.Indirect() {
+		if sel == nil || sel.Kind() != types.FieldVal {
 			l.fail(e, "unexpected selector %s", types.ExprString(e))
 		}
-		p := l.addrOf(e.X, lhs)
-		// Through the embedded fields of the path, if promoted.
+		var p place
+		if _, ok := pointee(l.pkg.Info.Types[e.X].Type); ok {
+			p = l.deref(e.X)
+		} else {
+			p = l.addrOf(e.X, lhs)
+		}
+		// Through the embedded fields of the path, if promoted, and the
+		// pointers among them.
 		for _, k := range sel.Index() {
+			if t, ok := pointee(p.t); ok {
+				p = l.through(l.scalar(e, l.loadPlace(p, pos)), t, pos)
+			}
 			s, ok := p.t.Underlying().(*types.Struct)
 			if !ok {
 				l.fail(e, "selector of a non-struct")
@@ -388,11 +408,17 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 		}
 		return p
 	case *ast.IndexExpr:
-		a, ok := l.pkg.Info.Types[e.X].Type.Underlying().(*types.Array)
+		var p place
+		at := l.pkg.Info.Types[e.X].Type
+		if t, ok := pointee(at); ok {
+			at, p = t, l.deref(e.X)
+		} else {
+			p = l.addrOf(e.X, lhs)
+		}
+		a, ok := at.Underlying().(*types.Array)
 		if !ok {
 			l.fail(e, "index of a non-array")
 		}
-		p := l.addrOf(e.X, lhs)
 		et, es := a.Elem(), sizes.Sizeof(a.Elem())
 		if tv := l.pkg.Info.Types[e.Index]; tv.Value != nil {
 			// go/types has checked a constant index against the length.
@@ -409,8 +435,11 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 		ipos := l.pos(e, e.Lbrack)
 		idx := l.keep(i, ipos)
 		if lhs {
-			p.checks = append(append([]boundsCheck(nil), p.checks...), boundsCheck{idx, a.Len(), ipos})
+			p.checks = append(append([]check(nil), p.checks...), check{idx: idx, n: a.Len(), pos: ipos})
 		} else {
+			// The nil checks of what the array is reached through, then
+			// the index's bounds check.
+			p = l.checkAll(p)
 			l.checkIndex(idx, a.Len(), ipos)
 		}
 		// Below the length, so the same number as an I64.
@@ -536,7 +565,8 @@ func (l *lowerer) covers(lit *ast.CompositeLit) bool {
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			elt = kv.Value
 		}
-		if nested, ok := ast.Unparen(elt).(*ast.CompositeLit); ok && !l.covers(nested) {
+		// An elided &T{…} is a pointer, which is stored whatever it covers.
+		if nested, ok := ast.Unparen(elt).(*ast.CompositeLit); ok && isAggregate(l.pkg.Info.Types[nested].Type) && !l.covers(nested) {
 			return false
 		}
 	}
@@ -544,9 +574,15 @@ func (l *lowerer) covers(lit *ast.CompositeLit) bool {
 }
 
 // fillElement stores the element e of a composite literal at p, which holds
-// zeros.
+// zeros. A literal of pointer type is an elided &T{…} (spec §Composite
+// literals), whose value is a new heap object.
 func (l *lowerer) fillElement(p place, e ast.Expr) {
 	if lit, ok := ast.Unparen(e).(*ast.CompositeLit); ok {
+		if t, ok := pointee(p.t); ok {
+			pos := l.pos(e, e.Pos())
+			l.storePlace(p, []*ir.Instr{l.heapLit(lit, t, pos)}, pos)
+			return
+		}
 		l.fill(p, lit)
 		return
 	}

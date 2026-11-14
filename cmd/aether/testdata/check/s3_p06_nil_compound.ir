@@ -1,0 +1,77 @@
+string s0 "g"
+string s1 "unreachable"
+
+func g() i64 @testdata/check/s3_p06_nil_compound.go:7:6
+b0:
+  v0 = str s0 @8:10
+  v1 = const 1 @8:10
+  println v0, v1 @8:2
+  v2 = const 2 @9:9
+  ret v2 @9:2
+
+func main @testdata/check/s3_p06_nil_compound.go:12:6
+  slot s0 n ptr @13:2
+  slot s1 tmp ptr @14:3
+  slot s2 tmp i64 @14:2
+  slot s3 tmp ptr @15:11
+  slot s4 p ptr @16:6
+  slot s5 tmp ptr @17:3
+  slot s6 tmp i64 @17:2
+b0:
+  v0 = const 8 @13:7
+  v1 = alloc v0 @13:7
+  store s0, v1 @13:2
+  v2 = load s0 @14:3
+  store s1, v2 @14:3
+  v3 = call g @14:8
+  store s2, v3 @14:2
+  v4 = const ptr 0 @14:3
+  v5 = eq v2, v4 @14:3
+  branch v5, b1, b2 @14:3
+b1:
+  panic nil @14:3
+b2:
+  v6 = load s1 @14:3
+  v7 = const 0 @14:2
+  v8 = ldm i64, v6, v7 @14:2
+  v9 = load s2 @14:2
+  v10 = add v8, v9 @14:5
+  v11 = load s1 @14:3
+  v12 = const 0 @14:2
+  stm v11, v12, v10 @14:2
+  v13 = load s0 @15:11
+  store s3, v13 @15:11
+  v14 = const ptr 0 @15:11
+  v15 = eq v13, v14 @15:11
+  branch v15, b3, b4 @15:11
+b3:
+  panic nil @15:11
+b4:
+  v16 = load s3 @15:11
+  v17 = const 0 @15:10
+  v18 = ldm i64, v16, v17 @15:10
+  println v18 @15:2
+  v19 = const ptr 0 @16:6
+  store s4, v19 @16:6
+  v20 = load s4 @17:3
+  store s5, v20 @17:3
+  v21 = call g @17:8
+  store s6, v21 @17:2
+  v22 = const ptr 0 @17:3
+  v23 = eq v20, v22 @17:3
+  branch v23, b5, b6 @17:3
+b5:
+  panic nil @17:3
+b6:
+  v24 = load s5 @17:3
+  v25 = const 0 @17:2
+  v26 = ldm i64, v24, v25 @17:2
+  v27 = load s6 @17:2
+  v28 = add v26, v27 @17:5
+  v29 = load s5 @17:3
+  v30 = const 0 @17:2
+  stm v29, v30, v28 @17:2
+  v31 = str s1 @18:10
+  v32 = const 11 @18:10
+  println v31, v32 @18:2
+  ret @19:1

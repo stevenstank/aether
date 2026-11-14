@@ -1,0 +1,1 @@
+testdata/check/unsupported_pointer_println.go:9:10: unsupported: println argument of type *int is not supported in subset S1 [println-argument-type]

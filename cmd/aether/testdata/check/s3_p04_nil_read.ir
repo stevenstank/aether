@@ -1,0 +1,165 @@
+func main @testdata/check/s3_p04_nil_read.go:13:6
+  slot s0 tmp ptr @14:7
+  slot s1 t ptr @14:2
+  slot s2 tmp ptr @15:2
+  slot s3 tmp ptr @15:2
+  slot s4 tmp ptr @16:10
+  slot s5 tmp ptr @16:10
+  slot s6 tmp ptr @16:10
+  slot s7 tmp i64 @16:10
+  slot s8 tmp ptr @16:22
+  slot s9 tmp ptr @17:2
+  slot s10 tmp ptr @17:2
+  slot s11 tmp ptr @17:2
+  slot s12 tmp ptr @18:10
+  slot s13 tmp ptr @18:10
+  slot s14 tmp ptr @19:10
+  slot s15 tmp ptr @19:10
+  slot s16 tmp ptr @19:10
+b0:
+  v0 = const 40 @14:7
+  v1 = alloc v0 @14:7
+  store s0, v1 @14:7
+  store s1, v1 @14:2
+  v2 = load s1 @15:2
+  store s2, v2 @15:2
+  v3 = load s1 @15:8
+  store s3, v3 @15:2
+  v4 = const ptr 0 @15:2
+  v5 = eq v2, v4 @15:2
+  branch v5, b1, b2 @15:2
+b1:
+  panic nil @15:2
+b2:
+  v6 = load s3 @15:2
+  v7 = load s2 @15:2
+  v8 = const 32 @15:2
+  stm v7, v8, v6 @15:2
+  v9 = load s1 @16:10
+  store s4, v9 @16:10
+  v10 = const ptr 0 @16:10
+  v11 = eq v9, v10 @16:10
+  branch v11, b3, b4 @16:10
+b3:
+  panic nil @16:10
+b4:
+  v12 = load s4 @16:10
+  v13 = const 32 @16:10
+  v14 = ldm ptr, v12, v13 @16:10
+  store s5, v14 @16:10
+  v15 = const ptr 0 @16:10
+  v16 = eq v14, v15 @16:10
+  branch v16, b5, b6 @16:10
+b5:
+  panic nil @16:10
+b6:
+  v17 = load s5 @16:10
+  v18 = const 32 @16:10
+  v19 = ldm ptr, v17, v18 @16:10
+  store s6, v19 @16:10
+  v20 = const ptr 0 @16:10
+  v21 = eq v19, v20 @16:10
+  branch v21, b7, b8 @16:10
+b7:
+  panic nil @16:10
+b8:
+  v22 = load s6 @16:10
+  v23 = const 24 @16:10
+  v24 = ldm i64, v22, v23 @16:10
+  store s7, v24 @16:10
+  v25 = load s1 @16:22
+  store s8, v25 @16:22
+  v26 = const ptr 0 @16:22
+  v27 = eq v25, v26 @16:22
+  branch v27, b9, b10 @16:22
+b9:
+  panic nil @16:22
+b10:
+  v28 = load s8 @16:22
+  v29 = const 32 @16:22
+  v30 = ldm ptr, v28, v29 @16:22
+  v31 = load s1 @16:29
+  v32 = eq v30, v31 @16:26
+  v33 = load s7 @16:10
+  println v33, v32 @16:2
+  v34 = load s1 @17:2
+  store s9, v34 @17:2
+  v35 = const ptr 0 @17:2
+  v36 = eq v34, v35 @17:2
+  branch v36, b11, b12 @17:2
+b11:
+  panic nil @17:2
+b12:
+  v37 = load s9 @17:2
+  v38 = const 32 @17:2
+  v39 = ldm ptr, v37, v38 @17:2
+  store s10, v39 @17:2
+  v40 = const ptr 0 @17:10
+  store s11, v40 @17:2
+  v41 = const ptr 0 @17:2
+  v42 = eq v39, v41 @17:2
+  branch v42, b13, b14 @17:2
+b13:
+  panic nil @17:2
+b14:
+  v43 = load s11 @17:2
+  v44 = load s10 @17:2
+  v45 = const 32 @17:2
+  stm v44, v45, v43 @17:2
+  v46 = load s1 @18:10
+  store s12, v46 @18:10
+  v47 = const ptr 0 @18:10
+  v48 = eq v46, v47 @18:10
+  branch v48, b15, b16 @18:10
+b15:
+  panic nil @18:10
+b16:
+  v49 = load s12 @18:10
+  v50 = const 32 @18:10
+  v51 = ldm ptr, v49, v50 @18:10
+  store s13, v51 @18:10
+  v52 = const ptr 0 @18:10
+  v53 = eq v51, v52 @18:10
+  branch v53, b17, b18 @18:10
+b17:
+  panic nil @18:10
+b18:
+  v54 = load s13 @18:10
+  v55 = const 32 @18:10
+  v56 = ldm ptr, v54, v55 @18:10
+  v57 = const ptr 0 @18:19
+  v58 = eq v56, v57 @18:16
+  println v58 @18:2
+  v59 = load s1 @19:10
+  store s14, v59 @19:10
+  v60 = const ptr 0 @19:10
+  v61 = eq v59, v60 @19:10
+  branch v61, b19, b20 @19:10
+b19:
+  panic nil @19:10
+b20:
+  v62 = load s14 @19:10
+  v63 = const 32 @19:10
+  v64 = ldm ptr, v62, v63 @19:10
+  store s15, v64 @19:10
+  v65 = const ptr 0 @19:10
+  v66 = eq v64, v65 @19:10
+  branch v66, b21, b22 @19:10
+b21:
+  panic nil @19:10
+b22:
+  v67 = load s15 @19:10
+  v68 = const 32 @19:10
+  v69 = ldm ptr, v67, v68 @19:10
+  store s16, v69 @19:10
+  v70 = const ptr 0 @19:10
+  v71 = eq v69, v70 @19:10
+  branch v71, b23, b24 @19:10
+b23:
+  panic nil @19:10
+b24:
+  v72 = load s16 @19:10
+  v73 = const 8 @19:10
+  v74 = ldm i64, v72, v73 @19:10
+  println v74 @19:2
+  ret @20:1

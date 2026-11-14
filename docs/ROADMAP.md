@@ -803,6 +803,18 @@ repeated in each phase below:
   behavior the spec defines), bounds and nil panic tests.
 - **Depends on:** Phase 6, D-010.
 - **Risks:** escape semantics; relying on gc's unspecified `append` capacity.
+- **Increments** (split by the owner): 7.1 pointers and the heap, 7.2 slices,
+  7.3 string concatenation and conversions.
+- **Status of 7.1 (in progress):**
+  - `alloc`, `padd`, pointer `eq`/`ne`, `panic nil`, the interpreter's heap,
+    and the bump allocator in the runtime (D-035; commit ee1a049).
+  - Gate and lowering (`SEMANTICS.md` §Pointers): pointer types, `&`, `new`,
+    `*p`, auto-dereference, nil checks, address-taken variables on the heap,
+    and the corpus programs `s3_p01` to `s3_p08`, checked against gc by
+    `TestDifferentialAgainstGc`.
+  - Not yet done: pointers in the program generator, so `FuzzGenerated` and
+    the 200 generated programs do not exercise them; memory growth of the
+    allocator is not yet documented with measurements.
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 

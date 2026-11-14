@@ -164,10 +164,10 @@ includes nested blocks specifically to test this.
 ### Memory and pointer semantics
 
 - S1 and S2 have no addressable memory visible to the program: no `&`, no
-  pointers, and no heap.
+  pointers, and no heap. Pointers come in Phase 7 increment 7.1 (§Pointers).
 - The spec has no stack/heap distinction. A variable whose address escapes must
-  outlive its frame. Until Aether has escape analysis, the planned rule is that
-  every address-taken variable is heap-allocated (Phase 7, D-010).
+  outlive its frame. Aether has no escape analysis, so every address-taken
+  variable is heap-allocated, and heap memory is never freed (D-010, D-035).
 - Nil dereference, out-of-range index, and slice-bounds violations are run-time
   panics, and the generated code must check for them. Aether will use explicit
   checks rather than relying on hardware faults unless a later decision says
@@ -239,8 +239,8 @@ has a defined normalization in the test harness.
 | ID | Area | Divergence | Since | Normalization in tests |
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
-| V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
-| V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, or a division or shift that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, and `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter. |
+| V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
+| V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, and `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
 Implemented (Phase 4 increment 4.5):
@@ -405,9 +405,9 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `rune-literal`, `predeclared-identifier` |
-| Operators | `operator-address`, `operator-receive`, `operator-other`, `string-concatenation`, `string-comparison` |
+| Operators | `operator-receive`, `operator-other`, `string-concatenation`, `string-comparison`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
-| Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `pointer-dereference`, `expression` |
+| Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
 
 `statement` and `expression` are catch-alls. The gate is default-deny, so a
 construct with no specific rule is still rejected.
@@ -689,8 +689,7 @@ Still `unsupported`: concatenation, `+` and `+=` (`string-concatenation`);
 comparison, `== != < <= > >=`, and `switch` on a string (`string-comparison`);
 conversions to `string` and from it to slices (`conversion`); slicing
 (`slice-expression`); `for range` over a string (`for-range`); rune literals
-(`rune-literal`); `&s` and pointers. The feature name `string-literal` no longer
-exists.
+(`rune-literal`). The feature name `string-literal` no longer exists.
 
 ## Arrays and structs (Phase 6 increment 6.3)
 
@@ -734,8 +733,51 @@ Still `unsupported`: `==`, `!=`, and `switch` on a type that holds a string
 (`string-comparison`) or on any array or struct value (`non-int-type`); printing
 one (`println-argument-type`); slicing an array (`slice-expression`); `for
 range` (`for-range`); slice and map literals (`composite-literal`); `cap`
-(`builtin`); methods, pointers, and `&`; parenthesized assignment targets
+(`builtin`); methods; parenthesized assignment targets
 (`assignment-target`).
+
+## Pointers (Phase 7 increment 7.1)
+
+The gate also accepts pointer types `*T` to every supported type `T` whose size
+is at most 2²⁴ bytes, including pointers to pointers and recursive struct types
+such as `type Node struct{ next *Node }`, as variables, globals, fields,
+elements, parameters, and results (D-035).
+- **Values.** A pointer is the address of a variable, or of a field or element
+  of one, or `nil`. Taking the address of a local variable or parameter puts it
+  on the heap for its whole life, from its declaration (a parameter from
+  function entry), so a pointer may outlive the call that made it and each
+  execution of the declaration makes a new variable. Heap memory is never
+  freed (D-010).
+- **`&x`** of a variable, `*p`, a field, or an array element, reached through
+  any number of fields, elements, and pointers; **`&T{…}`** of a composite
+  literal, a new variable holding its value; and **`new(T)`**, a new zero
+  variable. In an array or struct literal whose elements are pointers, `{…}`
+  stands for `&T{…}`.
+- **Indirection.** `*p` may be read, assigned, used with `op=`, `++`, and
+  `--`. `p.f` selects a field of the struct `p` points to, also through
+  embedded pointers, and `p[i]` indexes the array `p` points to; both may be
+  assigned. `len(p)` of a pointer to an array is the array's length, a
+  constant unless `p` contains a call, which is then evaluated; `p` is not
+  dereferenced, so a nil `p` does not panic, as with gc.
+- **Nil checks.** Every access through a nil pointer, including `&*p`, `&p.f`,
+  and `&p[i]`, panics with `panic: runtime error: invalid memory address or nil
+  pointer dereference` and exits 2; gc's following `[signal SIGSEGV …]` line
+  is not written (V-3). A check is made where the pointer is used, after the
+  operands of the expression that uses it, so in `p.f = g()` and `*p += g()`
+  the call comes first, as with gc.
+- **`==` and `!=`** compare addresses, also of pointers in arrays and structs,
+  and with `nil`; a `switch` may have a pointer tag. Conversions between
+  pointer types whose base types have identical underlying types.
+
+Still `unsupported`: printing a pointer (`println-argument-type`), whose
+address gc prints and which varies; the address of a variable declared in a
+`for` statement's init, which Go 1.22 copies for each iteration
+(`loop-variable-address`); `new` of a value, which Go 1.26 added (`builtin`);
+defined pointer types, as `type P *int` (`local-type-declaration`,
+`package-level-declaration`); pointer arithmetic and `unsafe` (`import`). The
+feature names `operator-address` and `pointer-dereference` no longer exist.
+Pointers to distinct zero-size variables may or may not be equal (spec
+§Comparison operators); no test depends on either.
 
 ## Support matrix
 
@@ -763,6 +805,7 @@ range` (`for-range`); slice and map literals (`composite-literal`); `cap`
 | `float64`, `float32`: arithmetic, comparisons, conversions, constants, calls, globals, printing | Floating-point types, Arithmetic operators, Comparison operators, Conversions | S3 / 6.1 | Supported (native) | `s3_f01_float_arith` to `s3_f04_float_calls`; generated float programs; `TestNativeFloat`, `TestPrintFloat`, `TestVerifyFloat`; gate tests |
 | `string`: constants, variables, calls, globals, `len`, indexing with index panics, printing | String types, String literals, Length and capacity, Index expressions | S3 / 6.2 | Supported (native), with divergence V-3 | `s3_s01_string_basics` to `s3_s07_index_empty`; generated string programs; `TestNativeStrings`, `TestPanicIndex`, `TestVerifyStrings`; gate tests |
 | Arrays and structs: type declarations, literals, fields, indexing with index panics, copies, parameters, results, globals, `len`, `==`, `!=` | Array types, Struct types, Composite literals, Selectors, Index expressions, Assignment statements, Comparison operators | S3 / 6.3 | Supported (native), with divergences V-3 and V-4 | `s3_a01_struct_basics` to `s3_a09_aggregate_swap`; generated array and struct programs; `TestLayoutAgainstGc`; `TestNativeMemory`, `TestFrameMems`, `TestMemoryRoundTrip`, `TestVerifyMem`; gate tests |
+| Pointers: `*T`, `&`, `new`, `*p`, auto-dereference, nil checks, address-taken variables on the heap, `==`, `!=` | Pointer types, Address operators, Allocation, Selectors, Index expressions, Run-time panics | S4 / 7.1 | Supported (native), with divergences V-3 and V-4 | `s3_p01_pointer_basics` to `s3_p08_nil_address`; `TestNativeHeap`, `TestHeap`, `TestHeapErrors`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

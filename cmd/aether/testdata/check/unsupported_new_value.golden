@@ -1,0 +1,1 @@
+testdata/check/unsupported_new_value.go:8:7: unsupported: builtin new is not supported in subset S1 [builtin]

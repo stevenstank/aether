@@ -1,0 +1,584 @@
+string s0 "nil"
+string s1 "a"
+string s2 "b"
+string s3 "other"
+string s4 " "
+
+func which(ptr, ptr, ptr) @testdata/check/s3_p02_linked_list.go:19:6
+  slot s0 p ptr @19:12
+  slot s1 a ptr @19:15
+  slot s2 b ptr @19:18
+  slot s3 tmp ptr @20:9
+b0:
+  v0 = param 0 @19:12
+  store s0, v0 @19:12
+  v1 = param 1 @19:15
+  store s1, v1 @19:15
+  v2 = param 2 @19:18
+  store s2, v2 @19:18
+  v3 = load s0 @20:9
+  store s3, v3 @20:9
+  v4 = const ptr 0 @21:7
+  v5 = load s3 @20:9
+  v6 = eq v5, v4 @21:7
+  branch v6, b2, b3 @21:7
+b1:
+  ret @30:1
+b2:
+  v13 = str s0 @22:11
+  v14 = const 3 @22:11
+  println v13, v14 @22:3
+  jump b1 @23:2
+b3:
+  v7 = load s1 @23:7
+  v8 = load s3 @20:9
+  v9 = eq v8, v7 @23:7
+  branch v9, b4, b5 @23:7
+b4:
+  v15 = str s1 @24:11
+  v16 = const 1 @24:11
+  println v15, v16 @24:3
+  jump b1 @25:2
+b5:
+  v10 = load s2 @25:7
+  v11 = load s3 @20:9
+  v12 = eq v11, v10 @25:7
+  branch v12, b6, b7 @25:7
+b6:
+  v17 = str s2 @26:11
+  v18 = const 1 @26:11
+  println v17, v18 @26:3
+  jump b1 @27:2
+b7:
+  jump b8 @20:2
+b8:
+  v19 = str s3 @28:11
+  v20 = const 5 @28:11
+  println v19, v20 @28:3
+  jump b1 @29:2
+
+func push(ptr, i64) @testdata/check/s3_p02_linked_list.go:32:6
+  slot s0 l ptr @32:11
+  slot s1 v i64 @32:20
+  slot s2 tmp ptr @33:2
+  slot s3 tmp ptr @33:11
+  slot s4 tmp ptr @33:33
+  slot s5 tmp ptr @33:2
+  slot s6 tmp ptr @34:2
+b0:
+  v0 = param 0 @32:11
+  store s0, v0 @32:11
+  v1 = param 1 @32:20
+  store s1, v1 @32:20
+  v2 = load s0 @33:2
+  store s2, v2 @33:2
+  v3 = const 16 @33:11
+  v4 = alloc v3 @33:11
+  store s3, v4 @33:11
+  v5 = load s1 @33:24
+  v6 = const 0 @33:24
+  stm v4, v6, v5 @33:24
+  v7 = load s0 @33:33
+  store s4, v7 @33:33
+  v8 = const ptr 0 @33:33
+  v9 = eq v7, v8 @33:33
+  branch v9, b1, b2 @33:33
+b1:
+  panic nil @33:33
+b2:
+  v10 = load s4 @33:33
+  v11 = const 0 @33:33
+  v12 = ldm ptr, v10, v11 @33:33
+  v13 = load s3 @33:11
+  v14 = const 8 @33:33
+  stm v13, v14, v12 @33:33
+  v15 = load s3 @33:11
+  store s5, v15 @33:2
+  v16 = load s2 @33:2
+  v17 = const ptr 0 @33:2
+  v18 = eq v16, v17 @33:2
+  branch v18, b3, b4 @33:2
+b3:
+  panic nil @33:2
+b4:
+  v19 = load s5 @33:2
+  v20 = load s2 @33:2
+  v21 = const 0 @33:2
+  stm v20, v21, v19 @33:2
+  v22 = load s0 @34:2
+  store s6, v22 @34:2
+  v23 = const ptr 0 @34:2
+  v24 = eq v22, v23 @34:2
+  branch v24, b5, b6 @34:2
+b5:
+  panic nil @34:2
+b6:
+  v25 = load s6 @34:2
+  v26 = const 8 @34:2
+  v27 = ldm i64, v25, v26 @34:2
+  v28 = const 1 @34:7
+  v29 = add v27, v28 @34:7
+  v30 = load s6 @34:2
+  v31 = const 8 @34:2
+  stm v30, v31, v29 @34:2
+  ret @35:1
+
+func sum(ptr) i64 @testdata/check/s3_p02_linked_list.go:37:6
+  slot s0 n ptr @37:10
+  slot s1 s i64 @38:2
+  slot s2 tmp i64 @40:3
+  slot s3 tmp ptr @40:8
+  slot s4 tmp ptr @39:22
+b0:
+  v0 = param 0 @37:10
+  store s0, v0 @37:10
+  v1 = const 0 @38:7
+  store s1, v1 @38:2
+  jump b1 @39:2
+b1:
+  v2 = load s0 @39:8
+  v3 = const ptr 0 @39:13
+  v4 = ne v2, v3 @39:10
+  branch v4, b2, b3 @39:2
+b2:
+  v5 = load s1 @40:3
+  store s2, v5 @40:3
+  v6 = load s0 @40:8
+  store s3, v6 @40:8
+  v7 = const ptr 0 @40:8
+  v8 = eq v6, v7 @40:8
+  branch v8, b5, b6 @40:8
+b3:
+  v20 = load s1 @42:9
+  ret v20 @42:2
+b4:
+  v14 = load s0 @39:22
+  store s4, v14 @39:22
+  v15 = const ptr 0 @39:22
+  v16 = eq v14, v15 @39:22
+  branch v16, b7, b8 @39:22
+b5:
+  panic nil @40:8
+b6:
+  v9 = load s3 @40:8
+  v10 = const 0 @40:8
+  v11 = ldm i64, v9, v10 @40:8
+  v12 = load s2 @40:3
+  v13 = add v12, v11 @40:5
+  store s1, v13 @40:3
+  jump b4 @41:2
+b7:
+  panic nil @39:22
+b8:
+  v17 = load s4 @39:22
+  v18 = const 8 @39:22
+  v19 = ldm ptr, v17, v18 @39:22
+  store s0, v19 @39:18
+  jump b1 @39:18
+
+func reverse(ptr) @testdata/check/s3_p02_linked_list.go:45:6
+  slot s0 l ptr @45:14
+  slot s1 prev ptr @46:6
+  slot s2 tmp ptr @47:9
+  slot s3 cur ptr @47:2
+  slot s4 tmp ptr @49:11
+  slot s5 next ptr @49:3
+  slot s6 tmp ptr @50:3
+  slot s7 tmp ptr @50:3
+  slot s8 tmp ptr @53:2
+  slot s9 tmp ptr @53:2
+b0:
+  v0 = param 0 @45:14
+  store s0, v0 @45:14
+  v1 = const ptr 0 @46:6
+  store s1, v1 @46:6
+  v2 = load s0 @47:9
+  store s2, v2 @47:9
+  v3 = const ptr 0 @47:9
+  v4 = eq v2, v3 @47:9
+  branch v4, b1, b2 @47:9
+b1:
+  panic nil @47:9
+b2:
+  v5 = load s2 @47:9
+  v6 = const 0 @47:9
+  v7 = ldm ptr, v5, v6 @47:9
+  store s3, v7 @47:2
+  jump b3 @48:2
+b3:
+  v8 = load s3 @48:6
+  v9 = const ptr 0 @48:13
+  v10 = ne v8, v9 @48:10
+  branch v10, b4, b5 @48:2
+b4:
+  v11 = load s3 @49:11
+  store s4, v11 @49:11
+  v12 = const ptr 0 @49:11
+  v13 = eq v11, v12 @49:11
+  branch v13, b6, b7 @49:11
+b5:
+  v26 = load s0 @53:2
+  store s8, v26 @53:2
+  v27 = load s1 @53:11
+  store s9, v27 @53:2
+  v28 = const ptr 0 @53:2
+  v29 = eq v26, v28 @53:2
+  branch v29, b10, b11 @53:2
+b6:
+  panic nil @49:11
+b7:
+  v14 = load s4 @49:11
+  v15 = const 8 @49:11
+  v16 = ldm ptr, v14, v15 @49:11
+  store s5, v16 @49:3
+  v17 = load s3 @50:3
+  store s6, v17 @50:3
+  v18 = load s1 @50:14
+  store s7, v18 @50:3
+  v19 = const ptr 0 @50:3
+  v20 = eq v17, v19 @50:3
+  branch v20, b8, b9 @50:3
+b8:
+  panic nil @50:3
+b9:
+  v21 = load s7 @50:3
+  v22 = load s6 @50:3
+  v23 = const 8 @50:3
+  stm v22, v23, v21 @50:3
+  v24 = load s3 @51:15
+  v25 = load s5 @51:20
+  store s1, v24 @51:3
+  store s3, v25 @51:9
+  jump b3 @52:2
+b10:
+  panic nil @53:2
+b11:
+  v30 = load s9 @53:2
+  v31 = load s8 @53:2
+  v32 = const 0 @53:2
+  stm v31, v32, v30 @53:2
+  ret @54:1
+
+func find(ptr, i64) ptr @testdata/check/s3_p02_linked_list.go:56:6
+  slot s0 l ptr @56:11
+  slot s1 v i64 @56:19
+  slot s2 n ptr @57:6
+  slot s3 tmp ptr @58:6
+  slot s4 tmp ptr @57:33
+b0:
+  v0 = param 0 @56:11
+  store s0, v0 @56:11
+  v1 = param 1 @56:19
+  store s1, v1 @56:19
+  v2 = load s0 @57:11
+  v3 = const 0 @57:11
+  v4 = ldm ptr, v2, v3 @57:11
+  store s2, v4 @57:6
+  jump b1 @57:2
+b1:
+  v5 = load s2 @57:19
+  v6 = const ptr 0 @57:24
+  v7 = ne v5, v6 @57:21
+  branch v7, b2, b3 @57:2
+b2:
+  v8 = load s2 @58:6
+  store s3, v8 @58:6
+  v9 = const ptr 0 @58:6
+  v10 = eq v8, v9 @58:6
+  branch v10, b5, b6 @58:6
+b3:
+  v23 = const ptr 0 @62:9
+  ret v23 @62:2
+b4:
+  v17 = load s2 @57:33
+  store s4, v17 @57:33
+  v18 = const ptr 0 @57:33
+  v19 = eq v17, v18 @57:33
+  branch v19, b9, b10 @57:33
+b5:
+  panic nil @58:6
+b6:
+  v11 = load s3 @58:6
+  v12 = const 0 @58:6
+  v13 = ldm i64, v11, v12 @58:6
+  v14 = load s1 @58:17
+  v15 = eq v13, v14 @58:14
+  branch v15, b7, b8 @58:3
+b7:
+  v16 = load s2 @59:11
+  ret v16 @59:4
+b8:
+  jump b4 @61:2
+b9:
+  panic nil @57:33
+b10:
+  v20 = load s4 @57:33
+  v21 = const 8 @57:33
+  v22 = ldm ptr, v20, v21 @57:33
+  store s2, v22 @57:29
+  jump b1 @57:29
+
+func show(ptr) @testdata/check/s3_p02_linked_list.go:65:6
+  slot s0 l ptr @65:11
+  slot s1 n ptr @66:6
+  slot s2 tmp ptr @67:9
+  slot s3 tmp ptr @66:33
+b0:
+  v0 = param 0 @65:11
+  store s0, v0 @65:11
+  v1 = load s0 @66:11
+  v2 = const 0 @66:11
+  v3 = ldm ptr, v1, v2 @66:11
+  store s1, v3 @66:6
+  jump b1 @66:2
+b1:
+  v4 = load s1 @66:19
+  v5 = const ptr 0 @66:24
+  v6 = ne v4, v5 @66:21
+  branch v6, b2, b3 @66:2
+b2:
+  v7 = load s1 @67:9
+  store s2, v7 @67:9
+  v8 = const ptr 0 @67:9
+  v9 = eq v7, v8 @67:9
+  branch v9, b5, b6 @67:9
+b3:
+  v21 = load s0 @69:10
+  v22 = const 8 @69:10
+  v23 = ldm i64, v21, v22 @69:10
+  println v23 @69:2
+  ret @70:1
+b4:
+  v15 = load s1 @66:33
+  store s3, v15 @66:33
+  v16 = const ptr 0 @66:33
+  v17 = eq v15, v16 @66:33
+  branch v17, b7, b8 @66:33
+b5:
+  panic nil @67:9
+b6:
+  v10 = load s2 @67:9
+  v11 = const 0 @67:9
+  v12 = ldm i64, v10, v11 @67:9
+  v13 = str s4 @67:18
+  v14 = const 1 @67:18
+  print v12, v13, v14 @67:3
+  jump b4 @68:2
+b7:
+  panic nil @66:33
+b8:
+  v18 = load s3 @66:33
+  v19 = const 8 @66:33
+  v20 = ldm ptr, v18, v19 @66:33
+  store s1, v20 @66:29
+  jump b1 @66:29
+
+func main @testdata/check/s3_p02_linked_list.go:72:6
+  slot s0 l ptr @73:6
+  slot s1 i i64 @74:6
+  slot s2 n ptr @81:2
+  slot s3 tmp ptr @82:2
+  slot s4 tmp i64 @82:2
+  slot s5 tmp bool @84:10
+  slot s6 tmp bool @84:29
+  slot s7 tmp ptr @84:47
+  slot s8 tmp ptr @84:47
+  slot s9 tmp ptr @88:8
+  mem m0 tmp 16 align 8 @77:7
+  mem m1 tmp 16 align 8 @80:7
+  mem m2 tmp 16 align 8 @81:12
+  mem m3 tmp 16 align 8 @83:7
+  mem m4 tmp 16 align 8 @84:15
+  mem m5 tmp 16 align 8 @84:34
+b0:
+  v0 = const 16 @73:6
+  v1 = alloc v0 @73:6
+  store s0, v1 @73:6
+  v2 = const 1 @74:11
+  store s1, v2 @74:6
+  jump b1 @74:2
+b1:
+  v3 = load s1 @74:14
+  v4 = const 5 @74:19
+  v5 = le v3, v4 @74:16
+  branch v5, b2, b3 @74:2
+b2:
+  v6 = load s0 @75:9
+  v7 = load s1 @75:12
+  v8 = load s1 @75:14
+  v9 = mul v7, v8 @75:13
+  call push, v6, v9 @75:3
+  jump b4 @76:2
+b3:
+  v13 = load s0 @77:7
+  v14 = const 0 @77:7
+  v15 = ldm ptr, v13, v14 @77:7
+  v16 = addr m0 @77:7
+  v17 = const 0 @77:7
+  stm v16, v17, v15 @77:7
+  v18 = load s0 @77:7
+  v19 = const 8 @77:7
+  v20 = ldm i64, v18, v19 @77:7
+  v21 = const 8 @77:7
+  stm v16, v21, v20 @77:7
+  call show, v16 @77:2
+  v22 = load s0 @78:14
+  v23 = const 0 @78:14
+  v24 = ldm ptr, v22, v23 @78:14
+  v25 = call sum, v24 @78:10
+  println v25 @78:2
+  v26 = load s0 @79:11
+  call reverse, v26 @79:2
+  v27 = load s0 @80:7
+  v28 = const 0 @80:7
+  v29 = ldm ptr, v27, v28 @80:7
+  v30 = addr m1 @80:7
+  v31 = const 0 @80:7
+  stm v30, v31, v29 @80:7
+  v32 = load s0 @80:7
+  v33 = const 8 @80:7
+  v34 = ldm i64, v32, v33 @80:7
+  v35 = const 8 @80:7
+  stm v30, v35, v34 @80:7
+  call show, v30 @80:2
+  v36 = load s0 @81:12
+  v37 = const 0 @81:12
+  v38 = ldm ptr, v36, v37 @81:12
+  v39 = addr m2 @81:12
+  v40 = const 0 @81:12
+  stm v39, v40, v38 @81:12
+  v41 = load s0 @81:12
+  v42 = const 8 @81:12
+  v43 = ldm i64, v41, v42 @81:12
+  v44 = const 8 @81:12
+  stm v39, v44, v43 @81:12
+  v45 = const 9 @81:15
+  v46 = call find, v39, v45 @81:7
+  store s2, v46 @81:2
+  v47 = load s2 @82:2
+  store s3, v47 @82:2
+  v48 = const 90 @82:12
+  store s4, v48 @82:2
+  v49 = const ptr 0 @82:2
+  v50 = eq v47, v49 @82:2
+  branch v50, b5, b6 @82:2
+b4:
+  v10 = load s1 @74:22
+  v11 = const 1 @74:23
+  v12 = add v10, v11 @74:23
+  store s1, v12 @74:22
+  jump b1 @74:22
+b5:
+  panic nil @82:2
+b6:
+  v51 = load s4 @82:2
+  v52 = load s3 @82:2
+  v53 = const 0 @82:2
+  stm v52, v53, v51 @82:2
+  v54 = load s0 @83:7
+  v55 = const 0 @83:7
+  v56 = ldm ptr, v54, v55 @83:7
+  v57 = addr m3 @83:7
+  v58 = const 0 @83:7
+  stm v57, v58, v56 @83:7
+  v59 = load s0 @83:7
+  v60 = const 8 @83:7
+  v61 = ldm i64, v59, v60 @83:7
+  v62 = const 8 @83:7
+  stm v57, v62, v61 @83:7
+  call show, v57 @83:2
+  v63 = load s0 @84:15
+  v64 = const 0 @84:15
+  v65 = ldm ptr, v63, v64 @84:15
+  v66 = addr m4 @84:15
+  v67 = const 0 @84:15
+  stm v66, v67, v65 @84:15
+  v68 = load s0 @84:15
+  v69 = const 8 @84:15
+  v70 = ldm i64, v68, v69 @84:15
+  v71 = const 8 @84:15
+  stm v66, v71, v70 @84:15
+  v72 = const 7 @84:18
+  v73 = call find, v66, v72 @84:10
+  v74 = const ptr 0 @84:24
+  v75 = eq v73, v74 @84:21
+  store s5, v75 @84:10
+  v76 = load s0 @84:34
+  v77 = const 0 @84:34
+  v78 = ldm ptr, v76, v77 @84:34
+  v79 = addr m5 @84:34
+  v80 = const 0 @84:34
+  stm v79, v80, v78 @84:34
+  v81 = load s0 @84:34
+  v82 = const 8 @84:34
+  v83 = ldm i64, v81, v82 @84:34
+  v84 = const 8 @84:34
+  stm v79, v84, v83 @84:34
+  v85 = const 90 @84:37
+  v86 = call find, v79, v85 @84:29
+  v87 = load s2 @84:44
+  v88 = eq v86, v87 @84:41
+  store s6, v88 @84:29
+  v89 = load s0 @84:47
+  v90 = const 0 @84:47
+  v91 = ldm ptr, v89, v90 @84:47
+  store s7, v91 @84:47
+  v92 = const ptr 0 @84:47
+  v93 = eq v91, v92 @84:47
+  branch v93, b7, b8 @84:47
+b7:
+  panic nil @84:47
+b8:
+  v94 = load s7 @84:47
+  v95 = const 8 @84:47
+  v96 = ldm ptr, v94, v95 @84:47
+  store s8, v96 @84:47
+  v97 = const ptr 0 @84:47
+  v98 = eq v96, v97 @84:47
+  branch v98, b9, b10 @84:47
+b9:
+  panic nil @84:47
+b10:
+  v99 = load s8 @84:47
+  v100 = const 8 @84:47
+  v101 = ldm ptr, v99, v100 @84:47
+  v102 = load s2 @84:67
+  v103 = eq v101, v102 @84:64
+  v104 = load s5 @84:10
+  v105 = load s6 @84:29
+  println v104, v105, v103 @84:2
+  v106 = load s2 @85:8
+  v107 = load s0 @85:11
+  v108 = const 0 @85:11
+  v109 = ldm ptr, v107, v108 @85:11
+  v110 = load s2 @85:19
+  call which, v106, v109, v110 @85:2
+  v111 = load s0 @86:8
+  v112 = const 0 @86:8
+  v113 = ldm ptr, v111, v112 @86:8
+  v114 = load s0 @86:16
+  v115 = const 0 @86:16
+  v116 = ldm ptr, v114, v115 @86:16
+  v117 = load s2 @86:24
+  call which, v113, v116, v117 @86:2
+  v118 = const ptr 0 @87:8
+  v119 = load s0 @87:13
+  v120 = const 0 @87:13
+  v121 = ldm ptr, v119, v120 @87:13
+  v122 = load s2 @87:21
+  call which, v118, v121, v122 @87:2
+  v123 = const 16 @88:8
+  v124 = alloc v123 @88:8
+  store s9, v124 @88:8
+  v125 = const 9 @88:14
+  v126 = const 0 @88:14
+  stm v124, v126, v125 @88:14
+  v127 = const ptr 0 @88:17
+  v128 = const 8 @88:17
+  stm v124, v128, v127 @88:17
+  v129 = load s0 @88:23
+  v130 = const 0 @88:23
+  v131 = ldm ptr, v129, v130 @88:23
+  v132 = load s2 @88:31
+  call which, v124, v131, v132 @88:2
+  ret @89:1

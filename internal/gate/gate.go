@@ -6,8 +6,9 @@
 // shifts of increment 4.5, the package-level variables and constants of
 // increment 4.6, and the switch statements of increment 4.7, extended by
 // float32 and float64 (Phase 6 increment 6.1, §Floating point), string
-// constants (increment 6.2, §String constants), and arrays and structs
-// (increment 6.3, §Arrays and structs).
+// constants (increment 6.2, §String constants), arrays and structs
+// (increment 6.3, §Arrays and structs), and pointers (Phase 7 increment 7.1,
+// §Pointers).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -70,17 +71,17 @@ const (
 	FeatIndex         = "index-expression"
 	FeatSlice         = "slice-expression"
 	FeatTypeAssert    = "type-assertion"
-	FeatDeref         = "pointer-dereference"
 	FeatTypeExpr      = "type-expression"
 	FeatExpression    = "expression"
 	FeatStatement     = "statement"
 	FeatEmptyResults  = "empty-result-list"
 	FeatNoBody        = "function-without-body"
 	FeatFrameSize     = "frame-size"
+	FeatLoopVarAddr   = "loop-variable-address"
 )
 
 // Operator features are "operator-" followed by a name from unaryFeature,
-// for example "operator-address", or "other".
+// for example "operator-receive", or "other".
 const featOperatorPrefix = "operator-"
 
 // Files rejects programs consisting of more than one source file.
@@ -151,7 +152,7 @@ func directive(text string) (string, bool) {
 // subset.
 // It must only be called on a package that type-checked without errors.
 func Check(pkg *frontend.Package) []diag.Diagnostic {
-	c := &checker{pkg: pkg, info: pkg.Info}
+	c := &checker{pkg: pkg, info: pkg.Info, forVars: map[*types.Var]bool{}}
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
 			c.topDecl(d)
@@ -167,6 +168,9 @@ type checker struct {
 	pkg  *frontend.Package
 	info *types.Info
 	ds   []diag.Diagnostic
+	// forVars are the variables declared in the init statements of the for
+	// statements checked so far, whose addresses are unsupported (D-035).
+	forVars map[*types.Var]bool
 }
 
 func (c *checker) pos(p token.Pos) diag.Pos { return frontend.Position(c.pkg.Fset, p) }
@@ -196,8 +200,9 @@ func init() {
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
 		FeatRuneLit, FeatStringConcat, FeatStringCompare, FeatFuncLit, FeatCompositeLit,
-		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
+		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
+		FeatLoopVarAddr,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "type-switch", "select", "go",
 		"defer", "label", "send",
@@ -335,7 +340,8 @@ const maxFrameObjects = 1 << 29
 // composite literal not nested in another, which is filled in place, and
 // each other expression of array or struct type evaluated as a whole value,
 // which is copied into a temporary. A variable, field, or element that is
-// assigned, selected from, or indexed is used in place, and the operand of
+// assigned, selected from, indexed, or whose address is taken is used in
+// place, a literal whose address is taken is on the heap, and the operand of
 // a constant len is not evaluated. Each object may need up to 8 more bytes
 // for its alignment.
 func (c *checker) frameBytes(n ast.Node) int64 {
@@ -360,6 +366,10 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			}
 		case *ast.IncDecStmt:
 			inPlace[n.X] = true
+		case *ast.UnaryExpr:
+			if n.Op == token.AND {
+				inPlace[n.X] = true // a variable, or a literal on the heap
+			}
 		case *ast.CompositeLit:
 			for _, elt := range n.Elts {
 				if kv, ok := elt.(*ast.KeyValueExpr); ok {
@@ -471,6 +481,17 @@ func (c *checker) stmt(s ast.Stmt) {
 		}
 	case *ast.ForStmt:
 		// go/types has checked that init and post are simple statements.
+		// Go 1.22 gives each iteration its own copy of a variable declared
+		// in init, which a pointer can observe (D-035).
+		if a, ok := s.Init.(*ast.AssignStmt); ok && a.Tok == token.DEFINE {
+			for _, l := range a.Lhs {
+				if id, ok := l.(*ast.Ident); ok {
+					if v, ok := c.info.Defs[id].(*types.Var); ok {
+						c.forVars[v] = true
+					}
+				}
+			}
+		}
 		if s.Init != nil {
 			c.stmt(s.Init)
 		}
@@ -604,9 +625,10 @@ var supportedTypeNames = []string{
 
 // typeExpr allows the predeclared types in supportedTypeNames, identified by
 // object identity so that a shadowed or redefined name cannot stand in for
-// them, the array and struct types of the program's type declarations, and
-// array and struct type literals of supported types (§Arrays and structs).
-// It reports whether it allowed e.
+// them, the array and struct types of the program's type declarations,
+// array and struct type literals of supported types (§Arrays and structs),
+// and pointer types to supported types (§Pointers). It reports whether it
+// allowed e.
 func (c *checker) typeExpr(e ast.Expr) bool {
 	switch t := ast.Unparen(e).(type) {
 	case *ast.Ident:
@@ -641,6 +663,8 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 			return c.sized(e)
 		}
 		return false
+	case *ast.StarExpr:
+		return c.typeExpr(t.X) && c.sized(e)
 	}
 	c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
 	return false
@@ -651,8 +675,9 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 // (D-034).
 const maxAggregate = 1 << 24
 
-// sized reports whether the array or struct type of e is at most
-// maxAggregate bytes, rejecting it if not.
+// sized reports whether the array or struct type of e, or the type a
+// pointer type e points to, is at most maxAggregate bytes, rejecting it if
+// not.
 func (c *checker) sized(e ast.Expr) bool {
 	tv, ok := c.info.Types[e]
 	if !ok {
@@ -755,20 +780,24 @@ func (c *checker) assign(s *ast.AssignStmt) {
 	}
 }
 
-// target checks the left-hand side of an assignment or increment: the name
-// of a variable of the program, or a field or array element of one,
-// selected through any number of fields and elements (§Arrays and
-// structs). go/types has checked that it is addressable.
+// target checks the left-hand side of an assignment or increment, or the
+// operand of &: the name of a variable of the program, *p, or a field or
+// array element of one of these, selected through any number of fields and
+// elements (§Arrays and structs), and of pointers to structs and arrays
+// (§Pointers). go/types has checked that it is addressable.
 func (c *checker) target(e ast.Expr) {
 	switch t := e.(type) {
+	case *ast.StarExpr:
+		c.expr(t.X)
+		return
 	case *ast.SelectorExpr:
-		if sel := c.info.Selections[t]; sel != nil && sel.Kind() == types.FieldVal && !sel.Indirect() {
-			c.target(t.X)
+		if sel := c.info.Selections[t]; sel != nil && sel.Kind() == types.FieldVal {
+			c.operand(t.X, sel.Indirect())
 			return
 		}
 	case *ast.IndexExpr:
-		if tv, ok := c.info.Types[t.X]; ok && isArray(tv.Type) {
-			c.target(t.X)
+		if c.isArray(t.X) || c.isArrayPtr(t.X) {
+			c.operand(t.X, c.isArrayPtr(t.X))
 			c.expr(t.Index)
 			return
 		}
@@ -785,6 +814,57 @@ func (c *checker) target(e ast.Expr) {
 	// Every variable is declared in the program, where its declaration has
 	// been checked; an unsupported type was reported there.
 	c.intVar(id, c.info.Uses[id], false)
+}
+
+// operand checks the operand x of a selector or index expression that
+// target allows: if the selection goes through a pointer (indirect), any
+// expression, whose value is the pointer or holds it, and otherwise a
+// target, or *p in parentheses.
+func (c *checker) operand(x ast.Expr, indirect bool) {
+	if s, ok := ast.Unparen(x).(*ast.StarExpr); ok && !indirect {
+		c.expr(s.X)
+		return
+	}
+	if indirect {
+		c.expr(x)
+		return
+	}
+	c.target(x)
+}
+
+// address checks the operand of &: a composite literal, or a target other
+// than a variable declared in a for statement's init (D-035), or a field or
+// element of one.
+func (c *checker) address(x ast.Expr) {
+	x = ast.Unparen(x)
+	if lit, ok := x.(*ast.CompositeLit); ok {
+		c.expr(lit)
+		return
+	}
+	if v := c.root(x); v != nil && c.forVars[v] {
+		c.reject(x, FeatLoopVarAddr, "the address of "+types.ExprString(x)+", of a variable declared in a for statement's init")
+		return
+	}
+	c.target(x)
+}
+
+// root returns the variable whose memory x, an operand of &, lies in, or
+// nil if x is reached through a pointer.
+func (c *checker) root(x ast.Expr) *types.Var {
+	switch x := ast.Unparen(x).(type) {
+	case *ast.Ident:
+		v, _ := c.info.Uses[x].(*types.Var)
+		return v
+	case *ast.SelectorExpr:
+		if sel := c.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal && !sel.Indirect() {
+			return c.root(x.X)
+		}
+	case *ast.IndexExpr:
+		if c.isArray(x.X) {
+			return c.root(x.X)
+		}
+	}
+	return nil
 }
 
 // intVar checks that obj, named by id, is a variable of the program. If reportType is
@@ -881,10 +961,17 @@ func (c *checker) call(call *ast.CallExpr) bool {
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		switch obj := c.info.Uses[id].(type) {
 		case *types.Builtin:
-			// len of a string, its length in bytes (D-033), or of an array.
-			if obj.Name() == "len" && len(call.Args) == 1 && !call.Ellipsis.IsValid() && (c.isString(call.Args[0]) || c.isArray(call.Args[0])) {
+			// len of a string, its length in bytes (D-033), or of an array
+			// or a pointer to one.
+			if obj.Name() == "len" && len(call.Args) == 1 && !call.Ellipsis.IsValid() &&
+				(c.isString(call.Args[0]) || c.isArray(call.Args[0]) || c.isArrayPtr(call.Args[0])) {
 				c.expr(call.Args[0])
 				return true
+			}
+			// new(T), but not new of a value, new(expr), which Go 1.26
+			// added.
+			if obj.Name() == "new" && len(call.Args) == 1 && c.info.Types[call.Args[0]].IsType() {
+				return c.typeExpr(call.Args[0])
 			}
 			c.reject(call, FeatBuiltin, "builtin "+obj.Name())
 			return false
@@ -968,6 +1055,12 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.X)
 		}
 	case *ast.UnaryExpr:
+		if e.Op == token.AND {
+			if c.typed(e) {
+				c.address(e.X)
+			}
+			return
+		}
 		if e.Op != token.ADD && e.Op != token.SUB && e.Op != token.NOT && e.Op != token.XOR {
 			c.reject(e, unaryFeature(e.Op), "unary operator "+e.Op.String())
 			return
@@ -1022,10 +1115,10 @@ func (c *checker) expr(e ast.Expr) {
 			c.compositeLit(e)
 		}
 	case *ast.SelectorExpr:
-		// A field of an array or struct value, perhaps promoted through
-		// embedded structs (never through a pointer, which is not
-		// supported).
-		if sel := c.info.Selections[e]; sel == nil || sel.Kind() != types.FieldVal || sel.Indirect() {
+		// A field of an array or struct value, or of a pointer to a
+		// struct, perhaps promoted through embedded structs and pointers
+		// to them.
+		if sel := c.info.Selections[e]; sel == nil || sel.Kind() != types.FieldVal {
 			c.reject(e, FeatSelector, "selector "+types.ExprString(e))
 			return
 		}
@@ -1034,9 +1127,9 @@ func (c *checker) expr(e ast.Expr) {
 		}
 	case *ast.IndexExpr:
 		// Indexing a string gives one of its bytes (D-033), and indexing
-		// an array one of its elements; every other index expression is
-		// unsupported.
-		if !c.isString(e.X) && !c.isArray(e.X) {
+		// an array, or a pointer to one, one of its elements; every other
+		// index expression is unsupported.
+		if !c.isString(e.X) && !c.isArray(e.X) && !c.isArrayPtr(e.X) {
 			c.reject(e, FeatIndex, "index expression")
 			return
 		}
@@ -1051,7 +1144,11 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.TypeAssertExpr:
 		c.reject(e, FeatTypeAssert, "type assertion")
 	case *ast.StarExpr:
-		c.reject(e, FeatDeref, "pointer dereference")
+		// go/types has checked that e.X is a pointer: as a value, e is
+		// not a type.
+		if c.typed(e) {
+			c.expr(e.X)
+		}
 	case *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType, *ast.StructType:
 		c.reject(e, FeatTypeExpr, "type expression")
 	default:
@@ -1128,7 +1225,10 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 		}
 		return c.declared(id, obj)
 	case *types.Nil:
-		c.reject(id, FeatPredeclared, "predeclared identifier nil")
+		// Untyped nil stands for a value of the type its context gives it,
+		// which the gate checks there: a pointer type is the only one
+		// supported.
+		return true
 	case *types.TypeName:
 		c.reject(id, FeatTypeExpr, "type "+id.Name)
 	case *types.Builtin:
@@ -1154,7 +1254,7 @@ func (c *checker) declared(id *ast.Ident, obj types.Object) bool {
 }
 
 var unaryOperatorNames = map[token.Token]string{
-	token.AND: "address", token.ARROW: "receive",
+	token.ARROW: "receive",
 }
 
 func unaryFeature(op token.Token) string {
@@ -1176,35 +1276,51 @@ func isScalar(t types.Type) bool {
 // sizes is the layout lowering gives arrays and structs (D-034).
 var sizes = types.SizesFor("gc", "amd64")
 
-// supported reports whether t is a scalar type, or an array or struct type,
-// of at most maxAggregate bytes, whose elements or fields are of supported
-// types; a defined one must be a declaration of the program, not generic.
+// supported reports whether t is a scalar type, an array or struct type of
+// at most maxAggregate bytes whose elements or fields are of supported
+// types, or a pointer type to a supported type; a defined one must be a
+// declaration of the program, not generic.
 func (c *checker) supported(t types.Type) bool {
+	return c.sizedType(t, map[*types.Named]bool{})
+}
+
+// sizedType is supported, where the defined types in seen have been or are
+// being checked. Assuming they are supported is safe: each is a conjunct of
+// the result, which is false if any of them is not. It ends on recursive
+// types, which go/types allows only through pointers.
+func (c *checker) sizedType(t types.Type, seen map[*types.Named]bool) bool {
 	if isScalar(t) {
 		return true
 	}
-	if !c.composite(t) {
+	if !c.composite(t, seen) {
 		return false
 	}
 	return sizes.Sizeof(t) <= maxAggregate
 }
 
 // composite reports whether t is an array or struct type whose elements or
-// fields are of supported types, regardless of its size.
-func (c *checker) composite(t types.Type) bool {
+// fields are of supported types, regardless of its size, or a pointer type
+// to a supported type.
+func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	t = types.Unalias(t)
 	if n, ok := t.(*types.Named); ok {
 		if n.Obj().Pkg() != c.pkg.Types || n.Obj().Parent() == types.Universe || n.TypeParams().Len() > 0 || n.TypeArgs().Len() > 0 {
 			return false
 		}
+		if seen[n] {
+			return true
+		}
+		seen[n] = true
 		t = n.Underlying()
 	}
 	switch t := t.(type) {
+	case *types.Pointer:
+		return c.sizedType(t.Elem(), seen)
 	case *types.Array:
-		return isScalar(t.Elem()) || c.composite(t.Elem())
+		return isScalar(t.Elem()) || c.composite(t.Elem(), seen)
 	case *types.Struct:
 		for f := range t.Fields() {
-			if !isScalar(f.Type()) && !c.composite(f.Type()) {
+			if !isScalar(f.Type()) && !c.composite(f.Type(), seen) {
 				return false
 			}
 		}
@@ -1231,6 +1347,16 @@ func isArray(t types.Type) bool {
 func (c *checker) isArray(e ast.Expr) bool {
 	tv, ok := c.info.Types[e]
 	return ok && isArray(tv.Type)
+}
+
+// isArrayPtr reports whether the expression e has a pointer to array type.
+func (c *checker) isArrayPtr(e ast.Expr) bool {
+	tv, ok := c.info.Types[e]
+	if !ok {
+		return false
+	}
+	p, ok := tv.Type.Underlying().(*types.Pointer)
+	return ok && isArray(p.Elem())
 }
 
 // holdsString reports whether a value of t contains a string.
@@ -1263,11 +1389,12 @@ func (c *checker) isString(e ast.Expr) bool {
 }
 
 // supportedOrUntyped reports whether t is a supported type, typed or
-// untyped. An untyped rune constant can only come from a rune literal,
+// untyped. Untyped nil is checked where it is used (valueIdent). An
+// untyped rune constant can only come from a rune literal,
 // which is rejected as such, and an untyped complex constant from an
 // imaginary literal.
 func (c *checker) supportedOrUntyped(t types.Type) bool {
-	return c.supported(t) || types.Identical(t, types.Typ[types.UntypedInt]) ||
+	return c.supported(t) || types.Identical(t, types.Typ[types.UntypedNil]) || types.Identical(t, types.Typ[types.UntypedInt]) ||
 		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||
 		types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.UntypedString])
 }
