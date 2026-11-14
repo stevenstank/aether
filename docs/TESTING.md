@@ -391,7 +391,7 @@ replays it.
 recorded. It must never be piped through `head` or `tail` alone. The incident
 below was left unexplained because its output was truncated.
 
-#### Fuzz incident FI-1 (closed 2026-11-03: unexplained, not reproduced)
+#### Fuzz incident FI-1 (closed 2026-11-03: unexplained, not reproduced; recurred 2026-11-14 with its cause found)
 
 **What is known:**
 - **The run.** On 2026-10-24 a 180 s run of
@@ -472,6 +472,25 @@ The 8 s runs targeted the end-of-run shutdown phase specifically.
   consistent with the end-of-run worker failure described above but
   cannot exclude a property failure on the input in flight. FI-1 is
   reopened if it recurs, and fuzz output must still be captured in full.
+
+**Recurrence (2026-11-14).** A 60 s `FuzzCheck` run on the Phase 6.3 tree,
+output captured in full, failed the same way: 2,785,324 executions, then at
+the end of the run `--- FAIL: FuzzCheck (61.31s)` with only the message
+`context deadline exceeded`, and no input written to `testdata/fuzz`. The
+cause is a race in the engine, not a property failure:
+- In `internal/fuzz.CoordinateFuzzing` (go1.26.1), the coordinator wakes on
+  the `-fuzztime` context's `Done` and calls `stop(ctx.Err())`, which
+  suppresses the error only if it equals `fuzzCtx.Err()`, a child context.
+- `context.(*cancelCtx).cancel` closes the parent's `Done` before it cancels
+  the children, and a child's `Err` is a lock-free load, so for a moment the
+  child reports `nil`. The deadline error then becomes the run's result.
+- A standalone program of that pattern (a parent `WithTimeout`, a child
+  `WithCancel`, wait for the parent's `Done`, test the child's `Err`) saw the
+  child `nil` in 2 of 20,000 trials.
+
+The rerun on the same tree passed (2,805,662 executions). The race explains a
+failure at the end with no input and no other message, as FI-1 had; whether
+FI-1's lost message was this one cannot be known.
 
 ### Regression tests
 

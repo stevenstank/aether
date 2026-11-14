@@ -1,0 +1,6 @@
+workload	dyn instrs	addr+ldm+stm	share	data memory operands	top ops
+a01_small_copy	6720000067	5000000035	74.4%	3560000022	ldm 34.5%, stm 29.2%, addr 10.7%, prologue 8.3%, call 4.8%
+a02_nested_copy	6219000951	4527000284	72.8%	3555000245	ldm 39.1%, stm 32.0%, add 8.8%, mul 7.8%, rem 4.3%
+a03_large_array_copy	11897244081	4507608200	37.9%	2459004099	branch 20.7%, mul 20.7%, addr 17.2%, jump 10.3%, add 10.3%
+a04_compare	11776208686	4304668699	36.6%	2334134379	branch 24.7%, mul 19.2%, addr 16.7%, ldm 12.6%, jump 9.7%
+a05_field_access	2136645733	331194866	15.5%	165598032	branch 33.4%, mul 16.1%, add 14.1%, conv 12.0%, addr 7.8%

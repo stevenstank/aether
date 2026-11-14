@@ -1,7 +1,7 @@
 # Aether Measurement Strategy
 
-Status: **harness and eight measurements.** The workloads and the harness
-are checked in ([The harness](#the-harness)). Six measurements exist, all
+Status: **harness and nine measurements.** The workloads and the harness
+are checked in ([The harness](#the-harness)). Nine measurements exist, all
 under WSL2: the register-allocation baseline of 2026-11-05
 ([`benchmarks/2026-11-05-regalloc/REPORT.md`](benchmarks/2026-11-05-regalloc/REPORT.md)),
 the RA-0 results of 2026-11-06
@@ -16,8 +16,11 @@ the Phase 5 report of 2026-11-08, with compile latency
 ([`benchmarks/2026-11-08-phase5/README.md`](benchmarks/2026-11-08-phase5/README.md)),
 coalescing against it, also of 2026-11-08
 ([`benchmarks/2026-11-08-copy/README.md`](benchmarks/2026-11-08-copy/README.md)),
-and compiler memory and scalability, also of 2026-11-08
-([`benchmarks/2026-11-08-memory/README.md`](benchmarks/2026-11-08-memory/README.md)).
+compiler memory and scalability, also of 2026-11-08
+([`benchmarks/2026-11-08-memory/README.md`](benchmarks/2026-11-08-memory/README.md)),
+and arrays and structs of 2026-11-14
+([`benchmarks/2026-11-14-aggregates/README.md`](benchmarks/2026-11-14-aggregates/README.md)),
+on their own workloads (`cmd/aether/testdata/bench_agg`, `TestBenchAgg`).
 This document itself contains no numbers. Aether's generated code is much
 slower than gc's and is expected to stay so for a long time.
 

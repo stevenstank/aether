@@ -403,7 +403,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `method`, `function-without-body` |
 | Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
-| Types | `non-int-type`, `type-expression` |
+| Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `rune-literal`, `predeclared-identifier` |
 | Operators | `operator-address`, `operator-receive`, `operator-other`, `string-concatenation`, `string-comparison` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
@@ -723,6 +723,12 @@ and multiple results, as the other types; each lives in memory laid out as
 - **`==` and `!=`** compare corresponding elements and non-blank fields: floats
   by IEEE 754, so a NaN makes a value unequal to itself.
 - **Conversions** between array or struct types of identical underlying types.
+- **Frame size.** A function, or package initialization, whose array and
+  struct variables and temporaries may need more than 512 MiB of stack, by a
+  bound the gate computes from the source, is `unsupported` (`frame-size`): its
+  frame would exceed the backend's 1 GiB limit (D-034). A smaller frame that does
+  not fit the stack overflows it, as any frame does (V-2); gc instead moves large
+  variables to the heap.
 
 Still `unsupported`: `==`, `!=`, and `switch` on a type that holds a string
 (`string-comparison`) or on any array or struct value (`non-int-type`); printing

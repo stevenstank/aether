@@ -1,0 +1,165 @@
+package main
+
+import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/stevenstank/aether/internal/frontend"
+	"github.com/stevenstank/aether/internal/gate"
+	"github.com/stevenstank/aether/internal/ir"
+	"github.com/stevenstank/aether/internal/lower"
+)
+
+// TestFrameBound checks the gate's bound on the stack a function's arrays
+// and structs need (gate.FrameBytes, feature frame-size) against what
+// lowering gives each function, on every corpus program expected to run
+// and on the generated programs: the bound must never be below the bytes of
+// its memory objects laid out with their alignment, so that no function the
+// gate accepts can exceed the backend's frame limit (D-034).
+func TestFrameBound(t *testing.T) {
+	type program struct {
+		name string
+		src  []byte
+	}
+	var progs []program
+	for _, path := range corpus(t) {
+		if readExpectation(t, path).class != "run" {
+			continue
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		progs = append(progs, program{path, src})
+	}
+	for seed := uint64(1); seed <= 400; seed++ {
+		progs = append(progs, program{fmt.Sprintf("gen%04d.go", seed), []byte(generate(seed))})
+	}
+	checked, slack := 0, int64(0)
+	for _, p := range progs {
+		fset := token.NewFileSet()
+		file, ds := frontend.Parse(fset, p.name, p.src)
+		if len(ds) > 0 {
+			t.Fatalf("%s: %v", p.name, ds)
+		}
+		pkg, ds := frontend.TypeCheck(fset, []*ast.File{file})
+		if len(ds) > 0 {
+			continue // a generated program with an overflowing constant
+		}
+		if ds := gate.Check(pkg); len(ds) > 0 {
+			t.Fatalf("%s: %v", p.name, ds)
+		}
+		prog, ds := lower.Lower(pkg)
+		if len(ds) > 0 {
+			t.Fatalf("%s: %v", p.name, ds)
+		}
+		funcs := map[string]*ir.Func{}
+		for _, f := range prog.Funcs {
+			funcs[f.Name] = f
+		}
+		check := func(what string, bound int64, f *ir.Func) {
+			got := memBytes(f)
+			if bound < got {
+				t.Errorf("%s: %s: bound %d below the %d bytes of its memory objects", p.name, what, bound, got)
+			}
+			checked++
+			if got > 0 {
+				slack = max(slack, bound-got)
+			}
+		}
+		var initBound int64
+		for _, d := range file.Decls {
+			switch d := d.(type) {
+			case *ast.FuncDecl:
+				check("func "+d.Name.Name, gate.FrameBytes(pkg, d.Body), funcs[d.Name.Name])
+			case *ast.GenDecl:
+				if d.Tok == token.VAR {
+					for _, spec := range d.Specs {
+						for _, v := range spec.(*ast.ValueSpec).Values {
+							initBound += gate.FrameBytes(pkg, v)
+						}
+					}
+				}
+			}
+		}
+		if prog.Init != nil {
+			check("init", initBound, prog.Init)
+		}
+	}
+	t.Logf("%d functions checked; largest excess of the bound %d bytes", checked, slack)
+}
+
+// memBytes returns the bytes f's memory objects take laid out one after the
+// other, each aligned, as the backend lays them out after its cells, which
+// end at a multiple of 8.
+func memBytes(f *ir.Func) int64 {
+	var n int64
+	for _, m := range f.Mems {
+		n += m.Size
+		n = (n + m.Align - 1) &^ (m.Align - 1)
+	}
+	return (n + 7) &^ 7
+}
+
+// TestFrameSizeDiagnostic checks that a function, or package
+// initialization, whose arrays and structs may need more stack than the
+// frame-size limit is unsupported, and that one just under it builds.
+func TestFrameSizeDiagnostic(t *testing.T) {
+	// 31 local arrays of 16 MiB and their 30 copies need 61 objects, 976 MiB.
+	var b strings.Builder
+	b.WriteString("package main\n\ntype Big [1 << 21]int64\n\nfunc main() {\n\tvar a0 Big\n\ta0[0] = 1\n")
+	for i := 1; i <= 30; i++ {
+		fmt.Fprintf(&b, "\ta%d := a%d\n", i, i-1)
+	}
+	b.WriteString("\tprintln(a30[0])\n}\n")
+	tests := []struct {
+		name, src, want string
+	}{
+		{"function", b.String(), "frame-size.go:5:6: unsupported: function main, whose arrays and structs may need"},
+		// 40 package-level variables initialized by calls: 40 results of
+		// 16 MiB in Init's frame.
+		{"init", "package main\n\ntype Big [1 << 21]int64\n\nfunc f() Big { return Big{} }\n\n" + gens(40) + "func main() {}\n",
+			"unsupported: package initialization, whose arrays and structs may need"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := check([]source{{"frame-size.go", []byte(tt.src)}})
+			if len(ds) != 1 || ds[0].Feature != gate.FeatFrameSize || !strings.Contains(ds[0].String(), tt.want) {
+				t.Errorf("got %v, want one frame-size diagnostic containing %q", ds, tt.want)
+			}
+		})
+	}
+	// Under the limit: 16 objects of 16 MiB build and run.
+	requireTools(t)
+	var u strings.Builder
+	u.WriteString("package main\n\ntype Big [1 << 21]int64\n\nfunc main() {\n\tvar a0 Big\n\ta0[1<<21-1] = 7\n")
+	for i := 1; i <= 7; i++ {
+		fmt.Fprintf(&u, "\ta%d := a%d\n", i, i-1)
+	}
+	u.WriteString("\tprintln(a7[1<<21-1])\n}\n")
+	dir := t.TempDir()
+	src, exe := dir+"/under.go", dir+"/under"
+	if err := os.WriteFile(src, []byte(u.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if stderr, code := runAether("build", "-o", exe, src); code != 0 {
+		t.Fatalf("build: exit %d\n%s", code, stderr)
+	}
+	if got := runExe(t, exe); got != (result{stderr: "7\n"}) {
+		t.Errorf("got %+v", got)
+	}
+}
+
+// gens returns n package-level variables, each initialized by a call of f,
+// which returns a 16 MiB array.
+func gens(n int) string {
+	var b strings.Builder
+	for i := range n {
+		fmt.Fprintf(&b, "var g%d = f()\n\n", i)
+	}
+	return b.String()
+}

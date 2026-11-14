@@ -76,6 +76,7 @@ const (
 	FeatStatement     = "statement"
 	FeatEmptyResults  = "empty-result-list"
 	FeatNoBody        = "function-without-body"
+	FeatFrameSize     = "frame-size"
 )
 
 // Operator features are "operator-" followed by a name from unaryFeature,
@@ -156,6 +157,9 @@ func Check(pkg *frontend.Package) []diag.Diagnostic {
 			c.topDecl(d)
 		}
 	}
+	if len(c.ds) == 0 {
+		c.initFrame()
+	}
 	return c.ds
 }
 
@@ -193,7 +197,7 @@ func init() {
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
 		FeatRuneLit, FeatStringConcat, FeatStringCompare, FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert, FeatDeref,
-		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody,
+		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "type-switch", "select", "go",
 		"defer", "label", "send",
@@ -313,6 +317,127 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		return
 	}
 	c.stmts(d.Body.List)
+	if len(c.ds) == mark {
+		if n := c.frameBytes(d.Body); n > maxFrameObjects {
+			c.reject(d.Name, FeatFrameSize, fmt.Sprintf("function %s, whose arrays and structs may need %d bytes of stack (more than %d)", name, n, maxFrameObjects))
+		}
+	}
+}
+
+// maxFrameObjects bounds the stack a function's array and struct variables
+// and temporaries may need, half the backend's limit on a frame, which
+// leaves the other half for its scalar slots and values (D-034).
+const maxFrameObjects = 1 << 29
+
+// frameBytes returns an upper bound on the bytes of the memory objects
+// lowering gives the code n in its function's frame (D-034): one for each
+// array or struct variable n declares, each such result of a call, each
+// composite literal not nested in another, which is filled in place, and
+// each other expression of array or struct type evaluated as a whole value,
+// which is copied into a temporary. A variable, field, or element that is
+// assigned, selected from, or indexed is used in place, and the operand of
+// a constant len is not evaluated. Each object may need up to 8 more bytes
+// for its alignment.
+func (c *checker) frameBytes(n ast.Node) int64 {
+	var total int64
+	add := func(t types.Type) {
+		if isAggregate(t) {
+			total += sizes.Sizeof(t) + 8
+		}
+	}
+	inPlace := map[ast.Expr]bool{}
+	ast.Inspect(n, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			inPlace[n.X] = true
+		case *ast.IndexExpr:
+			inPlace[n.X] = true
+		case *ast.ParenExpr:
+			inPlace[n.X] = inPlace[n]
+		case *ast.AssignStmt:
+			for _, l := range n.Lhs {
+				inPlace[l] = true
+			}
+		case *ast.IncDecStmt:
+			inPlace[n.X] = true
+		case *ast.CompositeLit:
+			for _, elt := range n.Elts {
+				if kv, ok := elt.(*ast.KeyValueExpr); ok {
+					elt = kv.Value
+				}
+				if _, ok := ast.Unparen(elt).(*ast.CompositeLit); ok {
+					inPlace[ast.Unparen(elt)] = true
+				}
+			}
+		case *ast.CallExpr:
+			if tv := c.info.Types[n]; tv.Value != nil {
+				for _, a := range n.Args {
+					inPlace[a] = true // len of an array: not evaluated
+				}
+			}
+		case *ast.Ident:
+			if v, ok := c.info.Defs[n].(*types.Var); ok {
+				add(v.Type())
+				return false
+			}
+		}
+		e, ok := n.(ast.Expr)
+		if !ok || inPlace[e] {
+			return true
+		}
+		tv, ok := c.info.Types[e]
+		if !ok || tv.IsType() {
+			return true
+		}
+		switch e := e.(type) {
+		case *ast.ParenExpr:
+			return true // counted as its operand
+		case *ast.CallExpr:
+			if c.info.Types[e.Fun].IsType() {
+				return true // a conversion: counted as its operand
+			}
+			if tuple, ok := tv.Type.(*types.Tuple); ok {
+				for v := range tuple.Variables() {
+					add(v.Type())
+				}
+				return true
+			}
+		}
+		add(tv.Type)
+		return true
+	})
+	return total
+}
+
+// FrameBytes is the bound frameBytes for the code n of pkg, a package Check
+// accepted. TestFrameBound checks that it is never below the memory
+// objects lowering gives n.
+func FrameBytes(pkg *frontend.Package, n ast.Node) int64 {
+	return (&checker{pkg: pkg, info: pkg.Info}).frameBytes(n)
+}
+
+// initFrame rejects package initialization whose frame, holding the
+// temporaries of every package-level initializer, may exceed
+// maxFrameObjects, at the initializer that crosses it.
+func (c *checker) initFrame() {
+	var total int64
+	for _, f := range c.pkg.Files {
+		for _, d := range f.Decls {
+			gd, ok := d.(*ast.GenDecl)
+			if !ok || gd.Tok != token.VAR {
+				continue
+			}
+			for _, spec := range gd.Specs {
+				for _, v := range spec.(*ast.ValueSpec).Values {
+					total += c.frameBytes(v)
+					if total > maxFrameObjects {
+						c.reject(v, FeatFrameSize, fmt.Sprintf("package initialization, whose arrays and structs may need %d bytes of stack (more than %d)", total, maxFrameObjects))
+						return
+					}
+				}
+			}
+		}
+	}
 }
 
 func (c *checker) stmts(list []ast.Stmt) {

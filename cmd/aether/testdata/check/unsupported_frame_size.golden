@@ -1,0 +1,1 @@
+testdata/check/unsupported_frame_size.go:10:6: unsupported: function main, whose arrays and structs may need 1325400696 bytes of stack (more than 536870912) is not supported in subset S1 [frame-size]
