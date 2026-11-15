@@ -554,7 +554,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if in.Index < 0 || in.Index >= len(PanicMessages) {
 			v.errorf(bi, i, in, "panic of unknown kind %d", in.Index)
 		}
-		if in.Index == PanicIndex {
+		if IsBounds(in.Index) {
 			args = []Type{integer, I64}
 		}
 	case Str:
@@ -578,6 +578,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		want, args = Ptr, []Type{I64}
 	case PAdd:
 		want, args = Ptr, []Type{Ptr, I64}
+	case Move:
+		args = []Type{Ptr, Ptr, I64}
 	case StM:
 		args = []Type{Ptr, I64, I64}
 		if len(in.Args) == 3 && in.Args[2] != nil {

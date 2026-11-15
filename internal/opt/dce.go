@@ -13,7 +13,7 @@ import (
 //
 // An instruction is live if it has an effect or is an operand of a live
 // instruction. The instructions with an effect are the terminators, Call,
-// Println, Print, GStore, StM, Alloc, and Param, which ABI-R1's entry accounts for
+// Println, Print, GStore, StM, Alloc, Move, and Param, which ABI-R1's entry accounts for
 // (D-030). Everything else computes a value and nothing more: Div and Rem
 // cannot trap, since lowering's check for a zero divisor is a branch of its
 // own, and a GLoad's or LdM's only effect is its value. Dead phis that use each other
@@ -55,7 +55,7 @@ func DCE(f *ir.Func) (bool, error) {
 // hasEffect reports whether in does more than compute its value.
 func hasEffect(in *ir.Instr) bool {
 	switch in.Op {
-	case ir.Call, ir.Println, ir.Print, ir.GStore, ir.StM, ir.Alloc, ir.Param:
+	case ir.Call, ir.Println, ir.Print, ir.GStore, ir.StM, ir.Alloc, ir.Move, ir.Param:
 		return true
 	}
 	return in.Op.IsTerminator()

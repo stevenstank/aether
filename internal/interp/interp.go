@@ -165,8 +165,8 @@ func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.
 			fr.values[in.ID] = in.Type.Canonical(shift(in.Op, in.Type, arg(0), uint64(arg(1))))
 		case ir.Panic:
 			msg := ir.PanicMessages[in.Index]
-			if in.Index == ir.PanicIndex {
-				msg = ir.IndexMessage(arg(0), in.Args[0].Type.Signed(), arg(1))
+			if ir.IsBounds(in.Index) {
+				msg = ir.BoundsMessage(in.Index, arg(0), in.Args[0].Type.Signed(), arg(1))
 			}
 			_, _ = io.WriteString(stderr, "panic: runtime error: "+msg+"\n")
 			return 2, nil
@@ -217,6 +217,10 @@ func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.
 				return 2, nil
 			}
 			fr.values[in.ID] = p
+		case ir.Move:
+			if err := mem.move(arg(0), arg(1), arg(2)); err != nil {
+				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+			}
 		case ir.PAdd:
 			p, err := mem.padd(arg(0), arg(1))
 			if err != nil {

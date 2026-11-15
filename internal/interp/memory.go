@@ -113,6 +113,41 @@ func (m *memory) padd(p, i int64) (int64, error) {
 	return p + i, nil
 }
 
+// move copies n bytes from src to dst as if through a temporary (D-036),
+// checking Move's precondition: n is 0, or each range lies in one object
+// and every byte of src's has been written.
+func (m *memory) move(dst, src, n int64) error {
+	if n == 0 {
+		return nil
+	}
+	ranges := [2]struct {
+		o   *object
+		off int64
+	}{}
+	for i, p := range []int64{dst, src} {
+		o, off, err := m.object(p)
+		switch {
+		case err != nil:
+			return err
+		case n < 0 || n > int64(len(o.data))-off:
+			return fmt.Errorf("move of %d bytes at offset %d of an object of %d bytes", n, off, len(o.data))
+		}
+		ranges[i].o, ranges[i].off = o, off
+	}
+	d, s := ranges[0], ranges[1]
+	for i := range n {
+		if !s.o.written[s.off+i] {
+			return fmt.Errorf("move reads byte %d, never written", s.off+i)
+		}
+	}
+	// Go's copy, like memmove, allows overlap.
+	copy(d.o.data[d.off:d.off+n], s.o.data[s.off:s.off+n])
+	for i := range n {
+		d.o.written[d.off+i] = true
+	}
+	return nil
+}
+
 // at returns the bytes of a t at offset off from p, checking the
 // preconditions of LdM and StM, and the offset in the object.
 func (m *memory) at(t ir.Type, p, off int64) (*object, int64, int64, error) {

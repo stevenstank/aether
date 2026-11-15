@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -525,7 +526,7 @@ func TestVerifyDivisionAndShifts(t *testing.T) {
 		want string
 	}{
 		{build(I8, PanicDivide), "operand v1 has type i8, want u64"},
-		{build(U64, 4), "panic of unknown kind 4"},
+		{build(U64, len(PanicMessages)), fmt.Sprintf("panic of unknown kind %d", len(PanicMessages))},
 		{build(U64, -1), "panic of unknown kind -1"},
 	} {
 		var msgs []string

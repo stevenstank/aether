@@ -2843,6 +2843,98 @@ so `print` of a pointer stays `unsupported`.
 
 ---
 
+## D-036: Slices (Phase 7 increment 7.2)
+
+**Status:** Accepted (2026-11-15, owner decision on the three open questions
+of the proposal: Aether's own growth rule with divergence V-6, a `move`
+operation through `aether.memmove`, and the scope below).
+
+**Context.** Increment 7.2 adds slices, `make`, `append`, and `copy`
+(`ROADMAP.md` Phase 7). Measured with gc-built go1.26.1 binaries
+(`GOAMD64=v1`) on 2026-11-15:
+- Bounds panics use the formats of `runtime/error.go`: `index out of range
+  [x] with length y`; `slice bounds out of range` followed by `[:x] with
+  length y`, `[:x] with capacity y`, `[x:y]`, `[::x] with length y`, `[::x]
+  with capacity y`, `[:x:y]`, or `[x:y:]`; with a negative x, the same
+  without y (`[-1::]`). For `s := make([]int, 3, 5)`: `s[4:]` gives `[4:3]`,
+  `s[:6]` `[:6] with capacity 5`, `s[:6:7]` `[::7] with capacity 5`; for an
+  array of length 4, `a[:6]` gives `[:6] with length 4`. All exit 2.
+- `make([]int, -1)` and `make([]int, 1<<60)` panic with `makeslice: len out of
+  range`, and `make([]int, 5, 3)` with `makeslice: cap out of range`.
+- Capacities after `append` grows a slice, one element at a time from nil:
+  for `[]int`, 4 8 16 32 64 128 256 512 848 1280 1792 2560 3408; for `[]byte`,
+  32 64 128 256 512 896 1408 2048 3072; for a 24-byte struct, 1 2 4 8 … 512.
+  `nextslicecap` in `runtime/slice.go` doubles below 256 and then adds
+  (cap + 768)/4, but the results are then rounded to allocation size classes,
+  and the first capacity of a small slice also depends on where gc allocates
+  its backing store.
+- `append` within the capacity reuses the array and beyond it copies (the spec
+  defines both); `copy` between overlapping slices behaves as if through a
+  temporary; `println` of a slice prints `[len/cap]` and an address that
+  varies.
+
+**Decision.**
+- **Values.** A slice is three words: a `Ptr` to its first element, an `i64`
+  length, and an `i64` capacity, as a string is two (D-033); nil is (0, 0, 0).
+  In memory it is 24 bytes in that order, as `types.Sizes` lays it out.
+  Slots, globals, parameters, results, and both calling conventions move it
+  as words and do not change.
+- **Backing arrays** are heap objects (`make`, slice literals, a growing
+  `append`), or the memory of an array variable whose slicing counts as taking
+  its address (D-035), so no slice addresses a frame. Slicing an array declared
+  in a `for` statement's init is `unsupported`, as `&` of it is. A slice
+  expression whose low bound is 0 keeps the `Ptr`; any other low bound is at
+  most the capacity, so the slice's array exists and `padd` applies.
+- **Operations.** `make([]T, n[, c])`, slice literals, `s[i]`, `s[i:j]` and
+  `s[i:j:k]` of slices, addressable arrays, and pointers to arrays, `len` and
+  `cap` (also of arrays and pointers to arrays), `append(s, x…)` and
+  `append(s, t...)`, `copy(dst, src)` of slices, and `==`/`!=` with `nil`.
+- **Moving bytes.** `move dst, src, n` copies n bytes, an `i64`, from the
+  `Ptr` src to the `Ptr` dst as if through a temporary, so the ranges may
+  overlap. It is an effect, a call of the runtime helper `aether.memmove`
+  (dst in `%rdi`, src in `%rsi`, n in `%rdx`). Precondition: n is 0, or each
+  range lies in one object and every byte of src's has been written. Every byte
+  of a heap or global object is, so the interpreter's rule against reading
+  unwritten bytes (D-034) holds for slices.
+- **Growth.** When `append` needs a length beyond the capacity, the new
+  capacity is the largest of the needed length, twice the old capacity, and 4,
+  computed in the IR, which then allocates (`alloc`), moves the old elements,
+  and stores the new ones. For an element type of size 0 it is the needed
+  length. Capacities after growth therefore differ from gc's: divergence V-6.
+  Differential tests never observe them, by `cap` or by aliasing after a
+  growing `append`.
+- **Checks.** Indices are checked as for arrays (`panic index`). A slice
+  expression's bounds are checked in gc's order, the last against the
+  capacity (an array's length for an array) first, each as an unsigned
+  comparison, branching to `panic` of one of seven new run-time errors, one per
+  gc format above, with operands x, of any integer type, and y, an `i64`.
+  `make` checks, in gc's order, the length and then the capacity: each must be
+  0 ≤ … and fit the heap (`HeapLimit`, D-010) at the element's size, and the
+  length at most the capacity; failures are the run-time errors
+  `makeslice: len out of range` and `makeslice: cap out of range`. A needed
+  length that overflows `int` is `growslice: len out of range`, as for gc. A
+  size gc would try to allocate but Aether's heap cannot hold is part of V-5.
+- **Out of scope** (owner decision): slicing strings and `copy` from a string
+  (`slice-expression`, `builtin`), `for range` (`for-range`), and conversions
+  from slices to arrays or pointers to arrays (`conversion`). They stay
+  `unsupported`. Printing a slice stays `unsupported` (`println-argument-type`).
+- **Runtime.** `aether.memmove`, and `aether.panicbounds` (x in `%rdi`, y in
+  `%rsi`, the format and x's signedness in `%rdx`), under the helper interface;
+  the `makeslice` and `growslice` errors are fixed messages.
+
+**Alternatives.** gc's `nextslicecap` and size classes, which would still not
+match its first capacities, so V-6 would remain. Typed `ldm`/`stm` loops for
+moves, which need an ordering of `Ptr`s for overlap. A slice as a pointer to a
+heap header of three words, which makes every slice operation load through
+memory and every slice value an allocation.
+
+**Consequences.** Every `make`, literal, and growing `append` allocates and
+nothing is freed (V-5). Programs that print a capacity after growth, or rely
+on whether a growing `append` shares an array, behave differently from gc
+(V-6).
+
+---
+
 ## Phase 0 research notes
 
 Experiments E1–E12 ran in a scratch directory outside the repository on

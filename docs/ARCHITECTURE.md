@@ -179,6 +179,7 @@ are documented on their constants in `ir.go`. Arrays and structs live in
 memory objects, local to a call or global, which `addr`, `ldm`, and `stm`
 address, read, and write (D-034). Heap objects come from `alloc`, `padd`
 makes pointers into an object, and `eq` and `ne` compare pointers (D-035).
+`move` copies bytes between objects, overlapping or not, for slices (D-036).
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|
@@ -571,6 +572,8 @@ so none can be read as an option.
     - If either call fails, `_start` writes `fatal error: cannot allocate the
       main stack` to fd 2 and exits with status 2 (`SEMANTICS.md`, D-022).
   - `rt/heap.s`: `aether.alloc`, the bump allocator of D-010 (table below).
+  - `rt/slice.s`: `aether.memmove` and the slice panics of D-036 (table
+    below).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
       (`aether.write`) that continues short writes, retries `EINTR`, and
@@ -619,6 +622,9 @@ that interface is:
 | `aether.panicindex`, `aether.panicindexu` | runtime | Write `panic: runtime error: index out of range [i] with length n` and a newline, with the index `i` in `%rdi` (signed or unsigned) and the length `n` in `%rsi`, or only `... [i]` for a negative signed index, as gc does, and exit 2; never return. Use at most 72 bytes below `%rsp`. |
 | `aether.panicnil` | runtime | Writes `panic: runtime error: invalid memory address or nil pointer dereference` and a newline, without gc's signal line, and exits 2 (D-035); never returns. Uses 16 bytes below `%rsp`, as `aether.panicdivide`. |
 | `aether.alloc` | runtime | Returns in `%rax` the address of `%rdi` new zero bytes, 8-byte aligned, from a 64 GiB `MAP_NORESERVE` heap reserved on the first call and never freed (D-010, D-035); for 0 bytes, `aether.zerobase`. Writes `fatal error: runtime: out of memory` and exits 2 when the heap is used up. Otherwise the helper interface; uses at most 24 bytes below `%rsp`. |
+| `aether.memmove` | runtime | Copies `%rdx` bytes from `%rsi` to `%rdi` as if through a temporary, so the ranges may overlap (D-036); clears the direction flag again. Otherwise the helper interface; uses 8 bytes below `%rsp`. |
+| `aether.panicbounds` | runtime | Writes `panic: runtime error: slice bounds out of range ` and gc's format for the error numbered `%edx`/2 from `ir.PanicSliceAlen`, with x in `%rdi` (signed if `%edx` is odd) and y in `%rsi`, and a newline, and exits 2 (D-036); never returns. Uses at most 72 bytes below `%rsp`, as `aether.panicindex`. |
+| `aether.panicmakelen`, `aether.panicmakecap`, `aether.panicgrowlen` | runtime | Write `panic: runtime error: makeslice: len out of range`, `... makeslice: cap out of range`, or `... growslice: len out of range` and a newline, and exit 2 (D-036); never return. Use 16 bytes below `%rsp`, as `aether.panicdivide`. |
 | `aether.zerobase` | runtime | The address of every zero-size allocation (D-035). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
 

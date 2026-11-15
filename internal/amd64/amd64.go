@@ -52,9 +52,19 @@ const (
 // panicSyms are the runtime's panic helpers, by run-time error (D-023):
 // each writes its message and exits with status 2, and never returns.
 // PanicIndex's helper takes the index in %rdi and the length in %rsi; its
-// signed index form is symPanicIndex.
+// signed index form is symPanicIndex. The slice bounds errors share
+// symPanicBounds (D-036).
 var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift", ir.PanicIndex: "aether.panicindexu",
-	ir.PanicNil: "aether.panicnil"}
+	ir.PanicNil: "aether.panicnil", ir.PanicMakeLen: "aether.panicmakelen", ir.PanicMakeCap: "aether.panicmakecap",
+	ir.PanicGrowLen: "aether.panicgrowlen"}
+
+// symPanicBounds takes a slice bounds error's x in %rdi, its y in %rsi, and
+// in %edx the error's number from ir.PanicSliceAlen times 2, plus 1 if x is
+// signed (D-036).
+const symPanicBounds = "aether.panicbounds"
+
+// symMemmove moves %rdx bytes from %rsi to %rdi, allowing overlap (D-036).
+const symMemmove = "aether.memmove"
 
 // symAlloc is the heap allocator (D-010, D-035): the size in %rdi, the
 // address returned in %rax, under the helper interface otherwise.
@@ -571,14 +581,23 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("movq\t%%rax, %s", res())
 	case ir.Panic:
 		sym := panicSyms[in.Index]
-		if in.Index == ir.PanicIndex {
+		if ir.IsBounds(in.Index) {
 			// Through the scratch registers, so that neither load
 			// overwrites the other operand.
 			e.load(in.Args[0], "%rax")
 			e.load(in.Args[1], "%rcx")
 			op("movq\t%%rax, %%rdi")
 			op("movq\t%%rcx, %%rsi")
-			if in.Args[0].Type.Signed() {
+			signed := in.Args[0].Type.Signed()
+			switch {
+			case in.Index != ir.PanicIndex:
+				sym = symPanicBounds
+				code := 2 * (in.Index - ir.PanicSliceAlen)
+				if signed {
+					code++
+				}
+				op("movl\t$%d, %%edx", code)
+			case signed:
 				sym = symPanicIndex
 			}
 		}
@@ -625,6 +644,16 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		e.load(in.Args[0], "%rdi")
 		op("call\t%s", symAlloc)
 		e.finish(in, "%rax")
+	case ir.Move:
+		// A call of the runtime (clobbers). Through the scratch registers,
+		// which hold no value, so that no load overwrites an operand not
+		// yet loaded.
+		e.load(in.Args[0], "%rax")
+		e.load(in.Args[1], "%rcx")
+		e.load(in.Args[2], "%rdx")
+		op("movq\t%%rax, %%rdi")
+		op("movq\t%%rcx, %%rsi")
+		op("call\t%s", symMemmove)
 	case ir.PAdd:
 		// Through %rax, so that the result's register is written only
 		// after both operands are read.

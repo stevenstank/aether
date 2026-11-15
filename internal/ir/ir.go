@@ -175,10 +175,10 @@ const (
 	// signed type is arithmetic.
 	Shl
 	Shr
-	// Panic ends the program with the run-time error Index (PanicDivide,
-	// PanicShift, or PanicIndex): the message and exit status 2. It is a
-	// terminator. PanicIndex has args: the index, of any integer type, and
-	// the I64 length it is out of range of; the others have none.
+	// Panic ends the program with the run-time error Index, one of the
+	// Panic constants: the message and exit status 2. It is a terminator.
+	// PanicIndex and the slice bounds errors (IsBounds) have args: x, of any
+	// integer type, and y, an I64 (BoundsMessage); the others have none.
 	Panic
 	// Conv produces args[0], of any integer type, converted to the
 	// instruction's integer type: the canonical form of its value reduced
@@ -304,6 +304,12 @@ const (
 	// I64 (D-035). Precondition: the result lies in the same object or just
 	// past its end.
 	PAdd
+	// Move copies args[2] bytes, an I64, from the Ptr args[1] to the Ptr
+	// args[0], as if through a temporary, so the ranges may overlap
+	// (D-036). It produces no value; it is an effect, a call of the
+	// runtime. Precondition: args[2] is 0, or each range lies in one object
+	// and every byte of the source range has been written.
+	Move
 )
 
 var opNames = [...]string{
@@ -317,7 +323,7 @@ var opNames = [...]string{
 	FAdd: "fadd", FSub: "fsub", FMul: "fmul", FDiv: "fdiv", FNeg: "fneg",
 	FEq: "feq", FNe: "fne", FLt: "flt", FLe: "fle", FGt: "fgt", FGe: "fge",
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
-	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd",
+	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd", Move: "move",
 }
 
 func (op Op) String() string {
@@ -336,26 +342,74 @@ const (
 	PanicShift
 	PanicIndex
 	PanicNil
+	// The slice bounds errors (D-036), one per format of gc's
+	// runtime/error.go: x is the bound out of range, y what it is compared
+	// with.
+	PanicSliceAlen  // s[:x] with x above the length y (of an array)
+	PanicSliceAcap  // s[:x] with x above the capacity y
+	PanicSliceB     // s[x:y] with x above y
+	PanicSlice3Alen // s[::x] with x above the length y (of an array)
+	PanicSlice3Acap // s[::x] with x above the capacity y
+	PanicSlice3B    // s[:x:y] with x above y
+	PanicSlice3C    // s[x:y:] with x above y
+	PanicMakeLen    // make with a length out of range
+	PanicMakeCap    // make with a capacity out of range
+	PanicGrowLen    // append beyond the largest int
 )
 
 // PanicMessages are the run-time errors' messages, as gc prints them after
 // "panic: runtime error: ".
-// PanicIndex's message is followed by the index and length, as IndexMessage
-// formats them.
+// The messages of PanicIndex and the slice bounds errors are completed by
+// their operands, as BoundsMessage formats them.
 var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShift: "negative shift amount", PanicIndex: "index out of range",
-	PanicNil: "invalid memory address or nil pointer dereference"}
+	PanicNil:       "invalid memory address or nil pointer dereference",
+	PanicSliceAlen: "slice bounds out of range", PanicSliceAcap: "slice bounds out of range", PanicSliceB: "slice bounds out of range",
+	PanicSlice3Alen: "slice bounds out of range", PanicSlice3Acap: "slice bounds out of range", PanicSlice3B: "slice bounds out of range",
+	PanicSlice3C: "slice bounds out of range",
+	PanicMakeLen: "makeslice: len out of range", PanicMakeCap: "makeslice: cap out of range", PanicGrowLen: "growslice: len out of range"}
+
+// IsBounds reports whether the run-time error kind has operands: it is
+// PanicIndex or a slice bounds error.
+func IsBounds(kind int) bool {
+	return kind == PanicIndex || kind >= PanicSliceAlen && kind <= PanicSlice3C
+}
+
+// boundsFormats are, for each run-time error with operands, the text before
+// x, between x and y, and after y, and the text after a negative signed x,
+// which replaces the rest (gc's runtime/error.go, go1.26.1, D-036).
+var boundsFormats = map[int][4]string{
+	PanicIndex:      {"[", "] with length ", "", "]"},
+	PanicSliceAlen:  {"[:", "] with length ", "", "]"},
+	PanicSliceAcap:  {"[:", "] with capacity ", "", "]"},
+	PanicSliceB:     {"[", ":", "]", ":]"},
+	PanicSlice3Alen: {"[::", "] with length ", "", "]"},
+	PanicSlice3Acap: {"[::", "] with capacity ", "", "]"},
+	PanicSlice3B:    {"[:", ":", "]", ":]"},
+	PanicSlice3C:    {"[", ":", ":]", "::]"},
+}
+
+// BoundsMessage is the message of PanicIndex or a slice bounds error kind,
+// with x, of a signed type if signed, and y, as gc writes it: a negative x
+// has no y.
+func BoundsMessage(kind int, x int64, signed bool, y int64) string {
+	f := boundsFormats[kind]
+	msg := PanicMessages[kind] + " " + f[0]
+	switch {
+	case signed && x < 0:
+		return msg + fmt.Sprint(x) + f[3]
+	case signed:
+		msg += fmt.Sprint(x)
+	default:
+		msg += fmt.Sprint(uint64(x))
+	}
+	return msg + f[1] + fmt.Sprint(y) + f[2]
+}
 
 // IndexMessage is PanicIndex's message for index i, of a signed type if
 // signed, and length n, as gc writes it (go1.26.1, D-033): a negative index
 // has no length.
 func IndexMessage(i int64, signed bool, n int64) string {
-	if signed && i < 0 {
-		return fmt.Sprintf("index out of range [%d]", i)
-	}
-	if signed {
-		return fmt.Sprintf("index out of range [%d] with length %d", i, n)
-	}
-	return fmt.Sprintf("index out of range [%d] with length %d", uint64(i), n)
+	return BoundsMessage(PanicIndex, i, signed, n)
 }
 
 // IsComparison reports whether op is one of Eq through Ge, the integer
@@ -692,6 +746,11 @@ func (f *Func) Alloc(b *Block, n *Instr, pos Pos) *Instr {
 // PAdd appends p plus i bytes.
 func (f *Func) PAdd(b *Block, p, i *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: PAdd, Type: Ptr, Args: []*Instr{p, i}, Pos: pos})
+}
+
+// Move appends a move of n bytes from src to dst.
+func (f *Func) Move(b *Block, dst, src, n *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Move, Args: []*Instr{dst, src, n}, Pos: pos})
 }
 
 // StM appends the store of v at offset off of the memory object at p.
