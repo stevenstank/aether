@@ -419,8 +419,12 @@ func preferences(f *ir.Func, regs map[*ir.Instr]int) func(v *ir.Instr) []int {
 			vote(argReg(i), 2)
 		}
 		switch v.Op {
-		case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor, ir.AndNot, ir.Neg, ir.Com, ir.Conv, ir.Shl, ir.Shr, ir.Not:
+		case ir.Add, ir.Sub, ir.Mul, ir.And, ir.Or, ir.Xor, ir.Neg, ir.Com, ir.Conv, ir.Shl, ir.Shr, ir.Not:
 			add(v.Args[0], 2)
+		case ir.AndNot:
+			// In y's register, x &^ y is notq and andq; in x's, or any
+			// other, y must first be copied (binaryInPlace).
+			add(v.Args[1], 2)
 		}
 		slices.SortStableFunc(out, func(x, y int) int { return votes[y] - votes[x] })
 		return out

@@ -272,6 +272,34 @@ hand and reverted, against `TestDifferentialAgainstGc`: a whole variable read
 without a copy (11 of its 200 generated programs and 2 corpus programs fail)
 and a bounds check off by one (3 generated programs and 1 corpus program).
 
+Since Phase 7 increment 7.1, a fifth random stream (`gen_ptr_test.go`)
+declares a list node type `PN`, a function `pinc` that writes through its
+pointer parameter and returns the address of its other one, a global list,
+and up to two pointer globals. Statements on pointers, at most `maxPtrStmts`
+(30) per program, declare pointers from `&x` of a variable, field, or
+element, `new(T)`, `&T{…}`, `nil`, or another pointer; reassign and swap
+them; read and write through them with `op=`, `++`, `--`, and implicit
+indirection in selectors and indices; compare them and switch on them; call
+`pinc` alone in its statement (V-4); take a pointer to a pointer; write
+through a pointer to a variable and then read the variable directly
+(aliasing); and push onto, walk, copy, and compare nodes of the list, some
+literals eliding `&PN`. Accesses are usually under a nil test and otherwise
+may panic. No loop counter's address is taken (`loop-variable-address`). On
+2026-11-15, of seeds 1001 to 3000, 1,171 were valid, 892 of them with pointer
+statements in `main`; 157 of those panic, only 8 with a nil dereference. All
+892 gave gc's output in the interpreter, `aether build`, and `-O0`. The
+generated programs found two problems, both fixed with regression tests:
+the gate's frame bound did not count the temporary of a composite literal or
+call that is indexed or selected from, as in `[2]int{1, 2}[i]` or `f()[1]`
+(a gap since increment 6.3; `TestFrameBound`), and register coalescing put
+`x &^ y` in x's register, which needs one more instruction than y's
+(`TestCoalesceAndNot`, `TestCoalesceNoLarger`). Negative
+controls in lowering, run by hand and reverted, against
+`TestDifferentialAgainstGc`: `&` ignoring a field's offset (1 generated
+program and 2 corpus programs fail), no nil checks (1 generated, 5 corpus),
+and an address-taken parameter not copied to the heap (3 generated, 1
+corpus).
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

@@ -341,7 +341,7 @@ const maxFrameObjects = 1 << 29
 // each other expression of array or struct type evaluated as a whole value,
 // which is copied into a temporary. A variable, field, or element that is
 // assigned, selected from, indexed, or whose address is taken is used in
-// place, a literal whose address is taken is on the heap, and the operand of
+// place, but a literal or call selected from or indexed is not, a literal whose address is taken is on the heap, and the operand of
 // a constant len is not evaluated. Each object may need up to 8 more bytes
 // for its alignment.
 func (c *checker) frameBytes(n ast.Node) int64 {
@@ -355,9 +355,9 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 	ast.Inspect(n, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
-			inPlace[n.X] = true
+			inPlace[n.X] = addressed(n.X)
 		case *ast.IndexExpr:
-			inPlace[n.X] = true
+			inPlace[n.X] = addressed(n.X)
 		case *ast.ParenExpr:
 			inPlace[n.X] = inPlace[n]
 		case *ast.AssignStmt:
@@ -417,6 +417,17 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 		return true
 	})
 	return total
+}
+
+// addressed reports whether lowering uses x, the operand of a selector or
+// index expression, in place: not if it is a composite literal or a call,
+// whose value it evaluates into a temporary.
+func addressed(x ast.Expr) bool {
+	switch ast.Unparen(x).(type) {
+	case *ast.CompositeLit, *ast.CallExpr:
+		return false
+	}
+	return true
 }
 
 // FrameBytes is the bound frameBytes for the code n of pkg, a package Check

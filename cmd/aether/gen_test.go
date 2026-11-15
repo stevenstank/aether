@@ -36,8 +36,9 @@ import (
 // integer ones. Their choices come from a second random stream, so the rest
 // of the program is what the same seed generated before. Since increment
 // 6.2, string statements (stringStmt) and globals are added the same way,
-// from a third stream, and since increment 6.3 array and struct types,
-// functions, globals, and statements (gen_agg_test.go) from a fourth.
+// from a third stream, since increment 6.3 array and struct types,
+// functions, globals, and statements (gen_agg_test.go) from a fourth, and
+// since Phase 7 increment 7.1 pointers (gen_ptr_test.go) from a fifth.
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -46,7 +47,7 @@ import (
 // assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
 	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7)), s: rand.New(rand.NewPCG(seed, 0x57217)),
-		a: rand.New(rand.NewPCG(seed, 0xa66))}
+		a: rand.New(rand.NewPCG(seed, 0xa66)), p: rand.New(rand.NewPCG(seed, 0x9017))}
 	g.line(0, "package main")
 	g.line(0, "")
 	// The package scope. Each declaration may use the ones generated
@@ -70,6 +71,7 @@ func generate(seed uint64) string {
 	g.floatGlobals()
 	g.stringGlobals()
 	g.aggDecls()
+	g.ptrDecls()
 	g.line(0, "func main() {")
 	// Float variables that are never constant: zeros, for the special
 	// values of division, and nonzero values.
@@ -102,26 +104,31 @@ const (
 	floatVar              // a float64 or float32 variable, which only floatStmt uses
 	strVar                // a string variable, which only stringStmt uses
 	aggVar                // an array or struct variable, which only aggStmt uses
+	ptrVar                // a pointer variable, which only ptrStmt uses
 )
 
 // entry is a declared name: what it denotes and, for a variable, its type.
 type entry struct {
 	k kind
-	t string // "bool" or an integer type name; "int" for a counter; an aggVar's type name
+	t string // "bool" or an integer type name; "int" for a counter; an aggVar's type name; "*" and a ptrVar's pointee's
 }
 
 func (e entry) isVar() bool {
-	return e.k == variable || e.k == counter || e.k == floatVar || e.k == strVar || e.k == aggVar
+	return e.k == variable || e.k == counter || e.k == floatVar || e.k == strVar || e.k == aggVar || e.k == ptrVar
 }
 
-// uses returns expressions that use the variables names: each itself, or
-// for an array or struct one of its scalars (aggUse).
+// uses returns expressions that use the variables names: each itself, for
+// an array or struct one of its scalars (aggUse), or for a pointer, which
+// the gate does not print, a comparison with nil.
 func (g *generator) uses(names []string) []string {
 	out := make([]string, len(names))
 	for i, name := range names {
 		out[i] = name
-		if e, _ := g.lookup(name); e.k == aggVar {
+		switch e, _ := g.lookup(name); e.k {
+		case aggVar:
 			out[i] = g.aggUse(name, g.typeOf(e.t))
+		case ptrVar:
+			out[i] = name + " != nil"
 		}
 	}
 	return out
@@ -171,6 +178,9 @@ type generator struct {
 	a        *rand.Rand // the array and struct choices
 	anames   int
 	aggStmts int
+	p        *rand.Rand // the pointer choices
+	pnames   int
+	ptrStmts int
 	aggTypes []*gtype
 	b        strings.Builder
 	scopes   []map[string]entry
@@ -262,7 +272,7 @@ func (g *generator) pick(list []string) string { return list[g.r.IntN(len(list))
 // newName returns a name not declared in the current scope: usually a fresh
 // one, sometimes one from an outer scope, which the declaration shadows.
 func (g *generator) newName(taken []string) string {
-	if outer := g.visible(func(e entry) bool { return e.k != floatVar && e.k != strVar && e.k != aggVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
+	if outer := g.visible(func(e entry) bool { return e.k != floatVar && e.k != strVar && e.k != aggVar && e.k != ptrVar }); len(outer) > 0 && g.r.IntN(4) == 0 {
 		name := g.pick(outer)
 		if _, inScope := g.scopes[len(g.scopes)-1][name]; !inScope && !contains(taken, name) {
 			return name
@@ -338,6 +348,10 @@ func (g *generator) stmt(depth int) {
 	if g.a.IntN(5) == 0 && g.aggStmts < maxAggStmts {
 		g.aggStmts++
 		g.aggStmt(depth)
+	}
+	if g.p.IntN(5) == 0 && g.ptrStmts < maxPtrStmts {
+		g.ptrStmts++
+		g.ptrStmt(depth)
 	}
 	assignable := g.visible(func(e entry) bool { return e.k == variable })
 	ints := g.visible(func(e entry) bool { return e.k == variable && e.t != "bool" })

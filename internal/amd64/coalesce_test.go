@@ -110,6 +110,41 @@ func TestCoalesce(t *testing.T) {
 	}
 }
 
+// TestCoalesceAndNot checks that x &^ y, with both operands dying there,
+// takes y's register, where it needs no copy of y, and that coalescing
+// does not lengthen it, as it did when it preferred x's register.
+func TestCoalesceAndNot(t *testing.T) {
+	p, f := raFunc(2)
+	b := f.Entry()
+	p0, p1v := f.Param(b, 0, p1), f.Param(b, 1, p1)
+	x := f.Binary(b, ir.Add, p0, f.Const(b, 1, p1), p1)
+	y := f.Binary(b, ir.Add, p1v, f.Const(b, 2, p1), p1)
+	r := f.Binary(b, ir.AndNot, x, y, p1)
+	f.Ret(b, p1, r)
+	p.Funcs[0].Ret(p.Funcs[0].Entry(), p1)
+	regs, err := allocateExcept(f, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkAllocation(f, regs); err != nil {
+		t.Fatal(err)
+	}
+	if regs[r] != regs[y] {
+		t.Errorf("x &^ y in %s, y in %s:\n%s", allocRegs[regs[r]], allocRegs[regs[y]], describe(f, regs))
+	}
+	count := func(opts EmitOptions) int {
+		asm, err := EmitWith(p, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := asm[bytes.Index(asm, []byte("main.f:")):]
+		return bytes.Count(body[:bytes.Index(body, []byte("\t.size"))], []byte("\n\t"))
+	}
+	if with, without := count(coalesceOptions), count(plainOptions); with > without {
+		t.Errorf("%d lines of code with coalescing, %d without", with, without)
+	}
+}
+
 // TestCoalesceRefuses checks preferences that a free register cannot meet: a
 // preference never puts two interfering values in one register.
 func TestCoalesceRefuses(t *testing.T) {

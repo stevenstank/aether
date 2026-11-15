@@ -36,6 +36,18 @@ func TestFrameBound(t *testing.T) {
 		}
 		progs = append(progs, program{path, src})
 	}
+	// Operands of an index or selector that lowering evaluates into a
+	// temporary rather than using in place: a literal, a call's result,
+	// and a conversion.
+	for i, body := range []string{
+		"i := 1; println([2]int{1, 2}[i], [3]int8{}[2])",
+		"println(f()[1], f()[0])",
+		"q := Q{1}; println(P(q).x, P{2}.x)",
+		"println([2]*P{{1}, nil}[0].x)",
+	} {
+		src := "package main\n\ntype P struct{ x int }\n\ntype Q struct{ x int }\n\nfunc f() [2]int { return [2]int{3, 4} }\n\nfunc main() {\n" + body + "\n}\n"
+		progs = append(progs, program{fmt.Sprintf("operand%d.go", i), []byte(src)})
+	}
 	for seed := uint64(1); seed <= 400; seed++ {
 		progs = append(progs, program{fmt.Sprintf("gen%04d.go", seed), []byte(generate(seed))})
 	}

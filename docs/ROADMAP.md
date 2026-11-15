@@ -812,9 +812,11 @@ repeated in each phase below:
     `*p`, auto-dereference, nil checks, address-taken variables on the heap,
     and the corpus programs `s3_p01` to `s3_p08`, checked against gc by
     `TestDifferentialAgainstGc`.
-  - Not yet done: pointers in the program generator, so `FuzzGenerated` and
-    the 200 generated programs do not exercise them; memory growth of the
-    allocator is not yet documented with measurements.
+  - Pointers in the program generator (`gen_ptr_test.go`, `TESTING.md`), so
+    `FuzzGenerated` and the 200 generated programs exercise them; checked
+    against gc on 892 programs with pointers on 2026-11-15.
+  - Not yet done: memory growth of the allocator is not yet documented with
+    measurements.
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 
