@@ -84,6 +84,14 @@ func envRuns(t *testing.T, name string, def int) int {
 }
 
 func TestBenchAgg(t *testing.T) {
+	benchSuite(t, "bench_agg", "agg", []string{"addr", "ldm", "stm"})
+}
+
+// benchSuite measures the workloads of testdata/dir as TestBenchAgg
+// describes, writing prefix_compile.tsv and the other reports, and
+// profiles the share of the executed instructions that come from the IR
+// operations ops.
+func benchSuite(t *testing.T, dir, prefix string, ops []string) {
 	out := benchOut(t)
 	gobin, err := exec.LookPath("go")
 	if err != nil {
@@ -95,7 +103,7 @@ func TestBenchAgg(t *testing.T) {
 	if o, err := exec.Command(gobin, "build", "-o", aether, ".").CombinedOutput(); err != nil {
 		t.Fatalf("building aether: %v\n%s", err, o)
 	}
-	ws := aggWorkloads(t)
+	ws := workloadsIn(t, dir)
 
 	// Builds: each command once to warm caches, then compileRuns timed.
 	var comp strings.Builder
@@ -141,7 +149,7 @@ func TestBenchAgg(t *testing.T) {
 			}
 		}
 	}
-	writeReport(t, out, "agg_compile.tsv", comp.String())
+	writeReport(t, out, prefix+"_compile.tsv", comp.String())
 
 	// Executions, round-robin, after one discarded warm-up run each.
 	var raw strings.Builder
@@ -164,17 +172,21 @@ func TestBenchAgg(t *testing.T) {
 			}
 		}
 	}
-	writeReport(t, out, "agg_times.tsv", raw.String())
+	writeReport(t, out, prefix+"_times.tsv", raw.String())
 
 	// Where aether build's executed instructions come from: the IR
-	// operations of memory objects (addr, ldm, stm) against the rest.
+	// operations ops (for aggregates, those of memory objects: addr,
+	// ldm, stm) against the rest.
 	var prof strings.Builder
-	prof.WriteString("workload\tdyn instrs\taddr+ldm+stm\tshare\tdata memory operands\ttop ops\n")
+	prof.WriteString("workload\tdyn instrs\t" + strings.Join(ops, "+") + "\tshare\tdata memory operands\ttop ops\n")
 	for _, w := range ws {
 		exe := filepath.Join(out, w.name+".prof")
 		prog, asm := benchEmit(t, w.name+".go", w.src, "copy")
 		d, _, _ := profile(t, prog, asm, exe, w.want)
-		mem := d.byOp["addr"] + d.byOp["ldm"] + d.byOp["stm"]
+		var mem int64
+		for _, op := range ops {
+			mem += d.byOp[op]
+		}
 		type opCount struct {
 			op string
 			n  int64
@@ -191,7 +203,7 @@ func TestBenchAgg(t *testing.T) {
 		fmt.Fprintf(&prof, "%s\t%d\t%d\t%s\t%d\t%s\n", w.name, d.instrs, mem, pct(mem, d.instrs),
 			d.loads[mData]+d.stores[mData], strings.Join(top, ", "))
 	}
-	writeReport(t, out, "agg_profile.tsv", prof.String())
+	writeReport(t, out, prefix+"_profile.tsv", prof.String())
 
 	var sum strings.Builder
 	sum.WriteString("workload\tvariant\tn\tcpu median ms\tcpu IQR\tcpu min-max\twall median ms\tbuild median ms\n")
@@ -214,5 +226,5 @@ func TestBenchAgg(t *testing.T) {
 		}
 		fmt.Fprintf(&sum, "%s\t%.2f\t%.2f\t%.2f\n", w.name, m("aether")/m("gc"), m("O0")/m("gc"), m("O0")/m("aether"))
 	}
-	writeReport(t, out, "agg_summary.tsv", sum.String())
+	writeReport(t, out, prefix+"_summary.tsv", sum.String())
 }

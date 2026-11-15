@@ -1,0 +1,6 @@
+workload	dyn instrs	alloc+move+ldm+stm	share	data memory operands	top ops
+c01_make_small	19800018	2700000	13.6%	1500000	rem 36.4%, branch 15.2%, add 12.1%, mul 7.6%, jump 6.1%
+c02_append_grow	216003146	16001384	7.4%	8000008	jump 25.9%, branch 25.9%, add 25.9%, xor 11.1%, stm 7.4%
+c03_append_within	1000001306	80000083	8.0%	40000040	add 40.0%, jump 24.0%, branch 24.0%, stm 8.0%, mul 4.0%
+c04_index	2710998325	400999603	14.8%	400999600	branch 33.4%, mul 14.8%, add 11.1%, conv 11.1%, ldm 11.1%
+c05_copy_overlap	1212444	204812	16.9%	100003	branch 41.3%, jump 16.6%, stm 16.5%, add 8.5%, conv 8.2%

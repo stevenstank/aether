@@ -272,6 +272,30 @@ hand and reverted, against `TestDifferentialAgainstGc`: a whole variable read
 without a copy (11 of its 200 generated programs and 2 corpus programs fail)
 and a bounds check off by one (3 generated programs and 1 corpus program).
 
+Since Phase 7 increment 7.2, `generateSlices` (`gen_slice_test.go`) writes
+programs of its own, from a sixth random stream, so that `generate`'s are
+unchanged; `TestDifferentialAgainstGc` runs 100 of them, `TestFrameBound`
+100, and `FuzzGenerated` the one of each seed. Their `main` is straight-line
+code over slices of six element types (one zero-size), with a global slice
+and array, a slice in a struct, and functions that sum, fill, and grow: nil,
+empty, literal, and made slices; two- and three-index slices of slices,
+arrays, and pointers to arrays; element writes; appends of values and of
+slices, within and beyond the capacity; copies, also within one array; and
+prints. The generator models every length and capacity and which slices share
+an array, so it keeps every index and bound in range; one program in five
+ends with a deliberate panic: an index, a slice bound, `makeslice`, a nil
+pointer to an array, or `growslice`. A capacity after a growing append
+differs between gc and Aether (V-6): it is never printed, and such a slice
+is appended to only when nothing shares its array, so differential results
+never depend on it. Aether's own rule is tested apart, against a model of
+D-036, by `TestAppendGrowthRule`. On 2026-11-15, slice programs of seeds 1001
+to 2000 all gave gc's output in the interpreter, `aether build`, and `-O0`;
+187 of them panic (52 index, 45 slice bounds, 34 and 29 `makeslice` length
+and capacity, 15 nil pointer, 12 `growslice`). Negative controls in lowering,
+run by hand and reverted: an `append` that always grows fails 15 of the 100
+slice programs (and `s3_l01`), a `copy` of the longer length 58, and a
+minimum capacity of 8 `TestAppendGrowthRule`.
+
 Since Phase 7 increment 7.1, a fifth random stream (`gen_ptr_test.go`)
 declares a list node type `PN`, a function `pinc` that writes through its
 pointer parameter and returns the address of its other one, a global list,

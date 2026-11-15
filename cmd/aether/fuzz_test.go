@@ -36,10 +36,18 @@ func FuzzCheck(f *testing.F) {
 // to SSA form, which must give the same interpreter results
 // (checkPromotion). Since experiment RA-0 (D-026), the promoted program is
 // also emitted with registers, which checks every allocation, and run
-// natively when it finishes (checkRegistersGenerated).
+// natively when it finishes (checkRegistersGenerated). Since Phase 7
+// increment 7.2, each seed's slice program goes through the same checks.
 func FuzzGenerated(f *testing.F) {
 	f.Add(uint64(1))
 	f.Fuzz(func(t *testing.T, seed uint64) {
+		// The slice program of the seed (gen_slice_test.go), which is
+		// never invalid.
+		slices := []byte(generateSlices(seed))
+		if ds := compileAndRun(t, slices); len(ds) > 0 {
+			t.Fatalf("slice program rejected: %s\n%s", ds[0], slices)
+		}
+		checkRegistersGenerated(t, slices, checkPromotion(t, "gen.go", slices, 1_000_000, &promoteStats{}))
 		src := []byte(generate(seed))
 		ds := compileAndRun(t, src)
 		if len(ds) > 0 {

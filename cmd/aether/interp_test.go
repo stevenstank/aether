@@ -98,6 +98,10 @@ func gcBuild(t *testing.T, gobin string, progs map[string][]byte) string {
 // requires gc and the interpreter to agree on.
 const generatedPrograms = 200
 
+// generatedSlicePrograms is how many slice programs (generateSlices) the
+// differential test runs besides them.
+const generatedSlicePrograms = 100
+
 // TestDifferentialAgainstGc is the three-way differential test (Phases 2
 // and 3): for every corpus program expected to run and for generated S1
 // programs, the stdout, stderr, and exit status of the interpreter and of the
@@ -142,8 +146,12 @@ func TestDifferentialAgainstGc(t *testing.T) {
 		}
 		progs[fmt.Sprintf("gen%04d", seed)] = src
 	}
-	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant)",
-		corpusRun, generatedPrograms, len(rejected))
+	// Slice programs (gen_slice_test.go), which are never invalid.
+	for seed := uint64(1); seed <= generatedSlicePrograms; seed++ {
+		progs[fmt.Sprintf("slc%04d", seed)] = []byte(generateSlices(seed))
+	}
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs",
+		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms)
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)

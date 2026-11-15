@@ -824,8 +824,11 @@ repeated in each phase below:
     backend, and runtime (D-036).
   - Gate and lowering (`SEMANTICS.md` §Slices), with the corpus programs
     `s3_l01` to `s3_l08`, checked against gc by `TestDifferentialAgainstGc`.
-  - Not yet done: slices in the program generator, so `FuzzGenerated` and
-    the 200 generated programs do not exercise them.
+  - Slice programs from their own generator (`gen_slice_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and one per
+    `FuzzGenerated` seed; Aether's growth rule tested apart
+    (`TestAppendGrowthRule`); benchmarks in
+    `docs/benchmarks/2026-11-15-slices/README.md`.
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 
