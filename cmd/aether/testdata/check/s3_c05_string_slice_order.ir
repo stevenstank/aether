@@ -1,0 +1,134 @@
+string s0 "bound"
+string s1 "abcdef"
+
+func at(i64) i64 @testdata/check/s3_c05_string_slice_order.go:7:6
+  slot s0 i i64 @7:9
+b0:
+  v0 = param 0 @7:9
+  store s0, v0 @7:9
+  v1 = str s0 @8:10
+  v2 = const 5 @8:10
+  v3 = load s0 @8:19
+  println v1, v2, v3 @8:2
+  v4 = load s0 @9:9
+  ret v4 @9:2
+
+func main @testdata/check/s3_c05_string_slice_order.go:12:6
+  slot s0 s ptr @13:2
+  slot s1 s i64 @13:2
+  slot s2 tmp ptr @14:11
+  slot s3 tmp i64 @14:11
+  slot s4 tmp i64 @14:11
+  slot s5 tmp i64 @14:11
+  slot s6 tmp ptr @14:11
+  slot s7 tmp ptr @15:11
+  slot s8 tmp i64 @15:11
+  slot s9 tmp i64 @15:11
+  slot s10 tmp i64 @15:11
+  slot s11 tmp ptr @15:11
+b0:
+  v0 = str s1 @13:7
+  v1 = const 6 @13:7
+  store s0, v0 @13:2
+  store s1, v1 @13:2
+  v2 = load s0 @14:10
+  v3 = load s1 @14:10
+  store s2, v2 @14:11
+  store s3, v3 @14:11
+  v4 = const 1 @14:15
+  v5 = call at, v4 @14:12
+  store s4, v5 @14:11
+  v6 = const 4 @14:21
+  v7 = call at, v6 @14:18
+  store s5, v7 @14:11
+  v8 = conv u64, v7 @14:11
+  v9 = conv u64, v3 @14:11
+  v10 = gt v8, v9 @14:11
+  branch v10, b1, b2 @14:11
+b1:
+  v11 = load s5 @14:11
+  v12 = load s3 @14:11
+  panic slicealen, v11, v12 @14:11
+b2:
+  v13 = load s4 @14:11
+  v14 = conv u64, v13 @14:11
+  v15 = load s5 @14:11
+  v16 = conv u64, v15 @14:11
+  v17 = gt v14, v16 @14:11
+  branch v17, b3, b4 @14:11
+b3:
+  v18 = load s4 @14:11
+  v19 = load s5 @14:11
+  panic sliceb, v18, v19 @14:11
+b4:
+  v20 = load s2 @14:11
+  store s6, v20 @14:11
+  v21 = load s4 @14:11
+  v22 = const 0 @14:11
+  v23 = ne v21, v22 @14:11
+  branch v23, b5, b6 @14:11
+b5:
+  v24 = load s2 @14:11
+  v25 = load s4 @14:11
+  v26 = const 1 @14:11
+  v27 = mul v25, v26 @14:11
+  v28 = padd v24, v27 @14:11
+  store s6, v28 @14:11
+  jump b6 @14:11
+b6:
+  v29 = load s6 @14:11
+  v30 = load s5 @14:11
+  v31 = load s4 @14:11
+  v32 = sub v30, v31 @14:11
+  println v29, v32 @14:2
+  v33 = load s0 @15:10
+  v34 = load s1 @15:10
+  store s7, v33 @15:11
+  store s8, v34 @15:11
+  v35 = const 4 @15:15
+  v36 = call at, v35 @15:12
+  store s9, v36 @15:11
+  v37 = const 2 @15:21
+  v38 = call at, v37 @15:18
+  store s10, v38 @15:11
+  v39 = conv u64, v38 @15:11
+  v40 = conv u64, v34 @15:11
+  v41 = gt v39, v40 @15:11
+  branch v41, b7, b8 @15:11
+b7:
+  v42 = load s10 @15:11
+  v43 = load s8 @15:11
+  panic slicealen, v42, v43 @15:11
+b8:
+  v44 = load s9 @15:11
+  v45 = conv u64, v44 @15:11
+  v46 = load s10 @15:11
+  v47 = conv u64, v46 @15:11
+  v48 = gt v45, v47 @15:11
+  branch v48, b9, b10 @15:11
+b9:
+  v49 = load s9 @15:11
+  v50 = load s10 @15:11
+  panic sliceb, v49, v50 @15:11
+b10:
+  v51 = load s7 @15:11
+  store s11, v51 @15:11
+  v52 = load s9 @15:11
+  v53 = const 0 @15:11
+  v54 = ne v52, v53 @15:11
+  branch v54, b11, b12 @15:11
+b11:
+  v55 = load s7 @15:11
+  v56 = load s9 @15:11
+  v57 = const 1 @15:11
+  v58 = mul v56, v57 @15:11
+  v59 = padd v55, v58 @15:11
+  store s11, v59 @15:11
+  jump b12 @15:11
+b12:
+  v60 = load s11 @15:11
+  v61 = load s10 @15:11
+  v62 = load s9 @15:11
+  v63 = sub v61, v62 @15:11
+  println v60, v63 @15:2
+  ret @16:1

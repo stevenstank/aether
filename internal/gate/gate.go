@@ -63,7 +63,6 @@ const (
 	FeatPredeclared   = "predeclared-identifier"
 	FeatImagLit       = "imaginary-literal"
 	FeatRuneLit       = "rune-literal"
-	FeatStringConcat  = "string-concatenation"
 	FeatStringCompare = "string-comparison"
 	FeatFuncLit       = "function-literal"
 	FeatCompositeLit  = "composite-literal"
@@ -199,7 +198,7 @@ func init() {
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
-		FeatRuneLit, FeatStringConcat, FeatStringCompare, FeatFuncLit, FeatCompositeLit,
+		FeatRuneLit, FeatStringCompare, FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
 		FeatLoopVarAddr,
@@ -780,10 +779,8 @@ func (c *checker) assign(s *ast.AssignStmt) {
 		}
 	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN,
 		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
-		if c.isString(s.Lhs[0]) {
-			c.reject(s, FeatStringConcat, "string concatenation "+s.Tok.String())
-			return
-		}
+		// += of a string concatenates (D-037); go/types allows no other
+		// operator on strings.
 		c.target(s.Lhs[0])
 	default:
 		c.reject(s, featOperatorPrefix+"other", "compound assignment "+s.Tok.String())
@@ -958,14 +955,18 @@ func (c *checker) call(call *ast.CallExpr) bool {
 	if tv, ok := c.info.Types[call.Fun]; ok && tv.IsType() {
 		// go/types has checked that the conversion is valid, so a
 		// supported target type other than string has a numeric or bool
-		// operand. A conversion to string may create bytes (D-033).
-		if isString(tv.Type) {
+		// operand. A string converts to and from a string and a []byte
+		// (D-037), not yet to or from an integer or a []rune.
+		at := c.info.Types[call.Args[0]]
+		switch {
+		case isString(tv.Type) && (isString(at.Type) || isByteSlice(at.Type)),
+			isByteSlice(tv.Type) && isString(at.Type):
+		case isString(tv.Type) || isString(at.Type):
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
-		}
-		// A slice converts only to a slice type (D-036): not from a
-		// string, and not to an array or a pointer to one.
-		if at, ok := c.info.Types[call.Args[0]]; ok && isSlice(tv.Type) != isSlice(at.Type) && !at.IsNil() {
+		case isSlice(tv.Type) != isSlice(at.Type) && !at.IsNil():
+			// A slice converts only to a slice type (D-036): not to an
+			// array or a pointer to one.
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
 		}
@@ -1093,14 +1094,9 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.X)
 		}
 	case *ast.BinaryExpr:
-		// Strings have no operators in the subset (D-033): concatenation
-		// creates bytes, and comparison needs the runtime to compare them.
-		if c.isString(e.X) {
-			if e.Op == token.ADD {
-				c.reject(e, FeatStringConcat, "string concatenation")
-			} else {
-				c.reject(e, FeatStringCompare, "string comparison "+e.Op.String())
-			}
+		// Strings concatenate (D-037) but do not compare yet.
+		if c.isString(e.X) && e.Op != token.ADD {
+			c.reject(e, FeatStringCompare, "string comparison "+e.Op.String())
 			return
 		}
 		// Arrays and structs compare with == and != (go/types allows no
@@ -1164,10 +1160,10 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.IndexListExpr:
 		c.reject(e, FeatIndex, "index expression")
 	case *ast.SliceExpr:
-		// Of a slice, an addressable array, or a pointer to an array; not
-		// of a string (D-036).
+		// Of a slice, a string (D-037), an addressable array, or a pointer
+		// to an array.
 		switch {
-		case c.isSlice(e.X) || c.isArrayPtr(e.X):
+		case c.isSlice(e.X) || c.isString(e.X) || c.isArrayPtr(e.X):
 			c.expr(e.X)
 		case c.isArray(e.X):
 			c.address(e.X)
@@ -1415,8 +1411,9 @@ func (c *checker) sliceBuiltin(call *ast.CallExpr, name string) bool {
 			return true // reported
 		}
 		args = args[1:]
-	case name == "append" && len(args) >= 1 && c.isSlice(args[0]) && (!call.Ellipsis.IsValid() || c.isSlice(args[1])):
-	case name == "copy" && len(args) == 2 && c.isSlice(args[0]) && c.isSlice(args[1]):
+	// go/types allows a string's bytes only where the slice is a []byte.
+	case name == "append" && len(args) >= 1 && c.isSlice(args[0]) && (!call.Ellipsis.IsValid() || c.isSlice(args[1]) || c.isString(args[1])):
+	case name == "copy" && len(args) == 2 && c.isSlice(args[0]) && (c.isSlice(args[1]) || c.isString(args[1])):
 	default:
 		return false
 	}
@@ -1451,6 +1448,16 @@ func holdsString(t types.Type) bool {
 		}
 	}
 	return false
+}
+
+// isByteSlice reports whether t is a slice of bytes.
+func isByteSlice(t types.Type) bool {
+	s, ok := t.Underlying().(*types.Slice)
+	if !ok {
+		return false
+	}
+	b, ok := s.Elem().Underlying().(*types.Basic)
+	return ok && b.Kind() == types.Uint8
 }
 
 // isString reports whether t is string or untyped string.

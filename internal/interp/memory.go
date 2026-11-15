@@ -18,9 +18,8 @@ const HeapLimit = 1 << 36
 
 // offBits is the width of the offset in a Ptr into an object: a Ptr is the
 // object's number times 2^offBits plus the offset (D-035). Objects are
-// numbered from 1, so every such Ptr lies above the string Ptrs, which are
-// string indices plus 1, and an object holds at most ir.MaxMemSize bytes,
-// below 2^offBits.
+// numbered from 1, so 0 is never one, and an object holds at most
+// ir.MaxMemSize bytes, below 2^offBits.
 const offBits = 31
 
 // memory holds the memory objects of a run (D-034, D-035), by number. Each
@@ -31,14 +30,16 @@ type memory struct {
 	objs     map[int64]*object
 	next     int64   // the number of the next object
 	globals  []int64 // the Ptr of each global memory object
+	strs     []int64 // the Ptr of each program string, a read-only object (D-037)
 	live     int64   // the bytes of the local objects in existence
 	heap     int64   // the bytes of the heap objects, each rounded up to 8
 	zerobase int64   // the Ptr every zero-size allocation returns, 0 until the first
 }
 
 type object struct {
-	data    []byte
-	written []bool
+	data     []byte
+	written  []bool
+	readOnly bool // a string constant's bytes, which native code keeps in .rodata
 }
 
 // newMemory returns the memory of a run of prog, with its global memory
@@ -47,6 +48,13 @@ func newMemory(prog *ir.Program) *memory {
 	m := &memory{objs: map[int64]*object{}, next: 1}
 	for _, g := range prog.Mems {
 		m.globals = append(m.globals, m.alloc(g.Size, true))
+	}
+	for _, s := range prog.Strings {
+		p := m.alloc(int64(len(s)), true)
+		o := m.objs[p>>offBits]
+		copy(o.data, s)
+		o.readOnly = true
+		m.strs = append(m.strs, p)
 	}
 	return m
 }
@@ -129,6 +137,8 @@ func (m *memory) move(dst, src, n int64) error {
 		switch {
 		case err != nil:
 			return err
+		case i == 0 && o.readOnly:
+			return fmt.Errorf("move into a string constant")
 		case n < 0 || n > int64(len(o.data))-off:
 			return fmt.Errorf("move of %d bytes at offset %d of an object of %d bytes", n, off, len(o.data))
 		}
@@ -192,6 +202,9 @@ func (m *memory) store(t ir.Type, p, off, v int64) error {
 	if err != nil {
 		return err
 	}
+	if o.readOnly {
+		return fmt.Errorf("store into a string constant")
+	}
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(v))
 	copy(o.data[off:off+n], buf[:n])
@@ -199,4 +212,26 @@ func (m *memory) store(t ir.Type, p, off, v int64) error {
 		o.written[off+i] = true
 	}
 	return nil
+}
+
+// bytes returns the n bytes at p, a string's (D-033, D-037), checking that
+// they lie in one object and were written. A string of length 0 has no
+// bytes, whatever its Ptr.
+func (m *memory) bytes(p, n int64) ([]byte, error) {
+	if n == 0 {
+		return nil, nil
+	}
+	o, off, err := m.object(p)
+	switch {
+	case err != nil:
+		return nil, err
+	case n < 0 || n > int64(len(o.data))-off:
+		return nil, fmt.Errorf("%d bytes at offset %d of an object of %d bytes", n, off, len(o.data))
+	}
+	for i := off; i < off+n; i++ {
+		if !o.written[i] {
+			return nil, fmt.Errorf("read of byte %d, never written", i)
+		}
+	}
+	return o.data[off : off+n], nil
 }

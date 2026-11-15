@@ -792,7 +792,8 @@ repeated in each phase below:
   - `&`, pointers, `new`
   - heap allocation of address-taken variables
   - slices, `make`, `append`, `copy`
-  - string concatenation and conversion
+  - string concatenation and conversion, and (owner decision, 2026-11-16)
+    string comparison and rune conversions
   - nil checks
   - the interim allocator per D-010 (resolved before this phase)
 - **Exclusions:** garbage collection, maps, interfaces.
@@ -804,7 +805,8 @@ repeated in each phase below:
 - **Depends on:** Phase 6, D-010.
 - **Risks:** escape semantics; relying on gc's unspecified `append` capacity.
 - **Increments** (split by the owner): 7.1 pointers and the heap, 7.2 slices,
-  7.3 string concatenation and conversions.
+  7.3 string concatenation and conversions, widened on 2026-11-16 to string
+  comparison and rune conversions (D-037).
 - **Status of 7.1 (every item below done; owner review pending):**
   - `alloc`, `padd`, pointer `eq`/`ne`, `panic nil`, the interpreter's heap,
     and the bump allocator in the runtime (D-035; commit ee1a049).
@@ -819,7 +821,7 @@ repeated in each phase below:
     (`docs/benchmarks/2026-11-15-heap/README.md`): peak RSS grows by every
     byte allocated, garbage included, while gc's levels off; documented as
     divergence V-5 (`SEMANTICS.md`).
-- **Status of 7.2 (in progress):**
+- **Status of 7.2 (done; owner review pending):**
   - `move`, the slice bounds and `makeslice` panics in the IR, interpreter,
     backend, and runtime (D-036).
   - Gate and lowering (`SEMANTICS.md` §Slices), with the corpus programs
@@ -829,6 +831,17 @@ repeated in each phase below:
     `FuzzGenerated` seed; Aether's growth rule tested apart
     (`TestAppendGrowthRule`); benchmarks in
     `docs/benchmarks/2026-11-15-slices/README.md`.
+- **Status of 7.3 (in progress):**
+  - Strings made at run time (D-037, `SEMANTICS.md` §Strings at run time):
+    program strings as read-only objects in the interpreter; `+`, `+=`,
+    `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, and `copy(b, s)`,
+    with the corpus programs `s3_c01` to `s3_c06` and string operations in
+    the program generator (`gen_str_test.go`), checked against gc by
+    `TestDifferentialAgainstGc`.
+  - Remaining: string comparison (`==` to `>=`, `switch` on strings, and
+    `==` of arrays and structs holding strings), and rune literals with
+    `string(r)`, `[]rune(s)`, and `string(rs)`, as generated IR functions
+    (D-037).
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 

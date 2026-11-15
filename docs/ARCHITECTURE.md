@@ -640,7 +640,7 @@ Some Go features need far more runtime support than others:
 | `println` (ints) | write syscall, number formatting |
 | `/` and `%` | panic path |
 | bounds checks, nil checks | panic path |
-| strings | static data, later concatenation, which needs the heap |
+| strings | static data; concatenation and conversions use the heap allocator (D-037) |
 | slices, `append`, `new`, escaping locals | heap allocator (D-010) |
 | maps | hashing, allocator, iteration-order randomization policy |
 | interfaces | type descriptors, itabs |

@@ -1,0 +1,1069 @@
+string s0 "returned"
+string s1 "abcdefgh"
+string s2 "held string"
+string s3 "constant"
+string s4 "ab"
+string s5 "x"
+string s6 "changed"
+
+func get() (ptr, i64) @testdata/check/s3_c02_string_slicing.go:13:6
+b0:
+  v0 = str s0 @13:28
+  v1 = const 8 @13:28
+  ret v0, v1 @13:21
+
+func bounds() (i64, i64) @testdata/check/s3_c02_string_slicing.go:15:6
+b0:
+  v0 = const 2 @15:35
+  v1 = const 5 @15:38
+  ret v0, v1 @15:28
+
+func main @testdata/check/s3_c02_string_slicing.go:17:6
+  slot s0 s ptr @18:2
+  slot s1 s i64 @18:2
+  slot s2 tmp ptr @19:11
+  slot s3 tmp i64 @19:11
+  slot s4 tmp i64 @19:11
+  slot s5 tmp i64 @19:11
+  slot s6 tmp ptr @19:10
+  slot s7 tmp i64 @19:10
+  slot s8 tmp ptr @19:19
+  slot s9 tmp i64 @19:19
+  slot s10 tmp i64 @19:19
+  slot s11 tmp ptr @19:18
+  slot s12 tmp i64 @19:18
+  slot s13 tmp ptr @19:26
+  slot s14 tmp i64 @19:26
+  slot s15 tmp i64 @19:26
+  slot s16 tmp ptr @19:25
+  slot s17 tmp i64 @19:25
+  slot s18 tmp ptr @19:33
+  slot s19 tmp i64 @19:33
+  slot s20 tmp ptr @19:32
+  slot s21 tmp i64 @19:32
+  slot s22 tmp ptr @19:39
+  slot s23 tmp i64 @19:39
+  slot s24 tmp i64 @19:39
+  slot s25 tmp ptr @19:38
+  slot s26 tmp i64 @19:38
+  slot s27 tmp ptr @19:46
+  slot s28 tmp i64 @19:46
+  slot s29 tmp i64 @19:46
+  slot s30 tmp i64 @19:46
+  slot s31 tmp ptr @19:45
+  slot s32 tmp i64 @19:45
+  slot s33 tmp ptr @19:58
+  slot s34 tmp i64 @19:58
+  slot s35 tmp i64 @19:58
+  slot s36 tmp i64 @19:58
+  slot s37 i i64 @20:2
+  slot s38 j i64 @20:5
+  slot s39 tmp ptr @21:11
+  slot s40 tmp i64 @21:11
+  slot s41 tmp i64 @21:11
+  slot s42 tmp i64 @21:11
+  slot s43 tmp ptr @21:11
+  slot s44 tmp ptr @21:10
+  slot s45 tmp i64 @21:10
+  slot s46 tmp ptr @21:19
+  slot s47 tmp i64 @21:19
+  slot s48 tmp i64 @21:19
+  slot s49 tmp ptr @21:19
+  slot s50 tmp ptr @21:18
+  slot s51 tmp i64 @21:18
+  slot s52 tmp ptr @21:26
+  slot s53 tmp i64 @21:26
+  slot s54 tmp i64 @21:26
+  slot s55 tmp ptr @21:25
+  slot s56 tmp i64 @21:25
+  slot s57 tmp ptr @21:37
+  slot s58 tmp i64 @21:37
+  slot s59 tmp i64 @21:37
+  slot s60 tmp i64 @21:37
+  slot s61 tmp ptr @21:37
+  slot s62 u8 u8 @22:6
+  slot s63 i16 i16 @23:6
+  slot s64 tmp ptr @24:11
+  slot s65 tmp i64 @24:11
+  slot s66 tmp i16 @24:11
+  slot s67 tmp u8 @24:11
+  slot s68 tmp ptr @24:11
+  slot s69 tmp ptr @24:10
+  slot s70 tmp i64 @24:10
+  slot s71 tmp ptr @24:22
+  slot s72 tmp i64 @24:22
+  slot s73 tmp u8 @24:22
+  slot s74 tmp ptr @24:22
+  slot s75 tmp ptr @26:13
+  slot s76 tmp i64 @26:13
+  slot s77 tmp i64 @26:13
+  slot s78 tmp ptr @26:10
+  slot s79 tmp i64 @26:10
+  slot s80 tmp ptr @26:24
+  slot s81 tmp i64 @26:24
+  slot s82 tmp i64 @26:24
+  slot s83 tmp i64 @26:24
+  slot s84 tmp ptr @26:19
+  slot s85 tmp i64 @26:19
+  slot s86 tmp ptr @26:41
+  slot s87 tmp i64 @26:41
+  slot s88 tmp i64 @26:41
+  slot s89 tmp ptr @26:31
+  slot s90 tmp i64 @26:31
+  slot s91 tmp ptr @26:57
+  slot s92 tmp i64 @26:57
+  slot s93 tmp i64 @26:57
+  slot s94 tmp i64 @26:57
+  slot s95 tmp ptr @27:8
+  slot s96 tmp i64 @27:8
+  slot s97 tmp i64 @27:8
+  slot s98 tmp i64 @27:8
+  slot s99 t ptr @27:2
+  slot s100 t i64 @27:2
+  slot s101 tmp ptr @28:7
+  slot s102 tmp i64 @28:7
+  slot s103 tmp i64 @28:7
+  slot s104 tmp i64 @28:7
+  slot s105 tmp ptr @29:10
+  slot s106 tmp i64 @29:10
+  slot s107 tmp i64 @29:13
+  slot s108 tmp ptr @29:22
+  slot s109 tmp i64 @29:22
+  slot s110 tmp i64 @29:22
+  slot s111 tmp u8 @29:21
+  slot s112 tmp ptr @29:28
+  slot s113 tmp i64 @29:28
+  slot s114 tmp i64 @29:28
+  slot s115 tmp ptr @30:7
+  slot s116 tmp i64 @30:7
+  slot s117 tmp i64 @30:7
+  slot s118 e ptr @32:6
+  slot s119 e i64 @32:6
+  slot s120 tmp ptr @33:15
+  slot s121 tmp i64 @33:15
+  slot s122 tmp i64 @33:10
+  slot s123 tmp ptr @33:26
+  slot s124 tmp i64 @33:26
+  slot s125 tmp i64 @33:26
+  slot s126 tmp i64 @33:21
+  slot s127 tmp ptr @33:34
+  slot s128 tmp i64 @33:34
+  slot s129 tmp i64 @33:34
+  slot s130 r ptr @34:2
+  slot s131 r i64 @34:2
+  slot s132 tmp ptr @36:11
+  slot s133 tmp i64 @36:11
+  slot s134 tmp i64 @36:11
+  slot s135 tmp i64 @36:11
+  slot s136 tmp ptr @36:10
+  slot s137 tmp i64 @36:10
+  slot s138 tmp ptr @36:19
+  slot s139 tmp i64 @36:19
+  slot s140 tmp i64 @36:19
+  slot s141 tmp i64 @36:19
+  mem m0 tmp 16 align 8 @25:7
+  mem m1 h 16 align 8 @25:2
+b0:
+  v0 = str s1 @18:7
+  v1 = const 8 @18:7
+  store s0, v0 @18:2
+  store s1, v1 @18:2
+  v2 = load s0 @19:10
+  v3 = load s1 @19:10
+  store s2, v2 @19:11
+  store s3, v3 @19:11
+  v4 = const 2 @19:12
+  store s4, v4 @19:11
+  v5 = const 5 @19:14
+  store s5, v5 @19:11
+  v6 = conv u64, v5 @19:11
+  v7 = conv u64, v3 @19:11
+  v8 = gt v6, v7 @19:11
+  branch v8, b1, b2 @19:11
+b1:
+  v9 = load s5 @19:11
+  v10 = load s3 @19:11
+  panic slicealen, v9, v10 @19:11
+b2:
+  v11 = load s4 @19:11
+  v12 = conv u64, v11 @19:11
+  v13 = load s5 @19:11
+  v14 = conv u64, v13 @19:11
+  v15 = gt v12, v14 @19:11
+  branch v15, b3, b4 @19:11
+b3:
+  v16 = load s4 @19:11
+  v17 = load s5 @19:11
+  panic sliceb, v16, v17 @19:11
+b4:
+  v18 = load s2 @19:11
+  v19 = const 2 @19:11
+  v20 = padd v18, v19 @19:11
+  v21 = load s5 @19:11
+  v22 = load s4 @19:11
+  v23 = sub v21, v22 @19:11
+  store s6, v20 @19:10
+  store s7, v23 @19:10
+  v24 = load s0 @19:18
+  v25 = load s1 @19:18
+  store s8, v24 @19:19
+  store s9, v25 @19:19
+  v26 = const 3 @19:21
+  store s10, v26 @19:19
+  v27 = conv u64, v26 @19:19
+  v28 = conv u64, v25 @19:19
+  v29 = gt v27, v28 @19:19
+  branch v29, b5, b6 @19:19
+b5:
+  v30 = load s10 @19:19
+  v31 = load s9 @19:19
+  panic slicealen, v30, v31 @19:19
+b6:
+  v32 = load s8 @19:19
+  v33 = load s10 @19:19
+  v34 = const 0 @19:19
+  v35 = sub v33, v34 @19:19
+  store s11, v32 @19:18
+  store s12, v35 @19:18
+  v36 = load s0 @19:25
+  v37 = load s1 @19:25
+  store s13, v36 @19:26
+  store s14, v37 @19:26
+  v38 = const 5 @19:27
+  store s15, v38 @19:26
+  v39 = conv u64, v38 @19:26
+  v40 = conv u64, v37 @19:26
+  v41 = gt v39, v40 @19:26
+  branch v41, b7, b8 @19:26
+b7:
+  v42 = load s15 @19:26
+  v43 = load s14 @19:26
+  panic sliceb, v42, v43 @19:26
+b8:
+  v44 = load s13 @19:26
+  v45 = const 5 @19:26
+  v46 = padd v44, v45 @19:26
+  v47 = load s14 @19:26
+  v48 = load s15 @19:26
+  v49 = sub v47, v48 @19:26
+  store s16, v46 @19:25
+  store s17, v49 @19:25
+  v50 = load s0 @19:32
+  v51 = load s1 @19:32
+  store s18, v50 @19:33
+  store s19, v51 @19:33
+  v52 = const 0 @19:33
+  v53 = sub v51, v52 @19:33
+  store s20, v50 @19:32
+  store s21, v53 @19:32
+  v54 = load s0 @19:38
+  v55 = load s1 @19:38
+  store s22, v54 @19:39
+  store s23, v55 @19:39
+  v56 = const 8 @19:40
+  store s24, v56 @19:39
+  v57 = conv u64, v56 @19:39
+  v58 = conv u64, v55 @19:39
+  v59 = gt v57, v58 @19:39
+  branch v59, b9, b10 @19:39
+b9:
+  v60 = load s24 @19:39
+  v61 = load s23 @19:39
+  panic sliceb, v60, v61 @19:39
+b10:
+  v62 = load s22 @19:39
+  v63 = const 8 @19:39
+  v64 = padd v62, v63 @19:39
+  v65 = load s23 @19:39
+  v66 = load s24 @19:39
+  v67 = sub v65, v66 @19:39
+  store s25, v64 @19:38
+  store s26, v67 @19:38
+  v68 = load s0 @19:45
+  v69 = load s1 @19:45
+  store s27, v68 @19:46
+  store s28, v69 @19:46
+  v70 = const 0 @19:47
+  store s29, v70 @19:46
+  v71 = const 0 @19:49
+  store s30, v71 @19:46
+  v72 = conv u64, v71 @19:46
+  v73 = conv u64, v69 @19:46
+  v74 = gt v72, v73 @19:46
+  branch v74, b11, b12 @19:46
+b11:
+  v75 = load s30 @19:46
+  v76 = load s28 @19:46
+  panic slicealen, v75, v76 @19:46
+b12:
+  v77 = load s29 @19:46
+  v78 = conv u64, v77 @19:46
+  v79 = load s30 @19:46
+  v80 = conv u64, v79 @19:46
+  v81 = gt v78, v80 @19:46
+  branch v81, b13, b14 @19:46
+b13:
+  v82 = load s29 @19:46
+  v83 = load s30 @19:46
+  panic sliceb, v82, v83 @19:46
+b14:
+  v84 = load s27 @19:46
+  v85 = load s30 @19:46
+  v86 = load s29 @19:46
+  v87 = sub v85, v86 @19:46
+  store s31, v84 @19:45
+  store s32, v87 @19:45
+  v88 = load s0 @19:57
+  v89 = load s1 @19:57
+  store s33, v88 @19:58
+  store s34, v89 @19:58
+  v90 = const 3 @19:59
+  store s35, v90 @19:58
+  v91 = const 3 @19:61
+  store s36, v91 @19:58
+  v92 = conv u64, v91 @19:58
+  v93 = conv u64, v89 @19:58
+  v94 = gt v92, v93 @19:58
+  branch v94, b15, b16 @19:58
+b15:
+  v95 = load s36 @19:58
+  v96 = load s34 @19:58
+  panic slicealen, v95, v96 @19:58
+b16:
+  v97 = load s35 @19:58
+  v98 = conv u64, v97 @19:58
+  v99 = load s36 @19:58
+  v100 = conv u64, v99 @19:58
+  v101 = gt v98, v100 @19:58
+  branch v101, b17, b18 @19:58
+b17:
+  v102 = load s35 @19:58
+  v103 = load s36 @19:58
+  panic sliceb, v102, v103 @19:58
+b18:
+  v104 = load s33 @19:58
+  v105 = const 3 @19:58
+  v106 = padd v104, v105 @19:58
+  v107 = load s36 @19:58
+  v108 = load s35 @19:58
+  v109 = sub v107, v108 @19:58
+  v110 = load s6 @19:10
+  v111 = load s7 @19:10
+  v112 = load s11 @19:18
+  v113 = load s12 @19:18
+  v114 = load s16 @19:25
+  v115 = load s17 @19:25
+  v116 = load s20 @19:32
+  v117 = load s21 @19:32
+  v118 = load s25 @19:38
+  v119 = load s26 @19:38
+  v120 = load s31 @19:45
+  v121 = load s32 @19:45
+  println v110, v111, v112, v113, v114, v115, v116, v117, v118, v119, v120, v121, v109 @19:2
+  v122 = call bounds @20:10
+  v123 = extract 0, v122 @20:10
+  v124 = extract 1, v122 @20:10
+  store s37, v123 @20:2
+  store s38, v124 @20:5
+  v125 = load s0 @21:10
+  v126 = load s1 @21:10
+  store s39, v125 @21:11
+  store s40, v126 @21:11
+  v127 = load s37 @21:12
+  store s41, v127 @21:11
+  v128 = load s38 @21:14
+  store s42, v128 @21:11
+  v129 = conv u64, v128 @21:11
+  v130 = conv u64, v126 @21:11
+  v131 = gt v129, v130 @21:11
+  branch v131, b19, b20 @21:11
+b19:
+  v132 = load s42 @21:11
+  v133 = load s40 @21:11
+  panic slicealen, v132, v133 @21:11
+b20:
+  v134 = load s41 @21:11
+  v135 = conv u64, v134 @21:11
+  v136 = load s42 @21:11
+  v137 = conv u64, v136 @21:11
+  v138 = gt v135, v137 @21:11
+  branch v138, b21, b22 @21:11
+b21:
+  v139 = load s41 @21:11
+  v140 = load s42 @21:11
+  panic sliceb, v139, v140 @21:11
+b22:
+  v141 = load s39 @21:11
+  store s43, v141 @21:11
+  v142 = load s41 @21:11
+  v143 = const 0 @21:11
+  v144 = ne v142, v143 @21:11
+  branch v144, b23, b24 @21:11
+b23:
+  v145 = load s39 @21:11
+  v146 = load s41 @21:11
+  v147 = const 1 @21:11
+  v148 = mul v146, v147 @21:11
+  v149 = padd v145, v148 @21:11
+  store s43, v149 @21:11
+  jump b24 @21:11
+b24:
+  v150 = load s43 @21:11
+  v151 = load s42 @21:11
+  v152 = load s41 @21:11
+  v153 = sub v151, v152 @21:11
+  store s44, v150 @21:10
+  store s45, v153 @21:10
+  v154 = load s0 @21:18
+  v155 = load s1 @21:18
+  store s46, v154 @21:19
+  store s47, v155 @21:19
+  v156 = load s37 @21:20
+  store s48, v156 @21:19
+  v157 = conv u64, v156 @21:19
+  v158 = conv u64, v155 @21:19
+  v159 = gt v157, v158 @21:19
+  branch v159, b25, b26 @21:19
+b25:
+  v160 = load s48 @21:19
+  v161 = load s47 @21:19
+  panic sliceb, v160, v161 @21:19
+b26:
+  v162 = load s46 @21:19
+  store s49, v162 @21:19
+  v163 = load s48 @21:19
+  v164 = const 0 @21:19
+  v165 = ne v163, v164 @21:19
+  branch v165, b27, b28 @21:19
+b27:
+  v166 = load s46 @21:19
+  v167 = load s48 @21:19
+  v168 = const 1 @21:19
+  v169 = mul v167, v168 @21:19
+  v170 = padd v166, v169 @21:19
+  store s49, v170 @21:19
+  jump b28 @21:19
+b28:
+  v171 = load s49 @21:19
+  v172 = load s47 @21:19
+  v173 = load s48 @21:19
+  v174 = sub v172, v173 @21:19
+  store s50, v171 @21:18
+  store s51, v174 @21:18
+  v175 = load s0 @21:25
+  v176 = load s1 @21:25
+  store s52, v175 @21:26
+  store s53, v176 @21:26
+  v177 = load s38 @21:28
+  store s54, v177 @21:26
+  v178 = conv u64, v177 @21:26
+  v179 = conv u64, v176 @21:26
+  v180 = gt v178, v179 @21:26
+  branch v180, b29, b30 @21:26
+b29:
+  v181 = load s54 @21:26
+  v182 = load s53 @21:26
+  panic slicealen, v181, v182 @21:26
+b30:
+  v183 = load s52 @21:26
+  v184 = load s54 @21:26
+  v185 = const 0 @21:26
+  v186 = sub v184, v185 @21:26
+  store s55, v183 @21:25
+  store s56, v186 @21:25
+  v187 = load s0 @21:36
+  v188 = load s1 @21:36
+  store s57, v187 @21:37
+  store s58, v188 @21:37
+  v189 = load s38 @21:38
+  store s59, v189 @21:37
+  v190 = load s38 @21:40
+  store s60, v190 @21:37
+  v191 = conv u64, v190 @21:37
+  v192 = conv u64, v188 @21:37
+  v193 = gt v191, v192 @21:37
+  branch v193, b31, b32 @21:37
+b31:
+  v194 = load s60 @21:37
+  v195 = load s58 @21:37
+  panic slicealen, v194, v195 @21:37
+b32:
+  v196 = load s59 @21:37
+  v197 = conv u64, v196 @21:37
+  v198 = load s60 @21:37
+  v199 = conv u64, v198 @21:37
+  v200 = gt v197, v199 @21:37
+  branch v200, b33, b34 @21:37
+b33:
+  v201 = load s59 @21:37
+  v202 = load s60 @21:37
+  panic sliceb, v201, v202 @21:37
+b34:
+  v203 = load s57 @21:37
+  store s61, v203 @21:37
+  v204 = load s59 @21:37
+  v205 = const 0 @21:37
+  v206 = ne v204, v205 @21:37
+  branch v206, b35, b36 @21:37
+b35:
+  v207 = load s57 @21:37
+  v208 = load s59 @21:37
+  v209 = const 1 @21:37
+  v210 = mul v208, v209 @21:37
+  v211 = padd v207, v210 @21:37
+  store s61, v211 @21:37
+  jump b36 @21:37
+b36:
+  v212 = load s61 @21:37
+  v213 = load s60 @21:37
+  v214 = load s59 @21:37
+  v215 = sub v213, v214 @21:37
+  v216 = load s44 @21:10
+  v217 = load s45 @21:10
+  v218 = load s50 @21:18
+  v219 = load s51 @21:18
+  v220 = load s55 @21:25
+  v221 = load s56 @21:25
+  println v216, v217, v218, v219, v220, v221, v215 @21:2
+  v222 = const u8 7 @22:17
+  store s62, v222 @22:6
+  v223 = const i16 1 @23:18
+  store s63, v223 @23:6
+  v224 = load s0 @24:10
+  v225 = load s1 @24:10
+  store s64, v224 @24:11
+  store s65, v225 @24:11
+  v226 = load s63 @24:12
+  store s66, v226 @24:11
+  v227 = load s62 @24:16
+  store s67, v227 @24:11
+  v228 = conv u64, v227 @24:11
+  v229 = conv u64, v225 @24:11
+  v230 = gt v228, v229 @24:11
+  branch v230, b37, b38 @24:11
+b37:
+  v231 = load s67 @24:11
+  v232 = load s65 @24:11
+  panic slicealen, v231, v232 @24:11
+b38:
+  v233 = load s66 @24:11
+  v234 = conv u64, v233 @24:11
+  v235 = load s67 @24:11
+  v236 = conv u64, v235 @24:11
+  v237 = gt v234, v236 @24:11
+  branch v237, b39, b40 @24:11
+b39:
+  v238 = load s66 @24:11
+  v239 = load s67 @24:11
+  v240 = conv i64, v239 @24:11
+  panic sliceb, v238, v240 @24:11
+b40:
+  v241 = load s64 @24:11
+  store s68, v241 @24:11
+  v242 = load s66 @24:11
+  v243 = conv i64, v242 @24:11
+  v244 = const 0 @24:11
+  v245 = ne v243, v244 @24:11
+  branch v245, b41, b42 @24:11
+b41:
+  v246 = load s64 @24:11
+  v247 = load s66 @24:11
+  v248 = conv i64, v247 @24:11
+  v249 = const 1 @24:11
+  v250 = mul v248, v249 @24:11
+  v251 = padd v246, v250 @24:11
+  store s68, v251 @24:11
+  jump b42 @24:11
+b42:
+  v252 = load s68 @24:11
+  v253 = load s67 @24:11
+  v254 = conv i64, v253 @24:11
+  v255 = load s66 @24:11
+  v256 = conv i64, v255 @24:11
+  v257 = sub v254, v256 @24:11
+  store s69, v252 @24:10
+  store s70, v257 @24:10
+  v258 = load s0 @24:21
+  v259 = load s1 @24:21
+  store s71, v258 @24:22
+  store s72, v259 @24:22
+  v260 = load s62 @24:23
+  store s73, v260 @24:22
+  v261 = conv u64, v260 @24:22
+  v262 = conv u64, v259 @24:22
+  v263 = gt v261, v262 @24:22
+  branch v263, b43, b44 @24:22
+b43:
+  v264 = load s73 @24:22
+  v265 = load s72 @24:22
+  panic sliceb, v264, v265 @24:22
+b44:
+  v266 = load s71 @24:22
+  store s74, v266 @24:22
+  v267 = load s73 @24:22
+  v268 = conv i64, v267 @24:22
+  v269 = const 0 @24:22
+  v270 = ne v268, v269 @24:22
+  branch v270, b45, b46 @24:22
+b45:
+  v271 = load s71 @24:22
+  v272 = load s73 @24:22
+  v273 = conv i64, v272 @24:22
+  v274 = const 1 @24:22
+  v275 = mul v273, v274 @24:22
+  v276 = padd v271, v275 @24:22
+  store s74, v276 @24:22
+  jump b46 @24:22
+b46:
+  v277 = load s74 @24:22
+  v278 = load s72 @24:22
+  v279 = load s73 @24:22
+  v280 = conv i64, v279 @24:22
+  v281 = sub v278, v280 @24:22
+  v282 = load s69 @24:10
+  v283 = load s70 @24:10
+  println v282, v283, v277, v281 @24:2
+  v284 = str s2 @25:14
+  v285 = const 11 @25:14
+  v286 = addr m0 @25:7
+  v287 = const 0 @25:14
+  stm v286, v287, v284 @25:14
+  v288 = const 8 @25:14
+  stm v286, v288, v285 @25:14
+  v289 = const 0 @25:2
+  v290 = ldm ptr, v286, v289 @25:2
+  v291 = addr m1 @25:2
+  v292 = const 0 @25:2
+  stm v291, v292, v290 @25:2
+  v293 = const 8 @25:2
+  v294 = ldm i64, v286, v293 @25:2
+  v295 = const 8 @25:2
+  stm v291, v295, v294 @25:2
+  v296 = const 0 @26:10
+  v297 = ldm ptr, v291, v296 @26:10
+  v298 = const 8 @26:10
+  v299 = ldm i64, v291, v298 @26:10
+  store s75, v297 @26:13
+  store s76, v299 @26:13
+  v300 = const 5 @26:14
+  store s77, v300 @26:13
+  v301 = conv u64, v300 @26:13
+  v302 = conv u64, v299 @26:13
+  v303 = gt v301, v302 @26:13
+  branch v303, b47, b48 @26:13
+b47:
+  v304 = load s77 @26:13
+  v305 = load s76 @26:13
+  panic sliceb, v304, v305 @26:13
+b48:
+  v306 = load s75 @26:13
+  v307 = const 5 @26:13
+  v308 = padd v306, v307 @26:13
+  v309 = load s76 @26:13
+  v310 = load s77 @26:13
+  v311 = sub v309, v310 @26:13
+  store s78, v308 @26:10
+  store s79, v311 @26:10
+  v312 = call get @26:19
+  v313 = extract 0, v312 @26:19
+  v314 = extract 1, v312 @26:19
+  store s80, v313 @26:24
+  store s81, v314 @26:24
+  v315 = const 2 @26:25
+  store s82, v315 @26:24
+  v316 = const 4 @26:27
+  store s83, v316 @26:24
+  v317 = conv u64, v316 @26:24
+  v318 = conv u64, v314 @26:24
+  v319 = gt v317, v318 @26:24
+  branch v319, b49, b50 @26:24
+b49:
+  v320 = load s83 @26:24
+  v321 = load s81 @26:24
+  panic slicealen, v320, v321 @26:24
+b50:
+  v322 = load s82 @26:24
+  v323 = conv u64, v322 @26:24
+  v324 = load s83 @26:24
+  v325 = conv u64, v324 @26:24
+  v326 = gt v323, v325 @26:24
+  branch v326, b51, b52 @26:24
+b51:
+  v327 = load s82 @26:24
+  v328 = load s83 @26:24
+  panic sliceb, v327, v328 @26:24
+b52:
+  v329 = load s80 @26:24
+  v330 = const 2 @26:24
+  v331 = padd v329, v330 @26:24
+  v332 = load s83 @26:24
+  v333 = load s82 @26:24
+  v334 = sub v332, v333 @26:24
+  store s84, v331 @26:19
+  store s85, v334 @26:19
+  v335 = str s3 @26:31
+  v336 = const 8 @26:31
+  store s86, v335 @26:41
+  store s87, v336 @26:41
+  v337 = const 3 @26:42
+  store s88, v337 @26:41
+  v338 = conv u64, v337 @26:41
+  v339 = conv u64, v336 @26:41
+  v340 = gt v338, v339 @26:41
+  branch v340, b53, b54 @26:41
+b53:
+  v341 = load s88 @26:41
+  v342 = load s87 @26:41
+  panic sliceb, v341, v342 @26:41
+b54:
+  v343 = load s86 @26:41
+  v344 = const 3 @26:41
+  v345 = padd v343, v344 @26:41
+  v346 = load s87 @26:41
+  v347 = load s88 @26:41
+  v348 = sub v346, v347 @26:41
+  store s89, v345 @26:31
+  store s90, v348 @26:31
+  v349 = str s4 @26:48
+  v350 = const 2 @26:48
+  v351 = load s0 @26:55
+  v352 = load s1 @26:55
+  v353 = add v350, v352 @26:53
+  v354 = alloc v353 @26:53
+  v355 = const 0 @26:53
+  v356 = padd v354, v355 @26:53
+  move v356, v349, v350 @26:53
+  v357 = add v355, v350 @26:53
+  v358 = padd v354, v357 @26:53
+  move v358, v351, v352 @26:53
+  store s91, v354 @26:57
+  store s92, v353 @26:57
+  v359 = const 1 @26:58
+  store s93, v359 @26:57
+  v360 = const 4 @26:60
+  store s94, v360 @26:57
+  v361 = conv u64, v360 @26:57
+  v362 = conv u64, v353 @26:57
+  v363 = gt v361, v362 @26:57
+  branch v363, b55, b56 @26:57
+b55:
+  v364 = load s94 @26:57
+  v365 = load s92 @26:57
+  panic slicealen, v364, v365 @26:57
+b56:
+  v366 = load s93 @26:57
+  v367 = conv u64, v366 @26:57
+  v368 = load s94 @26:57
+  v369 = conv u64, v368 @26:57
+  v370 = gt v367, v369 @26:57
+  branch v370, b57, b58 @26:57
+b57:
+  v371 = load s93 @26:57
+  v372 = load s94 @26:57
+  panic sliceb, v371, v372 @26:57
+b58:
+  v373 = load s91 @26:57
+  v374 = const 1 @26:57
+  v375 = padd v373, v374 @26:57
+  v376 = load s94 @26:57
+  v377 = load s93 @26:57
+  v378 = sub v376, v377 @26:57
+  v379 = load s78 @26:10
+  v380 = load s79 @26:10
+  v381 = load s84 @26:19
+  v382 = load s85 @26:19
+  v383 = load s89 @26:31
+  v384 = load s90 @26:31
+  println v379, v380, v381, v382, v383, v384, v375, v378 @26:2
+  v385 = load s0 @27:7
+  v386 = load s1 @27:7
+  store s95, v385 @27:8
+  store s96, v386 @27:8
+  v387 = const 1 @27:9
+  store s97, v387 @27:8
+  v388 = const 7 @27:11
+  store s98, v388 @27:8
+  v389 = conv u64, v388 @27:8
+  v390 = conv u64, v386 @27:8
+  v391 = gt v389, v390 @27:8
+  branch v391, b59, b60 @27:8
+b59:
+  v392 = load s98 @27:8
+  v393 = load s96 @27:8
+  panic slicealen, v392, v393 @27:8
+b60:
+  v394 = load s97 @27:8
+  v395 = conv u64, v394 @27:8
+  v396 = load s98 @27:8
+  v397 = conv u64, v396 @27:8
+  v398 = gt v395, v397 @27:8
+  branch v398, b61, b62 @27:8
+b61:
+  v399 = load s97 @27:8
+  v400 = load s98 @27:8
+  panic sliceb, v399, v400 @27:8
+b62:
+  v401 = load s95 @27:8
+  v402 = const 1 @27:8
+  v403 = padd v401, v402 @27:8
+  v404 = load s98 @27:8
+  v405 = load s97 @27:8
+  v406 = sub v404, v405 @27:8
+  store s99, v403 @27:2
+  store s100, v406 @27:2
+  v407 = load s99 @28:6
+  v408 = load s100 @28:6
+  store s101, v407 @28:7
+  store s102, v408 @28:7
+  v409 = const 1 @28:8
+  store s103, v409 @28:7
+  v410 = const 5 @28:10
+  store s104, v410 @28:7
+  v411 = conv u64, v410 @28:7
+  v412 = conv u64, v408 @28:7
+  v413 = gt v411, v412 @28:7
+  branch v413, b63, b64 @28:7
+b63:
+  v414 = load s104 @28:7
+  v415 = load s102 @28:7
+  panic slicealen, v414, v415 @28:7
+b64:
+  v416 = load s103 @28:7
+  v417 = conv u64, v416 @28:7
+  v418 = load s104 @28:7
+  v419 = conv u64, v418 @28:7
+  v420 = gt v417, v419 @28:7
+  branch v420, b65, b66 @28:7
+b65:
+  v421 = load s103 @28:7
+  v422 = load s104 @28:7
+  panic sliceb, v421, v422 @28:7
+b66:
+  v423 = load s101 @28:7
+  v424 = const 1 @28:7
+  v425 = padd v423, v424 @28:7
+  v426 = load s104 @28:7
+  v427 = load s103 @28:7
+  v428 = sub v426, v427 @28:7
+  store s99, v425 @28:2
+  store s100, v428 @28:2
+  v429 = load s99 @29:10
+  v430 = load s100 @29:10
+  store s105, v429 @29:10
+  store s106, v430 @29:10
+  v431 = load s99 @29:17
+  v432 = load s100 @29:17
+  store s107, v432 @29:13
+  v433 = load s99 @29:21
+  v434 = load s100 @29:21
+  v435 = const 0 @29:23
+  v436 = conv u64, v435 @29:22
+  v437 = conv u64, v434 @29:22
+  v438 = ge v436, v437 @29:22
+  store s108, v433 @29:22
+  store s109, v435 @29:22
+  store s110, v434 @29:22
+  branch v438, b67, b68 @29:22
+b67:
+  v439 = load s109 @29:22
+  v440 = load s110 @29:22
+  panic index, v439, v440 @29:22
+b68:
+  v441 = load s108 @29:22
+  v442 = load s109 @29:22
+  v443 = loadb v441, v442 @29:22
+  store s111, v443 @29:21
+  v444 = load s99 @29:27
+  v445 = load s100 @29:27
+  v446 = const 3 @29:29
+  v447 = conv u64, v446 @29:28
+  v448 = conv u64, v445 @29:28
+  v449 = ge v447, v448 @29:28
+  store s112, v444 @29:28
+  store s113, v446 @29:28
+  store s114, v445 @29:28
+  branch v449, b69, b70 @29:28
+b69:
+  v450 = load s113 @29:28
+  v451 = load s114 @29:28
+  panic index, v450, v451 @29:28
+b70:
+  v452 = load s112 @29:28
+  v453 = load s113 @29:28
+  v454 = loadb v452, v453 @29:28
+  v455 = load s105 @29:10
+  v456 = load s106 @29:10
+  v457 = load s107 @29:13
+  v458 = load s111 @29:21
+  println v455, v456, v457, v458, v454 @29:2
+  v459 = load s99 @30:6
+  v460 = load s100 @30:6
+  store s115, v459 @30:7
+  store s116, v460 @30:7
+  v461 = const 2 @30:8
+  store s117, v461 @30:7
+  v462 = conv u64, v461 @30:7
+  v463 = conv u64, v460 @30:7
+  v464 = gt v462, v463 @30:7
+  branch v464, b71, b72 @30:7
+b71:
+  v465 = load s117 @30:7
+  v466 = load s116 @30:7
+  panic sliceb, v465, v466 @30:7
+b72:
+  v467 = load s115 @30:7
+  v468 = const 2 @30:7
+  v469 = padd v467, v468 @30:7
+  v470 = load s116 @30:7
+  v471 = load s117 @30:7
+  v472 = sub v470, v471 @30:7
+  store s99, v469 @30:2
+  store s100, v472 @30:2
+  v473 = load s99 @31:10
+  v474 = load s100 @31:10
+  println v473, v474 @31:2
+  v475 = const ptr 0 @32:6
+  store s118, v475 @32:6
+  v476 = const 0 @32:6
+  store s119, v476 @32:6
+  v477 = load s118 @33:14
+  v478 = load s119 @33:14
+  store s120, v477 @33:15
+  store s121, v478 @33:15
+  v479 = const 0 @33:15
+  v480 = sub v478, v479 @33:15
+  store s122, v480 @33:10
+  v481 = load s118 @33:25
+  v482 = load s119 @33:25
+  store s123, v481 @33:26
+  store s124, v482 @33:26
+  v483 = const 0 @33:27
+  store s125, v483 @33:26
+  v484 = conv u64, v483 @33:26
+  v485 = conv u64, v482 @33:26
+  v486 = gt v484, v485 @33:26
+  branch v486, b73, b74 @33:26
+b73:
+  v487 = load s125 @33:26
+  v488 = load s124 @33:26
+  panic sliceb, v487, v488 @33:26
+b74:
+  v489 = load s123 @33:26
+  v490 = load s124 @33:26
+  v491 = load s125 @33:26
+  v492 = sub v490, v491 @33:26
+  store s126, v492 @33:21
+  v493 = load s118 @33:33
+  v494 = load s119 @33:33
+  store s127, v493 @33:34
+  store s128, v494 @33:34
+  v495 = const 0 @33:36
+  store s129, v495 @33:34
+  v496 = conv u64, v495 @33:34
+  v497 = conv u64, v494 @33:34
+  v498 = gt v496, v497 @33:34
+  branch v498, b75, b76 @33:34
+b75:
+  v499 = load s129 @33:34
+  v500 = load s128 @33:34
+  panic slicealen, v499, v500 @33:34
+b76:
+  v501 = load s127 @33:34
+  v502 = load s129 @33:34
+  v503 = const 0 @33:34
+  v504 = sub v502, v503 @33:34
+  v505 = str s5 @33:39
+  v506 = const 1 @33:39
+  v507 = add v504, v506 @33:38
+  v508 = alloc v507 @33:38
+  v509 = const 0 @33:38
+  v510 = padd v508, v509 @33:38
+  move v510, v501, v504 @33:38
+  v511 = add v509, v504 @33:38
+  v512 = padd v508, v511 @33:38
+  move v512, v505, v506 @33:38
+  v513 = load s122 @33:10
+  v514 = load s126 @33:21
+  println v513, v514, v508, v507 @33:2
+  v515 = load s0 @34:7
+  v516 = load s1 @34:7
+  store s130, v515 @34:2
+  store s131, v516 @34:2
+  v517 = str s6 @35:6
+  v518 = const 7 @35:6
+  store s0, v517 @35:2
+  store s1, v518 @35:2
+  v519 = load s130 @36:10
+  v520 = load s131 @36:10
+  store s132, v519 @36:11
+  store s133, v520 @36:11
+  v521 = const 1 @36:12
+  store s134, v521 @36:11
+  v522 = const 3 @36:14
+  store s135, v522 @36:11
+  v523 = conv u64, v522 @36:11
+  v524 = conv u64, v520 @36:11
+  v525 = gt v523, v524 @36:11
+  branch v525, b77, b78 @36:11
+b77:
+  v526 = load s135 @36:11
+  v527 = load s133 @36:11
+  panic slicealen, v526, v527 @36:11
+b78:
+  v528 = load s134 @36:11
+  v529 = conv u64, v528 @36:11
+  v530 = load s135 @36:11
+  v531 = conv u64, v530 @36:11
+  v532 = gt v529, v531 @36:11
+  branch v532, b79, b80 @36:11
+b79:
+  v533 = load s134 @36:11
+  v534 = load s135 @36:11
+  panic sliceb, v533, v534 @36:11
+b80:
+  v535 = load s132 @36:11
+  v536 = const 1 @36:11
+  v537 = padd v535, v536 @36:11
+  v538 = load s135 @36:11
+  v539 = load s134 @36:11
+  v540 = sub v538, v539 @36:11
+  store s136, v537 @36:10
+  store s137, v540 @36:10
+  v541 = load s0 @36:18
+  v542 = load s1 @36:18
+  store s138, v541 @36:19
+  store s139, v542 @36:19
+  v543 = const 1 @36:20
+  store s140, v543 @36:19
+  v544 = const 3 @36:22
+  store s141, v544 @36:19
+  v545 = conv u64, v544 @36:19
+  v546 = conv u64, v542 @36:19
+  v547 = gt v545, v546 @36:19
+  branch v547, b81, b82 @36:19
+b81:
+  v548 = load s141 @36:19
+  v549 = load s139 @36:19
+  panic slicealen, v548, v549 @36:19
+b82:
+  v550 = load s140 @36:19
+  v551 = conv u64, v550 @36:19
+  v552 = load s141 @36:19
+  v553 = conv u64, v552 @36:19
+  v554 = gt v551, v553 @36:19
+  branch v554, b83, b84 @36:19
+b83:
+  v555 = load s140 @36:19
+  v556 = load s141 @36:19
+  panic sliceb, v555, v556 @36:19
+b84:
+  v557 = load s138 @36:19
+  v558 = const 1 @36:19
+  v559 = padd v557, v558 @36:19
+  v560 = load s141 @36:19
+  v561 = load s140 @36:19
+  v562 = sub v560, v561 @36:19
+  v563 = load s136 @36:10
+  v564 = load s137 @36:10
+  println v563, v564, v559, v562 @36:2
+  ret @37:1

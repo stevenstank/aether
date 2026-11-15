@@ -147,9 +147,21 @@ func TestMemoryPreconditions(t *testing.T) {
 		{"misaligned", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
 			f.StM(b, p, f.Const(b, 2, p1), f.TypedConst(b, ir.I32, 0, p1), p1)
 		}, "i32 at misaligned offset 2"},
-		{"string address", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
-			f.LdM(b, ir.U8, f.Str(b, 0, p1), f.Const(b, 0, p1), p1)
-		}, "address 0x1 is not a memory object in existence"},
+		{"string store", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
+			f.StM(b, f.Str(b, 0, p1), f.Const(b, 0, p1), f.TypedConst(b, ir.U8, 1, p1), p1)
+		}, "store into a string constant"},
+		{"string move", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
+			f.Move(b, f.Str(b, 0, p1), p, f.Const(b, 1, p1), p1)
+		}, "move into a string constant"},
+		{"string past the end", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
+			f.LoadB(b, f.Str(b, 0, p1), f.Const(b, 1, p1), p1)
+		}, "u8 at offset 1 of an object of 1 bytes"},
+		{"print unwritten", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
+			f.Println(b, []*ir.Instr{p, f.Const(b, 2, p1)}, p1)
+		}, "read of byte 0, never written"},
+		{"print past the end", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
+			f.Println(b, []*ir.Instr{f.Str(b, 0, p1), f.Const(b, 2, p1)}, p1)
+		}, "2 bytes at offset 0 of an object of 1 bytes"},
 		{"bool byte", func(f *ir.Func, b *ir.Block, p *ir.Instr) {
 			f.StM(b, p, f.Const(b, 0, p1), f.TypedConst(b, ir.U8, 2, p1), p1)
 			f.LdM(b, ir.Bool, p, f.Const(b, 0, p1), p1)

@@ -82,6 +82,9 @@ func (l *lowerer) sliceValue(e ast.Expr) []*ir.Instr {
 	case *ast.CallExpr:
 		switch {
 		case l.pkg.Info.Types[e.Fun].IsType():
+			if isString(l.pkg.Info.Types[e.Args[0]].Type) {
+				return l.bytesConversion(e)
+			}
 			// Between slice types of identical underlying types, or of nil.
 			return l.valueFor(e.Args[0], t)
 		case l.isBuiltin(e, "make"):
@@ -177,18 +180,26 @@ func (l *lowerer) boundsFail(fail *ir.Instr, kind int, x, y func() *ir.Instr, po
 }
 
 // sliceExpr lowers x[lo:hi] and x[lo:hi:max] of a slice, an addressable
-// array, or a pointer to an array. The operand is evaluated, then the
-// bounds, left to right; then the bounds are checked in gc's order, as
-// unsigned numbers, against the capacity, or an array's length, and each
-// other, and a pointer to an array is checked for nil before it is used.
+// array, or a pointer to an array, and x[lo:hi] of a string, which gives a
+// string, its two words (D-037). The operand is evaluated, then the bounds,
+// left to right; then the bounds are checked in gc's order, as unsigned
+// numbers, against the capacity, or an array's or a string's length, and
+// each other, and a pointer to an array is checked for nil before it is
+// used.
 func (l *lowerer) sliceExpr(e *ast.SliceExpr) []*ir.Instr {
 	pos := l.pos(e, e.Lbrack)
 	xt := l.pkg.Info.Types[e.X].Type
 	var ptr, length, capacity func() *ir.Instr
 	var arr place
 	var et types.Type
-	isArr := !isSlice(xt)
-	if isArr {
+	isStr := isString(xt)
+	isArr := !isSlice(xt) && !isStr
+	switch {
+	case isStr:
+		w := l.value(e.X)
+		ptr, length, et = l.keep(w[0], pos), l.keep(w[1], pos), types.Typ[types.Byte]
+		capacity = length
+	case isArr:
 		at := xt
 		if t, ok := pointee(xt); ok {
 			at, arr = t, l.deref(e.X)
@@ -201,7 +212,7 @@ func (l *lowerer) sliceExpr(e *ast.SliceExpr) []*ir.Instr {
 		}
 		et, length = a.Elem(), func() *ir.Instr { return l.fn.Const(l.b, a.Len(), pos) }
 		capacity = length
-	} else {
+	default:
 		w := l.value(e.X)
 		ptr, length, capacity, et = l.keep(w[0], pos), l.keep(w[1], pos), l.keep(w[2], pos), sliceElem(xt)
 	}
@@ -237,7 +248,7 @@ func (l *lowerer) sliceExpr(e *ast.SliceExpr) []*ir.Instr {
 	} else {
 		if hi != nil {
 			kind := ir.PanicSliceAcap
-			if isArr {
+			if isArr || isStr {
 				kind = ir.PanicSliceAlen
 			}
 			l.boundsFail(gt(hi, capacity), kind, hi, capacity, pos)
@@ -271,6 +282,9 @@ func (l *lowerer) sliceExpr(e *ast.SliceExpr) []*ir.Instr {
 	}
 	p := base()
 	n := l.fn.Binary(l.b, ir.Sub, l.toI64(top(), pos), low(), pos)
+	if isStr {
+		return []*ir.Instr{p, n}
+	}
 	c := l.fn.Binary(l.b, ir.Sub, l.toI64(end(), pos), low(), pos)
 	return []*ir.Instr{p, n, c}
 }

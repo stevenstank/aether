@@ -37,8 +37,10 @@ import (
 // of the program is what the same seed generated before. Since increment
 // 6.2, string statements (stringStmt) and globals are added the same way,
 // from a third stream, since increment 6.3 array and struct types,
-// functions, globals, and statements (gen_agg_test.go) from a fourth, and
-// since Phase 7 increment 7.1 pointers (gen_ptr_test.go) from a fifth.
+// functions, globals, and statements (gen_agg_test.go) from a fourth,
+// since Phase 7 increment 7.1 pointers (gen_ptr_test.go) from a fifth, and
+// since increment 7.3 string operations (gen_str_test.go) from a seventh
+// (the sixth is gen_slice_test.go's).
 //
 // Every program is valid Go except that a constant expression may overflow
 // its type, which go/types (and gc) reject; callers skip such programs.
@@ -47,7 +49,7 @@ import (
 // assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
 	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7)), s: rand.New(rand.NewPCG(seed, 0x57217)),
-		a: rand.New(rand.NewPCG(seed, 0xa66)), p: rand.New(rand.NewPCG(seed, 0x9017))}
+		a: rand.New(rand.NewPCG(seed, 0xa66)), p: rand.New(rand.NewPCG(seed, 0x9017)), so: rand.New(rand.NewPCG(seed, 0x5791))}
 	g.line(0, "package main")
 	g.line(0, "")
 	// The package scope. Each declaration may use the ones generated
@@ -170,24 +172,26 @@ var maxLiteral = map[string]string{
 }
 
 type generator struct {
-	r        *rand.Rand
-	f        *rand.Rand // the float statements' choices
-	fnames   int
-	s        *rand.Rand // the string statements' choices
-	snames   int
-	a        *rand.Rand // the array and struct choices
-	anames   int
-	aggStmts int
-	p        *rand.Rand // the pointer choices
-	pnames   int
-	ptrStmts int
-	aggTypes []*gtype
-	b        strings.Builder
-	scopes   []map[string]entry
-	order    [][]string // declaration order, per scope
-	names    int
-	loops    int // enclosing loops
-	breaks   int // enclosing loops and switches
+	r          *rand.Rand
+	f          *rand.Rand // the float statements' choices
+	fnames     int
+	s          *rand.Rand // the string statements' choices
+	snames     int
+	a          *rand.Rand // the array and struct choices
+	anames     int
+	aggStmts   int
+	p          *rand.Rand // the pointer choices
+	pnames     int
+	ptrStmts   int
+	so         *rand.Rand // the string operations' choices (gen_str_test.go)
+	strOpStmts int
+	aggTypes   []*gtype
+	b          strings.Builder
+	scopes     []map[string]entry
+	order      [][]string // declaration order, per scope
+	names      int
+	loops      int // enclosing loops
+	breaks     int // enclosing loops and switches
 }
 
 // capture returns what emit writes, instead of writing it.
@@ -344,6 +348,10 @@ func (g *generator) stmt(depth int) {
 	}
 	if g.s.IntN(4) == 0 {
 		g.stringStmt(depth)
+	}
+	if g.so.IntN(4) == 0 && g.strOpStmts < maxStrOpStmts {
+		g.strOpStmts++
+		g.stringOpStmt(depth)
 	}
 	if g.a.IntN(5) == 0 && g.aggStmts < maxAggStmts {
 		g.aggStmts++

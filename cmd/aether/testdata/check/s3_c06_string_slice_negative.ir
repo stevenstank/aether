@@ -1,0 +1,78 @@
+string s0 "abcdef"
+
+func main @testdata/check/s3_c06_string_slice_negative.go:7:6
+  slot s0 s ptr @8:2
+  slot s1 s i64 @8:2
+  slot s2 i i64 @9:2
+  slot s3 tmp ptr @10:11
+  slot s4 tmp i64 @10:11
+  slot s5 tmp i64 @10:11
+  slot s6 tmp ptr @11:11
+  slot s7 tmp i64 @11:11
+  slot s8 tmp i64 @11:11
+  slot s9 tmp ptr @11:11
+b0:
+  v0 = str s0 @8:7
+  v1 = const 6 @8:7
+  store s0, v0 @8:2
+  store s1, v1 @8:2
+  v2 = const -1 @9:7
+  store s2, v2 @9:2
+  v3 = load s0 @10:10
+  v4 = load s1 @10:10
+  store s3, v3 @10:11
+  store s4, v4 @10:11
+  v5 = const 2 @10:12
+  store s5, v5 @10:11
+  v6 = conv u64, v5 @10:11
+  v7 = conv u64, v4 @10:11
+  v8 = gt v6, v7 @10:11
+  branch v8, b1, b2 @10:11
+b1:
+  v9 = load s5 @10:11
+  v10 = load s4 @10:11
+  panic sliceb, v9, v10 @10:11
+b2:
+  v11 = load s3 @10:11
+  v12 = const 2 @10:11
+  v13 = padd v11, v12 @10:11
+  v14 = load s4 @10:11
+  v15 = load s5 @10:11
+  v16 = sub v14, v15 @10:11
+  println v13, v16 @10:2
+  v17 = load s0 @11:10
+  v18 = load s1 @11:10
+  store s6, v17 @11:11
+  store s7, v18 @11:11
+  v19 = load s2 @11:12
+  store s8, v19 @11:11
+  v20 = conv u64, v19 @11:11
+  v21 = conv u64, v18 @11:11
+  v22 = gt v20, v21 @11:11
+  branch v22, b3, b4 @11:11
+b3:
+  v23 = load s8 @11:11
+  v24 = load s7 @11:11
+  panic sliceb, v23, v24 @11:11
+b4:
+  v25 = load s6 @11:11
+  store s9, v25 @11:11
+  v26 = load s8 @11:11
+  v27 = const 0 @11:11
+  v28 = ne v26, v27 @11:11
+  branch v28, b5, b6 @11:11
+b5:
+  v29 = load s6 @11:11
+  v30 = load s8 @11:11
+  v31 = const 1 @11:11
+  v32 = mul v30, v31 @11:11
+  v33 = padd v29, v32 @11:11
+  store s9, v33 @11:11
+  jump b6 @11:11
+b6:
+  v34 = load s9 @11:11
+  v35 = load s7 @11:11
+  v36 = load s8 @11:11
+  v37 = sub v35, v36 @11:11
+  println v34, v37 @11:2
+  ret @12:1

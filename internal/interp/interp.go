@@ -59,13 +59,13 @@ func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
 	mem := newMemory(prog)
 	var executed int64
 	if prog.Init != nil {
-		if code, err := run(prog.Init, prog.Strings, globals, mem, stderr, steps, &executed); code != 0 || err != nil {
+		if code, err := run(prog.Init, globals, mem, stderr, steps, &executed); code != 0 || err != nil {
 			return code, err
 		}
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, prog.Strings, globals, mem, stderr, steps, &executed)
+			return run(f, globals, mem, stderr, steps, &executed)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
@@ -89,10 +89,10 @@ type frame struct {
 // It counts the instructions it executes in *executed, against the budget
 // steps.
 //
-// A Ptr is held as the index of its program string plus 1, so that the
-// constant 0 is the empty string's address (D-033), or as an object's
-// number and an offset in it (memory.go, D-034, D-035).
-func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.Writer, steps int64, executed *int64) (int, error) {
+// A Ptr is 0 (nil, and the empty string's address, D-033) or an object's
+// number and an offset in it (memory.go, D-034, D-035); a program string
+// is a read-only object (D-037).
+func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps int64, executed *int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
@@ -171,14 +171,14 @@ func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.
 			_, _ = io.WriteString(stderr, "panic: runtime error: "+msg+"\n")
 			return 2, nil
 		case ir.Str:
-			fr.values[in.ID] = int64(in.Index) + 1
+			fr.values[in.ID] = mem.strs[in.Index]
 		case ir.LoadB:
-			p, i := arg(0), arg(1)
-			if p < 1 || p > int64(len(strs)) || i < 0 || i >= int64(len(strs[p-1])) {
-				// Lowering checks every index first (D-033).
-				return 0, fmt.Errorf("interp: func %s: %s out of range", fr.f.Name, in)
+			// Lowering checks every index first (D-033).
+			v, err := mem.load(ir.U8, arg(0), arg(1))
+			if err != nil {
+				return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
 			}
-			fr.values[in.ID] = int64(strs[p-1][i])
+			fr.values[in.ID] = v
 		case ir.Addr:
 			m := in.Mem
 			switch {
@@ -261,15 +261,12 @@ func run(entry *ir.Func, strs []string, globals []int64, mem *memory, stderr io.
 				switch {
 				case a.Type == ir.Ptr:
 					// A string: its address and then its length (D-033).
-					p, n := arg(i), arg(i+1)
-					i++
-					switch {
-					case p == 0 && n == 0:
-					case p >= 1 && p <= int64(len(strs)) && n >= 0 && n <= int64(len(strs[p-1])):
-						line = append(line, strs[p-1][:n]...)
-					default:
-						return 0, fmt.Errorf("interp: func %s: %s prints a string out of range", fr.f.Name, in)
+					bs, err := mem.bytes(arg(i), arg(i+1))
+					if err != nil {
+						return 0, fmt.Errorf("interp: func %s: %s prints a string: %v", fr.f.Name, in, err)
 					}
+					i++
+					line = append(line, bs...)
 				case a.Type == ir.F64:
 					line = strconv.AppendFloat(line, toFloat(a.Type, arg(i)), 'g', -1, 64)
 				case a.Type == ir.F32:

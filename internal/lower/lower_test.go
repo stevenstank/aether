@@ -213,7 +213,7 @@ func TestLowerUnexpected(t *testing.T) {
 	tests := []struct{ name, src, want string }{
 		{"statement", "func main() { x := 1; for range x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.RangeStmt"},
 		{"fallthrough", "func main() { switch { case true: fallthrough; default: } }", "p.go:2:35: internal: lowering: unexpected fallthrough statement"},
-		{"slice", "func main() { x := 1; println(x + len(\"ab\"[x:])) }", "p.go:2:39: internal: lowering: unexpected string expression \"ab\"[x:]"},
+		{"string comparison", "func main() { s := \"ab\"; println(s < s) }", "p.go:2:34: internal: lowering: a value of 2 words where one is needed"},
 		{"type", "func main() { var m map[int]int; println(len(m)) }", "p.go:2:19: internal: lowering: unexpected type map[int]int"},
 		{"named results", "func f() (a, b int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected result var a int"},
 		{"function value", "func f() {}\nfunc main() { g := f; g() }", "p.go:3:20: internal: lowering: unexpected type func()"},

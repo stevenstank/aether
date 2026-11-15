@@ -240,8 +240,8 @@ has a defined normalization in the test harness.
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 | V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
-| V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, and `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter. |
-| V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or depend on sharing after a growing `append`. |
+| V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, a `string(b)` of a `[]byte` before a call that changes its elements, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign, with a `string(b)` of bytes it may change, or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, and `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter. |
+| V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` is the string's length, where gc's is rounded up (increment 7.3). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)`, or depend on sharing after a growing `append`. |
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
@@ -407,7 +407,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `rune-literal`, `predeclared-identifier` |
-| Operators | `operator-receive`, `operator-other`, `string-concatenation`, `string-comparison`, `loop-variable-address` |
+| Operators | `operator-receive`, `operator-other`, `string-comparison`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
 
@@ -809,13 +809,37 @@ heap, or is an array variable it was sliced from, which is then on the heap
 - **`== nil`** and **`!= nil`**; conversions between slice types of identical
   underlying types.
 
-Still `unsupported`: slicing strings, and `append` or `copy` of a string's
-bytes (`slice-expression`, `builtin`), until increment 7.3; `for range`
-(`for-range`); conversions between slices and strings, arrays, or pointers to
-arrays (`conversion`); printing a slice (`println-argument-type`), whose
+Still `unsupported`: `for range` (`for-range`); conversions between slices
+and arrays or pointers to arrays, and between `[]rune` and strings
+(`conversion`); printing a slice (`println-argument-type`), whose
 address gc prints; defined slice types, as `type S []int`
 (`local-type-declaration`, `package-level-declaration`); `make` of maps and
 channels (`builtin`).
+
+## Strings at run time (Phase 7 increment 7.3)
+
+The gate also accepts these operations on strings, which make strings at run
+time (D-037). A string's bytes are a constant's or a heap object's, and never
+change; the heap is never freed (V-5).
+- **`+` and `+=`** concatenate, of any operands: variables, fields,
+  elements, call results, and constants. The operands of a chain such as
+  `a + f() + b[i]` are evaluated left to right, and the result is a new
+  string; `x += y` evaluates `x`'s index operands, then `y`, then reads `x`.
+- **`s[i:j]`**, with either bound omitted, of any string, shares its bytes.
+  The bounds are evaluated and then checked as for an array of the string's
+  length, with gc's messages (`slice bounds out of range [:5] with length
+  3`, `[4:2]`, `[-1:]`).
+- **`string(b)`** of a `[]byte` and **`[]byte(s)`** copy the bytes, so a
+  later change of `b` is not seen by the string; `string(s)` of a string is
+  `s`. The capacity of `[]byte(s)` is its length, where gc's is larger
+  (V-6).
+- **`append(b, s...)`** and **`copy(b, s)`** take a string's bytes.
+
+Still `unsupported`: comparison of strings (`string-comparison`), and
+conversions between strings and integers or `[]rune` (`conversion`), until
+later in increment 7.3; rune literals (`rune-literal`); `for range` over a
+string (`for-range`). The feature name `string-concatenation` no longer
+exists.
 
 ## Support matrix
 
@@ -845,6 +869,7 @@ channels (`builtin`).
 | Arrays and structs: type declarations, literals, fields, indexing with index panics, copies, parameters, results, globals, `len`, `==`, `!=` | Array types, Struct types, Composite literals, Selectors, Index expressions, Assignment statements, Comparison operators | S3 / 6.3 | Supported (native), with divergences V-3 and V-4 | `s3_a01_struct_basics` to `s3_a09_aggregate_swap`; generated array and struct programs; `TestLayoutAgainstGc`; `TestNativeMemory`, `TestFrameMems`, `TestMemoryRoundTrip`, `TestVerifyMem`; gate tests |
 | Pointers: `*T`, `&`, `new`, `*p`, auto-dereference, nil checks, address-taken variables on the heap, `==`, `!=` | Pointer types, Address operators, Allocation, Selectors, Index expressions, Run-time panics | S4 / 7.1 | Supported (native), with divergences V-3 and V-4 | `s3_p01_pointer_basics` to `s3_p08_nil_address`; generated pointer programs; `TestNativeHeap`, `TestHeap`, `TestHeapErrors`; gate tests |
 | Slices: `make`, literals, indexing, two- and three-index slice expressions of slices, arrays, and pointers to arrays, `len`, `cap`, `append`, `copy`, nil comparisons | Slice types, Making slices, Index expressions, Slice expressions, Appending to and copying slices | S4 / 7.2 | Supported (native), with divergences V-3, V-5, and V-6 | `s3_l01_slice_basics` to `s3_l08_nil_array_slice`; `TestNativeMove`, `TestNativeBounds`, `TestMove`, `TestBoundsMessage`, `TestVerifySlices`; gate tests |
+| Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)` | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c06_string_slice_negative`; generated string operations; `TestMemoryPreconditions`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

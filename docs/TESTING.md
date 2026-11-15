@@ -296,6 +296,27 @@ run by hand and reverted: an `append` that always grows fails 15 of the 100
 slice programs (and `s3_l01`), a `copy` of the longer length 58, and a
 minimum capacity of 8 `TestAppendGrowthRule`.
 
+Since Phase 7 increment 7.3, a seventh random stream (`gen_str_test.go`)
+adds up to `maxStrOpStmts` (8) string operations to `generate`'s programs:
+concatenations of two or three operands (literals, variables, slices of
+variables, `string([]byte(s))`, `string(s)`), assignments and `+=` of them,
+each followed by a cut to at most 24 bytes so that loops cannot double a
+string; slices with constant bounds under a length test, or with a
+variable's bounds, unguarded one time in six so that the program may panic;
+a `[]byte(s)` changed and printed beside `s`, which must not change (aliasing);
+and `append` and `copy` of a string's bytes. A `string(b)` is never in one
+statement with a call that changes `b`, which gc evaluates first (V-4); the
+first version of the generator did that and found the divergence, now
+documented. The cap keeps `main` within promotion's limit
+(`TestBuildBackendLimits`). On 2026-11-16, of seeds 1001 to 2000, the 449
+valid programs with string operations (9 of them panic with a slice bound)
+all gave gc's output in the interpreter, `aether build`, and `-O0`. Negative
+controls in lowering, run by hand and reverted, against
+`TestDifferentialAgainstGc`: a concatenation that moves every operand to
+offset 0 fails 82 generated programs and `s3_c01` to `s3_c03`, and a
+`[]byte(s)` that shares the string's bytes 33 generated programs (25 of
+them by storing into a program string in the interpreter) and `s3_c03`.
+
 Since Phase 7 increment 7.1, a fifth random stream (`gen_ptr_test.go`)
 declares a list node type `PN`, a function `pinc` that writes through its
 pointer parameter and returns the address of its other one, a global list,

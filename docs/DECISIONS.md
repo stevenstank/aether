@@ -64,6 +64,8 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-033 | String constants in the IR and the runtime (Phase 6 increment 6.2) | Accepted (2026-11-10, owner approval) |
 | D-034 | Arrays and structs in memory objects (Phase 6 increment 6.3) | Accepted (2026-11-12, owner approval) |
 | D-035 | Pointers and heap memory in the IR (Phase 7 increment 7.1) | Accepted (2026-11-14, owner approval of its outline) |
+| D-036 | Slices (Phase 7 increment 7.2) | Accepted (2026-11-15, owner decision) |
+| D-037 | Strings made at run time (Phase 7 increment 7.3) | Accepted (2026-11-16, owner decision) |
 
 ## Review log
 
@@ -110,6 +112,8 @@ The pre-Phase 1 audit made these corrections and clarifications:
 | 2026-11-10 | Owner accepts D-033 | D-033 |
 | 2026-11-12 | Phase 6.3 started with arrays and structs; owner accepts D-034 as proposed before any code depended on it. Its IR, verifier, and interpreter parts exist with tests; the backend and gate do not handle them yet. | D-034 |
 | 2026-11-14 | Phase 7 starts. Owner resolves D-010 (a non-collecting bump allocator for Phase 7), splits Phase 7 into 7.1 pointers and heap, 7.2 slices, and 7.3 string concatenation and conversions, chooses gc's exact `append` growth for 7.2, and approves D-035's outline before any code depends on it. | D-010, D-035 |
+| 2026-11-15 | Owner accepts D-036: Aether's own growth rule (V-6), `move` through `aether.memmove`, and its scope. | D-036 |
+| 2026-11-16 | Owner widens 7.3 to string comparison and rune conversions, with looping operations as generated IR functions; D-037 accepted before any code depends on it. | D-037 |
 
 ---
 
@@ -2932,6 +2936,59 @@ memory and every slice value an allocation.
 nothing is freed (V-5). Programs that print a capacity after growth, or rely
 on whether a growing `append` shares an array, behave differently from gc
 (V-6).
+
+---
+
+## D-037: Strings made at run time (Phase 7 increment 7.3)
+
+**Status:** Accepted (2026-11-16, owner decision on the scope and mechanism:
+increment 7.3 also covers string comparison and the rune conversions, and
+operations that loop are IR functions that lowering generates, not new
+operations or runtime helpers).
+
+**Context.** Increment 7.3 adds string concatenation and conversions
+(`ROADMAP.md` Phase 7), and the string slicing and `append`/`copy` of a
+string's bytes that D-036 left to it. Until now every string's bytes were a
+program constant's (D-033), and the interpreter held a string's `Ptr` apart
+from memory objects, as its string's index plus 1, so a `padd` or `move`
+could not reach a string's bytes there, though natively both are plain
+addresses. Measured with gc-built go1.26.1 binaries on 2026-11-16: `s[:5]`
+of a 3-byte string panics with `slice bounds out of range [:5] with length
+3`, and `s[4:2]` and `s[-1:]` with `[4:2]` and `[-1:]`; `cap([]byte("abc"))`
+is 3, 8, or 32 depending on where gc puts the array, and 48 for 33 bytes;
+in `println(string(b), copy(b, t))` gc converts `b` after the call.
+
+**Decision.**
+- **Values.** A string stays a `Ptr` and an `I64` length (D-033). Its bytes
+  are a program string's or a heap object's, and are never written once the
+  string exists. `loadb`, `ldm`, `padd`, `print`, and `move`'s source accept
+  either; a program string is never a `stm` or `move` destination.
+- **Interpreter.** Each program string is a read-only memory object, with
+  every byte written, so a string `Ptr` is an object's `Ptr` (D-035) and the
+  index-plus-1 form is gone; a store or move into one is an error.
+- **Operations**, lowered with existing instructions and no branch:
+  concatenation (`+`, `+=`, a chain flattened in lexical order) allocates
+  the total length and moves each operand's bytes; `string(b)` of a `[]byte`
+  and `[]byte(s)` allocate and move, the latter with a capacity equal to the
+  length; `s[i:j]` checks its bounds as a slice expression of an array of
+  the string's length, with gc's messages, and shares the bytes; `append(b,
+  s...)` and `copy(b, s)` take a string where D-036 takes a slice.
+- **Comparison and runes** (later in 7.3): operations that loop, such as
+  comparing bytes or encoding and decoding UTF-8, are ordinary IR functions
+  that lowering adds to the program when it uses them, so the interpreter,
+  both backends, and both calling conventions run them unchanged.
+
+**Alternatives.** New IR operations backed by runtime helpers in assembly
+(`aether.concatstrings`, `aether.cmpstring`), as gc has: faster loops, but a
+larger IR contract and runtime interface, and every algorithm written twice,
+in assembly and in the interpreter. Keeping string `Ptr`s apart in the
+interpreter: every memory operation would need a second case for them.
+
+**Consequences.** Every concatenation and conversion allocates, never freed
+(V-5); gc avoids some (a single non-empty operand, small results on the
+stack). The capacity of `[]byte(s)` differs from gc's, part of V-6. A
+`string(b)` read before a call in the same statement that changes `b`
+follows D-024's order, which gc does not (V-4).
 
 ---
 

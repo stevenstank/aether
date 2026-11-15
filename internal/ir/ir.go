@@ -57,7 +57,10 @@ const (
 	// array or struct value as the address of the memory holding it, and a
 	// Go pointer as a Ptr. Str, Addr, Alloc, PAdd, and the constant 0
 	// produce one; LoadB reads through a string's, and LdM and StM through
-	// an object's. Eq and Ne compare two Ptrs as addresses.
+	// an object's. A string's bytes are a program string's or a heap
+	// object's (D-037), which LoadB, LdM, PAdd, and Move's source accept
+	// alike; a program string's are never written. Eq and Ne compare two
+	// Ptrs as addresses.
 	Ptr
 )
 
@@ -276,8 +279,8 @@ const (
 	// args.
 	Str
 	// LoadB produces the U8 byte at offset args[1], an I64, of the string
-	// whose address is args[0], a Ptr. Precondition: 0 <= args[1] < the
-	// string's length (lowering checks it first, D-033).
+	// whose address is args[0], a Ptr, as LdM.U8 does. Precondition: 0 <=
+	// args[1] < the string's length (lowering checks it first, D-033).
 	LoadB
 	// Addr produces the address of Mem, a Ptr (D-034): of the function's
 	// own instance of a local memory object, fresh for each call, or of a

@@ -675,6 +675,10 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			token.AND_ASSIGN: ir.And, token.OR_ASSIGN: ir.Or, token.XOR_ASSIGN: ir.Xor, token.AND_NOT_ASSIGN: ir.AndNot,
 			token.QUO_ASSIGN: ir.Div, token.REM_ASSIGN: ir.Rem, token.SHL_ASSIGN: ir.Shl, token.SHR_ASSIGN: ir.Shr,
 		}[s.Tok]
+		if isString(l.pkg.Info.Types[s.Lhs[0]].Type) {
+			l.concatAssign(s)
+			return
+		}
 		if v := l.lvalue(s.Lhs[0]); v.mem != nil {
 			l.compoundPlace(op, *v.mem, s)
 			return
@@ -1312,13 +1316,20 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 		// *p.
 		return l.loadPlace(l.addrOf(e, false), pos)
 	case *ast.CallExpr:
-		if !l.pkg.Info.Types[e.Fun].IsType() {
-			vals := l.results(e, l.call(e))
-			if len(vals) != 1 {
-				l.fail(e, "call of %d results used as one value", len(vals))
-			}
-			return vals[0]
+		if l.pkg.Info.Types[e.Fun].IsType() {
+			return l.stringConversion(e)
 		}
+		vals := l.results(e, l.call(e))
+		if len(vals) != 1 {
+			l.fail(e, "call of %d results used as one value", len(vals))
+		}
+		return vals[0]
+	case *ast.BinaryExpr:
+		if e.Op == token.ADD {
+			return l.concatExpr(e)
+		}
+	case *ast.SliceExpr:
+		return l.sliceExpr(e)
 	}
 	l.fail(e, "unexpected string expression %s", types.ExprString(e))
 	return nil
