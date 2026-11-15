@@ -805,7 +805,7 @@ repeated in each phase below:
 - **Risks:** escape semantics; relying on gc's unspecified `append` capacity.
 - **Increments** (split by the owner): 7.1 pointers and the heap, 7.2 slices,
   7.3 string concatenation and conversions.
-- **Status of 7.1 (in progress):**
+- **Status of 7.1 (every item below done; owner review pending):**
   - `alloc`, `padd`, pointer `eq`/`ne`, `panic nil`, the interpreter's heap,
     and the bump allocator in the runtime (D-035; commit ee1a049).
   - Gate and lowering (`SEMANTICS.md` §Pointers): pointer types, `&`, `new`,
@@ -815,8 +815,10 @@ repeated in each phase below:
   - Pointers in the program generator (`gen_ptr_test.go`, `TESTING.md`), so
     `FuzzGenerated` and the 200 generated programs exercise them; checked
     against gc on 892 programs with pointers on 2026-11-15.
-  - Not yet done: memory growth of the allocator is not yet documented with
-    measurements.
+  - Memory growth measured 2026-11-15
+    (`docs/benchmarks/2026-11-15-heap/README.md`): peak RSS grows by every
+    byte allocated, garbage included, while gc's levels off; documented as
+    divergence V-5 (`SEMANTICS.md`).
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 

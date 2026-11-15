@@ -29,11 +29,15 @@ import (
 )
 
 // aggWorkloads returns the workloads of testdata/bench_agg in name order.
-func aggWorkloads(t *testing.T) []benchWorkload {
+func aggWorkloads(t *testing.T) []benchWorkload { return workloadsIn(t, "bench_agg") }
+
+// workloadsIn returns the workloads of testdata/dir, each name.go with
+// name.gcout, in name order.
+func workloadsIn(t *testing.T, dir string) []benchWorkload {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join("testdata", "bench_agg", "*.go"))
+	files, err := filepath.Glob(filepath.Join("testdata", dir, "*.go"))
 	if err != nil || len(files) == 0 {
-		t.Fatalf("no workloads in testdata/bench_agg: %v", err)
+		t.Fatalf("no workloads in testdata/%s: %v", dir, err)
 	}
 	sort.Strings(files)
 	var ws []benchWorkload

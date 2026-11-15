@@ -1,0 +1,19 @@
+workload	variant	n	peak median KiB	min-max
+h01_list_churn	aether	7	99968	99968-99968
+h01_list_churn	O0	7	99968	99968-99968
+h01_list_churn	gc	7	11772	11296-12156
+h02_tree_live	aether	7	49152	49152-49152
+h02_tree_live	O0	7	49152	49152-49152
+h02_tree_live	gc	7	54524	54268-54652
+h03_escaping_locals	aether	7	62464	62464-62464
+h03_escaping_locals	O0	7	62464	62464-62464
+h03_escaping_locals	gc	7	6396	6268-6524
+h04_small_objects	aether	7	15616	15616-15616
+h04_small_objects	O0	7	15616	15616-15616
+h04_small_objects	gc	7	3580	3580-3580
+
+workload	aether/gc peak	O0/aether peak
+h01_list_churn	8.49	1.00
+h02_tree_live	0.90	1.00
+h03_escaping_locals	9.77	1.00
+h04_small_objects	4.36	1.00
