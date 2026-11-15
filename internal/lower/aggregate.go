@@ -182,6 +182,25 @@ func (l *lowerer) stm(p place, v *ir.Instr, pos ir.Pos) {
 // it skips blank fields. An array of more than unrollLeaves leaves is a
 // loop over its elements. leaf may create blocks.
 func (l *lowerer) walk(t types.Type, ps []place, blank bool, pos ir.Pos, leaf func(ir.Type, []place)) {
+	l.walkValues(t, ps, blank, pos, func(t types.Type, ps []place) {
+		// A string's or slice's words, 8 bytes apart.
+		if ws := l.words(nil, t); len(ws) > 1 {
+			for i, w := range ws {
+				qs := make([]place, len(ps))
+				for k, p := range ps {
+					qs[k] = p.field(8*int64(i), t)
+				}
+				leaf(w, qs)
+			}
+			return
+		}
+		leaf(l.irType(nil, t), ps)
+	})
+}
+
+// walkValues is walk with leaf called for each value that is not an array
+// or struct, of type t, a string's or slice's words together.
+func (l *lowerer) walkValues(t types.Type, ps []place, blank bool, pos ir.Pos, leaf func(types.Type, []place)) {
 	at := func(off int64, t types.Type) []place {
 		qs := make([]place, len(ps))
 		for i, p := range ps {
@@ -198,7 +217,7 @@ func (l *lowerer) walk(t types.Type, ps []place, blank bool, pos ir.Pos, leaf fu
 		offs := sizes.Offsetsof(fields)
 		for i, f := range fields {
 			if !blank || f.Name() != "_" {
-				l.walk(f.Type(), at(offs[i], f.Type()), blank, pos, leaf)
+				l.walkValues(f.Type(), at(offs[i], f.Type()), blank, pos, leaf)
 			}
 		}
 	case *types.Array:
@@ -209,7 +228,7 @@ func (l *lowerer) walk(t types.Type, ps []place, blank bool, pos ir.Pos, leaf fu
 		}
 		if !mayLoop(t) {
 			for k := range n {
-				l.walk(et, at(k*es, et), blank, pos, leaf)
+				l.walkValues(et, at(k*es, et), blank, pos, leaf)
 			}
 			return
 		}
@@ -225,19 +244,12 @@ func (l *lowerer) walk(t types.Type, ps []place, blank bool, pos ir.Pos, leaf fu
 		for k, p := range ps {
 			qs[k] = l.indexed(p, func() *ir.Instr { return l.fn.Load(l.b, i, pos) }, es, et, pos)
 		}
-		l.walk(et, qs, blank, pos, leaf)
+		l.walkValues(et, qs, blank, pos, leaf)
 		l.fn.Store(l.b, i, l.fn.Binary(l.b, ir.Add, l.fn.Load(l.b, i, pos), l.fn.Const(l.b, 1, pos), pos), pos)
 		l.fn.Jump(l.b, head, pos)
 		l.b = exit
 	default:
-		// A string's or slice's words, 8 bytes apart.
-		if ws := l.words(nil, t); len(ws) > 1 {
-			for i, w := range ws {
-				leaf(w, at(8*int64(i), t))
-			}
-			return
-		}
-		leaf(l.irType(nil, t), ps)
+		leaf(t, ps)
 	}
 }
 
@@ -276,17 +288,21 @@ func (l *lowerer) zero(p place, pos ir.Pos) {
 }
 
 // equal returns whether the values at x and y, of the same type, are equal:
-// every pair of corresponding leaves, blank fields excepted, is equal, a
-// float by IEEE 754 and a pointer by address (spec §Comparison operators). The leaves are compared in
-// order until one pair differs.
+// every pair of corresponding values, blank fields excepted, is equal, a
+// float by IEEE 754, a pointer by address, and a string by its bytes (spec
+// §Comparison operators). They are compared in order until one pair
+// differs; padding is never read.
 func (l *lowerer) equal(x, y place, pos ir.Pos) *ir.Instr {
-	if holdsString(x.t) {
-		l.fail(nil, "comparison of a string") // excluded by the gate
-	}
 	res := l.fn.NewSlot("tmp", ir.Bool, pos)
 	differ := l.fn.NewBlock()
-	l.walk(x.t, []place{x, y}, true, pos, func(t ir.Type, ps []place) {
-		eq := l.compare(ir.Eq, l.ldm(t, ps[0], pos), l.ldm(t, ps[1], pos), pos)
+	l.walkValues(x.t, []place{x, y}, true, pos, func(t types.Type, ps []place) {
+		var eq *ir.Instr
+		if isString(t) {
+			eq = l.stringEqual(l.loadPlace(ps[0], pos), l.loadPlace(ps[1], pos), pos)
+		} else {
+			it := l.irType(nil, t)
+			eq = l.compare(ir.Eq, l.ldm(it, ps[0], pos), l.ldm(it, ps[1], pos), pos)
+		}
 		next := l.fn.NewBlock()
 		l.fn.Branch(l.b, eq, next, differ, pos)
 		l.b = next

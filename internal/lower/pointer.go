@@ -176,20 +176,3 @@ func (l *lowerer) heapLit(lit *ast.CompositeLit, t types.Type, pos ir.Pos) *ir.I
 	l.fill(p, lit) // the object holds zeros
 	return p.base()
 }
-
-// holdsString reports whether a value of t contains a string, other than
-// through a pointer.
-func holdsString(t types.Type) bool {
-	switch u := t.Underlying().(type) {
-	case *types.Array:
-		return holdsString(u.Elem())
-	case *types.Struct:
-		for f := range u.Fields() {
-			if holdsString(f.Type()) {
-				return true
-			}
-		}
-		return false
-	}
-	return isString(t)
-}

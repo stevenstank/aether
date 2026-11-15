@@ -124,6 +124,7 @@ type lowerer struct {
 	retPtrs   []*ir.Slot              // fn's array and struct results: the slot of the Ptr to each
 	addrs     map[*ir.Mem]*ir.Instr   // the addresses computed in addrBlock
 	addrBlock *ir.Block
+	streq     *ir.Func // aether.streq, once a string comparison needs it (strings.go)
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -536,8 +537,13 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 		l.stmt(s.Init)
 	}
 	var tag func() *ir.Instr
+	var strTag func() []*ir.Instr // a string tag's words (D-037)
 	if s.Tag != nil {
-		tag = l.spill(l.expr(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
+		if isString(l.pkg.Info.Types[s.Tag].Type) {
+			strTag = l.spillWords(l.value(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
+		} else {
+			tag = l.spill(l.expr(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
+		}
 	}
 	exit := l.fn.NewBlock()
 	bodies := make([]*ir.Block, len(s.Body.List))
@@ -552,7 +558,13 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 		}
 		for _, e := range cc.List {
 			pos := l.pos(e, e.Pos())
-			cond := l.expr(e)
+			var cond *ir.Instr
+			if strTag != nil {
+				v := l.value(e)
+				cond = l.stringEqual(strTag(), v, pos)
+			} else {
+				cond = l.expr(e)
+			}
 			if tag != nil {
 				t := tag()
 				if cond.Type != t.Type {
@@ -1255,6 +1267,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		}
 		if isAggregate(l.pkg.Info.Types[e.X].Type) {
 			return l.aggregateCompare(e, pos)
+		}
+		if isString(l.pkg.Info.Types[e.X].Type) && (e.Op == token.EQL || e.Op == token.NEQ) {
+			return l.stringCompare(e, pos)
 		}
 		if s := e.X; isSlice(l.pkg.Info.Types[s].Type) || isSlice(l.pkg.Info.Types[e.Y].Type) {
 			// s == nil: a slice is nil if its Ptr is (D-036).

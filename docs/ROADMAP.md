@@ -838,10 +838,14 @@ repeated in each phase below:
     with the corpus programs `s3_c01` to `s3_c06` and string operations in
     the program generator (`gen_str_test.go`), checked against gc by
     `TestDifferentialAgainstGc`.
-  - Remaining: string comparison (`==` to `>=`, `switch` on strings, and
-    `==` of arrays and structs holding strings), and rune literals with
-    `string(r)`, `[]rune(s)`, and `string(rs)`, as generated IR functions
-    (D-037).
+  - 7.3b: `==` and `!=` of strings by their bytes, `switch` on strings, and
+    `==` of arrays and structs holding strings, through the generated IR
+    function `aether.streq` (D-037); corpus programs `s3_c07` to `s3_c10`,
+    `TestStringEquality` against Go's own `==`, and comparisons and switches
+    in `gen_str_test.go`.
+  - Remaining: rune literals with `string(r)`, `[]rune(s)`, and
+    `string(rs)` (7.3c), and the ordering of strings, `< <= > >=`, which
+    7.3b left out.
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 

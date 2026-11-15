@@ -731,8 +731,9 @@ and multiple results, as the other types; each lives in memory laid out as
   not fit the stack overflows it, as any frame does (V-2); gc instead moves large
   variables to the heap.
 
-Still `unsupported`: `==`, `!=`, and `switch` on a type that holds a string
-(`string-comparison`) or on any array or struct value (`non-int-type`); printing
+Still `unsupported`: `switch` on an array or struct value (`non-int-type`);
+`==` and `!=` of ones that hold strings are supported since increment 7.3
+(§Strings at run time); printing
 one (`println-argument-type`); slicing an array (`slice-expression`); `for
 range` (`for-range`); slice and map literals (`composite-literal`); `cap`
 (`builtin`); methods; parenthesized assignment targets
@@ -834,10 +835,22 @@ change; the heap is never freed (V-5).
   `s`. The capacity of `[]byte(s)` is its length, where gc's is larger
   (V-6).
 - **`append(b, s...)`** and **`copy(b, s)`** take a string's bytes.
+- **`==` and `!=`** compare the bytes, never the addresses: two strings are
+  equal exactly when they have the same length and the same byte at each
+  offset, so the empty string equals every string of length 0 whatever its
+  origin, and NUL bytes and invalid UTF-8 compare as bytes, not as Unicode
+  (`"é" != "e\u0301"`). Both operands are evaluated, left to right, before
+  they are compared. A program that compares strings gets the IR function
+  `aether.streq`, which lowering adds (D-037).
+- **`switch`** on a string: the tag is evaluated once, then the case values
+  in order, each compared by its bytes, until one matches.
+- **`==` and `!=` of arrays and structs** that hold strings, nested to any
+  depth, compare each string by its bytes, as part of the element-by-element
+  comparison of §Arrays and structs, blank fields excepted.
 
-Still `unsupported`: comparison of strings (`string-comparison`), and
-conversions between strings and integers or `[]rune` (`conversion`), until
-later in increment 7.3; rune literals (`rune-literal`); `for range` over a
+Still `unsupported`: ordering of strings, `< <= > >=`
+(`string-comparison`); conversions between strings and integers or `[]rune`
+(`conversion`), until later in increment 7.3; rune literals (`rune-literal`); `for range` over a
 string (`for-range`). The feature name `string-concatenation` no longer
 exists.
 
@@ -869,7 +882,7 @@ exists.
 | Arrays and structs: type declarations, literals, fields, indexing with index panics, copies, parameters, results, globals, `len`, `==`, `!=` | Array types, Struct types, Composite literals, Selectors, Index expressions, Assignment statements, Comparison operators | S3 / 6.3 | Supported (native), with divergences V-3 and V-4 | `s3_a01_struct_basics` to `s3_a09_aggregate_swap`; generated array and struct programs; `TestLayoutAgainstGc`; `TestNativeMemory`, `TestFrameMems`, `TestMemoryRoundTrip`, `TestVerifyMem`; gate tests |
 | Pointers: `*T`, `&`, `new`, `*p`, auto-dereference, nil checks, address-taken variables on the heap, `==`, `!=` | Pointer types, Address operators, Allocation, Selectors, Index expressions, Run-time panics | S4 / 7.1 | Supported (native), with divergences V-3 and V-4 | `s3_p01_pointer_basics` to `s3_p08_nil_address`; generated pointer programs; `TestNativeHeap`, `TestHeap`, `TestHeapErrors`; gate tests |
 | Slices: `make`, literals, indexing, two- and three-index slice expressions of slices, arrays, and pointers to arrays, `len`, `cap`, `append`, `copy`, nil comparisons | Slice types, Making slices, Index expressions, Slice expressions, Appending to and copying slices | S4 / 7.2 | Supported (native), with divergences V-3, V-5, and V-6 | `s3_l01_slice_basics` to `s3_l08_nil_array_slice`; `TestNativeMove`, `TestNativeBounds`, `TestMove`, `TestBoundsMessage`, `TestVerifySlices`; gate tests |
-| Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)` | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c06_string_slice_negative`; generated string operations; `TestMemoryPreconditions`; gate tests |
+| Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)`, `==`, `!=`, `switch` on strings, `==` of arrays and structs holding strings | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices, Comparison operators, Switch statements | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c10_switch_case_panic`; generated string operations; `TestStringEquality`, `TestStreqFunc`, `TestMemoryPreconditions`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

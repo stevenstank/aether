@@ -317,6 +317,23 @@ offset 0 fails 82 generated programs and `s3_c01` to `s3_c03`, and a
 `[]byte(s)` that shares the string's bytes 33 generated programs (25 of
 them by storing into a program string in the interpreter) and `s3_c03`.
 
+Since increment 7.3b the same stream also compares strings with `==` and
+`!=`: equal bytes at other addresses, prefixes, and a copy with one byte
+flipped at its start, middle, or end, of the same length; switches on
+strings whose case values may call `strs`, which prints, so the order of
+evaluation shows (constant case values never repeat, which Go rejects); and
+`==` and `!=` of arrays and structs that hold strings, also after a copy
+whose strings are remade at other addresses and then after one of them
+grows. `TestStringEquality` checks every pair of 13 strings (empty, NUL
+bytes, invalid UTF-8, prefixes, differing first or last bytes), as constants
+and as bytes made at run time, against Go's own `==`, without gc.
+Negative controls, run by hand and reverted, against
+`TestDifferentialAgainstGc` and `TestStringEquality`: an `aether.streq` that
+compares only the lengths fails 17 generated programs, `s3_c07` to `s3_c09`,
+and `TestStringEquality`; one that skips the last byte `s3_c07` to `s3_c09`
+and `TestStringEquality`; and an aggregate comparison that compares a
+string's pointer instead of its bytes 1 generated program and `s3_c09`.
+
 Since Phase 7 increment 7.1, a fifth random stream (`gen_ptr_test.go`)
 declares a list node type `PN`, a function `pinc` that writes through its
 pointer parameter and returns the address of its other one, a global list,

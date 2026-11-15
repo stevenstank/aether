@@ -114,3 +114,62 @@ func (l *lowerer) concatAssign(s *ast.AssignStmt) {
 	y := l.value(s.Rhs[0])
 	l.store(v, l.concat([][]*ir.Instr{get(), y}, tpos), pos)
 }
+
+// streqName is the name of the generated string equality function. A Go
+// identifier has no '.', so it differs from every function of the program.
+const streqName = "aether.streq"
+
+// streqFunc returns the program's string equality function, which lowering
+// adds on its first use (D-037):
+//
+//	func aether.streq(p ptr, n i64, q ptr, m i64) bool
+//
+// It is true exactly when n = m and the n bytes at p and q are equal, byte
+// by byte: the addresses are never compared, and a string of length 0
+// equals every other, whatever its Ptr.
+func (l *lowerer) streqFunc(pos ir.Pos) *ir.Func {
+	if l.streq != nil {
+		return l.streq
+	}
+	f := l.prog.NewFunc(streqName, l.fn.File, pos)
+	f.Params = []ir.Type{ir.Ptr, ir.I64, ir.Ptr, ir.I64}
+	f.Results = []ir.Type{ir.Bool}
+	entry := f.Entry()
+	head, body, next, no, yes := f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+	ps, qs, ns, is := f.NewSlot("p", ir.Ptr, pos), f.NewSlot("q", ir.Ptr, pos), f.NewSlot("n", ir.I64, pos), f.NewSlot("i", ir.I64, pos)
+	// The parameters first, as ABI-R1 requires (D-030).
+	p, n, q, m := f.Param(entry, 0, pos), f.Param(entry, 1, pos), f.Param(entry, 2, pos), f.Param(entry, 3, pos)
+	f.Store(entry, ps, p, pos)
+	f.Store(entry, qs, q, pos)
+	f.Store(entry, ns, n, pos)
+	f.Store(entry, is, f.Const(entry, 0, pos), pos)
+	f.Branch(entry, f.Compare(entry, ir.Eq, n, m, pos), head, no, pos)
+	// for i < n: the bytes at i differ, or i++
+	f.Branch(head, f.Compare(head, ir.Lt, f.Load(head, is, pos), f.Load(head, ns, pos), pos), body, yes, pos)
+	i := f.Load(body, is, pos)
+	differ := f.Compare(body, ir.Ne, f.LoadB(body, f.Load(body, ps, pos), i, pos), f.LoadB(body, f.Load(body, qs, pos), i, pos), pos)
+	f.Branch(body, differ, no, next, pos)
+	f.Store(next, is, f.Binary(next, ir.Add, f.Load(next, is, pos), f.Const(next, 1, pos), pos), pos)
+	f.Jump(next, head, pos)
+	f.Ret(no, pos, f.BoolConst(no, false, pos))
+	f.Ret(yes, pos, f.BoolConst(yes, true, pos))
+	l.streq = f
+	return f
+}
+
+// stringEqual returns whether the strings x and y, two words each, are
+// equal: a call of aether.streq, which does not branch in the caller.
+func (l *lowerer) stringEqual(x, y []*ir.Instr, pos ir.Pos) *ir.Instr {
+	return l.fn.Call(l.b, l.streqFunc(pos), []*ir.Instr{x[0], x[1], y[0], y[1]}, pos)
+}
+
+// stringCompare lowers x == y or x != y of strings: both are evaluated,
+// left to right, then compared.
+func (l *lowerer) stringCompare(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
+	xy := l.values([]ast.Expr{e.X, e.Y}, nil)
+	eq := l.stringEqual(xy[0], xy[1], pos)
+	if e.Op == token.NEQ {
+		return l.fn.Not(l.b, eq, pos)
+	}
+	return eq
+}

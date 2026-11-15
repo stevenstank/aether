@@ -68,7 +68,7 @@ type regionStat struct {
 
 var (
 	reBlock    = regexp.MustCompile(`^\.L(\d+)\.b(\d+):$`)
-	reLabel    = regexp.MustCompile(`^(\.L[\w.]+|\d+|main\.\w+):$`)
+	reLabel    = regexp.MustCompile(`^(\.L[\w.]+|\d+|main\.[\w.]+):$`)
 	reMainMain = regexp.MustCompile(`main\.main\b`)
 	reStackQ   = regexp.MustCompile(`(aether\.mainstack:\n\t\.quad\t)(\d+)`)
 	// reObject is an ldm or stm operand (amd64 memOperand): a displacement

@@ -523,10 +523,6 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.stmt(s.Init)
 		}
 		if s.Tag != nil {
-			if c.isString(s.Tag) {
-				c.reject(s.Tag, FeatStringCompare, "switch on a string")
-				return
-			}
 			if tv, ok := c.info.Types[s.Tag]; ok && isAggregate(tv.Type) {
 				c.reject(s.Tag, FeatNonIntType, fmt.Sprintf("switch on a value of type %s", tv.Type))
 				return
@@ -1094,16 +1090,10 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.X)
 		}
 	case *ast.BinaryExpr:
-		// Strings concatenate (D-037) but do not compare yet.
-		if c.isString(e.X) && e.Op != token.ADD {
+		// Strings concatenate and compare for equality (D-037), also as
+		// parts of arrays and structs, but are not ordered yet.
+		if c.isString(e.X) && e.Op != token.ADD && e.Op != token.EQL && e.Op != token.NEQ {
 			c.reject(e, FeatStringCompare, "string comparison "+e.Op.String())
-			return
-		}
-		// Arrays and structs compare with == and != (go/types allows no
-		// other operator), element by element: a string among them needs
-		// string comparison.
-		if tv, ok := c.info.Types[e.X]; ok && isAggregate(tv.Type) && holdsString(tv.Type) {
-			c.reject(e, FeatStringCompare, fmt.Sprintf("comparison of type %s, which holds strings", tv.Type))
 			return
 		}
 		switch e.Op {
@@ -1431,23 +1421,6 @@ func (c *checker) isArrayPtr(e ast.Expr) bool {
 	}
 	p, ok := tv.Type.Underlying().(*types.Pointer)
 	return ok && isArray(p.Elem())
-}
-
-// holdsString reports whether a value of t contains a string.
-func holdsString(t types.Type) bool {
-	switch u := t.Underlying().(type) {
-	case *types.Basic:
-		return isString(u)
-	case *types.Array:
-		return holdsString(u.Elem())
-	case *types.Struct:
-		for f := range u.Fields() {
-			if holdsString(f.Type()) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // isByteSlice reports whether t is a slice of bytes.

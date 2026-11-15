@@ -1,0 +1,178 @@
+string s0 "value"
+string s1 "abc"
+string s2 "first"
+string s3 "x"
+string s4 "not reached"
+
+func v(ptr, i64) (ptr, i64) @testdata/check/s3_c10_switch_case_panic.go:8:6
+  slot s0 s ptr @8:8
+  slot s1 s i64 @8:8
+b0:
+  v0 = param 0 @8:8
+  store s0, v0 @8:8
+  v1 = param 1 @8:8
+  store s1, v1 @8:8
+  v2 = str s0 @9:10
+  v3 = const 5 @9:10
+  v4 = load s0 @9:19
+  v5 = load s1 @9:19
+  println v2, v3, v4, v5 @9:2
+  v6 = load s0 @10:9
+  v7 = load s1 @10:9
+  ret v6, v7 @10:2
+
+func main @testdata/check/s3_c10_switch_case_panic.go:13:6
+  slot s0 s ptr @14:2
+  slot s1 s i64 @14:2
+  slot s2 n i64 @15:2
+  slot s3 tmp ptr @16:9
+  slot s4 tmp i64 @16:9
+  slot s5 tmp ptr @17:18
+  slot s6 tmp i64 @17:18
+  slot s7 tmp i64 @17:18
+  slot s8 tmp ptr @20:9
+  slot s9 tmp i64 @20:9
+  slot s10 tmp ptr @21:16
+  slot s11 tmp i64 @21:16
+  slot s12 tmp i64 @21:16
+b0:
+  v0 = str s1 @14:7
+  v1 = const 3 @14:7
+  store s0, v0 @14:2
+  store s1, v1 @14:2
+  v2 = const 5 @15:7
+  store s2, v2 @15:2
+  v3 = load s0 @16:9
+  v4 = load s1 @16:9
+  store s3, v3 @16:9
+  store s4, v4 @16:9
+  v5 = str s1 @17:9
+  v6 = const 3 @17:9
+  v7 = call v, v5, v6 @17:7
+  v8 = extract 0, v7 @17:7
+  v9 = extract 1, v7 @17:7
+  v10 = load s3 @16:9
+  v11 = load s4 @16:9
+  v12 = call aether.streq, v10, v11, v8, v9 @17:7
+  branch v12, b2, b3 @17:7
+b1:
+  v30 = load s0 @20:9
+  v31 = load s1 @20:9
+  store s8, v30 @20:9
+  store s9, v31 @20:9
+  v32 = str s3 @21:9
+  v33 = const 1 @21:9
+  v34 = call v, v32, v33 @21:7
+  v35 = extract 0, v34 @21:7
+  v36 = extract 1, v34 @21:7
+  v37 = load s8 @20:9
+  v38 = load s9 @20:9
+  v39 = call aether.streq, v37, v38, v35, v36 @21:7
+  branch v39, b8, b9 @21:7
+b2:
+  v28 = str s2 @18:11
+  v29 = const 5 @18:11
+  println v28, v29 @18:3
+  jump b1 @19:2
+b3:
+  v13 = load s0 @17:17
+  v14 = load s1 @17:17
+  store s5, v13 @17:18
+  store s6, v14 @17:18
+  v15 = load s2 @17:20
+  store s7, v15 @17:18
+  v16 = conv u64, v15 @17:18
+  v17 = conv u64, v14 @17:18
+  v18 = gt v16, v17 @17:18
+  branch v18, b4, b5 @17:18
+b4:
+  v19 = load s7 @17:18
+  v20 = load s6 @17:18
+  panic slicealen, v19, v20 @17:18
+b5:
+  v21 = load s5 @17:18
+  v22 = load s7 @17:18
+  v23 = const 0 @17:18
+  v24 = sub v22, v23 @17:18
+  v25 = load s3 @16:9
+  v26 = load s4 @16:9
+  v27 = call aether.streq, v25, v26, v21, v24 @17:17
+  branch v27, b2, b6 @17:17
+b6:
+  jump b1 @16:2
+b7:
+  ret @24:1
+b8:
+  v55 = str s4 @22:11
+  v56 = const 11 @22:11
+  println v55, v56 @22:3
+  jump b7 @23:2
+b9:
+  v40 = load s0 @21:15
+  v41 = load s1 @21:15
+  store s10, v40 @21:16
+  store s11, v41 @21:16
+  v42 = load s2 @21:18
+  store s12, v42 @21:16
+  v43 = conv u64, v42 @21:16
+  v44 = conv u64, v41 @21:16
+  v45 = gt v43, v44 @21:16
+  branch v45, b10, b11 @21:16
+b10:
+  v46 = load s12 @21:16
+  v47 = load s11 @21:16
+  panic slicealen, v46, v47 @21:16
+b11:
+  v48 = load s10 @21:16
+  v49 = load s12 @21:16
+  v50 = const 0 @21:16
+  v51 = sub v49, v50 @21:16
+  v52 = load s8 @20:9
+  v53 = load s9 @20:9
+  v54 = call aether.streq, v52, v53, v48, v51 @21:15
+  branch v54, b8, b12 @21:15
+b12:
+  jump b7 @20:2
+
+func aether.streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c10_switch_case_panic.go:17:7
+  slot s0 p ptr @17:7
+  slot s1 q ptr @17:7
+  slot s2 n i64 @17:7
+  slot s3 i i64 @17:7
+b0:
+  v0 = param 0 @17:7
+  v1 = param 1 @17:7
+  v2 = param 2 @17:7
+  v3 = param 3 @17:7
+  store s0, v0 @17:7
+  store s1, v2 @17:7
+  store s2, v1 @17:7
+  v4 = const 0 @17:7
+  store s3, v4 @17:7
+  v5 = eq v1, v3 @17:7
+  branch v5, b1, b4 @17:7
+b1:
+  v6 = load s3 @17:7
+  v7 = load s2 @17:7
+  v8 = lt v6, v7 @17:7
+  branch v8, b2, b5 @17:7
+b2:
+  v9 = load s3 @17:7
+  v10 = load s0 @17:7
+  v11 = loadb v10, v9 @17:7
+  v12 = load s1 @17:7
+  v13 = loadb v12, v9 @17:7
+  v14 = ne v11, v13 @17:7
+  branch v14, b4, b3 @17:7
+b3:
+  v15 = load s3 @17:7
+  v16 = const 1 @17:7
+  v17 = add v15, v16 @17:7
+  store s3, v17 @17:7
+  jump b1 @17:7
+b4:
+  v18 = const false @17:7
+  ret v18 @17:7
+b5:
+  v19 = const true @17:7
+  ret v19 @17:7

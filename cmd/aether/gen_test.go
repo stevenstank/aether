@@ -74,6 +74,9 @@ func generate(seed uint64) string {
 	g.stringGlobals()
 	g.aggDecls()
 	g.ptrDecls()
+	// strs prints and returns its operand, for string switches
+	// (gen_str_test.go).
+	g.line(0, "func strs(s string) string {\n\tprintln(\"strs\", s)\n\treturn s\n}\n")
 	g.line(0, "func main() {")
 	// Float variables that are never constant: zeros, for the special
 	// values of division, and nonzero values.

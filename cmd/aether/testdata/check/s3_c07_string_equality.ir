@@ -1,0 +1,1113 @@
+string s0 "id"
+string s1 "hello"
+string s2 "hel"
+string s3 "lo"
+string s4 "hell"
+string s5 "hello!"
+string s6 "ello"
+string s7 "x\x00y"
+string s8 "\xff\xfe"
+string s9 "日本"
+string s10 "日"
+string s11 "本"
+string s12 "global"
+string s13 "glob"
+string s14 "a"
+string s15 "b"
+string s16 "c"
+string s17 "\xff"
+mem gm0 g 16 align 8 @testdata/check/s3_c07_string_equality.go:10:5
+
+func mk(ptr, i64) (ptr, i64) @testdata/check/s3_c07_string_equality.go:12:6
+  slot s0 s ptr @12:9
+  slot s1 s i64 @12:9
+b0:
+  v0 = param 0 @12:9
+  store s0, v0 @12:9
+  v1 = param 1 @12:9
+  store s1, v1 @12:9
+  v2 = load s0 @12:35
+  v3 = load s1 @12:35
+  v4 = const ptr 0 @12:39
+  v5 = const 0 @12:39
+  v6 = add v3, v5 @12:37
+  v7 = alloc v6 @12:37
+  v8 = const 0 @12:37
+  v9 = padd v7, v8 @12:37
+  move v9, v2, v3 @12:37
+  v10 = add v8, v3 @12:37
+  v11 = padd v7, v10 @12:37
+  move v11, v4, v5 @12:37
+  ret v7, v6 @12:28
+
+func id(ptr, i64) (ptr, i64) @testdata/check/s3_c07_string_equality.go:14:6
+  slot s0 s ptr @14:9
+  slot s1 s i64 @14:9
+b0:
+  v0 = param 0 @14:9
+  store s0, v0 @14:9
+  v1 = param 1 @14:9
+  store s1, v1 @14:9
+  v2 = str s0 @15:10
+  v3 = const 2 @15:10
+  v4 = load s0 @15:16
+  v5 = load s1 @15:16
+  println v2, v3, v4, v5 @15:2
+  v6 = load s0 @16:9
+  v7 = load s1 @16:9
+  ret v6, v7 @16:2
+
+func main @testdata/check/s3_c07_string_equality.go:19:6
+  slot s0 a ptr @20:2
+  slot s1 a i64 @20:2
+  slot s2 b ptr @21:2
+  slot s3 b i64 @21:2
+  slot s4 c ptr @22:2
+  slot s5 c i64 @22:2
+  slot s6 e ptr @24:6
+  slot s7 e i64 @24:6
+  slot s8 tmp ptr @25:11
+  slot s9 tmp ptr @25:28
+  slot s10 tmp i64 @25:28
+  slot s11 tmp i64 @25:28
+  slot s12 tmp ptr @25:35
+  slot s13 tmp i64 @25:35
+  slot s14 tmp i64 @25:35
+  slot s15 tmp ptr @25:42
+  slot s16 tmp i64 @25:42
+  slot s17 tmp i64 @25:42
+  slot s18 tmp i64 @25:42
+  slot s19 empty ptr @25:2
+  slot s20 empty i64 @25:2
+  slot s21 empty i64 @25:2
+  slot s22 i i64 @26:6
+  slot s23 tmp i64 @27:11
+  slot s24 tmp ptr @27:14
+  slot s25 tmp i64 @27:14
+  slot s26 tmp i64 @27:19
+  slot s27 tmp bool @27:14
+  slot s28 tmp ptr @27:30
+  slot s29 tmp i64 @27:30
+  slot s30 tmp i64 @27:35
+  slot s31 tmp ptr @27:30
+  slot s32 tmp i64 @27:30
+  slot s33 tmp ptr @27:42
+  slot s34 tmp i64 @27:42
+  slot s35 tmp i64 @27:53
+  slot s36 tmp i64 @27:53
+  slot s37 tmp i64 @27:47
+  slot s38 tmp bool @27:30
+  slot s39 tmp ptr @27:67
+  slot s40 tmp i64 @27:67
+  slot s41 tmp i64 @27:72
+  slot s42 tmp bool @29:10
+  slot s43 tmp bool @29:23
+  slot s44 tmp bool @29:38
+  slot s45 tmp ptr @29:52
+  slot s46 tmp i64 @29:52
+  slot s47 tmp i64 @29:52
+  slot s48 tmp bool @29:51
+  slot s49 tmp ptr @29:69
+  slot s50 tmp i64 @29:69
+  slot s51 tmp i64 @29:69
+  slot s52 tmp bool @33:10
+  slot s53 tmp bool @33:28
+  slot s54 tmp ptr @33:41
+  slot s55 tmp i64 @33:41
+  slot s56 tmp i64 @33:41
+  slot s57 p ptr @34:2
+  slot s58 q ptr @35:2
+  slot s59 tmp ptr @36:3
+  slot s60 tmp ptr @36:2
+  slot s61 tmp i64 @36:2
+  slot s62 tmp ptr @37:11
+  slot s63 tmp ptr @37:10
+  slot s64 tmp i64 @37:10
+  slot s65 tmp ptr @37:17
+  slot s66 all ptr @39:6
+  slot s67 all i64 @39:6
+  slot s68 all i64 @39:6
+  slot s69 i i64 @40:6
+  slot s70 tmp ptr @41:9
+  slot s71 tmp i64 @41:9
+  slot s72 tmp i64 @41:9
+  slot s73 tmp u8 @41:9
+  slot s74 tmp i64 @41:9
+  slot s75 ptr ptr @41:9
+  slot s76 cap i64 @41:9
+  slot s77 newcap i64 @41:9
+  slot s78 s1 ptr @43:2
+  slot s79 s1 i64 @43:2
+  slot s80 s2 ptr @43:6
+  slot s81 s2 i64 @43:6
+  slot s82 tmp bool @44:10
+  slot s83 tmp ptr @44:22
+  slot s84 tmp i64 @44:22
+  slot s85 tmp i64 @44:22
+  slot s86 tmp ptr @44:20
+  slot s87 tmp i64 @44:20
+  slot s88 tmp ptr @44:32
+  slot s89 tmp i64 @44:32
+  slot s90 tmp i64 @44:32
+  slot s91 tmp bool @44:20
+  slot s92 tmp ptr @44:42
+  slot s93 tmp i64 @44:42
+  slot s94 tmp i64 @44:42
+  slot s95 tmp ptr @45:2
+  slot s96 tmp i64 @45:2
+  slot s97 tmp i64 @45:5
+  slot s98 tmp u8 @45:2
+  slot s99 tmp bool @46:10
+  slot s100 tmp ptr @46:39
+  slot s101 tmp i64 @46:39
+  slot s102 tmp i64 @46:39
+  slot s103 tmp i64 @46:39
+  slot s104 tmp ptr @46:29
+  slot s105 tmp i64 @46:29
+  slot s106 tmp ptr @46:52
+  slot s107 tmp i64 @46:52
+  slot s108 tmp i64 @46:52
+b0:
+  v0 = str s1 @20:7
+  v1 = const 5 @20:7
+  store s0, v0 @20:2
+  store s1, v1 @20:2
+  v2 = str s2 @21:10
+  v3 = const 3 @21:10
+  v4 = call mk, v2, v3 @21:7
+  v5 = extract 0, v4 @21:7
+  v6 = extract 1, v4 @21:7
+  v7 = str s3 @21:22
+  v8 = const 2 @21:22
+  v9 = call mk, v7, v8 @21:19
+  v10 = extract 0, v9 @21:19
+  v11 = extract 1, v9 @21:19
+  v12 = add v6, v11 @21:17
+  v13 = alloc v12 @21:17
+  v14 = const 0 @21:17
+  v15 = padd v13, v14 @21:17
+  move v15, v5, v6 @21:17
+  v16 = add v14, v6 @21:17
+  v17 = padd v13, v16 @21:17
+  move v17, v10, v11 @21:17
+  store s2, v13 @21:2
+  store s3, v12 @21:2
+  v18 = load s0 @22:21
+  v19 = load s1 @22:21
+  v20 = alloc v19 @22:14
+  move v20, v18, v19 @22:14
+  v21 = alloc v19 @22:7
+  move v21, v20, v19 @22:7
+  store s4, v21 @22:2
+  store s5, v19 @22:2
+  v22 = load s0 @23:10
+  v23 = load s1 @23:10
+  v24 = load s2 @23:15
+  v25 = load s3 @23:15
+  v26 = call aether.streq, v22, v23, v24, v25 @23:12
+  v27 = load s0 @23:18
+  v28 = load s1 @23:18
+  v29 = load s4 @23:23
+  v30 = load s5 @23:23
+  v31 = call aether.streq, v27, v28, v29, v30 @23:20
+  v32 = load s2 @23:26
+  v33 = load s3 @23:26
+  v34 = load s4 @23:31
+  v35 = load s5 @23:31
+  v36 = call aether.streq, v32, v33, v34, v35 @23:28
+  v37 = load s0 @23:34
+  v38 = load s1 @23:34
+  v39 = load s2 @23:39
+  v40 = load s3 @23:39
+  v41 = call aether.streq, v37, v38, v39, v40 @23:36
+  v42 = not v41 @23:36
+  v43 = load s0 @23:42
+  v44 = load s1 @23:42
+  v45 = load s0 @23:47
+  v46 = load s1 @23:47
+  v47 = call aether.streq, v43, v44, v45, v46 @23:44
+  println v26, v31, v36, v42, v47 @23:2
+  v48 = const ptr 0 @24:6
+  store s6, v48 @24:6
+  v49 = const 0 @24:6
+  store s7, v49 @24:6
+  v50 = const 112 @25:11
+  v51 = alloc v50 @25:11
+  store s8, v51 @25:11
+  v52 = const ptr 0 @25:20
+  v53 = const 0 @25:20
+  v54 = const 0 @25:20
+  stm v51, v54, v52 @25:20
+  v55 = const 8 @25:20
+  stm v51, v55, v53 @25:20
+  v56 = load s6 @25:24
+  v57 = load s7 @25:24
+  v58 = const 16 @25:24
+  stm v51, v58, v56 @25:24
+  v59 = const 24 @25:24
+  stm v51, v59, v57 @25:24
+  v60 = load s0 @25:27
+  v61 = load s1 @25:27
+  store s9, v60 @25:28
+  store s10, v61 @25:28
+  v62 = const 5 @25:29
+  store s11, v62 @25:28
+  v63 = conv u64, v62 @25:28
+  v64 = conv u64, v61 @25:28
+  v65 = gt v63, v64 @25:28
+  branch v65, b1, b2 @25:28
+b1:
+  v66 = load s11 @25:28
+  v67 = load s10 @25:28
+  panic sliceb, v66, v67 @25:28
+b2:
+  v68 = load s9 @25:28
+  v69 = const 5 @25:28
+  v70 = padd v68, v69 @25:28
+  v71 = load s10 @25:28
+  v72 = load s11 @25:28
+  v73 = sub v71, v72 @25:28
+  v74 = load s8 @25:11
+  v75 = const 32 @25:27
+  stm v74, v75, v70 @25:27
+  v76 = load s8 @25:11
+  v77 = const 40 @25:27
+  stm v76, v77, v73 @25:27
+  v78 = load s0 @25:34
+  v79 = load s1 @25:34
+  store s12, v78 @25:35
+  store s13, v79 @25:35
+  v80 = const 0 @25:37
+  store s14, v80 @25:35
+  v81 = conv u64, v80 @25:35
+  v82 = conv u64, v79 @25:35
+  v83 = gt v81, v82 @25:35
+  branch v83, b3, b4 @25:35
+b3:
+  v84 = load s14 @25:35
+  v85 = load s13 @25:35
+  panic slicealen, v84, v85 @25:35
+b4:
+  v86 = load s12 @25:35
+  v87 = load s14 @25:35
+  v88 = const 0 @25:35
+  v89 = sub v87, v88 @25:35
+  v90 = load s8 @25:11
+  v91 = const 48 @25:34
+  stm v90, v91, v86 @25:34
+  v92 = load s8 @25:11
+  v93 = const 56 @25:34
+  stm v92, v93, v89 @25:34
+  v94 = load s2 @25:41
+  v95 = load s3 @25:41
+  store s15, v94 @25:42
+  store s16, v95 @25:42
+  v96 = const 2 @25:43
+  store s17, v96 @25:42
+  v97 = const 2 @25:45
+  store s18, v97 @25:42
+  v98 = conv u64, v97 @25:42
+  v99 = conv u64, v95 @25:42
+  v100 = gt v98, v99 @25:42
+  branch v100, b5, b6 @25:42
+b5:
+  v101 = load s18 @25:42
+  v102 = load s16 @25:42
+  panic slicealen, v101, v102 @25:42
+b6:
+  v103 = load s17 @25:42
+  v104 = conv u64, v103 @25:42
+  v105 = load s18 @25:42
+  v106 = conv u64, v105 @25:42
+  v107 = gt v104, v106 @25:42
+  branch v107, b7, b8 @25:42
+b7:
+  v108 = load s17 @25:42
+  v109 = load s18 @25:42
+  panic sliceb, v108, v109 @25:42
+b8:
+  v110 = load s15 @25:42
+  v111 = const 2 @25:42
+  v112 = padd v110, v111 @25:42
+  v113 = load s18 @25:42
+  v114 = load s17 @25:42
+  v115 = sub v113, v114 @25:42
+  v116 = load s8 @25:11
+  v117 = const 64 @25:41
+  stm v116, v117, v112 @25:41
+  v118 = load s8 @25:11
+  v119 = const 72 @25:41
+  stm v118, v119, v115 @25:41
+  v120 = const ptr 0 @25:63
+  v121 = const 0 @25:63
+  v122 = const 0 @25:63
+  v123 = alloc v121 @25:49
+  move v123, v120, v121 @25:49
+  v124 = load s8 @25:11
+  v125 = const 80 @25:49
+  stm v124, v125, v123 @25:49
+  v126 = load s8 @25:11
+  v127 = const 88 @25:49
+  stm v126, v127, v121 @25:49
+  v128 = const ptr 0 @25:73
+  v129 = const 0 @25:73
+  v130 = call mk, v128, v129 @25:70
+  v131 = extract 0, v130 @25:70
+  v132 = extract 1, v130 @25:70
+  v133 = load s8 @25:11
+  v134 = const 96 @25:70
+  stm v133, v134, v131 @25:70
+  v135 = load s8 @25:11
+  v136 = const 104 @25:70
+  stm v135, v136, v132 @25:70
+  v137 = load s8 @25:11
+  v138 = const 7 @25:11
+  v139 = const 7 @25:11
+  store s19, v137 @25:2
+  store s20, v138 @25:2
+  store s21, v139 @25:2
+  v140 = const 0 @26:11
+  store s22, v140 @26:6
+  jump b9 @26:2
+b9:
+  v141 = load s22 @26:14
+  v142 = load s19 @26:22
+  v143 = load s20 @26:22
+  v144 = load s21 @26:22
+  v145 = lt v141, v143 @26:16
+  branch v145, b10, b11 @26:2
+b10:
+  v146 = load s22 @27:11
+  store s23, v146 @27:11
+  v147 = load s19 @27:14
+  v148 = load s20 @27:14
+  v149 = load s21 @27:14
+  store s24, v147 @27:14
+  store s25, v148 @27:14
+  v150 = load s22 @27:20
+  store s26, v150 @27:19
+  v151 = conv u64, v150 @27:19
+  v152 = conv u64, v148 @27:19
+  v153 = ge v151, v152 @27:19
+  branch v153, b13, b14 @27:19
+b11:
+  v258 = load s0 @29:10
+  v259 = load s1 @29:10
+  v260 = str s4 @29:15
+  v261 = const 4 @29:15
+  v262 = call aether.streq, v258, v259, v260, v261 @29:12
+  store s42, v262 @29:10
+  v263 = load s0 @29:23
+  v264 = load s1 @29:23
+  v265 = str s5 @29:28
+  v266 = const 6 @29:28
+  v267 = call aether.streq, v263, v264, v265, v266 @29:25
+  store s43, v267 @29:23
+  v268 = str s4 @29:38
+  v269 = const 4 @29:38
+  v270 = load s0 @29:48
+  v271 = load s1 @29:48
+  v272 = call aether.streq, v268, v269, v270, v271 @29:45
+  store s44, v272 @29:38
+  v273 = load s0 @29:51
+  v274 = load s1 @29:51
+  store s45, v273 @29:52
+  store s46, v274 @29:52
+  v275 = const 4 @29:54
+  store s47, v275 @29:52
+  v276 = conv u64, v275 @29:52
+  v277 = conv u64, v274 @29:52
+  v278 = gt v276, v277 @29:52
+  branch v278, b23, b24 @29:52
+b12:
+  v255 = load s22 @26:30
+  v256 = const 1 @26:31
+  v257 = add v255, v256 @26:31
+  store s22, v257 @26:30
+  jump b9 @26:30
+b13:
+  v154 = load s26 @27:19
+  v155 = load s25 @27:14
+  panic index, v154, v155 @27:19
+b14:
+  v156 = load s24 @27:14
+  v157 = load s26 @27:19
+  v158 = const 16 @27:14
+  v159 = mul v157, v158 @27:14
+  v160 = ldm ptr, v156, v159 @27:14
+  v161 = load s24 @27:14
+  v162 = load s26 @27:19
+  v163 = const 16 @27:14
+  v164 = mul v162, v163 @27:14
+  v165 = const 8 @27:14
+  v166 = add v164, v165 @27:14
+  v167 = ldm i64, v161, v166 @27:14
+  v168 = const ptr 0 @27:26
+  v169 = const 0 @27:26
+  v170 = call aether.streq, v160, v167, v168, v169 @27:23
+  store s27, v170 @27:14
+  v171 = load s19 @27:30
+  v172 = load s20 @27:30
+  v173 = load s21 @27:30
+  store s28, v171 @27:30
+  store s29, v172 @27:30
+  v174 = load s22 @27:36
+  store s30, v174 @27:35
+  v175 = conv u64, v174 @27:35
+  v176 = conv u64, v172 @27:35
+  v177 = ge v175, v176 @27:35
+  branch v177, b15, b16 @27:35
+b15:
+  v178 = load s30 @27:35
+  v179 = load s29 @27:30
+  panic index, v178, v179 @27:35
+b16:
+  v180 = load s28 @27:30
+  v181 = load s30 @27:35
+  v182 = const 16 @27:30
+  v183 = mul v181, v182 @27:30
+  v184 = ldm ptr, v180, v183 @27:30
+  v185 = load s28 @27:30
+  v186 = load s30 @27:35
+  v187 = const 16 @27:30
+  v188 = mul v186, v187 @27:30
+  v189 = const 8 @27:30
+  v190 = add v188, v189 @27:30
+  v191 = ldm i64, v185, v190 @27:30
+  store s31, v184 @27:30
+  store s32, v191 @27:30
+  v192 = load s19 @27:42
+  v193 = load s20 @27:42
+  v194 = load s21 @27:42
+  store s33, v192 @27:42
+  store s34, v193 @27:42
+  v195 = load s22 @27:49
+  v196 = const 1 @27:51
+  v197 = add v195, v196 @27:50
+  v198 = load s19 @27:58
+  v199 = load s20 @27:58
+  v200 = load s21 @27:58
+  v201 = const 0 @27:53
+  v202 = eq v199, v201 @27:53
+  store s35, v197 @27:53
+  store s36, v199 @27:53
+  branch v202, b17, b18 @27:53
+b17:
+  panic divide @27:53
+b18:
+  v203 = load s35 @27:53
+  v204 = load s36 @27:53
+  v205 = rem v203, v204 @27:53
+  store s37, v205 @27:47
+  v206 = conv u64, v205 @27:47
+  v207 = load s34 @27:42
+  v208 = conv u64, v207 @27:47
+  v209 = ge v206, v208 @27:47
+  branch v209, b19, b20 @27:47
+b19:
+  v210 = load s37 @27:47
+  v211 = load s34 @27:42
+  panic index, v210, v211 @27:47
+b20:
+  v212 = load s33 @27:42
+  v213 = load s37 @27:47
+  v214 = const 16 @27:42
+  v215 = mul v213, v214 @27:42
+  v216 = ldm ptr, v212, v215 @27:42
+  v217 = load s33 @27:42
+  v218 = load s37 @27:47
+  v219 = const 16 @27:42
+  v220 = mul v218, v219 @27:42
+  v221 = const 8 @27:42
+  v222 = add v220, v221 @27:42
+  v223 = ldm i64, v217, v222 @27:42
+  v224 = load s31 @27:30
+  v225 = load s32 @27:30
+  v226 = call aether.streq, v224, v225, v216, v223 @27:39
+  store s38, v226 @27:30
+  v227 = load s19 @27:67
+  v228 = load s20 @27:67
+  v229 = load s21 @27:67
+  store s39, v227 @27:67
+  store s40, v228 @27:67
+  v230 = load s22 @27:73
+  store s41, v230 @27:72
+  v231 = conv u64, v230 @27:72
+  v232 = conv u64, v228 @27:72
+  v233 = ge v231, v232 @27:72
+  branch v233, b21, b22 @27:72
+b21:
+  v234 = load s41 @27:72
+  v235 = load s40 @27:67
+  panic index, v234, v235 @27:72
+b22:
+  v236 = load s39 @27:67
+  v237 = load s41 @27:72
+  v238 = const 16 @27:67
+  v239 = mul v237, v238 @27:67
+  v240 = ldm ptr, v236, v239 @27:67
+  v241 = load s39 @27:67
+  v242 = load s41 @27:72
+  v243 = const 16 @27:67
+  v244 = mul v242, v243 @27:67
+  v245 = const 8 @27:67
+  v246 = add v244, v245 @27:67
+  v247 = ldm i64, v241, v246 @27:67
+  v248 = load s0 @27:79
+  v249 = load s1 @27:79
+  v250 = call aether.streq, v240, v247, v248, v249 @27:76
+  v251 = not v250 @27:76
+  v252 = load s23 @27:11
+  v253 = load s27 @27:14
+  v254 = load s38 @27:30
+  println v252, v253, v254, v251 @27:3
+  jump b12 @28:2
+b23:
+  v279 = load s47 @29:52
+  v280 = load s46 @29:52
+  panic slicealen, v279, v280 @29:52
+b24:
+  v281 = load s45 @29:52
+  v282 = load s47 @29:52
+  v283 = const 0 @29:52
+  v284 = sub v282, v283 @29:52
+  v285 = str s4 @29:60
+  v286 = const 4 @29:60
+  v287 = call aether.streq, v281, v284, v285, v286 @29:57
+  store s48, v287 @29:51
+  v288 = load s0 @29:68
+  v289 = load s1 @29:68
+  store s49, v288 @29:69
+  store s50, v289 @29:69
+  v290 = const 1 @29:70
+  store s51, v290 @29:69
+  v291 = conv u64, v290 @29:69
+  v292 = conv u64, v289 @29:69
+  v293 = gt v291, v292 @29:69
+  branch v293, b25, b26 @29:69
+b25:
+  v294 = load s51 @29:69
+  v295 = load s50 @29:69
+  panic sliceb, v294, v295 @29:69
+b26:
+  v296 = load s49 @29:69
+  v297 = const 1 @29:69
+  v298 = padd v296, v297 @29:69
+  v299 = load s50 @29:69
+  v300 = load s51 @29:69
+  v301 = sub v299, v300 @29:69
+  v302 = str s6 @29:77
+  v303 = const 4 @29:77
+  v304 = call aether.streq, v298, v301, v302, v303 @29:74
+  v305 = load s42 @29:10
+  v306 = load s43 @29:23
+  v307 = load s44 @29:38
+  v308 = load s48 @29:51
+  println v305, v306, v307, v308, v304 @29:2
+  v309 = const false @30:10
+  v310 = str s7 @30:32
+  v311 = const 3 @30:32
+  v312 = str s7 @30:47
+  v313 = const 3 @30:47
+  v314 = call mk, v312, v313 @30:44
+  v315 = extract 0, v314 @30:44
+  v316 = extract 1, v314 @30:44
+  v317 = call aether.streq, v310, v311, v315, v316 @30:41
+  v318 = const false @30:58
+  v319 = const false @30:74
+  println v309, v317, v318, v319 @30:2
+  v320 = str s8 @31:10
+  v321 = const 2 @31:10
+  v322 = str s8 @31:27
+  v323 = const 2 @31:27
+  v324 = call mk, v322, v323 @31:24
+  v325 = extract 0, v324 @31:24
+  v326 = extract 1, v324 @31:24
+  v327 = call aether.streq, v320, v321, v325, v326 @31:21
+  v328 = const false @31:40
+  v329 = const false @31:58
+  println v327, v328, v329 @31:2
+  v330 = const false @32:10
+  v331 = const true @32:25
+  v332 = str s9 @32:45
+  v333 = const 6 @32:45
+  v334 = str s10 @32:60
+  v335 = const 3 @32:60
+  v336 = call mk, v334, v335 @32:57
+  v337 = extract 0, v336 @32:57
+  v338 = extract 1, v336 @32:57
+  v339 = str s11 @32:67
+  v340 = const 3 @32:67
+  v341 = add v338, v340 @32:66
+  v342 = alloc v341 @32:66
+  v343 = const 0 @32:66
+  v344 = padd v342, v343 @32:66
+  move v344, v337, v338 @32:66
+  v345 = add v343, v338 @32:66
+  v346 = padd v342, v345 @32:66
+  move v346, v339, v340 @32:66
+  v347 = call aether.streq, v332, v333, v342, v341 @32:54
+  println v330, v331, v347 @32:2
+  v348 = addr gm0 @33:10
+  v349 = const 0 @33:10
+  v350 = ldm ptr, v348, v349 @33:10
+  v351 = const 8 @33:10
+  v352 = ldm i64, v348, v351 @33:10
+  v353 = str s12 @33:15
+  v354 = const 6 @33:15
+  v355 = call aether.streq, v350, v352, v353, v354 @33:12
+  store s52, v355 @33:10
+  v356 = const 0 @33:28
+  v357 = ldm ptr, v348, v356 @33:28
+  v358 = const 8 @33:28
+  v359 = ldm i64, v348, v358 @33:28
+  v360 = const 0 @33:36
+  v361 = ldm ptr, v348, v360 @33:36
+  v362 = const 8 @33:36
+  v363 = ldm i64, v348, v362 @33:36
+  v364 = call mk, v361, v363 @33:33
+  v365 = extract 0, v364 @33:33
+  v366 = extract 1, v364 @33:33
+  v367 = call aether.streq, v357, v359, v365, v366 @33:30
+  v368 = not v367 @33:30
+  store s53, v368 @33:28
+  v369 = const 0 @33:40
+  v370 = ldm ptr, v348, v369 @33:40
+  v371 = const 8 @33:40
+  v372 = ldm i64, v348, v371 @33:40
+  store s54, v370 @33:41
+  store s55, v372 @33:41
+  v373 = const 4 @33:43
+  store s56, v373 @33:41
+  v374 = conv u64, v373 @33:41
+  v375 = conv u64, v372 @33:41
+  v376 = gt v374, v375 @33:41
+  branch v376, b27, b28 @33:41
+b27:
+  v377 = load s56 @33:41
+  v378 = load s55 @33:41
+  panic slicealen, v377, v378 @33:41
+b28:
+  v379 = load s54 @33:41
+  v380 = load s56 @33:41
+  v381 = const 0 @33:41
+  v382 = sub v380, v381 @33:41
+  v383 = str s13 @33:49
+  v384 = const 4 @33:49
+  v385 = call aether.streq, v379, v382, v383, v384 @33:46
+  v386 = load s52 @33:10
+  v387 = load s53 @33:28
+  println v386, v387, v385 @33:2
+  v388 = addr gm0 @34:8
+  store s57, v388 @34:2
+  v389 = const 16 @35:7
+  v390 = alloc v389 @35:7
+  store s58, v390 @35:2
+  v391 = load s58 @36:3
+  store s59, v391 @36:3
+  v392 = str s12 @36:10
+  v393 = const 6 @36:10
+  v394 = call mk, v392, v393 @36:7
+  v395 = extract 0, v394 @36:7
+  v396 = extract 1, v394 @36:7
+  store s60, v395 @36:2
+  store s61, v396 @36:2
+  v397 = const ptr 0 @36:3
+  v398 = eq v391, v397 @36:3
+  branch v398, b29, b30 @36:3
+b29:
+  panic nil @36:3
+b30:
+  v399 = load s60 @36:2
+  v400 = load s61 @36:2
+  v401 = load s59 @36:3
+  v402 = const 0 @36:2
+  stm v401, v402, v399 @36:2
+  v403 = load s59 @36:3
+  v404 = const 8 @36:2
+  stm v403, v404, v400 @36:2
+  v405 = load s57 @37:11
+  store s62, v405 @37:11
+  v406 = const ptr 0 @37:11
+  v407 = eq v405, v406 @37:11
+  branch v407, b31, b32 @37:11
+b31:
+  panic nil @37:11
+b32:
+  v408 = load s62 @37:11
+  v409 = const 0 @37:10
+  v410 = ldm ptr, v408, v409 @37:10
+  v411 = load s62 @37:11
+  v412 = const 8 @37:10
+  v413 = ldm i64, v411, v412 @37:10
+  store s63, v410 @37:10
+  store s64, v413 @37:10
+  v414 = load s58 @37:17
+  store s65, v414 @37:17
+  v415 = const ptr 0 @37:17
+  v416 = eq v414, v415 @37:17
+  branch v416, b33, b34 @37:17
+b33:
+  panic nil @37:17
+b34:
+  v417 = load s65 @37:17
+  v418 = const 0 @37:16
+  v419 = ldm ptr, v417, v418 @37:16
+  v420 = load s65 @37:17
+  v421 = const 8 @37:16
+  v422 = ldm i64, v420, v421 @37:16
+  v423 = load s63 @37:10
+  v424 = load s64 @37:10
+  v425 = call aether.streq, v423, v424, v419, v422 @37:13
+  v426 = load s57 @37:20
+  v427 = load s58 @37:25
+  v428 = eq v426, v427 @37:22
+  println v425, v428 @37:2
+  v429 = str s14 @38:13
+  v430 = const 1 @38:13
+  v431 = call id, v429, v430 @38:10
+  v432 = extract 0, v431 @38:10
+  v433 = extract 1, v431 @38:10
+  v434 = str s15 @38:24
+  v435 = const 1 @38:24
+  v436 = call id, v434, v435 @38:21
+  v437 = extract 0, v436 @38:21
+  v438 = extract 1, v436 @38:21
+  v439 = call aether.streq, v432, v433, v437, v438 @38:18
+  v440 = str s16 @38:33
+  v441 = const 1 @38:33
+  v442 = call id, v440, v441 @38:30
+  v443 = extract 0, v442 @38:30
+  v444 = extract 1, v442 @38:30
+  v445 = str s16 @38:44
+  v446 = const 1 @38:44
+  v447 = call id, v445, v446 @38:41
+  v448 = extract 0, v447 @38:41
+  v449 = extract 1, v447 @38:41
+  v450 = call aether.streq, v443, v444, v448, v449 @38:38
+  v451 = not v450 @38:38
+  println v439, v451 @38:2
+  v452 = const ptr 0 @39:6
+  store s66, v452 @39:6
+  v453 = const 0 @39:6
+  store s67, v453 @39:6
+  v454 = const 0 @39:6
+  store s68, v454 @39:6
+  v455 = const 0 @40:11
+  store s69, v455 @40:6
+  jump b35 @40:2
+b35:
+  v456 = load s69 @40:14
+  v457 = const 256 @40:18
+  v458 = lt v456, v457 @40:16
+  branch v458, b36, b37 @40:2
+b36:
+  v459 = load s66 @41:16
+  v460 = load s67 @41:16
+  v461 = load s68 @41:16
+  v462 = load s69 @41:26
+  v463 = conv u8, v462 @41:21
+  store s70, v459 @41:9
+  store s71, v460 @41:9
+  store s72, v461 @41:9
+  store s73, v463 @41:9
+  v464 = const 1 @41:9
+  v465 = add v460, v464 @41:9
+  store s74, v465 @41:9
+  store s75, v459 @41:9
+  store s76, v461 @41:9
+  v466 = load s76 @41:9
+  v467 = gt v465, v466 @41:9
+  branch v467, b39, b40 @41:9
+b37:
+  v503 = load s66 @43:19
+  v504 = load s67 @43:19
+  v505 = load s68 @43:19
+  v506 = alloc v504 @43:12
+  move v506, v503, v504 @43:12
+  v507 = load s66 @43:32
+  v508 = load s67 @43:32
+  v509 = load s68 @43:32
+  v510 = alloc v508 @43:25
+  move v510, v507, v508 @43:25
+  store s78, v506 @43:2
+  store s79, v504 @43:2
+  store s80, v510 @43:6
+  store s81, v508 @43:6
+  v511 = load s78 @44:10
+  v512 = load s79 @44:10
+  v513 = load s80 @44:16
+  v514 = load s81 @44:16
+  v515 = call aether.streq, v511, v512, v513, v514 @44:13
+  store s82, v515 @44:10
+  v516 = load s78 @44:20
+  v517 = load s79 @44:20
+  store s83, v516 @44:22
+  store s84, v517 @44:22
+  v518 = const 1 @44:23
+  store s85, v518 @44:22
+  v519 = conv u64, v518 @44:22
+  v520 = conv u64, v517 @44:22
+  v521 = gt v519, v520 @44:22
+  branch v521, b45, b46 @44:22
+b38:
+  v500 = load s69 @40:23
+  v501 = const 1 @40:24
+  v502 = add v500, v501 @40:24
+  store s69, v502 @40:23
+  jump b35 @40:23
+b39:
+  v468 = load s74 @41:9
+  store s77, v468 @41:9
+  v469 = load s76 @41:9
+  v470 = load s76 @41:9
+  v471 = add v469, v470 @41:9
+  v472 = load s77 @41:9
+  v473 = gt v471, v472 @41:9
+  branch v473, b41, b42 @41:9
+b40:
+  v490 = load s73 @41:9
+  v491 = load s75 @41:9
+  v492 = load s71 @41:9
+  v493 = const 0 @41:9
+  v494 = add v492, v493 @41:9
+  v495 = const 1 @41:9
+  v496 = mul v494, v495 @41:9
+  stm v491, v496, v490 @41:9
+  v497 = load s75 @41:9
+  v498 = load s74 @41:9
+  v499 = load s76 @41:9
+  store s66, v497 @41:3
+  store s67, v498 @41:3
+  store s68, v499 @41:3
+  jump b38 @42:2
+b41:
+  v474 = load s76 @41:9
+  v475 = load s76 @41:9
+  v476 = add v474, v475 @41:9
+  store s77, v476 @41:9
+  jump b42 @41:9
+b42:
+  v477 = const 4 @41:9
+  v478 = load s77 @41:9
+  v479 = gt v477, v478 @41:9
+  branch v479, b43, b44 @41:9
+b43:
+  v480 = const 4 @41:9
+  store s77, v480 @41:9
+  jump b44 @41:9
+b44:
+  v481 = load s77 @41:9
+  v482 = const 1 @41:9
+  v483 = mul v481, v482 @41:9
+  v484 = alloc v483 @41:9
+  v485 = load s75 @41:9
+  v486 = load s71 @41:9
+  v487 = const 1 @41:9
+  v488 = mul v486, v487 @41:9
+  move v484, v485, v488 @41:9
+  store s75, v484 @41:9
+  v489 = load s77 @41:9
+  store s76, v489 @41:9
+  jump b40 @41:9
+b45:
+  v522 = load s85 @44:22
+  v523 = load s84 @44:22
+  panic sliceb, v522, v523 @44:22
+b46:
+  v524 = load s83 @44:22
+  v525 = const 1 @44:22
+  v526 = padd v524, v525 @44:22
+  v527 = load s84 @44:22
+  v528 = load s85 @44:22
+  v529 = sub v527, v528 @44:22
+  store s86, v526 @44:20
+  store s87, v529 @44:20
+  v530 = load s80 @44:30
+  v531 = load s81 @44:30
+  store s88, v530 @44:32
+  store s89, v531 @44:32
+  v532 = const 255 @44:34
+  store s90, v532 @44:32
+  v533 = conv u64, v532 @44:32
+  v534 = conv u64, v531 @44:32
+  v535 = gt v533, v534 @44:32
+  branch v535, b47, b48 @44:32
+b47:
+  v536 = load s90 @44:32
+  v537 = load s89 @44:32
+  panic slicealen, v536, v537 @44:32
+b48:
+  v538 = load s88 @44:32
+  v539 = load s90 @44:32
+  v540 = const 0 @44:32
+  v541 = sub v539, v540 @44:32
+  v542 = load s86 @44:20
+  v543 = load s87 @44:20
+  v544 = call aether.streq, v542, v543, v538, v541 @44:27
+  store s91, v544 @44:20
+  v545 = load s78 @44:40
+  v546 = load s79 @44:40
+  store s92, v545 @44:42
+  store s93, v546 @44:42
+  v547 = const 255 @44:43
+  store s94, v547 @44:42
+  v548 = conv u64, v547 @44:42
+  v549 = conv u64, v546 @44:42
+  v550 = gt v548, v549 @44:42
+  branch v550, b49, b50 @44:42
+b49:
+  v551 = load s94 @44:42
+  v552 = load s93 @44:42
+  panic sliceb, v551, v552 @44:42
+b50:
+  v553 = load s92 @44:42
+  v554 = const 255 @44:42
+  v555 = padd v553, v554 @44:42
+  v556 = load s93 @44:42
+  v557 = load s94 @44:42
+  v558 = sub v556, v557 @44:42
+  v559 = str s17 @44:52
+  v560 = const 1 @44:52
+  v561 = call aether.streq, v555, v558, v559, v560 @44:49
+  v562 = load s82 @44:10
+  v563 = load s91 @44:20
+  println v562, v563, v561 @44:2
+  v564 = load s66 @45:2
+  v565 = load s67 @45:2
+  v566 = load s68 @45:2
+  store s95, v564 @45:2
+  store s96, v565 @45:2
+  v567 = const 200 @45:6
+  store s97, v567 @45:5
+  v568 = const u8 0 @45:13
+  store s98, v568 @45:2
+  v569 = conv u64, v567 @45:5
+  v570 = conv u64, v565 @45:5
+  v571 = ge v569, v570 @45:5
+  branch v571, b51, b52 @45:5
+b51:
+  v572 = load s97 @45:5
+  v573 = load s96 @45:2
+  panic index, v572, v573 @45:5
+b52:
+  v574 = load s98 @45:2
+  v575 = load s95 @45:2
+  v576 = load s97 @45:5
+  stm v575, v576, v574 @45:2
+  v577 = load s66 @46:17
+  v578 = load s67 @46:17
+  v579 = load s68 @46:17
+  v580 = alloc v578 @46:10
+  move v580, v577, v578 @46:10
+  v581 = load s78 @46:25
+  v582 = load s79 @46:25
+  v583 = call aether.streq, v580, v578, v581, v582 @46:22
+  store s99, v583 @46:10
+  v584 = load s66 @46:36
+  v585 = load s67 @46:36
+  v586 = load s68 @46:36
+  store s100, v584 @46:39
+  store s101, v585 @46:39
+  store s102, v586 @46:39
+  v587 = const 200 @46:41
+  store s103, v587 @46:39
+  v588 = conv u64, v587 @46:39
+  v589 = conv u64, v586 @46:39
+  v590 = gt v588, v589 @46:39
+  branch v590, b53, b54 @46:39
+b53:
+  v591 = load s103 @46:39
+  v592 = load s102 @46:39
+  panic sliceacap, v591, v592 @46:39
+b54:
+  v593 = load s100 @46:39
+  v594 = load s103 @46:39
+  v595 = const 0 @46:39
+  v596 = sub v594, v595 @46:39
+  v597 = load s102 @46:39
+  v598 = const 0 @46:39
+  v599 = sub v597, v598 @46:39
+  v600 = alloc v596 @46:29
+  move v600, v593, v596 @46:29
+  store s104, v600 @46:29
+  store s105, v596 @46:29
+  v601 = load s78 @46:50
+  v602 = load s79 @46:50
+  store s106, v601 @46:52
+  store s107, v602 @46:52
+  v603 = const 200 @46:54
+  store s108, v603 @46:52
+  v604 = conv u64, v603 @46:52
+  v605 = conv u64, v602 @46:52
+  v606 = gt v604, v605 @46:52
+  branch v606, b55, b56 @46:52
+b55:
+  v607 = load s108 @46:52
+  v608 = load s107 @46:52
+  panic slicealen, v607, v608 @46:52
+b56:
+  v609 = load s106 @46:52
+  v610 = load s108 @46:52
+  v611 = const 0 @46:52
+  v612 = sub v610, v611 @46:52
+  v613 = load s104 @46:29
+  v614 = load s105 @46:29
+  v615 = call aether.streq, v613, v614, v609, v612 @46:47
+  v616 = load s99 @46:10
+  println v616, v615 @46:2
+  ret @47:1
+
+func aether.streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c07_string_equality.go:23:12
+  slot s0 p ptr @23:12
+  slot s1 q ptr @23:12
+  slot s2 n i64 @23:12
+  slot s3 i i64 @23:12
+b0:
+  v0 = param 0 @23:12
+  v1 = param 1 @23:12
+  v2 = param 2 @23:12
+  v3 = param 3 @23:12
+  store s0, v0 @23:12
+  store s1, v2 @23:12
+  store s2, v1 @23:12
+  v4 = const 0 @23:12
+  store s3, v4 @23:12
+  v5 = eq v1, v3 @23:12
+  branch v5, b1, b4 @23:12
+b1:
+  v6 = load s3 @23:12
+  v7 = load s2 @23:12
+  v8 = lt v6, v7 @23:12
+  branch v8, b2, b5 @23:12
+b2:
+  v9 = load s3 @23:12
+  v10 = load s0 @23:12
+  v11 = loadb v10, v9 @23:12
+  v12 = load s1 @23:12
+  v13 = loadb v12, v9 @23:12
+  v14 = ne v11, v13 @23:12
+  branch v14, b4, b3 @23:12
+b3:
+  v15 = load s3 @23:12
+  v16 = const 1 @23:12
+  v17 = add v15, v16 @23:12
+  store s3, v17 @23:12
+  jump b1 @23:12
+b4:
+  v18 = const false @23:12
+  ret v18 @23:12
+b5:
+  v19 = const true @23:12
+  ret v19 @23:12
+
+func init @testdata/check/s3_c07_string_equality.go:3:1
+b0:
+  v0 = str s12 @10:9
+  v1 = const 6 @10:9
+  v2 = addr gm0 @10:5
+  v3 = const 0 @10:5
+  stm v2, v3, v0 @10:5
+  v4 = const 8 @10:5
+  stm v2, v4, v1 @10:5
+  ret @3:1

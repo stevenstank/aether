@@ -39,7 +39,7 @@ func (s *codeStats) add(c funcCode) {
 }
 
 var (
-	funcType   = regexp.MustCompile(`^\t\.type\t(main\.\w+), @function$`)
+	funcType   = regexp.MustCompile(`^\t\.type\t(main\.[\w.]+), @function$`)
 	frameAlloc = regexp.MustCompile(`^\tsubq\t\$(\d+), %rsp$`)
 	mainStack  = regexp.MustCompile(`aether\.mainstack:\n\t\.quad\t(\d+)\n`)
 )

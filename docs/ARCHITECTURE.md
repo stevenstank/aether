@@ -119,6 +119,9 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   - Materialize constants from `types.Info` values.
   - Map `types.Object` to IR locals.
   - Map `token.Pos` to IR positions.
+  - Add the IR functions that operations needing a loop call, such as
+    `aether.streq` for string equality, once each, to a program that uses
+    them (D-037). Their names contain a `.`, so no Go function shares one.
 - **Rules that S1 correctness depends on:**
   - **Constants.** Any expression with a non-nil `types.Info.Types[e].Value`
     becomes one IR constant, taken from that value with `constant.Int64Val`.
