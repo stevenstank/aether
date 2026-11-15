@@ -7,8 +7,8 @@
 // increment 4.6, and the switch statements of increment 4.7, extended by
 // float32 and float64 (Phase 6 increment 6.1, §Floating point), string
 // constants (increment 6.2, §String constants), arrays and structs
-// (increment 6.3, §Arrays and structs), and pointers (Phase 7 increment 7.1,
-// §Pointers).
+// (increment 6.3, §Arrays and structs), pointers (Phase 7 increment 7.1,
+// §Pointers), and slices (increment 7.2, §Slices).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -358,6 +358,8 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			inPlace[n.X] = addressed(n.X)
 		case *ast.IndexExpr:
 			inPlace[n.X] = addressed(n.X)
+		case *ast.SliceExpr:
+			inPlace[n.X] = true // an array, on the heap or global (D-036)
 		case *ast.ParenExpr:
 			inPlace[n.X] = inPlace[n]
 		case *ast.AssignStmt:
@@ -655,7 +657,8 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 		}
 	case *ast.ArrayType:
 		if t.Len == nil {
-			break // a slice type
+			// A slice type (D-036).
+			return c.typeExpr(t.Elt) && c.sized(e)
 		}
 		mark := len(c.ds)
 		if _, ok := t.Len.(*ast.Ellipsis); !ok {
@@ -807,8 +810,8 @@ func (c *checker) target(e ast.Expr) {
 			return
 		}
 	case *ast.IndexExpr:
-		if c.isArray(t.X) || c.isArrayPtr(t.X) {
-			c.operand(t.X, c.isArrayPtr(t.X))
+		if c.isArray(t.X) || c.isArrayPtr(t.X) || c.isSlice(t.X) {
+			c.operand(t.X, c.isArrayPtr(t.X) || c.isSlice(t.X))
 			c.expr(t.Index)
 			return
 		}
@@ -960,6 +963,12 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
 		}
+		// A slice converts only to a slice type (D-036): not from a
+		// string, and not to an array or a pointer to one.
+		if at, ok := c.info.Types[call.Args[0]]; ok && isSlice(tv.Type) != isSlice(at.Type) && !at.IsNil() {
+			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
+			return false
+		}
 		mark := len(c.ds)
 		if !c.typeExpr(call.Fun) {
 			c.ds = c.ds[:mark]
@@ -974,9 +983,13 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		case *types.Builtin:
 			// len of a string, its length in bytes (D-033), or of an array
 			// or a pointer to one.
-			if obj.Name() == "len" && len(call.Args) == 1 && !call.Ellipsis.IsValid() &&
-				(c.isString(call.Args[0]) || c.isArray(call.Args[0]) || c.isArrayPtr(call.Args[0])) {
+			// len and cap of a slice, cap of an array or a pointer to one.
+			if (obj.Name() == "len" || obj.Name() == "cap") && len(call.Args) == 1 && !call.Ellipsis.IsValid() &&
+				(obj.Name() == "len" && c.isString(call.Args[0]) || c.isArray(call.Args[0]) || c.isArrayPtr(call.Args[0]) || c.isSlice(call.Args[0])) {
 				c.expr(call.Args[0])
+				return true
+			}
+			if c.sliceBuiltin(call, obj.Name()) {
 				return true
 			}
 			// new(T), but not new of a value, new(expr), which Go 1.26
@@ -1138,9 +1151,9 @@ func (c *checker) expr(e ast.Expr) {
 		}
 	case *ast.IndexExpr:
 		// Indexing a string gives one of its bytes (D-033), and indexing
-		// an array, or a pointer to one, one of its elements; every other
-		// index expression is unsupported.
-		if !c.isString(e.X) && !c.isArray(e.X) && !c.isArrayPtr(e.X) {
+		// an array, a pointer to one, or a slice one of its elements;
+		// every other index expression is unsupported.
+		if !c.isString(e.X) && !c.isArray(e.X) && !c.isArrayPtr(e.X) && !c.isSlice(e.X) {
 			c.reject(e, FeatIndex, "index expression")
 			return
 		}
@@ -1151,7 +1164,23 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.IndexListExpr:
 		c.reject(e, FeatIndex, "index expression")
 	case *ast.SliceExpr:
-		c.reject(e, FeatSlice, "slice expression")
+		// Of a slice, an addressable array, or a pointer to an array; not
+		// of a string (D-036).
+		switch {
+		case c.isSlice(e.X) || c.isArrayPtr(e.X):
+			c.expr(e.X)
+		case c.isArray(e.X):
+			c.address(e.X)
+		default:
+			c.reject(e, FeatSlice, "slice expression")
+			return
+		}
+		for _, b := range []ast.Expr{e.Low, e.High, e.Max} {
+			if b != nil {
+				c.expr(b)
+			}
+		}
+		c.typed(e)
 	case *ast.TypeAssertExpr:
 		c.reject(e, FeatTypeAssert, "type assertion")
 	case *ast.StarExpr:
@@ -1184,7 +1213,8 @@ func (c *checker) compositeLit(e *ast.CompositeLit) {
 	} else if e.Type != nil && !c.typeExpr(e.Type) {
 		return
 	}
-	array := isArray(c.info.Types[e].Type)
+	// An array or slice literal's keys are constant indices.
+	array := isArray(c.info.Types[e].Type) || isSlice(c.info.Types[e].Type)
 	for _, elt := range e.Elts {
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			if array {
@@ -1327,6 +1357,8 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	switch t := t.(type) {
 	case *types.Pointer:
 		return c.sizedType(t.Elem(), seen)
+	case *types.Slice:
+		return c.sizedType(t.Elem(), seen)
 	case *types.Array:
 		return isScalar(t.Elem()) || c.composite(t.Elem(), seen)
 	case *types.Struct:
@@ -1358,6 +1390,40 @@ func isArray(t types.Type) bool {
 func (c *checker) isArray(e ast.Expr) bool {
 	tv, ok := c.info.Types[e]
 	return ok && isArray(tv.Type)
+}
+
+func isSlice(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Slice)
+	return ok
+}
+
+// isSlice reports whether the expression e has a slice type.
+func (c *checker) isSlice(e ast.Expr) bool {
+	tv, ok := c.info.Types[e]
+	return ok && isSlice(tv.Type)
+}
+
+// sliceBuiltin checks a call of make, append, or copy on slices (D-036),
+// reporting whether it is one: make of a slice type with a length and
+// perhaps a capacity, append of values or of another slice, and copy
+// between slices. Appending or copying a string's bytes is not supported.
+func (c *checker) sliceBuiltin(call *ast.CallExpr, name string) bool {
+	args := call.Args
+	switch {
+	case name == "make" && len(args) >= 2 && isSlice(c.info.Types[args[0]].Type) && !call.Ellipsis.IsValid():
+		if !c.typeExpr(args[0]) {
+			return true // reported
+		}
+		args = args[1:]
+	case name == "append" && len(args) >= 1 && c.isSlice(args[0]) && (!call.Ellipsis.IsValid() || c.isSlice(args[1])):
+	case name == "copy" && len(args) == 2 && c.isSlice(args[0]) && c.isSlice(args[1]):
+	default:
+		return false
+	}
+	for _, a := range args {
+		c.expr(a)
+	}
+	return true
 }
 
 // isArrayPtr reports whether the expression e has a pointer to array type.

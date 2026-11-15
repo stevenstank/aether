@@ -1,0 +1,138 @@
+string s0 "f"
+
+func f() i64 @testdata/check/s3_l04_slice_index_panic.go:8:6
+b0:
+  v0 = str s0 @9:10
+  v1 = const 1 @9:10
+  println v0, v1 @9:2
+  v2 = const 4 @10:9
+  ret v2 @10:2
+
+func main @testdata/check/s3_l04_slice_index_panic.go:13:6
+  slot s0 tmp i64 @14:7
+  slot s1 tmp i64 @14:7
+  slot s2 s ptr @14:2
+  slot s3 s i64 @14:2
+  slot s4 s i64 @14:2
+  slot s5 tmp ptr @15:2
+  slot s6 tmp i64 @15:2
+  slot s7 tmp i64 @15:3
+  slot s8 tmp i64 @15:2
+  slot s9 tmp ptr @16:10
+  slot s10 tmp i64 @16:10
+  slot s11 tmp i64 @16:11
+  slot s12 tmp ptr @17:2
+  slot s13 tmp i64 @17:2
+  slot s14 tmp i64 @17:3
+  slot s15 tmp i64 @17:2
+b0:
+  v0 = const 3 @14:19
+  store s0, v0 @14:7
+  v1 = const 8 @14:22
+  store s1, v1 @14:7
+  v2 = conv u64, v0 @14:7
+  v3 = const u64 8589934592 @14:7
+  v4 = gt v2, v3 @14:7
+  branch v4, b1, b2 @14:7
+b1:
+  panic makelen @14:7
+b2:
+  v5 = load s1 @14:7
+  v6 = conv u64, v5 @14:7
+  v7 = const u64 8589934592 @14:7
+  v8 = gt v6, v7 @14:7
+  branch v8, b3, b4 @14:7
+b3:
+  panic makecap @14:7
+b4:
+  v9 = load s0 @14:7
+  v10 = conv u64, v9 @14:7
+  v11 = load s1 @14:7
+  v12 = conv u64, v11 @14:7
+  v13 = gt v10, v12 @14:7
+  branch v13, b5, b6 @14:7
+b5:
+  panic makecap @14:7
+b6:
+  v14 = load s0 @14:7
+  v15 = load s1 @14:7
+  v16 = const 8 @14:7
+  v17 = mul v15, v16 @14:7
+  v18 = alloc v17 @14:7
+  store s2, v18 @14:2
+  store s3, v14 @14:2
+  store s4, v15 @14:2
+  v19 = load s2 @15:2
+  v20 = load s3 @15:2
+  v21 = load s4 @15:2
+  store s5, v19 @15:2
+  store s6, v20 @15:2
+  v22 = const 2 @15:4
+  store s7, v22 @15:3
+  v23 = call f @15:9
+  store s8, v23 @15:2
+  v24 = conv u64, v22 @15:3
+  v25 = conv u64, v20 @15:3
+  v26 = ge v24, v25 @15:3
+  branch v26, b7, b8 @15:3
+b7:
+  v27 = load s7 @15:3
+  v28 = load s6 @15:2
+  panic index, v27, v28 @15:3
+b8:
+  v29 = load s8 @15:2
+  v30 = load s5 @15:2
+  v31 = load s7 @15:3
+  v32 = const 8 @15:2
+  v33 = mul v31, v32 @15:2
+  stm v30, v33, v29 @15:2
+  v34 = load s2 @16:10
+  v35 = load s3 @16:10
+  v36 = load s4 @16:10
+  store s9, v34 @16:10
+  store s10, v35 @16:10
+  v37 = const 2 @16:12
+  store s11, v37 @16:11
+  v38 = conv u64, v37 @16:11
+  v39 = conv u64, v35 @16:11
+  v40 = ge v38, v39 @16:11
+  branch v40, b9, b10 @16:11
+b9:
+  v41 = load s11 @16:11
+  v42 = load s10 @16:10
+  panic index, v41, v42 @16:11
+b10:
+  v43 = load s9 @16:10
+  v44 = load s11 @16:11
+  v45 = const 8 @16:10
+  v46 = mul v44, v45 @16:10
+  v47 = ldm i64, v43, v46 @16:10
+  v48 = load s2 @16:20
+  v49 = load s3 @16:20
+  v50 = load s4 @16:20
+  println v47, v49 @16:2
+  v51 = load s2 @17:2
+  v52 = load s3 @17:2
+  v53 = load s4 @17:2
+  store s12, v51 @17:2
+  store s13, v52 @17:2
+  v54 = const 3 @17:4
+  store s14, v54 @17:3
+  v55 = call f @17:9
+  store s15, v55 @17:2
+  v56 = conv u64, v54 @17:3
+  v57 = conv u64, v52 @17:3
+  v58 = ge v56, v57 @17:3
+  branch v58, b11, b12 @17:3
+b11:
+  v59 = load s14 @17:3
+  v60 = load s13 @17:2
+  panic index, v59, v60 @17:3
+b12:
+  v61 = load s15 @17:2
+  v62 = load s12 @17:2
+  v63 = load s14 @17:3
+  v64 = const 8 @17:2
+  v65 = mul v63, v64 @17:2
+  stm v62, v65, v61 @17:2
+  ret @18:1

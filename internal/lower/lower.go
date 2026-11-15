@@ -5,8 +5,9 @@
 // constants of increment 4.6, the switch statements of increment 4.7, and
 // the float64 and float32 values of Phase 6 increment 6.1, the string
 // constants of increment 6.2, the arrays and structs of increment 6.3
-// (aggregate.go), and the pointers of Phase 7 increment 7.1 (pointer.go)
-// into IR (D-004, D-021, D-023, D-032, D-033, D-034, D-035).
+// (aggregate.go), the pointers of Phase 7 increment 7.1 (pointer.go), and
+// the slices of increment 7.2 (slice.go) into IR (D-004, D-021, D-023,
+// D-032, D-033, D-034, D-035, D-036).
 //
 // Each package-level variable is an IR global. Their initializers are
 // lowered, in types.Info.InitOrder, into the program's Init, which runs
@@ -211,13 +212,13 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 				l.mems[v] = prog.NewMem(id.Name, sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
 				continue
 			}
-			// A string's words are the globals name.ptr and name.len, names
-			// no Go identifier has.
+			// A string's or slice's words are the globals name.ptr,
+			// name.len, and name.cap, names no Go identifier has.
 			ts := l.words(id, v.Type())
 			for i, t := range ts {
 				name := id.Name
-				if len(ts) == 2 {
-					name += [2]string{".ptr", ".len"}[i]
+				if len(ts) > 1 {
+					name += [3]string{".ptr", ".len", ".cap"}[i]
 				}
 				l.globals[v] = append(l.globals[v], prog.NewGlobal(name, t, file, l.pos(id, id.Pos())))
 			}
@@ -241,7 +242,11 @@ func (l *lowerer) init(prog *ir.Program) {
 	prog.Init = l.fn
 	l.b, l.done = l.fn.Entry(), false
 	for _, init := range order {
-		vals := l.valuesOrResults([]ast.Expr{init.Rhs}, len(init.Lhs))
+		var ts []types.Type
+		for _, v := range init.Lhs {
+			ts = append(ts, v.Type())
+		}
+		vals := l.valuesOrResults([]ast.Expr{init.Rhs}, ts)
 		for i, v := range init.Lhs {
 			gv, ok := l.globalVar(v, l.pos(init.Rhs, v.Pos()))
 			if !ok {
@@ -607,7 +612,11 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 		}
 		return
 	}
-	vals := l.valuesOrResults(spec.Values, len(spec.Names))
+	var ts []types.Type
+	for _, id := range spec.Names {
+		ts = append(ts, l.pkg.Info.ObjectOf(id).Type())
+	}
+	vals := l.valuesOrResults(spec.Values, ts)
 	get := l.keepAcrossStores(vals, len(spec.Names) > 1 && l.anyAggregate(spec.Names), l.pos(spec, spec.Pos()))
 	for i, id := range spec.Names {
 		l.store(l.defineVar(id), get[i](), l.pos(id, id.Pos()))
@@ -634,7 +643,15 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 			targets[i] = l.lvalue(e)
 			inMemory = inMemory || targets[i].mem != nil
 		}
-		vals := l.valuesOrResults(s.Rhs, len(s.Lhs))
+		var ts []types.Type
+		for _, e := range s.Lhs {
+			if id, ok := e.(*ast.Ident); ok {
+				ts = append(ts, l.pkg.Info.ObjectOf(id).Type())
+			} else {
+				ts = append(ts, l.pkg.Info.Types[e].Type)
+			}
+		}
+		vals := l.valuesOrResults(s.Rhs, ts)
 		for _, e := range s.Lhs {
 			if id, ok := e.(*ast.Ident); ok && isAggregate(l.pkg.Info.ObjectOf(id).Type()) {
 				inMemory = true
@@ -687,6 +704,10 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 // of a function discards its result, if any.
 func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	call, ok := s.X.(*ast.CallExpr)
+	if ok && l.isBuiltin(call, "copy") {
+		l.copySlice(call)
+		return
+	}
 	if !ok || call.Ellipsis.IsValid() {
 		l.fail(s, "unexpected expression statement")
 	}
@@ -698,7 +719,7 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 					n = t.Len() // println(f()) prints every result of f
 				}
 			}
-			args, pos := flatten(l.valuesOrResults(call.Args, n)), l.pos(call, call.Pos())
+			args, pos := flatten(l.valuesOrResults(call.Args, make([]types.Type, n))), l.pos(call, call.Pos())
 			if b.Name() == "print" {
 				l.fn.Print(l.b, args, pos)
 			} else {
@@ -724,7 +745,11 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 	f := l.funcs[obj]
 	sig := obj.Type().(*types.Signature)
 	pos := l.pos(call, call.Pos())
-	args := flatten(l.valuesOrResults(call.Args, sig.Params().Len()))
+	var ts []types.Type
+	for v := range sig.Params().Variables() {
+		ts = append(ts, v.Type())
+	}
+	args := flatten(l.valuesOrResults(call.Args, ts))
 	// A new object for each array or struct result, passed after the
 	// arguments (D-034).
 	var temps []*ir.Mem
@@ -805,13 +830,15 @@ func (l *lowerer) scalar(n ast.Node, w []*ir.Instr) *ir.Instr {
 	return w[0]
 }
 
-// valuesOrResults lowers list, which supplies n values: either n
-// expressions (values), or a single call with n results, as in "return
-// f()", "a, b := f()", and "g(f())". The results are extracted right after
-// the call, in its block.
-func (l *lowerer) valuesOrResults(list []ast.Expr, n int) [][]*ir.Instr {
+// valuesOrResults lowers list, which supplies values of the types ts, n of
+// them: either n expressions (values), or a single call with n results, as
+// in "return f()", "a, b := f()", and "g(f())". The results are extracted
+// right after the call, in its block. A nil entry of ts is any type that
+// untyped nil cannot stand for.
+func (l *lowerer) valuesOrResults(list []ast.Expr, ts []types.Type) [][]*ir.Instr {
+	n := len(ts)
 	if len(list) == n {
-		return l.values(list)
+		return l.values(list, ts)
 	}
 	call, ok := list[0].(*ast.CallExpr)
 	if len(list) != 1 || !ok || n < 2 {
@@ -984,7 +1011,7 @@ func (l *lowerer) store(v variable, w []*ir.Instr, pos ir.Pos) {
 // values lowers list left to right. A value computed before a later
 // operand that branches is stored in a temporary slot and loaded again
 // after the last operand, in the block where the values are used.
-func (l *lowerer) values(list []ast.Expr) [][]*ir.Instr {
+func (l *lowerer) values(list []ast.Expr, ts []types.Type) [][]*ir.Instr {
 	// later[i] reports whether an operand after list[i] branches. It is
 	// computed in one pass, since println may have very many operands.
 	later := make([]bool, len(list))
@@ -993,7 +1020,11 @@ func (l *lowerer) values(list []ast.Expr) [][]*ir.Instr {
 	}
 	get := make([]func() []*ir.Instr, len(list))
 	for i, e := range list {
-		w, pos := l.value(e), l.pos(e, e.Pos())
+		var t types.Type
+		if ts != nil {
+			t = ts[i]
+		}
+		w, pos := l.valueFor(e, t), l.pos(e, e.Pos())
 		get[i] = func() []*ir.Instr { return w }
 		if later[i] {
 			get[i] = l.spillWords(w, pos)
@@ -1048,8 +1079,11 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 				}
 			}
 			switch n := n.(type) {
-			case *ast.IndexExpr, *ast.StarExpr:
+			case *ast.IndexExpr, *ast.StarExpr, *ast.SliceExpr:
 				found = true // the bounds or nil check
+			case *ast.CallExpr:
+				// make, append, and copy check and may grow (slice.go).
+				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy")
 			case *ast.SelectorExpr:
 				if sel := l.pkg.Info.Selections[n]; sel != nil && sel.Indirect() {
 					found = true
@@ -1134,7 +1168,10 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			if b != nil && b.Name() == "new" && len(e.Args) == 1 && l.pkg.Info.Types[e.Args[0]].IsType() {
 				return l.alloc(l.pkg.Info.Types[e.Args[0]].Type, l.pos(e, e.Pos()))
 			}
-			if b != nil && b.Name() == "len" && len(e.Args) == 1 {
+			if b != nil && b.Name() == "copy" {
+				return l.copySlice(e)
+			}
+			if b != nil && (b.Name() == "len" || b.Name() == "cap") && len(e.Args) == 1 {
 				at := l.pkg.Info.Types[e.Args[0]].Type
 				if a, ok := at.Underlying().(*types.Array); ok {
 					// Not a constant, so the array has a call to
@@ -1152,12 +1189,17 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 					l.expr(e.Args[0])
 					return l.fn.Const(l.b, a.Len(), l.pos(e, e.Pos()))
 				}
-				// The length of a string is its second word: its bytes.
+				// The length of a string is its second word, its bytes, and
+				// a slice's capacity its third (D-036).
 				w := l.value(e.Args[0])
-				if len(w) != 2 {
-					l.fail(e, "len of a value of %d words", len(w))
+				k := 1
+				if b.Name() == "cap" {
+					k = 2
 				}
-				return w[1]
+				if len(w) <= k {
+					l.fail(e, "%s of a value of %d words", b.Name(), len(w))
+				}
+				return w[k]
 			}
 		}
 		if l.pkg.Info.Types[e.Fun].IsType() {
@@ -1210,8 +1252,17 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		if isAggregate(l.pkg.Info.Types[e.X].Type) {
 			return l.aggregateCompare(e, pos)
 		}
+		if s := e.X; isSlice(l.pkg.Info.Types[s].Type) || isSlice(l.pkg.Info.Types[e.Y].Type) {
+			// s == nil: a slice is nil if its Ptr is (D-036).
+			if !isSlice(l.pkg.Info.Types[s].Type) {
+				s = e.Y
+			}
+			if op, ok := binaryOps[e.Op]; ok && (op == ir.Eq || op == ir.Ne) {
+				return l.fn.Compare(l.b, op, l.value(s)[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos)
+			}
+		}
 		if op, ok := binaryOps[e.Op]; ok {
-			xy := l.values([]ast.Expr{e.X, e.Y})
+			xy := l.values([]ast.Expr{e.X, e.Y}, nil)
 			x, y := l.scalar(e.X, xy[0]), l.scalar(e.Y, xy[1])
 			if op.IsComparison() {
 				return l.compare(op, x, y, pos)
@@ -1231,6 +1282,9 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 	}
 	if isAggregate(tv.Type) {
 		return []*ir.Instr{l.aggValue(e)}
+	}
+	if isSlice(tv.Type) {
+		return l.sliceValue(e)
 	}
 	if !isString(tv.Type) {
 		return []*ir.Instr{l.expr(e)}
@@ -1456,6 +1510,9 @@ func (l *lowerer) words(n ast.Node, t types.Type) []ir.Type {
 	if isString(t) {
 		return []ir.Type{ir.Ptr, ir.I64}
 	}
+	if isSlice(t) {
+		return []ir.Type{ir.Ptr, ir.I64, ir.I64} // D-036
+	}
 	return []ir.Type{l.irType(n, t)}
 }
 
@@ -1478,7 +1535,11 @@ func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
 // the other words are returned (D-034).
 func (l *lowerer) ret(s *ast.ReturnStmt) {
 	pos := l.pos(s, s.Return)
-	vals := l.valuesOrResults(s.Results, l.sig.Results().Len())
+	var ts []types.Type
+	for v := range l.sig.Results().Variables() {
+		ts = append(ts, v.Type())
+	}
+	vals := l.valuesOrResults(s.Results, ts)
 	if len(l.retPtrs) == 0 {
 		l.fn.Ret(l.b, pos, flatten(vals)...)
 		return

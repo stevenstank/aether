@@ -819,6 +819,13 @@ repeated in each phase below:
     (`docs/benchmarks/2026-11-15-heap/README.md`): peak RSS grows by every
     byte allocated, garbage included, while gc's levels off; documented as
     divergence V-5 (`SEMANTICS.md`).
+- **Status of 7.2 (in progress):**
+  - `move`, the slice bounds and `makeslice` panics in the IR, interpreter,
+    backend, and runtime (D-036).
+  - Gate and lowering (`SEMANTICS.md` §Slices), with the corpus programs
+    `s3_l01` to `s3_l08`, checked against gc by `TestDifferentialAgainstGc`.
+  - Not yet done: slices in the program generator, so `FuzzGenerated` and
+    the 200 generated programs do not exercise them.
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 

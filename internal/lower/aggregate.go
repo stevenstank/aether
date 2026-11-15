@@ -65,6 +65,9 @@ func leaves(t types.Type) int64 {
 	if isString(t) {
 		return 2
 	}
+	if isSlice(t) {
+		return 3
+	}
 	return 1
 }
 
@@ -87,11 +90,13 @@ type place struct {
 }
 
 // check is a deferred check: that the pointer ptr is not nil, if ptr is
-// set, and otherwise that the index idx is below n.
+// set, and otherwise that the index idx is below n, or below the I64 that
+// nv produces if it is set (a slice's length).
 type check struct {
 	ptr func() *ir.Instr
 	idx func() *ir.Instr
 	n   int64
+	nv  func() *ir.Instr
 	pos ir.Pos
 }
 
@@ -225,9 +230,11 @@ func (l *lowerer) walk(t types.Type, ps []place, blank bool, pos ir.Pos, leaf fu
 		l.fn.Jump(l.b, head, pos)
 		l.b = exit
 	default:
-		if isString(t) {
-			leaf(ir.Ptr, at(0, t))
-			leaf(ir.I64, at(8, t))
+		// A string's or slice's words, 8 bytes apart.
+		if ws := l.words(nil, t); len(ws) > 1 {
+			for i, w := range ws {
+				leaf(w, at(8*int64(i), t))
+			}
 			return
 		}
 		leaf(l.irType(nil, t), ps)
@@ -303,8 +310,12 @@ func (l *lowerer) loadPlace(p place, pos ir.Pos) []*ir.Instr {
 		m := l.newMem("tmp", p.t, pos)
 		l.copyPlace(l.memPlace(m, p.t, pos), p, pos)
 		return []*ir.Instr{l.addr(m, pos)}
-	case isString(p.t):
-		return []*ir.Instr{l.ldm(ir.Ptr, p, pos), l.ldm(ir.I64, p.field(8, p.t), pos)}
+	case len(l.words(nil, p.t)) > 1:
+		var w []*ir.Instr
+		for i, t := range l.words(nil, p.t) {
+			w = append(w, l.ldm(t, p.field(8*int64(i), p.t), pos))
+		}
+		return w
 	}
 	return []*ir.Instr{l.ldm(l.irType(nil, p.t), p, pos)}
 }
@@ -321,9 +332,10 @@ func (l *lowerer) storePlace(p place, w []*ir.Instr, pos ir.Pos) {
 	switch {
 	case isAggregate(p.t):
 		l.copyPlace(p, l.valuePlace(w[0], p.t, pos), pos)
-	case isString(p.t):
-		l.stm(p, w[0], pos)
-		l.stm(p.field(8, p.t), w[1], pos)
+	case len(w) > 1:
+		for i, v := range w {
+			l.stm(p.field(8*int64(i), p.t), v, pos)
+		}
 	default:
 		l.stm(p, w[0], pos)
 	}
@@ -333,9 +345,12 @@ func (l *lowerer) storePlace(p place, w []*ir.Instr, pos ir.Pos) {
 // without them.
 func (l *lowerer) checkAll(p place) place {
 	for _, c := range p.checks {
-		if c.ptr != nil {
+		switch {
+		case c.ptr != nil:
 			l.checkNil(c.ptr, c.pos)
-		} else {
+		case c.nv != nil:
+			l.checkLen(c.idx, c.nv, c.pos)
+		default:
 			l.checkIndex(c.idx, c.n, c.pos)
 		}
 	}
@@ -408,6 +423,9 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 		}
 		return p
 	case *ast.IndexExpr:
+		if isSlice(l.pkg.Info.Types[e.X].Type) {
+			return l.sliceIndex(e, lhs)
+		}
 		var p place
 		at := l.pkg.Info.Types[e.X].Type
 		if t, ok := pointee(at); ok {
@@ -578,15 +596,19 @@ func (l *lowerer) covers(lit *ast.CompositeLit) bool {
 // literals), whose value is a new heap object.
 func (l *lowerer) fillElement(p place, e ast.Expr) {
 	if lit, ok := ast.Unparen(e).(*ast.CompositeLit); ok {
+		pos := l.pos(e, e.Pos())
 		if t, ok := pointee(p.t); ok {
-			pos := l.pos(e, e.Pos())
 			l.storePlace(p, []*ir.Instr{l.heapLit(lit, t, pos)}, pos)
+			return
+		}
+		if isSlice(p.t) {
+			l.storePlace(p, l.sliceLit(lit), pos)
 			return
 		}
 		l.fill(p, lit)
 		return
 	}
-	l.storePlace(p, l.value(e), l.pos(e, e.Pos()))
+	l.storePlace(p, l.valueFor(e, p.t), l.pos(e, e.Pos()))
 }
 
 // constantIndex returns the integer value of a constant index or key.
@@ -603,7 +625,7 @@ func (l *lowerer) aggregateCompare(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
 	if e.Op != token.EQL && e.Op != token.NEQ {
 		l.fail(e, "operator %s on arrays or structs", e.Op)
 	}
-	vals := l.values([]ast.Expr{e.X, e.Y})
+	vals := l.values([]ast.Expr{e.X, e.Y}, nil)
 	t := l.pkg.Info.Types[e.X].Type
 	x := l.valuePlace(l.scalar(e.X, vals[0]), t, pos)
 	y := l.valuePlace(l.scalar(e.Y, vals[1]), t, pos)

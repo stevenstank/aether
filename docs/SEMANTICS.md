@@ -241,6 +241,7 @@ has a defined normalization in the test harness.
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 | V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
 | V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, and `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter. |
+| V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or depend on sharing after a growing `append`. |
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
@@ -780,6 +781,42 @@ feature names `operator-address` and `pointer-dereference` no longer exist.
 Pointers to distinct zero-size variables may or may not be equal (spec
 §Comparison operators); no test depends on either.
 
+## Slices (Phase 7 increment 7.2)
+
+The gate also accepts slice types `[]T` of every supported `T` of at most 2²⁴
+bytes, as variables, globals, fields, elements, parameters, and results
+(D-036). A slice is a pointer, a length, and a capacity; its array is on the
+heap, or is an array variable it was sliced from, which is then on the heap
+(or global) as if its address were taken (§Pointers).
+- **`make([]T, n)`** and **`make([]T, n, c)`**, zero; a negative length or one
+  beyond the heap, or a capacity below the length, panics with gc's
+  `makeslice` messages. **Slice literals**, positional or keyed, with elided
+  element types.
+- **`s[i]`** reads and assigns elements, also with `op=`, `++`, and `--`; an
+  index of any integer type at or beyond the length panics as for arrays, and
+  in an assignment after the right side is evaluated.
+- **`x[i:j]` and `x[i:j:k]`** of slices, addressable arrays, and pointers to
+  arrays: the bounds are evaluated, then checked as gc checks them, with its
+  messages (`slice bounds out of range [:j] with capacity c` and the others);
+  slicing through a nil pointer to an array panics. Slicing a nil slice with a
+  low bound of 0 gives nil. The new slice shares the array.
+- **`len`** and **`cap`** of slices, and `cap` of arrays and pointers to them.
+- **`append(s, x…)`** and **`append(s, t...)`**: within the capacity it
+  stores into the shared array, as the spec requires; beyond it, it allocates a
+  new array by Aether's growth rule (V-6) and moves the elements. **`copy(dst,
+  src)`** copies the shorter length's elements, overlapping or not, and
+  returns that length.
+- **`== nil`** and **`!= nil`**; conversions between slice types of identical
+  underlying types.
+
+Still `unsupported`: slicing strings, and `append` or `copy` of a string's
+bytes (`slice-expression`, `builtin`), until increment 7.3; `for range`
+(`for-range`); conversions between slices and strings, arrays, or pointers to
+arrays (`conversion`); printing a slice (`println-argument-type`), whose
+address gc prints; defined slice types, as `type S []int`
+(`local-type-declaration`, `package-level-declaration`); `make` of maps and
+channels (`builtin`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -807,6 +844,7 @@ Pointers to distinct zero-size variables may or may not be equal (spec
 | `string`: constants, variables, calls, globals, `len`, indexing with index panics, printing | String types, String literals, Length and capacity, Index expressions | S3 / 6.2 | Supported (native), with divergence V-3 | `s3_s01_string_basics` to `s3_s07_index_empty`; generated string programs; `TestNativeStrings`, `TestPanicIndex`, `TestVerifyStrings`; gate tests |
 | Arrays and structs: type declarations, literals, fields, indexing with index panics, copies, parameters, results, globals, `len`, `==`, `!=` | Array types, Struct types, Composite literals, Selectors, Index expressions, Assignment statements, Comparison operators | S3 / 6.3 | Supported (native), with divergences V-3 and V-4 | `s3_a01_struct_basics` to `s3_a09_aggregate_swap`; generated array and struct programs; `TestLayoutAgainstGc`; `TestNativeMemory`, `TestFrameMems`, `TestMemoryRoundTrip`, `TestVerifyMem`; gate tests |
 | Pointers: `*T`, `&`, `new`, `*p`, auto-dereference, nil checks, address-taken variables on the heap, `==`, `!=` | Pointer types, Address operators, Allocation, Selectors, Index expressions, Run-time panics | S4 / 7.1 | Supported (native), with divergences V-3 and V-4 | `s3_p01_pointer_basics` to `s3_p08_nil_address`; generated pointer programs; `TestNativeHeap`, `TestHeap`, `TestHeapErrors`; gate tests |
+| Slices: `make`, literals, indexing, two- and three-index slice expressions of slices, arrays, and pointers to arrays, `len`, `cap`, `append`, `copy`, nil comparisons | Slice types, Making slices, Index expressions, Slice expressions, Appending to and copying slices | S4 / 7.2 | Supported (native), with divergences V-3, V-5, and V-6 | `s3_l01_slice_basics` to `s3_l08_nil_array_slice`; `TestNativeMove`, `TestNativeBounds`, `TestMove`, `TestBoundsMessage`, `TestVerifySlices`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

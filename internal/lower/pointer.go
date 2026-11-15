@@ -37,6 +37,14 @@ func addressTaken(info *types.Info, files []*ast.File) map[*types.Var]bool {
 					taken[v] = true
 				}
 			}
+			// Slicing an array takes its address (D-036).
+			if s, ok := n.(*ast.SliceExpr); ok {
+				if _, ok := info.Types[s.X].Type.Underlying().(*types.Array); ok {
+					if v := rootVar(info, s.X); v != nil {
+						taken[v] = true
+					}
+				}
+			}
 			return true
 		})
 	}
