@@ -22,12 +22,13 @@ import (
 	"go/token"
 	"go/types"
 
+	"github.com/stevenstank/aether/internal/frontend"
 	"github.com/stevenstank/aether/internal/ir"
 )
 
 // addressTaken returns the variables whose address the program takes: the
 // variable that the operand of each & lies in, if it is not reached through
-// a pointer.
+// a pointer, and likewise for the implicit & of a method call.
 func addressTaken(info *types.Info, files []*ast.File) map[*types.Var]bool {
 	taken := map[*types.Var]bool{}
 	for _, f := range files {
@@ -35,6 +36,15 @@ func addressTaken(info *types.Info, files []*ast.File) map[*types.Var]bool {
 			if u, ok := n.(*ast.UnaryExpr); ok && u.Op == token.AND {
 				if v := rootVar(info, u.X); v != nil {
 					taken[v] = true
+				}
+			}
+			// So does calling a method with a pointer receiver on it, or
+			// on an embedded field of it (D-038).
+			if e, ok := n.(*ast.SelectorExpr); ok {
+				if sel := info.Selections[e]; sel != nil && sel.Kind() == types.MethodVal && frontend.TakesAddress(sel) {
+					if v := rootVar(info, e.X); v != nil {
+						taken[v] = true
+					}
 				}
 			}
 			// Slicing an array takes its address (D-036).

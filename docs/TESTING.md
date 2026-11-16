@@ -388,6 +388,36 @@ program and 2 corpus programs fail), no nil checks (1 generated, 5 corpus),
 and an address-taken parameter not copied to the heap (3 generated, 1
 corpus).
 
+Since Phase 8 increment 8.1, `generateMethods` (`gen_method_test.go`)
+writes programs of its own, from a ninth random stream, so that the other
+generators' programs are unchanged; `TestDifferentialAgainstGc` and
+`TestFrameBound` run 100 of them, `TestMethodPrograms` 30 also under `-O0`
+and ABI-R1, and `FuzzGenerated` the one of each seed. Their types are
+fixed: a struct `A` of an int, an int8, a string, and an array; `B`
+embedding `A`, `C` embedding `*A`, `D` embedding `B`, and an array type.
+The bodies of their methods are random: value receivers that read fields,
+pointer receivers that write them, value receivers that write their own
+copy, directly or through the implicit `&` of a pointer method (which puts
+the parameter on the heap), and methods that call others promoted through
+embedded fields. `main` calls them on variables, pointers, `*p`, embedded
+fields at every depth, through an embedded pointer, array and slice
+elements, literals, and call results, and prints every field at the end;
+one program in about seven ends with a deliberate nil dereference: a value
+method through a nil pointer, or a method promoted through a nil embedded
+pointer. A call that may write a variable is alone in its statement or
+println's only argument, and a method argument is a constant or a call that
+writes nothing (V-4). Negative controls in lowering, run by hand and
+reverted, against `TestMethodPrograms` and `TestDifferentialAgainstGc`: a
+value receiver passed without a copy fails `s5_m01` and 5 of the 100
+generated programs; a pointer receiver passed a copy fails generated
+programs from the first seed on; no nil check on a value receiver through a
+pointer stops a generated program in the interpreter on a read of address
+0; no nil check on a path through a nil embedded pointer fails `s5_m04`;
+and the implicit `&` not making its variable address-taken fails `s5_m01`
+(its `escape`) in the interpreter on a read of a dead frame object.
+On 2026-11-16, method programs of seeds 1001 to 2000 all gave gc's output
+in the interpreter, `aether build`, and `-O0`; 162 of them panic.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

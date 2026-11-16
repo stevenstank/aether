@@ -66,6 +66,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-035 | Pointers and heap memory in the IR (Phase 7 increment 7.1) | Accepted (2026-11-14, owner approval of its outline) |
 | D-036 | Slices (Phase 7 increment 7.2) | Accepted (2026-11-15, owner decision) |
 | D-037 | Strings made at run time (Phase 7 increment 7.3) | Accepted (2026-11-16, owner decision) |
+| D-038 | Methods (Phase 8 increment 8.1) | Accepted (2026-11-16, owner approval as proposed) |
 
 ## Review log
 
@@ -2989,6 +2990,65 @@ interpreter: every memory operation would need a second case for them.
 stack). The capacity of `[]byte(s)` differs from gc's, part of V-6. A
 `string(b)` read before a call in the same statement that changes `b`
 follows D-024's order, which gc does not (V-4).
+
+---
+
+## D-038: Methods (Phase 8 increment 8.1)
+
+**Status:** Accepted (2026-11-16, owner approval as proposed: Phase 8 begins
+with methods as increment 8.1; a method is an ordinary IR function; method
+values and method expressions stay unsupported).
+
+**Context.** Phase 8 requires a design note for each of its items before
+it is implemented (`ROADMAP.md`). Methods are the first: interfaces need
+method sets, and method values need closures, so methods without either
+come before both. The gate accepts defined types only of arrays and
+structs (§Arrays and structs), so those are the receivers there can be.
+Measured with gc-built go1.26.1 binaries on 2026-11-16: in `g.Get(f())`,
+with a value receiver `g` that `f` assigns, gc copies `g` after calling
+`f`, and in `p.Get(f())` with `p` nil, gc calls `f`, then panics.
+
+**Decision.**
+- **Scope.** Method declarations on the program's defined array and struct
+  types, with value or pointer receivers, named, blank, or unnamed; calls
+  `x.M(args)`, including methods promoted through embedded fields and
+  embedded pointers, the implicit `&x` when `M` has a pointer receiver and
+  `x` is addressable, and the implicit `*p` when `M` has a value receiver
+  and `p` is a pointer. A method of a type named `aether` is rejected
+  (`method`): that name prefixes lowering's own functions. Method values
+  (`x.M` not called, `method-value`) and method expressions (`T.M`,
+  `method-expression`) are rejected: both are function values.
+- **Mechanism, with no IR, runtime, or calling-convention change.** Each
+  method is an ordinary IR function named `T.M`, whose first parameter is
+  the receiver: for a value receiver, the Ptr of the caller's copy of the
+  array or struct (D-034), and for a pointer receiver, the pointer. Its
+  symbol is `main.T.M`, as gc's is. Go forbids `T` and `*T` from both having
+  a method `M`, and a type sharing a name with a function, and no Go
+  function name has a dot, so the name is unique.
+- **Calls.** The receiver is evaluated first, then the arguments, left to
+  right (D-024). It follows the path of embedded fields to `M` as a
+  selector does, with a nil check at each pointer it follows. At its end it
+  takes the address of the variable or field reached, if `M` has a pointer
+  receiver and that is not a pointer; such a variable is address-taken, so
+  on the heap (D-035), and the gate rejects it as `&x` for a variable
+  declared in a for statement's init. A pointer passed as a pointer
+  receiver is not checked, since a method may be called on nil; one
+  reached where `M` has a value receiver is checked, with gc's message,
+  and the value it points to copied.
+
+**Alternatives.** Name pointer-receiver methods `(*T).M`, as gc does: `T.M`
+is already unique, and keeps every symbol a plain dotted name like those of
+the other functions. Pass a value receiver's words rather than a
+copy's Ptr: it would differ from how every other array or struct argument
+is passed (D-034). Support method values now: they need a function value
+with a bound receiver, which is the closure design of a later increment.
+
+**Consequences.** Calls of methods cost what calls of functions do: no
+dispatch exists until interfaces. A value receiver copied before a call
+among the arguments that changes it, or checked for nil before such a
+call, follows D-024's order, which gc does not (V-4,
+`TestMethodReceiverOrder`). The implicit `&` puts a variable on the heap
+for the rest of its life, as `&x` does (V-5).
 
 ---
 

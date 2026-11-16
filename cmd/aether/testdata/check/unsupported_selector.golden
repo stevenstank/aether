@@ -1,3 +1,0 @@
-testdata/check/unsupported_selector.go:7:1: unsupported: method m is not supported in subset S1 [method]
-testdata/check/unsupported_selector.go:11:7: unsupported: selector t.m is not supported in subset S1 [selector]
-testdata/check/unsupported_selector.go:12:2: unsupported: function call is not supported in subset S1 [call]

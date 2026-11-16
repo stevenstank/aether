@@ -421,23 +421,7 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 		} else {
 			p = l.addrOf(e.X, lhs)
 		}
-		// Through the embedded fields of the path, if promoted, and the
-		// pointers among them.
-		for _, k := range sel.Index() {
-			if t, ok := pointee(p.t); ok {
-				p = l.through(l.scalar(e, l.loadPlace(p, pos)), t, pos)
-			}
-			s, ok := p.t.Underlying().(*types.Struct)
-			if !ok {
-				l.fail(e, "selector of a non-struct")
-			}
-			var fields []*types.Var
-			for f := range s.Fields() {
-				fields = append(fields, f)
-			}
-			p = p.field(sizes.Offsetsof(fields)[k], fields[k].Type())
-		}
-		return p
+		return l.selectPath(e, p, sel.Index(), pos)
 	case *ast.IndexExpr:
 		if isSlice(l.pkg.Info.Types[e.X].Type) {
 			return l.sliceIndex(e, lhs)

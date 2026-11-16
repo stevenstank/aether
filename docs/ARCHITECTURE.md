@@ -124,6 +124,10 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     `aether.encoderune`, `aether.decoderune`, `aether.stringtorunes`, and
     `aether.runestostring` for UTF-8, once each, to a program that uses
     them (D-037). Their names contain a `.`, so no Go function shares one.
+  - Lower each method to an ordinary IR function `T.M`, after its
+    receiver's type, whose first parameter is the receiver (D-038). The
+    gate rejects methods of a type named `aether`, so no method shares a
+    name with the generated functions.
 - **Rules that S1 correctness depends on:**
   - **Constants.** Any expression with a non-nil `types.Info.Types[e].Value`
     becomes one IR constant, taken from that value with `constant.Int64Val`.

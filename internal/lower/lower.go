@@ -73,7 +73,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 				continue
 			}
 			fd, ok := d.(*ast.FuncDecl)
-			if !ok || fd.Recv != nil || fd.Body == nil || fd.Type.TypeParams != nil {
+			if !ok || fd.Body == nil || fd.Type.TypeParams != nil {
 				l.fail(d, "unexpected top-level declaration")
 			}
 			l.declare(prog, fd)
@@ -155,19 +155,22 @@ func (l *lowerer) pos(n ast.Node, p token.Pos) ir.Pos {
 	return ir.Pos{Line: dp.Line, Col: dp.Col}
 }
 
-// declare creates the IR function for fd, with its signature: int or bool
-// parameters and unnamed results.
+// declare creates the IR function for fd, with its signature: a method's
+// receiver first (D-038), the parameters, and unnamed results.
 func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 	obj, ok := l.pkg.Info.Defs[fd.Name].(*types.Func)
 	if !ok {
 		l.fail(fd, "no function object for %s", fd.Name.Name)
 	}
 	sig := obj.Type().(*types.Signature)
-	if sig.Variadic() {
+	if sig.Variadic() || (fd.Recv != nil) != (sig.Recv() != nil) {
 		l.fail(fd, "unexpected signature for %s", fd.Name.Name)
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
-	f := prog.NewFunc(fd.Name.Name, file, l.pos(fd.Name, fd.Name.Pos()))
+	f := prog.NewFunc(l.funcName(fd, obj), file, l.pos(fd.Name, fd.Name.Pos()))
+	if r := sig.Recv(); r != nil {
+		f.Params = append(f.Params, l.words(fd, r.Type())...)
+	}
 	for v := range sig.Params().Variables() {
 		f.Params = append(f.Params, l.words(fd, v.Type())...)
 	}
@@ -273,7 +276,12 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 	l.retPtrs = nil
 	i := 0                // the first IR parameter of the next Go one
 	var heap []*ast.Ident // the address-taken parameters
-	for _, field := range fd.Type.Params.List {
+	fields := fd.Type.Params.List
+	if fd.Recv != nil {
+		// The receiver is the first parameter (D-038).
+		fields = append(append([]*ast.Field(nil), fd.Recv.List...), fields...)
+	}
+	for _, field := range fields {
 		n := len(l.words(field.Type, l.pkg.Info.Types[field.Type].Type))
 		if len(field.Names) == 0 {
 			i += n
@@ -749,25 +757,42 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	l.call(call)
 }
 
-// call lowers a direct call of a function of the program: the arguments are
-// evaluated left to right, then the function is called.
+// call lowers a direct call of a function of the program, or of a method
+// (D-038): the receiver, then the arguments, are evaluated left to right,
+// then the function is called.
 func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
-	id, ok := ast.Unparen(call.Fun).(*ast.Ident)
-	if !ok || call.Ellipsis.IsValid() {
+	if call.Ellipsis.IsValid() {
 		l.fail(call, "unexpected call")
 	}
-	obj, ok := l.pkg.Info.Uses[id].(*types.Func)
-	if !ok || l.funcs[obj] == nil {
-		l.fail(call, "unexpected call of %s", id.Name)
+	pos := l.pos(call, call.Pos())
+	var obj *types.Func
+	recv := func() []*ir.Instr { return nil }
+	switch fn := ast.Unparen(call.Fun).(type) {
+	case *ast.Ident:
+		obj, _ = l.pkg.Info.Uses[fn].(*types.Func)
+	case *ast.SelectorExpr:
+		sel := l.pkg.Info.Selections[fn]
+		if sel == nil || sel.Kind() != types.MethodVal {
+			l.fail(call, "unexpected call of %s", types.ExprString(fn))
+		}
+		obj, _ = sel.Obj().(*types.Func)
+		w := l.receiver(fn, sel)
+		recv = func() []*ir.Instr { return w }
+		if l.branches(call.Args) {
+			recv = l.spillWords(w, pos)
+		}
+	}
+	if obj == nil || l.funcs[obj] == nil {
+		l.fail(call, "unexpected call of %s", types.ExprString(call.Fun))
 	}
 	f := l.funcs[obj]
 	sig := obj.Type().(*types.Signature)
-	pos := l.pos(call, call.Pos())
 	var ts []types.Type
 	for v := range sig.Params().Variables() {
 		ts = append(ts, v.Type())
 	}
-	args := flatten(l.valuesOrResults(call.Args, ts))
+	vals := l.valuesOrResults(call.Args, ts)
+	args := append(recv(), flatten(vals)...)
 	// A new object for each array or struct result, passed after the
 	// arguments (D-034).
 	var temps []*ir.Mem

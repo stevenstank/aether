@@ -1,0 +1,2 @@
+testdata/check/unsupported_method_value.go:11:7: unsupported: method value t.m is not supported in subset S1 [method-value]
+testdata/check/unsupported_method_value.go:12:2: unsupported: function call is not supported in subset S1 [call]

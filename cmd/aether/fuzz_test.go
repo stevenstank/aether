@@ -37,7 +37,8 @@ func FuzzCheck(f *testing.F) {
 // (checkPromotion). Since experiment RA-0 (D-026), the promoted program is
 // also emitted with registers, which checks every allocation, and run
 // natively when it finishes (checkRegistersGenerated). Since Phase 7
-// increment 7.2, each seed's slice program goes through the same checks.
+// increment 7.2, each seed's slice program goes through the same checks,
+// and since Phase 8 increment 8.1 its method program.
 func FuzzGenerated(f *testing.F) {
 	f.Add(uint64(1))
 	f.Fuzz(func(t *testing.T, seed uint64) {
@@ -48,6 +49,13 @@ func FuzzGenerated(f *testing.F) {
 			t.Fatalf("slice program rejected: %s\n%s", ds[0], slices)
 		}
 		checkRegistersGenerated(t, slices, checkPromotion(t, "gen.go", slices, 1_000_000, &promoteStats{}))
+		// Likewise its method program (gen_method_test.go), since Phase 8
+		// increment 8.1.
+		methods := []byte(generateMethods(seed))
+		if ds := compileAndRun(t, methods); len(ds) > 0 {
+			t.Fatalf("method program rejected: %s\n%s", ds[0], methods)
+		}
+		checkRegistersGenerated(t, methods, checkPromotion(t, "gen.go", methods, 1_000_000, &promoteStats{}))
 		src := []byte(generate(seed))
 		ds := compileAndRun(t, src)
 		if len(ds) > 0 {

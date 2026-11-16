@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"os"
 	"strings"
 	"testing"
@@ -53,6 +54,7 @@ func TestFrameBound(t *testing.T) {
 	}
 	for seed := uint64(1); seed <= 100; seed++ {
 		progs = append(progs, program{fmt.Sprintf("slc%04d.go", seed), []byte(generateSlices(seed))})
+		progs = append(progs, program{fmt.Sprintf("mth%04d.go", seed), []byte(generateMethods(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {
@@ -90,7 +92,16 @@ func TestFrameBound(t *testing.T) {
 		for _, d := range file.Decls {
 			switch d := d.(type) {
 			case *ast.FuncDecl:
-				check("func "+d.Name.Name, gate.FrameBytes(pkg, d.Body), funcs[d.Name.Name])
+				// A method's function is T.M (D-038).
+				name := d.Name.Name
+				if d.Recv != nil {
+					name = types.ExprString(d.Recv.List[0].Type)
+					name = strings.TrimPrefix(name, "*") + "." + d.Name.Name
+				}
+				if funcs[name] == nil {
+					t.Fatalf("%s: no IR function %s", p.name, name)
+				}
+				check("func "+name, gate.FrameBytes(pkg, d.Body), funcs[name])
 			case *ast.GenDecl:
 				if d.Tok == token.VAR {
 					for _, spec := range d.Specs {

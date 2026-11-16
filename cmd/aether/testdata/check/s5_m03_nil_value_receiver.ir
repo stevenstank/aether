@@ -1,0 +1,69 @@
+string s0 "not reached"
+string s1 "before"
+string s2 "not reached either"
+
+func T.Sum(ptr) i64 @testdata/check/s5_m03_nil_value_receiver.go:10:12
+  slot s0 t ptr @10:7
+b0:
+  v0 = param 0 @10:7
+  store s0, v0 @10:7
+  v1 = str s0 @11:10
+  v2 = const 11 @11:10
+  println v1, v2 @11:2
+  v3 = load s0 @12:9
+  v4 = const 0 @12:9
+  v5 = ldm i64, v3, v4 @12:9
+  v6 = load s0 @12:15
+  v7 = const 8 @12:15
+  v8 = ldm i64, v6, v7 @12:15
+  v9 = add v5, v8 @12:13
+  ret v9 @12:2
+
+func T.Ok(ptr) bool @testdata/check/s5_m03_nil_value_receiver.go:15:13
+  slot s0 t ptr @15:7
+b0:
+  v0 = param 0 @15:7
+  store s0, v0 @15:7
+  v1 = load s0 @15:32
+  v2 = const ptr 0 @15:37
+  v3 = eq v1, v2 @15:34
+  ret v3 @15:25
+
+func main @testdata/check/s5_m03_nil_value_receiver.go:17:6
+  slot s0 p ptr @18:6
+  slot s1 tmp ptr @21:10
+  mem m0 tmp 16 align 8 @21:12
+b0:
+  v0 = const ptr 0 @18:6
+  store s0, v0 @18:6
+  v1 = load s0 @19:10
+  v2 = call T.Ok, v1 @19:10
+  println v2 @19:2
+  v3 = str s1 @20:10
+  v4 = const 6 @20:10
+  println v3, v4 @20:2
+  v5 = load s0 @21:10
+  store s1, v5 @21:10
+  v6 = const ptr 0 @21:10
+  v7 = eq v5, v6 @21:10
+  branch v7, b1, b2 @21:10
+b1:
+  panic nil @21:10
+b2:
+  v8 = load s1 @21:10
+  v9 = const 0 @21:12
+  v10 = ldm i64, v8, v9 @21:12
+  v11 = addr m0 @21:12
+  v12 = const 0 @21:12
+  stm v11, v12, v10 @21:12
+  v13 = load s1 @21:10
+  v14 = const 8 @21:12
+  v15 = ldm i64, v13, v14 @21:12
+  v16 = const 8 @21:12
+  stm v11, v16, v15 @21:12
+  v17 = call T.Sum, v11 @21:10
+  println v17 @21:2
+  v18 = str s2 @22:10
+  v19 = const 18 @22:10
+  println v18, v19 @22:2
+  ret @23:1

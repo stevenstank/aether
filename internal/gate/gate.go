@@ -8,7 +8,8 @@
 // float32 and float64 (Phase 6 increment 6.1, §Floating point), string
 // constants (increment 6.2, §String constants), arrays and structs
 // (increment 6.3, §Arrays and structs), pointers (Phase 7 increment 7.1,
-// §Pointers), and slices (increment 7.2, §Slices).
+// §Pointers), slices (increment 7.2, §Slices), strings made at run time
+// (increment 7.3), and methods (Phase 8 increment 8.1, §Methods).
 //
 // The gate is default-deny. A construct is accepted only if a rule below
 // explicitly allows it; anything else is reported as an Unsupported
@@ -75,6 +76,8 @@ const (
 	FeatNoBody        = "function-without-body"
 	FeatFrameSize     = "frame-size"
 	FeatLoopVarAddr   = "loop-variable-address"
+	FeatMethodValue   = "method-value"
+	FeatMethodExpr    = "method-expression"
 )
 
 // Operator features are "operator-" followed by a name from unaryFeature,
@@ -199,7 +202,7 @@ func init() {
 		FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
-		FeatLoopVarAddr,
+		FeatLoopVarAddr, FeatMethodValue, FeatMethodExpr,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "type-switch", "select", "go",
 		"defer", "label", "send",
@@ -261,7 +264,7 @@ func (c *checker) topDecl(d ast.Decl) {
 	case *ast.FuncDecl:
 		switch {
 		case d.Recv != nil:
-			c.reject(d, FeatMethod, "method "+d.Name.Name)
+			c.method(d)
 		case d.Name.Name == "init":
 			c.reject(d, FeatInitFunc, "init function")
 		case d.Name.Name == "_":
@@ -283,7 +286,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	name := d.Name.Name
 	// go/types rejects a main with type parameters, parameters, or results,
 	// so a well-typed main has none of them.
-	if name == "main" && (d.Type.TypeParams != nil || d.Type.Params.NumFields() != 0 || d.Type.Results.NumFields() != 0) {
+	if name == "main" && d.Recv == nil && (d.Type.TypeParams != nil || d.Type.Params.NumFields() != 0 || d.Type.Results.NumFields() != 0) {
 		c.internal(d, "unexpected signature for main after type checking")
 		return
 	}
@@ -300,6 +303,9 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	}
 	mark := len(c.ds)
 	ok := true
+	if d.Recv != nil {
+		ok = c.typeExpr(d.Recv.List[0].Type)
+	}
 	for _, field := range d.Type.Params.List {
 		ok = c.typeExpr(field.Type) && ok
 	}
@@ -336,7 +342,8 @@ const maxFrameObjects = 1 << 29
 // array or struct variable n declares, each such result of a call, each
 // composite literal not nested in another, which is filled in place, and
 // each other expression of array or struct type evaluated as a whole value,
-// which is copied into a temporary. A variable, field, or element that is
+// which is copied into a temporary, as is a method's value receiver. A
+// variable, field, or element that is
 // assigned, selected from, indexed, or whose address is taken is used in
 // place, but a literal or call selected from or indexed is not, a literal whose address is taken is on the heap, and the operand of
 // a constant len is not evaluated. Each object may need up to 8 more bytes
@@ -382,6 +389,12 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			if tv := c.info.Types[n]; tv.Value != nil {
 				for _, a := range n.Args {
 					inPlace[a] = true // len of an array: not evaluated
+				}
+			}
+			// A method's value receiver is copied (D-038).
+			if se, ok := ast.Unparen(n.Fun).(*ast.SelectorExpr); ok {
+				if sel := c.info.Selections[se]; sel != nil && sel.Kind() == types.MethodVal {
+					add(sel.Obj().Type().(*types.Signature).Recv().Type())
 				}
 			}
 		case *ast.Ident:
@@ -973,6 +986,15 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		c.expr(call.Args[0])
 		return true
 	}
+	if se, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr); ok {
+		// A method of the program's (D-038): the gate allows no other
+		// type with methods.
+		if sel := c.info.Selections[se]; sel != nil && sel.Kind() == types.MethodVal {
+			if fn, ok := sel.Obj().(*types.Func); ok && fn.Pkg() == c.pkg.Types {
+				return c.methodCall(call, se.X, sel)
+			}
+		}
+	}
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		switch obj := c.info.Uses[id].(type) {
 		case *types.Builtin:
@@ -1117,7 +1139,17 @@ func (c *checker) expr(e ast.Expr) {
 		// A field of an array or struct value, or of a pointer to a
 		// struct, perhaps promoted through embedded structs and pointers
 		// to them.
-		if sel := c.info.Selections[e]; sel == nil || sel.Kind() != types.FieldVal {
+		sel := c.info.Selections[e]
+		switch {
+		case sel != nil && sel.Kind() == types.MethodVal:
+			// Called, a method is checked by call; otherwise it is a
+			// function value (D-038).
+			c.reject(e, FeatMethodValue, "method value "+types.ExprString(e))
+			return
+		case sel != nil && sel.Kind() == types.MethodExpr:
+			c.reject(e, FeatMethodExpr, "method expression "+types.ExprString(e))
+			return
+		case sel == nil || sel.Kind() != types.FieldVal:
 			c.reject(e, FeatSelector, "selector "+types.ExprString(e))
 			return
 		}

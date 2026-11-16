@@ -865,6 +865,21 @@ repeated in each phase below:
 - **Depends on:** Phase 7.
 - **Risks:** this is the largest scope jump. Split it into sub-phases if any
   item proves large.
+- **Increments:** 8.1 methods (D-038, owner approval 2026-11-16); the
+  other items follow, each with its own design note.
+- **Status of 8.1 (done; owner review pending):**
+  - Method declarations on defined array and struct types, value and
+    pointer receivers, calls with the implicit `&` and `*`, and promotion
+    through embedded fields and pointers, as ordinary IR functions `T.M`
+    with no IR, runtime, or calling-convention change (`SEMANTICS.md`
+    §Methods). Method values and method expressions stay unsupported.
+  - Corpus programs `s5_m01` to `s5_m04`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestMethodPrograms`; Aether's receiver order (V-4) pinned by
+    `TestMethodReceiverOrder`.
+  - Method programs from their own generator (`gen_method_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
+    30 in `TestMethodPrograms`, and one per `FuzzGenerated` seed.
 
 ## Phase 9: Garbage collection
 

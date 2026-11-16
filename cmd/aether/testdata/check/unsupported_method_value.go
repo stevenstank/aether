@@ -1,4 +1,4 @@
-// aether:expect unsupported selector
+// aether:expect unsupported method-value
 
 package main
 

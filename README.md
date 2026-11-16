@@ -63,7 +63,8 @@ registers, with every value in a stack cell. See D-022 and D-028.
 The IR interpreter is a test oracle and has no command. Tests compare the
 interpreter and the built executables with the gc-built binary.
 
-Run the tests with `go test ./...`. `go test -short ./...` skips the gc
+Run the tests with `go test -timeout 30m ./...`; the full suite needs more than
+the default 10 minutes. `go test -short ./...` skips the gc
 cross-check, the gc differential test, the binary test, and the GOROOT corpus
 sweep.
 
@@ -124,9 +125,9 @@ potentially long-term dependencies. The exact ownership boundaries are in
 - Only S2, floats, string constants, arrays and structs (Phase 6 increments
   6.1 to 6.3), pointers (Phase 7 increment 7.1), slices (increment 7.2),
   and strings made at run time, with comparison, rune literals, and the
-  `[]byte`, `[]rune`, and integer conversions (increment 7.3) are
-  supported: no complex
-  numbers, maps, methods, interfaces, closures, `defer`, `panic`, or goroutines; no
+  `[]byte`, `[]rune`, and integer conversions (increment 7.3), and methods
+  of array and struct types (Phase 8 increment 8.1) are supported: no complex
+  numbers, maps, method values, interfaces, closures, `defer`, `panic`, or goroutines; no
   `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
   declarations other than of arrays and structs, and no `init` functions. Panics print no traceback.
   Heap memory is never freed (D-010).

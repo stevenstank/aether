@@ -1,0 +1,2259 @@
+string s0 "counter"
+string s1 "made"
+string s2 "c"
+global g0 first i64 @testdata/check/s5_m01_method_basics.go:93:5
+global g1 second i64 @testdata/check/s5_m01_method_basics.go:94:5
+mem gm0 global 24 align 8 @testdata/check/s5_m01_method_basics.go:92:5
+
+func Counter.Inc(ptr) i64 @testdata/check/s5_m01_method_basics.go:18:19
+  slot s0 c ptr @18:7
+  slot s1 tmp ptr @19:2
+  slot s2 tmp ptr @20:9
+b0:
+  v0 = param 0 @18:7
+  store s0, v0 @18:7
+  v1 = load s0 @19:2
+  store s1, v1 @19:2
+  v2 = const ptr 0 @19:2
+  v3 = eq v1, v2 @19:2
+  branch v3, b1, b2 @19:2
+b1:
+  panic nil @19:2
+b2:
+  v4 = load s1 @19:2
+  v5 = const 0 @19:2
+  v6 = ldm i64, v4, v5 @19:2
+  v7 = const 1 @19:5
+  v8 = add v6, v7 @19:5
+  v9 = load s1 @19:2
+  v10 = const 0 @19:2
+  stm v9, v10, v8 @19:2
+  v11 = load s0 @20:9
+  store s2, v11 @20:9
+  v12 = const ptr 0 @20:9
+  v13 = eq v11, v12 @20:9
+  branch v13, b3, b4 @20:9
+b3:
+  panic nil @20:9
+b4:
+  v14 = load s2 @20:9
+  v15 = const 0 @20:9
+  v16 = ldm i64, v14, v15 @20:9
+  ret v16 @20:2
+
+func Counter.Get(ptr) i64 @testdata/check/s5_m01_method_basics.go:23:18
+  slot s0 c ptr @23:7
+b0:
+  v0 = param 0 @23:7
+  store s0, v0 @23:7
+  v1 = load s0 @23:37
+  v2 = const 0 @23:37
+  v3 = ldm i64, v1, v2 @23:37
+  ret v3 @23:30
+
+func Counter.Bumped(ptr, i64, ptr) @testdata/check/s5_m01_method_basics.go:25:18
+  slot s0 c ptr @25:7
+  slot s1 k i64 @25:25
+  slot s2 result ptr @25:18
+  mem m0 tmp 24 align 8 @27:9
+b0:
+  v0 = param 0 @25:7
+  store s0, v0 @25:7
+  v1 = param 1 @25:25
+  store s1, v1 @25:25
+  v2 = param 2 @25:18
+  store s2, v2 @25:18
+  v3 = load s1 @26:9
+  v4 = load s0 @26:2
+  v5 = const 0 @26:2
+  v6 = ldm i64, v4, v5 @26:2
+  v7 = add v6, v3 @26:6
+  v8 = load s0 @26:2
+  v9 = const 0 @26:2
+  stm v8, v9, v7 @26:2
+  v10 = load s0 @27:9
+  v11 = const 0 @27:9
+  v12 = ldm i64, v10, v11 @27:9
+  v13 = addr m0 @27:9
+  v14 = const 0 @27:9
+  stm v13, v14, v12 @27:9
+  v15 = load s0 @27:9
+  v16 = const 8 @27:9
+  v17 = ldm ptr, v15, v16 @27:9
+  v18 = const 8 @27:9
+  stm v13, v18, v17 @27:9
+  v19 = load s0 @27:9
+  v20 = const 16 @27:9
+  v21 = ldm i64, v19, v20 @27:9
+  v22 = const 16 @27:9
+  stm v13, v22, v21 @27:9
+  v23 = const 0 @27:2
+  v24 = ldm i64, v13, v23 @27:2
+  v25 = load s2 @27:2
+  v26 = const 0 @27:2
+  stm v25, v26, v24 @27:2
+  v27 = const 8 @27:2
+  v28 = ldm ptr, v13, v27 @27:2
+  v29 = load s2 @27:2
+  v30 = const 8 @27:2
+  stm v29, v30, v28 @27:2
+  v31 = const 16 @27:2
+  v32 = ldm i64, v13, v31 @27:2
+  v33 = load s2 @27:2
+  v34 = const 16 @27:2
+  stm v33, v34, v32 @27:2
+  ret @27:2
+
+func Counter.Reset(ptr) (i64, ptr, i64) @testdata/check/s5_m01_method_basics.go:30:19
+  slot s0 c ptr @30:7
+  slot s1 tmp ptr @31:9
+  slot s2 old i64 @31:2
+  slot s3 tmp ptr @32:2
+  slot s4 tmp i64 @32:2
+  slot s5 tmp i64 @33:9
+  slot s6 tmp ptr @33:14
+b0:
+  v0 = param 0 @30:7
+  store s0, v0 @30:7
+  v1 = load s0 @31:9
+  store s1, v1 @31:9
+  v2 = const ptr 0 @31:9
+  v3 = eq v1, v2 @31:9
+  branch v3, b1, b2 @31:9
+b1:
+  panic nil @31:9
+b2:
+  v4 = load s1 @31:9
+  v5 = const 0 @31:9
+  v6 = ldm i64, v4, v5 @31:9
+  store s2, v6 @31:2
+  v7 = load s0 @32:2
+  store s3, v7 @32:2
+  v8 = const 0 @32:8
+  store s4, v8 @32:2
+  v9 = const ptr 0 @32:2
+  v10 = eq v7, v9 @32:2
+  branch v10, b3, b4 @32:2
+b3:
+  panic nil @32:2
+b4:
+  v11 = load s4 @32:2
+  v12 = load s3 @32:2
+  v13 = const 0 @32:2
+  stm v12, v13, v11 @32:2
+  v14 = load s2 @33:9
+  store s5, v14 @33:9
+  v15 = load s0 @33:14
+  store s6, v15 @33:14
+  v16 = const ptr 0 @33:14
+  v17 = eq v15, v16 @33:14
+  branch v17, b5, b6 @33:14
+b5:
+  panic nil @33:14
+b6:
+  v18 = load s6 @33:14
+  v19 = const 8 @33:14
+  v20 = ldm ptr, v18, v19 @33:14
+  v21 = load s6 @33:14
+  v22 = const 16 @33:14
+  v23 = ldm i64, v21, v22 @33:14
+  v24 = load s5 @33:9
+  ret v24, v20, v23 @33:2
+
+func Counter.IsNil(ptr) bool @testdata/check/s5_m01_method_basics.go:36:19
+  slot s0 c ptr @36:7
+b0:
+  v0 = param 0 @36:7
+  store s0, v0 @36:7
+  v1 = load s0 @36:41
+  v2 = const ptr 0 @36:46
+  v3 = eq v1, v2 @36:43
+  ret v3 @36:34
+
+func Counter.Kind(ptr) (ptr, i64) @testdata/check/s5_m01_method_basics.go:38:16
+b0:
+  v0 = str s0 @38:39
+  v1 = const 7 @38:39
+  ret v0, v1 @38:32
+
+func Counter.Unit(ptr) i8 @testdata/check/s5_m01_method_basics.go:40:19
+b0:
+  v0 = const i8 -1 @40:40
+  ret v0 @40:33
+
+func Counter.Self(ptr) ptr @testdata/check/s5_m01_method_basics.go:42:18
+  slot s0 c ptr @42:7
+  slot s1 c ptr @42:7
+b0:
+  v0 = param 0 @42:7
+  store s0, v0 @42:7
+  v1 = const 24 @42:7
+  v2 = alloc v1 @42:7
+  store s1, v2 @42:7
+  v3 = load s0 @42:7
+  v4 = const 0 @42:7
+  v5 = ldm i64, v3, v4 @42:7
+  v6 = load s1 @42:7
+  v7 = const 0 @42:7
+  stm v6, v7, v5 @42:7
+  v8 = load s0 @42:7
+  v9 = const 8 @42:7
+  v10 = ldm ptr, v8, v9 @42:7
+  v11 = load s1 @42:7
+  v12 = const 8 @42:7
+  stm v11, v12, v10 @42:7
+  v13 = load s0 @42:7
+  v14 = const 16 @42:7
+  v15 = ldm i64, v13, v14 @42:7
+  v16 = load s1 @42:7
+  v17 = const 16 @42:7
+  stm v16, v17, v15 @42:7
+  v18 = load s1 @43:10
+  ret v18 @43:2
+
+func Vec.Dot(ptr, ptr) f64 @testdata/check/s5_m01_method_basics.go:48:14
+  slot s0 v ptr @48:7
+  slot s1 w ptr @48:18
+  slot s2 tmp f64 @48:42
+  slot s3 tmp f64 @48:42
+  slot s4 tmp f64 @48:54
+  slot s5 tmp f64 @48:42
+  slot s6 tmp f64 @48:66
+b0:
+  v0 = param 0 @48:7
+  store s0, v0 @48:7
+  v1 = param 1 @48:18
+  store s1, v1 @48:18
+  v2 = load s0 @48:42
+  v3 = const 0 @48:42
+  v4 = ldm f64, v2, v3 @48:42
+  store s2, v4 @48:42
+  v5 = load s1 @48:47
+  v6 = const 0 @48:47
+  v7 = ldm f64, v5, v6 @48:47
+  v8 = load s2 @48:42
+  v9 = fmul v8, v7 @48:46
+  store s3, v9 @48:42
+  v10 = load s0 @48:54
+  v11 = const 8 @48:54
+  v12 = ldm f64, v10, v11 @48:54
+  store s4, v12 @48:54
+  v13 = load s1 @48:59
+  v14 = const 8 @48:59
+  v15 = ldm f64, v13, v14 @48:59
+  v16 = load s4 @48:54
+  v17 = fmul v16, v15 @48:58
+  v18 = load s3 @48:42
+  v19 = fadd v18, v17 @48:52
+  store s5, v19 @48:42
+  v20 = load s0 @48:66
+  v21 = const 16 @48:66
+  v22 = ldm f64, v20, v21 @48:66
+  store s6, v22 @48:66
+  v23 = load s1 @48:71
+  v24 = const 16 @48:71
+  v25 = ldm f64, v23, v24 @48:71
+  v26 = load s6 @48:66
+  v27 = fmul v26, v25 @48:70
+  v28 = load s5 @48:42
+  v29 = fadd v28, v27 @48:64
+  ret v29 @48:35
+
+func Vec.Scale(ptr, f64) @testdata/check/s5_m01_method_basics.go:50:15
+  slot s0 v ptr @50:7
+  slot s1 k f64 @50:21
+  slot s2 i i64 @51:6
+  slot s3 tmp ptr @52:3
+  slot s4 tmp i64 @52:4
+  slot s5 tmp f64 @52:3
+b0:
+  v0 = param 0 @50:7
+  store s0, v0 @50:7
+  v1 = param 1 @50:21
+  store s1, v1 @50:21
+  v2 = const 0 @51:11
+  store s2, v2 @51:6
+  jump b1 @51:2
+b1:
+  v3 = load s2 @51:14
+  v4 = const 3 @51:18
+  v5 = lt v3, v4 @51:16
+  branch v5, b2, b3 @51:2
+b2:
+  v6 = load s0 @52:3
+  store s3, v6 @52:3
+  v7 = load s2 @52:5
+  store s4, v7 @52:4
+  v8 = load s1 @52:11
+  store s5, v8 @52:3
+  v9 = const ptr 0 @52:3
+  v10 = eq v6, v9 @52:3
+  branch v10, b5, b6 @52:3
+b3:
+  ret @54:1
+b4:
+  v28 = load s2 @51:26
+  v29 = const 1 @51:27
+  v30 = add v28, v29 @51:27
+  store s2, v30 @51:26
+  jump b1 @51:26
+b5:
+  panic nil @52:3
+b6:
+  v11 = load s4 @52:4
+  v12 = conv u64, v11 @52:4
+  v13 = const u64 3 @52:4
+  v14 = ge v12, v13 @52:4
+  branch v14, b7, b8 @52:4
+b7:
+  v15 = load s4 @52:4
+  v16 = const 3 @52:4
+  panic index, v15, v16 @52:4
+b8:
+  v17 = load s3 @52:3
+  v18 = load s4 @52:4
+  v19 = const 8 @52:3
+  v20 = mul v18, v19 @52:3
+  v21 = ldm f64, v17, v20 @52:3
+  v22 = load s5 @52:3
+  v23 = fmul v21, v22 @52:8
+  v24 = load s3 @52:3
+  v25 = load s4 @52:4
+  v26 = const 8 @52:3
+  v27 = mul v25, v26 @52:3
+  stm v24, v27, v23 @52:3
+  jump b4 @53:2
+
+func Vec.Sum(ptr) f64 @testdata/check/s5_m01_method_basics.go:56:14
+  slot s0 v ptr @56:7
+  slot s1 tmp f64 @56:37
+  slot s2 tmp f64 @56:37
+b0:
+  v0 = param 0 @56:7
+  store s0, v0 @56:7
+  v1 = load s0 @56:37
+  v2 = const 0 @56:37
+  v3 = ldm f64, v1, v2 @56:37
+  store s1, v3 @56:37
+  v4 = load s0 @56:44
+  v5 = const 8 @56:44
+  v6 = ldm f64, v4, v5 @56:44
+  v7 = load s1 @56:37
+  v8 = fadd v7, v6 @56:42
+  store s2, v8 @56:37
+  v9 = load s0 @56:51
+  v10 = const 16 @56:51
+  v11 = ldm f64, v9, v10 @56:51
+  v12 = load s2 @56:37
+  v13 = fadd v12, v11 @56:49
+  ret v13 @56:30
+
+func List.Len(ptr) i64 @testdata/check/s5_m01_method_basics.go:63:16
+  slot s0 l ptr @63:7
+  slot s1 tmp i64 @67:9
+  slot s2 tmp ptr @67:13
+b0:
+  v0 = param 0 @63:7
+  store s0, v0 @63:7
+  v1 = load s0 @64:5
+  v2 = const ptr 0 @64:10
+  v3 = eq v1, v2 @64:7
+  branch v3, b1, b2 @64:2
+b1:
+  v4 = const 0 @65:10
+  ret v4 @65:3
+b2:
+  v5 = const 1 @67:9
+  store s1, v5 @67:9
+  v6 = load s0 @67:13
+  store s2, v6 @67:13
+  v7 = const ptr 0 @67:13
+  v8 = eq v6, v7 @67:13
+  branch v8, b3, b4 @67:13
+b3:
+  panic nil @67:13
+b4:
+  v9 = load s2 @67:13
+  v10 = const 8 @67:13
+  v11 = ldm ptr, v9, v10 @67:13
+  v12 = call List.Len, v11 @67:13
+  v13 = load s1 @67:9
+  v14 = add v13, v12 @67:11
+  ret v14 @67:2
+
+func List.Push(ptr, i64) ptr @testdata/check/s5_m01_method_basics.go:70:16
+  slot s0 l ptr @70:7
+  slot s1 v i64 @70:21
+  slot s2 tmp ptr @70:43
+b0:
+  v0 = param 0 @70:7
+  store s0, v0 @70:7
+  v1 = param 1 @70:21
+  store s1, v1 @70:21
+  v2 = const 16 @70:43
+  v3 = alloc v2 @70:43
+  store s2, v3 @70:43
+  v4 = load s1 @70:49
+  v5 = const 0 @70:49
+  stm v3, v5, v4 @70:49
+  v6 = load s0 @70:52
+  v7 = const 8 @70:52
+  stm v3, v7, v6 @70:52
+  ret v3 @70:36
+
+func List.Head(ptr) i64 @testdata/check/s5_m01_method_basics.go:72:15
+  slot s0 l ptr @72:7
+b0:
+  v0 = param 0 @72:7
+  store s0, v0 @72:7
+  v1 = load s0 @72:35
+  v2 = const 0 @72:35
+  v3 = ldm i64, v1, v2 @72:35
+  ret v3 @72:28
+
+func Grid.Total(ptr) i64 @testdata/check/s5_m01_method_basics.go:79:16
+  slot s0 g ptr @79:7
+  slot s1 t i64 @80:2
+  slot s2 i i64 @81:6
+  slot s3 j i64 @82:7
+  slot s4 tmp i64 @83:4
+  slot s5 tmp ptr @83:9
+  slot s6 tmp i64 @83:16
+  slot s7 tmp i64 @83:19
+  slot s8 i i64 @86:6
+  slot s9 tmp i64 @86:14
+  slot s10 tmp ptr @86:22
+  slot s11 tmp i64 @87:3
+  slot s12 tmp ptr @87:8
+  slot s13 tmp ptr @87:8
+  slot s14 tmp i64 @87:8
+  slot s15 tmp i64 @87:13
+  mem m0 tmp 24 align 8 @83:9
+  mem m1 tmp 24 align 8 @87:8
+b0:
+  v0 = param 0 @79:7
+  store s0, v0 @79:7
+  v1 = const 0 @80:7
+  store s1, v1 @80:2
+  v2 = const 0 @81:11
+  store s2, v2 @81:6
+  jump b1 @81:2
+b1:
+  v3 = load s2 @81:14
+  v4 = const 2 @81:18
+  v5 = lt v3, v4 @81:16
+  branch v5, b2, b3 @81:2
+b2:
+  v6 = const 0 @82:12
+  store s3, v6 @82:7
+  jump b5 @82:3
+b3:
+  v71 = const 0 @86:11
+  store s8, v71 @86:6
+  jump b15 @86:2
+b4:
+  v68 = load s2 @81:21
+  v69 = const 1 @81:22
+  v70 = add v68, v69 @81:22
+  store s2, v70 @81:21
+  jump b1 @81:21
+b5:
+  v7 = load s3 @82:15
+  v8 = const 2 @82:19
+  v9 = lt v7, v8 @82:17
+  branch v9, b6, b7 @82:3
+b6:
+  v10 = load s1 @83:4
+  store s4, v10 @83:4
+  v11 = load s0 @83:9
+  store s5, v11 @83:9
+  v12 = load s2 @83:17
+  store s6, v12 @83:16
+  v13 = const ptr 0 @83:9
+  v14 = eq v11, v13 @83:9
+  branch v14, b9, b10 @83:9
+b7:
+  jump b4 @85:2
+b8:
+  v65 = load s3 @82:22
+  v66 = const 1 @82:23
+  v67 = add v65, v66 @82:23
+  store s3, v67 @82:22
+  jump b5 @82:22
+b9:
+  panic nil @83:9
+b10:
+  v15 = load s6 @83:16
+  v16 = conv u64, v15 @83:16
+  v17 = const u64 2 @83:16
+  v18 = ge v16, v17 @83:16
+  branch v18, b11, b12 @83:16
+b11:
+  v19 = load s6 @83:16
+  v20 = const 2 @83:16
+  panic index, v19, v20 @83:16
+b12:
+  v21 = load s3 @83:20
+  store s7, v21 @83:19
+  v22 = conv u64, v21 @83:19
+  v23 = const u64 2 @83:19
+  v24 = ge v22, v23 @83:19
+  branch v24, b13, b14 @83:19
+b13:
+  v25 = load s7 @83:19
+  v26 = const 2 @83:19
+  panic index, v25, v26 @83:19
+b14:
+  v27 = load s5 @83:9
+  v28 = load s7 @83:19
+  v29 = const 24 @83:9
+  v30 = mul v28, v29 @83:9
+  v31 = load s6 @83:16
+  v32 = const 48 @83:9
+  v33 = mul v31, v32 @83:9
+  v34 = add v33, v30 @83:9
+  v35 = ldm i64, v27, v34 @83:9
+  v36 = addr m0 @83:9
+  v37 = const 0 @83:9
+  stm v36, v37, v35 @83:9
+  v38 = load s5 @83:9
+  v39 = load s7 @83:19
+  v40 = const 24 @83:9
+  v41 = mul v39, v40 @83:9
+  v42 = load s6 @83:16
+  v43 = const 48 @83:9
+  v44 = mul v42, v43 @83:9
+  v45 = add v44, v41 @83:9
+  v46 = const 8 @83:9
+  v47 = add v45, v46 @83:9
+  v48 = ldm ptr, v38, v47 @83:9
+  v49 = const 8 @83:9
+  stm v36, v49, v48 @83:9
+  v50 = load s5 @83:9
+  v51 = load s7 @83:19
+  v52 = const 24 @83:9
+  v53 = mul v51, v52 @83:9
+  v54 = load s6 @83:16
+  v55 = const 48 @83:9
+  v56 = mul v54, v55 @83:9
+  v57 = add v56, v53 @83:9
+  v58 = const 16 @83:9
+  v59 = add v57, v58 @83:9
+  v60 = ldm i64, v50, v59 @83:9
+  v61 = const 16 @83:9
+  stm v36, v61, v60 @83:9
+  v62 = call Counter.Get, v36 @83:9
+  v63 = load s4 @83:4
+  v64 = add v63, v62 @83:6
+  store s1, v64 @83:4
+  jump b8 @84:3
+b15:
+  v72 = load s8 @86:14
+  store s9, v72 @86:14
+  v73 = load s0 @86:22
+  store s10, v73 @86:22
+  v74 = const ptr 0 @86:22
+  v75 = eq v73, v74 @86:22
+  branch v75, b19, b20 @86:22
+b16:
+  v87 = load s1 @87:3
+  store s11, v87 @87:3
+  v88 = load s0 @87:8
+  store s12, v88 @87:8
+  v89 = const ptr 0 @87:8
+  v90 = eq v88, v89 @87:8
+  branch v90, b21, b22 @87:8
+b17:
+  v135 = load s1 @89:9
+  ret v135 @89:2
+b18:
+  v132 = load s8 @86:30
+  v133 = const 1 @86:31
+  v134 = add v132, v133 @86:31
+  store s8, v134 @86:30
+  jump b15 @86:30
+b19:
+  panic nil @86:22
+b20:
+  v76 = load s10 @86:22
+  v77 = const 96 @86:22
+  v78 = ldm ptr, v76, v77 @86:22
+  v79 = load s10 @86:22
+  v80 = const 104 @86:22
+  v81 = ldm i64, v79, v80 @86:22
+  v82 = load s10 @86:22
+  v83 = const 112 @86:22
+  v84 = ldm i64, v82, v83 @86:22
+  v85 = load s9 @86:14
+  v86 = lt v85, v81 @86:16
+  branch v86, b16, b17 @86:2
+b21:
+  panic nil @87:8
+b22:
+  v91 = load s12 @87:8
+  v92 = const 96 @87:8
+  v93 = ldm ptr, v91, v92 @87:8
+  v94 = load s12 @87:8
+  v95 = const 104 @87:8
+  v96 = ldm i64, v94, v95 @87:8
+  v97 = load s12 @87:8
+  v98 = const 112 @87:8
+  v99 = ldm i64, v97, v98 @87:8
+  store s13, v93 @87:8
+  store s14, v96 @87:8
+  v100 = load s8 @87:14
+  store s15, v100 @87:13
+  v101 = conv u64, v100 @87:13
+  v102 = conv u64, v96 @87:13
+  v103 = ge v101, v102 @87:13
+  branch v103, b23, b24 @87:13
+b23:
+  v104 = load s15 @87:13
+  v105 = load s14 @87:8
+  panic index, v104, v105 @87:13
+b24:
+  v106 = load s13 @87:8
+  v107 = load s15 @87:13
+  v108 = const 24 @87:8
+  v109 = mul v107, v108 @87:8
+  v110 = ldm i64, v106, v109 @87:8
+  v111 = addr m1 @87:8
+  v112 = const 0 @87:8
+  stm v111, v112, v110 @87:8
+  v113 = load s13 @87:8
+  v114 = load s15 @87:13
+  v115 = const 24 @87:8
+  v116 = mul v114, v115 @87:8
+  v117 = const 8 @87:8
+  v118 = add v116, v117 @87:8
+  v119 = ldm ptr, v113, v118 @87:8
+  v120 = const 8 @87:8
+  stm v111, v120, v119 @87:8
+  v121 = load s13 @87:8
+  v122 = load s15 @87:13
+  v123 = const 24 @87:8
+  v124 = mul v122, v123 @87:8
+  v125 = const 16 @87:8
+  v126 = add v124, v125 @87:8
+  v127 = ldm i64, v121, v126 @87:8
+  v128 = const 16 @87:8
+  stm v111, v128, v127 @87:8
+  v129 = call Counter.Get, v111 @87:8
+  v130 = load s11 @87:3
+  v131 = add v130, v129 @87:5
+  store s1, v131 @87:3
+  jump b18 @88:2
+
+func newCounter(i64, ptr) @testdata/check/s5_m01_method_basics.go:96:6
+  slot s0 n i64 @96:17
+  slot s1 result ptr @96:6
+  mem m0 tmp 24 align 8 @96:41
+b0:
+  v0 = param 0 @96:17
+  store s0, v0 @96:17
+  v1 = param 1 @96:6
+  store s1, v1 @96:6
+  v2 = load s0 @96:52
+  v3 = addr m0 @96:41
+  v4 = const 0 @96:52
+  stm v3, v4, v2 @96:52
+  v5 = str s1 @96:61
+  v6 = const 4 @96:61
+  v7 = const 8 @96:61
+  stm v3, v7, v5 @96:61
+  v8 = const 16 @96:61
+  stm v3, v8, v6 @96:61
+  v9 = const 0 @96:34
+  v10 = ldm i64, v3, v9 @96:34
+  v11 = load s1 @96:34
+  v12 = const 0 @96:34
+  stm v11, v12, v10 @96:34
+  v13 = const 8 @96:34
+  v14 = ldm ptr, v3, v13 @96:34
+  v15 = load s1 @96:34
+  v16 = const 8 @96:34
+  stm v15, v16, v14 @96:34
+  v17 = const 16 @96:34
+  v18 = ldm i64, v3, v17 @96:34
+  v19 = load s1 @96:34
+  v20 = const 16 @96:34
+  stm v19, v20, v18 @96:34
+  ret @96:34
+
+func Counter.Ptr(ptr) ptr @testdata/check/s5_m01_method_basics.go:98:19
+  slot s0 c ptr @98:7
+b0:
+  v0 = param 0 @98:7
+  store s0, v0 @98:7
+  v1 = load s0 @98:43
+  ret v1 @98:36
+
+func escape(i64) ptr @testdata/check/s5_m01_method_basics.go:102:6
+  slot s0 n i64 @102:13
+  slot s1 c ptr @103:6
+b0:
+  v0 = param 0 @102:13
+  store s0, v0 @102:13
+  v1 = const 24 @103:6
+  v2 = alloc v1 @103:6
+  store s1, v2 @103:6
+  v3 = load s0 @104:8
+  v4 = load s1 @104:2
+  v5 = const 0 @104:2
+  stm v4, v5, v3 @104:2
+  v6 = load s1 @105:9
+  v7 = call Counter.Ptr, v6 @105:9
+  ret v7 @105:2
+
+func main @testdata/check/s5_m01_method_basics.go:108:6
+  slot s0 c ptr @111:6
+  slot s1 old i64 @116:2
+  slot s2 name ptr @116:7
+  slot s3 name i64 @116:7
+  slot s4 p ptr @119:2
+  slot s5 tmp ptr @121:10
+  slot s6 tmp i64 @121:10
+  slot s7 tmp ptr @121:21
+  slot s8 tmp ptr @122:4
+  slot s9 s1 ptr @127:2
+  slot s10 s2 ptr @127:6
+  slot s11 tmp bool @129:10
+  slot s12 tmp ptr @129:20
+  slot s13 tmp i64 @129:20
+  slot s14 tmp ptr @129:30
+  slot s15 none ptr @131:6
+  slot s16 tmp bool @132:10
+  slot s17 tmp bool @132:24
+  slot s18 w ptr @135:2
+  slot s19 vp ptr @138:2
+  slot s20 tmp ptr @140:10
+  slot s21 tmp f64 @140:10
+  slot s22 tmp ptr @140:21
+  slot s23 tmp ptr @140:39
+  slot s24 l ptr @142:6
+  slot s25 tmp i64 @145:10
+  slot s26 tmp ptr @145:19
+  slot s27 tmp i64 @145:19
+  slot s28 tmp ptr @145:29
+  slot s29 tmp ptr @145:29
+  slot s30 tmp i64 @145:29
+  slot s31 tmp ptr @145:44
+  slot s32 tmp ptr @145:44
+  slot s33 tmp ptr @145:44
+  slot s34 g ptr @147:6
+  slot s35 tmp i64 @151:10
+  slot s36 tmp ptr @152:2
+  slot s37 tmp i64 @152:2
+  slot s38 tmp i64 @152:7
+  slot s39 i i64 @153:2
+  slot s40 tmp ptr @154:2
+  slot s41 tmp i64 @154:2
+  slot s42 tmp i64 @154:7
+  slot s43 tmp ptr @155:2
+  slot s44 tmp i64 @155:2
+  slot s45 tmp i64 @155:7
+  slot s46 tmp i64 @156:10
+  slot s47 tmp i64 @156:21
+  slot s48 tmp ptr @156:42
+  slot s49 tmp i64 @156:42
+  slot s50 tmp i64 @156:47
+  slot s51 tmp ptr @158:8
+  slot s52 cs ptr @158:2
+  slot s53 cs i64 @158:2
+  slot s54 cs i64 @158:2
+  slot s55 tmp ptr @159:2
+  slot s56 tmp i64 @159:2
+  slot s57 tmp i64 @159:4
+  slot s58 tmp ptr @160:10
+  slot s59 tmp i64 @160:10
+  slot s60 tmp i64 @160:12
+  slot s61 tmp i64 @160:10
+  slot s62 tmp ptr @160:23
+  slot s63 tmp i64 @160:23
+  slot s64 tmp i64 @160:25
+  slot s65 tmp i64 @160:23
+  slot s66 tmp ptr @160:36
+  slot s67 tmp i64 @160:36
+  slot s68 tmp i64 @160:38
+  slot s69 tmp ptr @160:36
+  slot s70 tmp ptr @160:49
+  slot s71 tmp i64 @160:49
+  slot s72 tmp i64 @160:51
+  slot s73 tmp ptr @161:9
+  slot s74 tmp i64 @161:9
+  slot s75 tmp i64 @161:11
+  slot s76 cp ptr @161:2
+  slot s77 tmp ptr @163:10
+  slot s78 tmp i64 @163:10
+  slot s79 tmp i64 @163:12
+  slot s80 e1 ptr @165:2
+  slot s81 e2 ptr @166:2
+  slot s82 tmp ptr @168:10
+  slot s83 tmp i64 @168:10
+  slot s84 tmp ptr @168:20
+  slot s85 arr ptr @170:2
+  slot s86 tmp i64 @172:10
+  mem m0 tmp 24 align 8 @109:25
+  mem m1 tmp 24 align 8 @113:28
+  mem m2 tmp 24 align 8 @114:7
+  mem m3 tmp 24 align 8 @114:7
+  mem m4 d 24 align 8 @114:2
+  mem m5 tmp 24 align 8 @115:10
+  mem m6 tmp 24 align 8 @115:19
+  mem m7 tmp 24 align 8 @115:28
+  mem m8 tmp 24 align 8 @115:28
+  mem m9 tmp 24 align 8 @115:28
+  mem m10 tmp 24 align 8 @117:21
+  mem m11 tmp 24 align 8 @117:30
+  mem m12 tmp 24 align 8 @121:12
+  mem m13 tmp 24 align 8 @121:19
+  mem m14 tmp 24 align 8 @121:31
+  mem m15 tmp 24 align 8 @125:10
+  mem m16 tmp 24 align 8 @125:31
+  mem m17 tmp 24 align 8 @125:31
+  mem m18 tmp 24 align 8 @125:62
+  mem m19 tmp 24 align 8 @127:12
+  mem m20 tmp 24 align 8 @127:22
+  mem m21 tmp 24 align 8 @129:23
+  mem m22 tmp 24 align 8 @129:33
+  mem m23 tmp 24 align 8 @129:40
+  mem m24 tmp 24 align 8 @134:7
+  mem m25 v 24 align 8 @134:2
+  mem m26 tmp 24 align 8 @135:7
+  mem m27 tmp 24 align 8 @137:10
+  mem m28 tmp 24 align 8 @137:16
+  mem m29 tmp 24 align 8 @137:20
+  mem m30 tmp 24 align 8 @137:29
+  mem m31 tmp 24 align 8 @140:13
+  mem m32 tmp 24 align 8 @140:17
+  mem m33 tmp 24 align 8 @140:21
+  mem m34 tmp 24 align 8 @140:38
+  mem m35 tmp 16 align 8 @145:21
+  mem m36 tmp 16 align 8 @145:36
+  mem m37 tmp 16 align 8 @145:56
+  mem m38 tmp 24 align 8 @156:21
+  mem m39 tmp 24 align 8 @156:42
+  mem m40 tmp 24 align 8 @160:10
+  mem m41 tmp 24 align 8 @160:23
+  mem m42 tmp 24 align 8 @160:36
+  mem m43 tmp 24 align 8 @160:49
+  mem m44 tmp 24 align 8 @160:36
+  mem m45 tmp 24 align 8 @163:10
+  mem m46 tmp 24 align 8 @168:13
+  mem m47 tmp 24 align 8 @168:23
+  mem m48 tmp 48 align 8 @170:9
+  mem m49 tmp 24 align 8 @172:10
+  mem m50 tmp 24 align 8 @172:24
+b0:
+  v0 = gload g0 @109:10
+  v1 = gload g1 @109:17
+  v2 = addr gm0 @109:25
+  v3 = const 0 @109:25
+  v4 = ldm i64, v2, v3 @109:25
+  v5 = addr m0 @109:25
+  v6 = const 0 @109:25
+  stm v5, v6, v4 @109:25
+  v7 = const 8 @109:25
+  v8 = ldm ptr, v2, v7 @109:25
+  v9 = const 8 @109:25
+  stm v5, v9, v8 @109:25
+  v10 = const 16 @109:25
+  v11 = ldm i64, v2, v10 @109:25
+  v12 = const 16 @109:25
+  stm v5, v12, v11 @109:25
+  v13 = call Counter.Get, v5 @109:25
+  println v0, v1, v13 @109:2
+  v14 = const 24 @111:6
+  v15 = alloc v14 @111:6
+  store s0, v15 @111:6
+  v16 = str s2 @112:11
+  v17 = const 1 @112:11
+  v18 = load s0 @112:2
+  v19 = const 8 @112:2
+  stm v18, v19, v16 @112:2
+  v20 = load s0 @112:2
+  v21 = const 16 @112:2
+  stm v20, v21, v17 @112:2
+  v22 = load s0 @113:10
+  v23 = call Counter.Inc, v22 @113:10
+  v24 = load s0 @113:19
+  v25 = call Counter.Inc, v24 @113:19
+  v26 = load s0 @113:28
+  v27 = const 0 @113:28
+  v28 = ldm i64, v26, v27 @113:28
+  v29 = addr m1 @113:28
+  v30 = const 0 @113:28
+  stm v29, v30, v28 @113:28
+  v31 = load s0 @113:28
+  v32 = const 8 @113:28
+  v33 = ldm ptr, v31, v32 @113:28
+  v34 = const 8 @113:28
+  stm v29, v34, v33 @113:28
+  v35 = load s0 @113:28
+  v36 = const 16 @113:28
+  v37 = ldm i64, v35, v36 @113:28
+  v38 = const 16 @113:28
+  stm v29, v38, v37 @113:28
+  v39 = call Counter.Get, v29 @113:28
+  println v23, v25, v39 @113:2
+  v40 = load s0 @114:7
+  v41 = const 0 @114:7
+  v42 = ldm i64, v40, v41 @114:7
+  v43 = addr m2 @114:7
+  v44 = const 0 @114:7
+  stm v43, v44, v42 @114:7
+  v45 = load s0 @114:7
+  v46 = const 8 @114:7
+  v47 = ldm ptr, v45, v46 @114:7
+  v48 = const 8 @114:7
+  stm v43, v48, v47 @114:7
+  v49 = load s0 @114:7
+  v50 = const 16 @114:7
+  v51 = ldm i64, v49, v50 @114:7
+  v52 = const 16 @114:7
+  stm v43, v52, v51 @114:7
+  v53 = const 10 @114:16
+  v54 = addr m3 @114:7
+  call Counter.Bumped, v43, v53, v54 @114:7
+  v55 = const 0 @114:2
+  v56 = ldm i64, v54, v55 @114:2
+  v57 = addr m4 @114:2
+  v58 = const 0 @114:2
+  stm v57, v58, v56 @114:2
+  v59 = const 8 @114:2
+  v60 = ldm ptr, v54, v59 @114:2
+  v61 = const 8 @114:2
+  stm v57, v61, v60 @114:2
+  v62 = const 16 @114:2
+  v63 = ldm i64, v54, v62 @114:2
+  v64 = const 16 @114:2
+  stm v57, v64, v63 @114:2
+  v65 = load s0 @115:10
+  v66 = const 0 @115:10
+  v67 = ldm i64, v65, v66 @115:10
+  v68 = addr m5 @115:10
+  v69 = const 0 @115:10
+  stm v68, v69, v67 @115:10
+  v70 = load s0 @115:10
+  v71 = const 8 @115:10
+  v72 = ldm ptr, v70, v71 @115:10
+  v73 = const 8 @115:10
+  stm v68, v73, v72 @115:10
+  v74 = load s0 @115:10
+  v75 = const 16 @115:10
+  v76 = ldm i64, v74, v75 @115:10
+  v77 = const 16 @115:10
+  stm v68, v77, v76 @115:10
+  v78 = call Counter.Get, v68 @115:10
+  v79 = const 0 @115:19
+  v80 = ldm i64, v57, v79 @115:19
+  v81 = addr m6 @115:19
+  v82 = const 0 @115:19
+  stm v81, v82, v80 @115:19
+  v83 = const 8 @115:19
+  v84 = ldm ptr, v57, v83 @115:19
+  v85 = const 8 @115:19
+  stm v81, v85, v84 @115:19
+  v86 = const 16 @115:19
+  v87 = ldm i64, v57, v86 @115:19
+  v88 = const 16 @115:19
+  stm v81, v88, v87 @115:19
+  v89 = call Counter.Get, v81 @115:19
+  v90 = load s0 @115:28
+  v91 = const 0 @115:28
+  v92 = ldm i64, v90, v91 @115:28
+  v93 = addr m7 @115:28
+  v94 = const 0 @115:28
+  stm v93, v94, v92 @115:28
+  v95 = load s0 @115:28
+  v96 = const 8 @115:28
+  v97 = ldm ptr, v95, v96 @115:28
+  v98 = const 8 @115:28
+  stm v93, v98, v97 @115:28
+  v99 = load s0 @115:28
+  v100 = const 16 @115:28
+  v101 = ldm i64, v99, v100 @115:28
+  v102 = const 16 @115:28
+  stm v93, v102, v101 @115:28
+  v103 = const 1 @115:37
+  v104 = addr m8 @115:28
+  call Counter.Bumped, v93, v103, v104 @115:28
+  v105 = const 2 @115:47
+  v106 = addr m9 @115:28
+  call Counter.Bumped, v104, v105, v106 @115:28
+  v107 = call Counter.Get, v106 @115:28
+  println v78, v89, v107 @115:2
+  v108 = load s0 @116:15
+  v109 = call Counter.Reset, v108 @116:15
+  v110 = extract 0, v109 @116:15
+  v111 = extract 1, v109 @116:15
+  v112 = extract 2, v109 @116:15
+  store s1, v110 @116:2
+  store s2, v111 @116:7
+  store s3, v112 @116:7
+  v113 = load s1 @117:10
+  v114 = load s2 @117:15
+  v115 = load s3 @117:15
+  v116 = load s0 @117:21
+  v117 = const 0 @117:21
+  v118 = ldm i64, v116, v117 @117:21
+  v119 = addr m10 @117:21
+  v120 = const 0 @117:21
+  stm v119, v120, v118 @117:21
+  v121 = load s0 @117:21
+  v122 = const 8 @117:21
+  v123 = ldm ptr, v121, v122 @117:21
+  v124 = const 8 @117:21
+  stm v119, v124, v123 @117:21
+  v125 = load s0 @117:21
+  v126 = const 16 @117:21
+  v127 = ldm i64, v125, v126 @117:21
+  v128 = const 16 @117:21
+  stm v119, v128, v127 @117:21
+  v129 = call Counter.Get, v119 @117:21
+  v130 = load s0 @117:30
+  v131 = const 0 @117:30
+  v132 = ldm i64, v130, v131 @117:30
+  v133 = addr m11 @117:30
+  v134 = const 0 @117:30
+  stm v133, v134, v132 @117:30
+  v135 = load s0 @117:30
+  v136 = const 8 @117:30
+  v137 = ldm ptr, v135, v136 @117:30
+  v138 = const 8 @117:30
+  stm v133, v138, v137 @117:30
+  v139 = load s0 @117:30
+  v140 = const 16 @117:30
+  v141 = ldm i64, v139, v140 @117:30
+  v142 = const 16 @117:30
+  stm v133, v142, v141 @117:30
+  v143 = call Counter.Kind, v133 @117:30
+  v144 = extract 0, v143 @117:30
+  v145 = extract 1, v143 @117:30
+  v146 = load s0 @117:40
+  v147 = call Counter.Unit, v146 @117:40
+  println v113, v114, v115, v129, v144, v145, v147 @117:2
+  v148 = load s0 @119:8
+  store s4, v148 @119:2
+  v149 = load s4 @120:2
+  v150 = call Counter.Inc, v149 @120:2
+  v151 = load s4 @121:10
+  store s5, v151 @121:10
+  v152 = const ptr 0 @121:10
+  v153 = eq v151, v152 @121:10
+  branch v153, b1, b2 @121:10
+b1:
+  panic nil @121:10
+b2:
+  v154 = load s5 @121:10
+  v155 = const 0 @121:12
+  v156 = ldm i64, v154, v155 @121:12
+  v157 = addr m12 @121:12
+  v158 = const 0 @121:12
+  stm v157, v158, v156 @121:12
+  v159 = load s5 @121:10
+  v160 = const 8 @121:12
+  v161 = ldm ptr, v159, v160 @121:12
+  v162 = const 8 @121:12
+  stm v157, v162, v161 @121:12
+  v163 = load s5 @121:10
+  v164 = const 16 @121:12
+  v165 = ldm i64, v163, v164 @121:12
+  v166 = const 16 @121:12
+  stm v157, v166, v165 @121:12
+  v167 = call Counter.Get, v157 @121:10
+  store s6, v167 @121:10
+  v168 = load s4 @121:21
+  store s7, v168 @121:21
+  v169 = const ptr 0 @121:21
+  v170 = eq v168, v169 @121:21
+  branch v170, b3, b4 @121:21
+b3:
+  panic nil @121:21
+b4:
+  v171 = load s7 @121:21
+  v172 = const 0 @121:19
+  v173 = ldm i64, v171, v172 @121:19
+  v174 = addr m13 @121:19
+  v175 = const 0 @121:19
+  stm v174, v175, v173 @121:19
+  v176 = load s7 @121:21
+  v177 = const 8 @121:19
+  v178 = ldm ptr, v176, v177 @121:19
+  v179 = const 8 @121:19
+  stm v174, v179, v178 @121:19
+  v180 = load s7 @121:21
+  v181 = const 16 @121:19
+  v182 = ldm i64, v180, v181 @121:19
+  v183 = const 16 @121:19
+  stm v174, v183, v182 @121:19
+  v184 = call Counter.Get, v174 @121:19
+  v185 = load s0 @121:31
+  v186 = const 0 @121:31
+  v187 = ldm i64, v185, v186 @121:31
+  v188 = addr m14 @121:31
+  v189 = const 0 @121:31
+  stm v188, v189, v187 @121:31
+  v190 = load s0 @121:31
+  v191 = const 8 @121:31
+  v192 = ldm ptr, v190, v191 @121:31
+  v193 = const 8 @121:31
+  stm v188, v193, v192 @121:31
+  v194 = load s0 @121:31
+  v195 = const 16 @121:31
+  v196 = ldm i64, v194, v195 @121:31
+  v197 = const 16 @121:31
+  stm v188, v197, v196 @121:31
+  v198 = call Counter.Get, v188 @121:31
+  v199 = load s6 @121:10
+  println v199, v184, v198 @121:2
+  v200 = load s4 @122:4
+  store s8, v200 @122:4
+  v201 = const ptr 0 @122:4
+  v202 = eq v200, v201 @122:4
+  branch v202, b5, b6 @122:4
+b5:
+  panic nil @122:4
+b6:
+  v203 = load s8 @122:4
+  v204 = call Counter.Inc, v203 @122:2
+  v205 = load s0 @123:10
+  v206 = const 0 @123:10
+  v207 = ldm i64, v205, v206 @123:10
+  println v207 @123:2
+  v208 = const 5 @125:21
+  v209 = addr m15 @125:10
+  call newCounter, v208, v209 @125:10
+  v210 = call Counter.Get, v209 @125:10
+  v211 = const 6 @125:42
+  v212 = addr m16 @125:31
+  call newCounter, v211, v212 @125:31
+  v213 = const 1 @125:52
+  v214 = addr m17 @125:31
+  call Counter.Bumped, v212, v213, v214 @125:31
+  v215 = call Counter.Get, v214 @125:31
+  v216 = const 0 @125:62
+  v217 = addr m18 @125:62
+  v218 = const 0 @125:62
+  stm v217, v218, v216 @125:62
+  v219 = const ptr 0 @125:62
+  v220 = const 8 @125:62
+  stm v217, v220, v219 @125:62
+  v221 = const 0 @125:62
+  v222 = const 16 @125:62
+  stm v217, v222, v221 @125:62
+  v223 = const 9 @125:73
+  v224 = const 0 @125:73
+  stm v217, v224, v223 @125:73
+  v225 = call Counter.Kind, v217 @125:62
+  v226 = extract 0, v225 @125:62
+  v227 = extract 1, v225 @125:62
+  println v210, v215, v226, v227 @125:2
+  v228 = load s0 @127:12
+  v229 = const 0 @127:12
+  v230 = ldm i64, v228, v229 @127:12
+  v231 = addr m19 @127:12
+  v232 = const 0 @127:12
+  stm v231, v232, v230 @127:12
+  v233 = load s0 @127:12
+  v234 = const 8 @127:12
+  v235 = ldm ptr, v233, v234 @127:12
+  v236 = const 8 @127:12
+  stm v231, v236, v235 @127:12
+  v237 = load s0 @127:12
+  v238 = const 16 @127:12
+  v239 = ldm i64, v237, v238 @127:12
+  v240 = const 16 @127:12
+  stm v231, v240, v239 @127:12
+  v241 = call Counter.Self, v231 @127:12
+  v242 = load s0 @127:22
+  v243 = const 0 @127:22
+  v244 = ldm i64, v242, v243 @127:22
+  v245 = addr m20 @127:22
+  v246 = const 0 @127:22
+  stm v245, v246, v244 @127:22
+  v247 = load s0 @127:22
+  v248 = const 8 @127:22
+  v249 = ldm ptr, v247, v248 @127:22
+  v250 = const 8 @127:22
+  stm v245, v250, v249 @127:22
+  v251 = load s0 @127:22
+  v252 = const 16 @127:22
+  v253 = ldm i64, v251, v252 @127:22
+  v254 = const 16 @127:22
+  stm v245, v254, v253 @127:22
+  v255 = call Counter.Self, v245 @127:22
+  store s9, v241 @127:2
+  store s10, v255 @127:6
+  v256 = load s9 @128:2
+  v257 = call Counter.Inc, v256 @128:2
+  v258 = load s9 @129:10
+  v259 = load s10 @129:16
+  v260 = ne v258, v259 @129:13
+  store s11, v260 @129:10
+  v261 = load s9 @129:20
+  store s12, v261 @129:20
+  v262 = const ptr 0 @129:20
+  v263 = eq v261, v262 @129:20
+  branch v263, b7, b8 @129:20
+b7:
+  panic nil @129:20
+b8:
+  v264 = load s12 @129:20
+  v265 = const 0 @129:23
+  v266 = ldm i64, v264, v265 @129:23
+  v267 = addr m21 @129:23
+  v268 = const 0 @129:23
+  stm v267, v268, v266 @129:23
+  v269 = load s12 @129:20
+  v270 = const 8 @129:23
+  v271 = ldm ptr, v269, v270 @129:23
+  v272 = const 8 @129:23
+  stm v267, v272, v271 @129:23
+  v273 = load s12 @129:20
+  v274 = const 16 @129:23
+  v275 = ldm i64, v273, v274 @129:23
+  v276 = const 16 @129:23
+  stm v267, v276, v275 @129:23
+  v277 = call Counter.Get, v267 @129:20
+  store s13, v277 @129:20
+  v278 = load s10 @129:30
+  store s14, v278 @129:30
+  v279 = const ptr 0 @129:30
+  v280 = eq v278, v279 @129:30
+  branch v280, b9, b10 @129:30
+b9:
+  panic nil @129:30
+b10:
+  v281 = load s14 @129:30
+  v282 = const 0 @129:33
+  v283 = ldm i64, v281, v282 @129:33
+  v284 = addr m22 @129:33
+  v285 = const 0 @129:33
+  stm v284, v285, v283 @129:33
+  v286 = load s14 @129:30
+  v287 = const 8 @129:33
+  v288 = ldm ptr, v286, v287 @129:33
+  v289 = const 8 @129:33
+  stm v284, v289, v288 @129:33
+  v290 = load s14 @129:30
+  v291 = const 16 @129:33
+  v292 = ldm i64, v290, v291 @129:33
+  v293 = const 16 @129:33
+  stm v284, v293, v292 @129:33
+  v294 = call Counter.Get, v284 @129:30
+  v295 = load s0 @129:40
+  v296 = const 0 @129:40
+  v297 = ldm i64, v295, v296 @129:40
+  v298 = addr m23 @129:40
+  v299 = const 0 @129:40
+  stm v298, v299, v297 @129:40
+  v300 = load s0 @129:40
+  v301 = const 8 @129:40
+  v302 = ldm ptr, v300, v301 @129:40
+  v303 = const 8 @129:40
+  stm v298, v303, v302 @129:40
+  v304 = load s0 @129:40
+  v305 = const 16 @129:40
+  v306 = ldm i64, v304, v305 @129:40
+  v307 = const 16 @129:40
+  stm v298, v307, v306 @129:40
+  v308 = call Counter.Get, v298 @129:40
+  v309 = load s11 @129:10
+  v310 = load s13 @129:20
+  println v309, v310, v294, v308 @129:2
+  v311 = const ptr 0 @131:6
+  store s15, v311 @131:6
+  v312 = load s15 @132:10
+  v313 = call Counter.IsNil, v312 @132:10
+  store s16, v313 @132:10
+  v314 = load s4 @132:24
+  v315 = call Counter.IsNil, v314 @132:24
+  store s17, v315 @132:24
+  v316 = load s15 @132:35
+  v317 = call Counter.Unit, v316 @132:35
+  v318 = load s16 @132:10
+  v319 = load s17 @132:24
+  println v318, v319, v317 @132:2
+  v320 = const f64 1 @134:11
+  v321 = addr m24 @134:7
+  v322 = const 0 @134:11
+  stm v321, v322, v320 @134:11
+  v323 = const f64 2 @134:14
+  v324 = const 8 @134:14
+  stm v321, v324, v323 @134:14
+  v325 = const f64 3 @134:17
+  v326 = const 16 @134:17
+  stm v321, v326, v325 @134:17
+  v327 = const 0 @134:2
+  v328 = ldm f64, v321, v327 @134:2
+  v329 = addr m25 @134:2
+  v330 = const 0 @134:2
+  stm v329, v330, v328 @134:2
+  v331 = const 8 @134:2
+  v332 = ldm f64, v321, v331 @134:2
+  v333 = const 8 @134:2
+  stm v329, v333, v332 @134:2
+  v334 = const 16 @134:2
+  v335 = ldm f64, v321, v334 @134:2
+  v336 = const 16 @134:2
+  stm v329, v336, v335 @134:2
+  v337 = const 0 @135:7
+  v338 = ldm f64, v329, v337 @135:7
+  v339 = addr m26 @135:7
+  v340 = const 0 @135:7
+  stm v339, v340, v338 @135:7
+  v341 = const 8 @135:7
+  v342 = ldm f64, v329, v341 @135:7
+  v343 = const 8 @135:7
+  stm v339, v343, v342 @135:7
+  v344 = const 16 @135:7
+  v345 = ldm f64, v329, v344 @135:7
+  v346 = const 16 @135:7
+  stm v339, v346, v345 @135:7
+  v347 = const 24 @135:2
+  v348 = alloc v347 @135:2
+  store s18, v348 @135:2
+  v349 = const 0 @135:2
+  v350 = ldm f64, v339, v349 @135:2
+  v351 = load s18 @135:2
+  v352 = const 0 @135:2
+  stm v351, v352, v350 @135:2
+  v353 = const 8 @135:2
+  v354 = ldm f64, v339, v353 @135:2
+  v355 = load s18 @135:2
+  v356 = const 8 @135:2
+  stm v355, v356, v354 @135:2
+  v357 = const 16 @135:2
+  v358 = ldm f64, v339, v357 @135:2
+  v359 = load s18 @135:2
+  v360 = const 16 @135:2
+  stm v359, v360, v358 @135:2
+  v361 = load s18 @136:2
+  v362 = const f64 2 @136:10
+  call Vec.Scale, v361, v362 @136:2
+  v363 = const 0 @137:10
+  v364 = ldm f64, v329, v363 @137:10
+  v365 = addr m27 @137:10
+  v366 = const 0 @137:10
+  stm v365, v366, v364 @137:10
+  v367 = const 8 @137:10
+  v368 = ldm f64, v329, v367 @137:10
+  v369 = const 8 @137:10
+  stm v365, v369, v368 @137:10
+  v370 = const 16 @137:10
+  v371 = ldm f64, v329, v370 @137:10
+  v372 = const 16 @137:10
+  stm v365, v372, v371 @137:10
+  v373 = load s18 @137:16
+  v374 = const 0 @137:16
+  v375 = ldm f64, v373, v374 @137:16
+  v376 = addr m28 @137:16
+  v377 = const 0 @137:16
+  stm v376, v377, v375 @137:16
+  v378 = load s18 @137:16
+  v379 = const 8 @137:16
+  v380 = ldm f64, v378, v379 @137:16
+  v381 = const 8 @137:16
+  stm v376, v381, v380 @137:16
+  v382 = load s18 @137:16
+  v383 = const 16 @137:16
+  v384 = ldm f64, v382, v383 @137:16
+  v385 = const 16 @137:16
+  stm v376, v385, v384 @137:16
+  v386 = call Vec.Dot, v365, v376 @137:10
+  v387 = const 0 @137:20
+  v388 = ldm f64, v329, v387 @137:20
+  v389 = addr m29 @137:20
+  v390 = const 0 @137:20
+  stm v389, v390, v388 @137:20
+  v391 = const 8 @137:20
+  v392 = ldm f64, v329, v391 @137:20
+  v393 = const 8 @137:20
+  stm v389, v393, v392 @137:20
+  v394 = const 16 @137:20
+  v395 = ldm f64, v329, v394 @137:20
+  v396 = const 16 @137:20
+  stm v389, v396, v395 @137:20
+  v397 = call Vec.Sum, v389 @137:20
+  v398 = load s18 @137:29
+  v399 = const 0 @137:29
+  v400 = ldm f64, v398, v399 @137:29
+  v401 = addr m30 @137:29
+  v402 = const 0 @137:29
+  stm v401, v402, v400 @137:29
+  v403 = load s18 @137:29
+  v404 = const 8 @137:29
+  v405 = ldm f64, v403, v404 @137:29
+  v406 = const 8 @137:29
+  stm v401, v406, v405 @137:29
+  v407 = load s18 @137:29
+  v408 = const 16 @137:29
+  v409 = ldm f64, v407, v408 @137:29
+  v410 = const 16 @137:29
+  stm v401, v410, v409 @137:29
+  v411 = call Vec.Sum, v401 @137:29
+  println v386, v397, v411 @137:2
+  v412 = load s18 @138:9
+  store s19, v412 @138:2
+  v413 = load s19 @139:2
+  v414 = const f64 0.5 @139:11
+  call Vec.Scale, v413, v414 @139:2
+  v415 = load s19 @140:10
+  store s20, v415 @140:10
+  v416 = const ptr 0 @140:10
+  v417 = eq v415, v416 @140:10
+  branch v417, b11, b12 @140:10
+b11:
+  panic nil @140:10
+b12:
+  v418 = load s20 @140:10
+  v419 = const 0 @140:13
+  v420 = ldm f64, v418, v419 @140:13
+  v421 = addr m31 @140:13
+  v422 = const 0 @140:13
+  stm v421, v422, v420 @140:13
+  v423 = load s20 @140:10
+  v424 = const 8 @140:13
+  v425 = ldm f64, v423, v424 @140:13
+  v426 = const 8 @140:13
+  stm v421, v426, v425 @140:13
+  v427 = load s20 @140:10
+  v428 = const 16 @140:13
+  v429 = ldm f64, v427, v428 @140:13
+  v430 = const 16 @140:13
+  stm v421, v430, v429 @140:13
+  v431 = addr m25 @140:17
+  v432 = const 0 @140:17
+  v433 = ldm f64, v431, v432 @140:17
+  v434 = addr m32 @140:17
+  v435 = const 0 @140:17
+  stm v434, v435, v433 @140:17
+  v436 = const 8 @140:17
+  v437 = ldm f64, v431, v436 @140:17
+  v438 = const 8 @140:17
+  stm v434, v438, v437 @140:17
+  v439 = const 16 @140:17
+  v440 = ldm f64, v431, v439 @140:17
+  v441 = const 16 @140:17
+  stm v434, v441, v440 @140:17
+  v442 = call Vec.Dot, v421, v434 @140:10
+  store s21, v442 @140:10
+  v443 = const f64 1 @140:25
+  v444 = addr m33 @140:21
+  v445 = const 0 @140:25
+  stm v444, v445, v443 @140:25
+  v446 = const f64 1 @140:28
+  v447 = const 8 @140:28
+  stm v444, v447, v446 @140:28
+  v448 = const f64 1 @140:31
+  v449 = const 16 @140:31
+  stm v444, v449, v448 @140:31
+  store s22, v444 @140:21
+  v450 = load s19 @140:39
+  store s23, v450 @140:39
+  v451 = const ptr 0 @140:39
+  v452 = eq v450, v451 @140:39
+  branch v452, b13, b14 @140:39
+b13:
+  panic nil @140:39
+b14:
+  v453 = load s23 @140:39
+  v454 = const 0 @140:38
+  v455 = ldm f64, v453, v454 @140:38
+  v456 = addr m34 @140:38
+  v457 = const 0 @140:38
+  stm v456, v457, v455 @140:38
+  v458 = load s23 @140:39
+  v459 = const 8 @140:38
+  v460 = ldm f64, v458, v459 @140:38
+  v461 = const 8 @140:38
+  stm v456, v461, v460 @140:38
+  v462 = load s23 @140:39
+  v463 = const 16 @140:38
+  v464 = ldm f64, v462, v463 @140:38
+  v465 = const 16 @140:38
+  stm v456, v465, v464 @140:38
+  v466 = load s22 @140:21
+  v467 = call Vec.Dot, v466, v456 @140:21
+  v468 = load s21 @140:10
+  println v468, v467 @140:2
+  v469 = const ptr 0 @142:6
+  store s24, v469 @142:6
+  v470 = load s24 @143:10
+  v471 = call List.Len, v470 @143:10
+  println v471 @143:2
+  v472 = load s24 @144:6
+  v473 = const 1 @144:13
+  v474 = call List.Push, v472, v473 @144:6
+  v475 = const 2 @144:21
+  v476 = call List.Push, v474, v475 @144:6
+  v477 = const 3 @144:29
+  v478 = call List.Push, v476, v477 @144:6
+  store s24, v478 @144:2
+  v479 = load s24 @145:10
+  v480 = call List.Len, v479 @145:10
+  store s25, v480 @145:10
+  v481 = load s24 @145:19
+  store s26, v481 @145:19
+  v482 = const ptr 0 @145:19
+  v483 = eq v481, v482 @145:19
+  branch v483, b15, b16 @145:19
+b15:
+  panic nil @145:19
+b16:
+  v484 = load s26 @145:19
+  v485 = const 0 @145:21
+  v486 = ldm i64, v484, v485 @145:21
+  v487 = addr m35 @145:21
+  v488 = const 0 @145:21
+  stm v487, v488, v486 @145:21
+  v489 = load s26 @145:19
+  v490 = const 8 @145:21
+  v491 = ldm ptr, v489, v490 @145:21
+  v492 = const 8 @145:21
+  stm v487, v492, v491 @145:21
+  v493 = call List.Head, v487 @145:19
+  store s27, v493 @145:19
+  v494 = load s24 @145:29
+  store s28, v494 @145:29
+  v495 = const ptr 0 @145:29
+  v496 = eq v494, v495 @145:29
+  branch v496, b17, b18 @145:29
+b17:
+  panic nil @145:29
+b18:
+  v497 = load s28 @145:29
+  v498 = const 8 @145:29
+  v499 = ldm ptr, v497, v498 @145:29
+  store s29, v499 @145:29
+  v500 = const ptr 0 @145:29
+  v501 = eq v499, v500 @145:29
+  branch v501, b19, b20 @145:29
+b19:
+  panic nil @145:29
+b20:
+  v502 = load s29 @145:29
+  v503 = const 0 @145:36
+  v504 = ldm i64, v502, v503 @145:36
+  v505 = addr m36 @145:36
+  v506 = const 0 @145:36
+  stm v505, v506, v504 @145:36
+  v507 = load s29 @145:29
+  v508 = const 8 @145:36
+  v509 = ldm ptr, v507, v508 @145:36
+  v510 = const 8 @145:36
+  stm v505, v510, v509 @145:36
+  v511 = call List.Head, v505 @145:29
+  store s30, v511 @145:29
+  v512 = load s24 @145:44
+  store s31, v512 @145:44
+  v513 = const ptr 0 @145:44
+  v514 = eq v512, v513 @145:44
+  branch v514, b21, b22 @145:44
+b21:
+  panic nil @145:44
+b22:
+  v515 = load s31 @145:44
+  v516 = const 8 @145:44
+  v517 = ldm ptr, v515, v516 @145:44
+  store s32, v517 @145:44
+  v518 = const ptr 0 @145:44
+  v519 = eq v517, v518 @145:44
+  branch v519, b23, b24 @145:44
+b23:
+  panic nil @145:44
+b24:
+  v520 = load s32 @145:44
+  v521 = const 8 @145:44
+  v522 = ldm ptr, v520, v521 @145:44
+  store s33, v522 @145:44
+  v523 = const ptr 0 @145:44
+  v524 = eq v522, v523 @145:44
+  branch v524, b25, b26 @145:44
+b25:
+  panic nil @145:44
+b26:
+  v525 = load s33 @145:44
+  v526 = const 0 @145:56
+  v527 = ldm i64, v525, v526 @145:56
+  v528 = addr m37 @145:56
+  v529 = const 0 @145:56
+  stm v528, v529, v527 @145:56
+  v530 = load s33 @145:44
+  v531 = const 8 @145:56
+  v532 = ldm ptr, v530, v531 @145:56
+  v533 = const 8 @145:56
+  stm v528, v533, v532 @145:56
+  v534 = call List.Head, v528 @145:44
+  v535 = load s25 @145:10
+  v536 = load s27 @145:19
+  v537 = load s30 @145:29
+  println v535, v536, v537, v534 @145:2
+  v538 = const 120 @147:6
+  v539 = alloc v538 @147:6
+  store s34, v539 @147:6
+  v540 = load s34 @148:2
+  v541 = const 24 @148:16
+  v542 = padd v540, v541 @148:16
+  v543 = call Counter.Inc, v542 @148:2
+  v544 = load s34 @149:2
+  v545 = const 72 @149:16
+  v546 = padd v544, v545 @149:16
+  v547 = call Counter.Inc, v546 @149:2
+  v548 = load s34 @150:2
+  v549 = const 72 @150:16
+  v550 = padd v548, v549 @150:16
+  v551 = call Counter.Inc, v550 @150:2
+  v552 = const 2 @151:26
+  store s35, v552 @151:10
+  v553 = conv u64, v552 @151:10
+  v554 = const u64 2863311530 @151:10
+  v555 = gt v553, v554 @151:10
+  branch v555, b27, b28 @151:10
+b27:
+  panic makelen @151:10
+b28:
+  v556 = load s35 @151:10
+  v557 = load s35 @151:10
+  v558 = const 24 @151:10
+  v559 = mul v557, v558 @151:10
+  v560 = alloc v559 @151:10
+  v561 = load s34 @151:2
+  v562 = const 96 @151:2
+  stm v561, v562, v560 @151:2
+  v563 = load s34 @151:2
+  v564 = const 104 @151:2
+  stm v563, v564, v556 @151:2
+  v565 = load s34 @151:2
+  v566 = const 112 @151:2
+  stm v565, v566, v557 @151:2
+  v567 = load s34 @152:2
+  v568 = const 96 @152:2
+  v569 = ldm ptr, v567, v568 @152:2
+  v570 = load s34 @152:2
+  v571 = const 104 @152:2
+  v572 = ldm i64, v570, v571 @152:2
+  v573 = load s34 @152:2
+  v574 = const 112 @152:2
+  v575 = ldm i64, v573, v574 @152:2
+  store s36, v569 @152:2
+  store s37, v572 @152:2
+  v576 = const 1 @152:8
+  store s38, v576 @152:7
+  v577 = conv u64, v576 @152:7
+  v578 = conv u64, v572 @152:7
+  v579 = ge v577, v578 @152:7
+  branch v579, b29, b30 @152:7
+b29:
+  v580 = load s38 @152:7
+  v581 = load s37 @152:2
+  panic index, v580, v581 @152:7
+b30:
+  v582 = load s36 @152:2
+  v583 = load s38 @152:7
+  v584 = const 24 @152:2
+  v585 = mul v583, v584 @152:2
+  v586 = padd v582, v585 @152:11
+  v587 = call Counter.Inc, v586 @152:2
+  v588 = const 0 @153:7
+  store s39, v588 @153:2
+  v589 = load s34 @154:2
+  v590 = const 96 @154:2
+  v591 = ldm ptr, v589, v590 @154:2
+  v592 = load s34 @154:2
+  v593 = const 104 @154:2
+  v594 = ldm i64, v592, v593 @154:2
+  v595 = load s34 @154:2
+  v596 = const 112 @154:2
+  v597 = ldm i64, v595, v596 @154:2
+  store s40, v591 @154:2
+  store s41, v594 @154:2
+  v598 = load s39 @154:8
+  store s42, v598 @154:7
+  v599 = conv u64, v598 @154:7
+  v600 = conv u64, v594 @154:7
+  v601 = ge v599, v600 @154:7
+  branch v601, b31, b32 @154:7
+b31:
+  v602 = load s42 @154:7
+  v603 = load s41 @154:2
+  panic index, v602, v603 @154:7
+b32:
+  v604 = load s40 @154:2
+  v605 = load s42 @154:7
+  v606 = const 24 @154:2
+  v607 = mul v605, v606 @154:2
+  v608 = padd v604, v607 @154:11
+  v609 = call Counter.Inc, v608 @154:2
+  v610 = load s34 @155:2
+  v611 = const 96 @155:2
+  v612 = ldm ptr, v610, v611 @155:2
+  v613 = load s34 @155:2
+  v614 = const 104 @155:2
+  v615 = ldm i64, v613, v614 @155:2
+  v616 = load s34 @155:2
+  v617 = const 112 @155:2
+  v618 = ldm i64, v616, v617 @155:2
+  store s43, v612 @155:2
+  store s44, v615 @155:2
+  v619 = load s39 @155:8
+  store s45, v619 @155:7
+  v620 = conv u64, v619 @155:7
+  v621 = conv u64, v615 @155:7
+  v622 = ge v620, v621 @155:7
+  branch v622, b33, b34 @155:7
+b33:
+  v623 = load s45 @155:7
+  v624 = load s44 @155:2
+  panic index, v623, v624 @155:7
+b34:
+  v625 = load s43 @155:2
+  v626 = load s45 @155:7
+  v627 = const 24 @155:2
+  v628 = mul v626, v627 @155:2
+  v629 = padd v625, v628 @155:11
+  v630 = call Counter.Inc, v629 @155:2
+  v631 = load s34 @156:10
+  v632 = call Grid.Total, v631 @156:10
+  store s46, v632 @156:10
+  v633 = load s34 @156:21
+  v634 = const 72 @156:21
+  v635 = ldm i64, v633, v634 @156:21
+  v636 = addr m38 @156:21
+  v637 = const 0 @156:21
+  stm v636, v637, v635 @156:21
+  v638 = load s34 @156:21
+  v639 = const 80 @156:21
+  v640 = ldm ptr, v638, v639 @156:21
+  v641 = const 8 @156:21
+  stm v636, v641, v640 @156:21
+  v642 = load s34 @156:21
+  v643 = const 88 @156:21
+  v644 = ldm i64, v642, v643 @156:21
+  v645 = const 16 @156:21
+  stm v636, v645, v644 @156:21
+  v646 = call Counter.Get, v636 @156:21
+  store s47, v646 @156:21
+  v647 = load s34 @156:42
+  v648 = const 96 @156:42
+  v649 = ldm ptr, v647, v648 @156:42
+  v650 = load s34 @156:42
+  v651 = const 104 @156:42
+  v652 = ldm i64, v650, v651 @156:42
+  v653 = load s34 @156:42
+  v654 = const 112 @156:42
+  v655 = ldm i64, v653, v654 @156:42
+  store s48, v649 @156:42
+  store s49, v652 @156:42
+  v656 = const 0 @156:48
+  store s50, v656 @156:47
+  v657 = conv u64, v656 @156:47
+  v658 = conv u64, v652 @156:47
+  v659 = ge v657, v658 @156:47
+  branch v659, b35, b36 @156:47
+b35:
+  v660 = load s50 @156:47
+  v661 = load s49 @156:42
+  panic index, v660, v661 @156:47
+b36:
+  v662 = load s48 @156:42
+  v663 = load s50 @156:47
+  v664 = const 24 @156:42
+  v665 = mul v663, v664 @156:42
+  v666 = ldm i64, v662, v665 @156:42
+  v667 = addr m39 @156:42
+  v668 = const 0 @156:42
+  stm v667, v668, v666 @156:42
+  v669 = load s48 @156:42
+  v670 = load s50 @156:47
+  v671 = const 24 @156:42
+  v672 = mul v670, v671 @156:42
+  v673 = const 8 @156:42
+  v674 = add v672, v673 @156:42
+  v675 = ldm ptr, v669, v674 @156:42
+  v676 = const 8 @156:42
+  stm v667, v676, v675 @156:42
+  v677 = load s48 @156:42
+  v678 = load s50 @156:47
+  v679 = const 24 @156:42
+  v680 = mul v678, v679 @156:42
+  v681 = const 16 @156:42
+  v682 = add v680, v681 @156:42
+  v683 = ldm i64, v677, v682 @156:42
+  v684 = const 16 @156:42
+  stm v667, v684, v683 @156:42
+  v685 = call Counter.Get, v667 @156:42
+  v686 = load s46 @156:10
+  v687 = load s47 @156:21
+  println v686, v687, v685 @156:2
+  v688 = const 48 @158:8
+  v689 = alloc v688 @158:8
+  store s51, v689 @158:8
+  v690 = const 1 @158:22
+  v691 = const 0 @158:22
+  stm v689, v691, v690 @158:22
+  v692 = const 2 @158:30
+  v693 = const 24 @158:30
+  stm v689, v693, v692 @158:30
+  v694 = const 2 @158:8
+  v695 = const 2 @158:8
+  store s52, v689 @158:2
+  store s53, v694 @158:2
+  store s54, v695 @158:2
+  v696 = load s52 @159:2
+  v697 = load s53 @159:2
+  v698 = load s54 @159:2
+  store s55, v696 @159:2
+  store s56, v697 @159:2
+  v699 = const 1 @159:5
+  store s57, v699 @159:4
+  v700 = conv u64, v699 @159:4
+  v701 = conv u64, v697 @159:4
+  v702 = ge v700, v701 @159:4
+  branch v702, b37, b38 @159:4
+b37:
+  v703 = load s57 @159:4
+  v704 = load s56 @159:2
+  panic index, v703, v704 @159:4
+b38:
+  v705 = load s55 @159:2
+  v706 = load s57 @159:4
+  v707 = const 24 @159:2
+  v708 = mul v706, v707 @159:2
+  v709 = padd v705, v708 @159:8
+  v710 = call Counter.Inc, v709 @159:2
+  v711 = load s52 @160:10
+  v712 = load s53 @160:10
+  v713 = load s54 @160:10
+  store s58, v711 @160:10
+  store s59, v712 @160:10
+  v714 = const 0 @160:13
+  store s60, v714 @160:12
+  v715 = conv u64, v714 @160:12
+  v716 = conv u64, v712 @160:12
+  v717 = ge v715, v716 @160:12
+  branch v717, b39, b40 @160:12
+b39:
+  v718 = load s60 @160:12
+  v719 = load s59 @160:10
+  panic index, v718, v719 @160:12
+b40:
+  v720 = load s58 @160:10
+  v721 = load s60 @160:12
+  v722 = const 24 @160:10
+  v723 = mul v721, v722 @160:10
+  v724 = ldm i64, v720, v723 @160:10
+  v725 = addr m40 @160:10
+  v726 = const 0 @160:10
+  stm v725, v726, v724 @160:10
+  v727 = load s58 @160:10
+  v728 = load s60 @160:12
+  v729 = const 24 @160:10
+  v730 = mul v728, v729 @160:10
+  v731 = const 8 @160:10
+  v732 = add v730, v731 @160:10
+  v733 = ldm ptr, v727, v732 @160:10
+  v734 = const 8 @160:10
+  stm v725, v734, v733 @160:10
+  v735 = load s58 @160:10
+  v736 = load s60 @160:12
+  v737 = const 24 @160:10
+  v738 = mul v736, v737 @160:10
+  v739 = const 16 @160:10
+  v740 = add v738, v739 @160:10
+  v741 = ldm i64, v735, v740 @160:10
+  v742 = const 16 @160:10
+  stm v725, v742, v741 @160:10
+  v743 = call Counter.Get, v725 @160:10
+  store s61, v743 @160:10
+  v744 = load s52 @160:23
+  v745 = load s53 @160:23
+  v746 = load s54 @160:23
+  store s62, v744 @160:23
+  store s63, v745 @160:23
+  v747 = const 1 @160:26
+  store s64, v747 @160:25
+  v748 = conv u64, v747 @160:25
+  v749 = conv u64, v745 @160:25
+  v750 = ge v748, v749 @160:25
+  branch v750, b41, b42 @160:25
+b41:
+  v751 = load s64 @160:25
+  v752 = load s63 @160:23
+  panic index, v751, v752 @160:25
+b42:
+  v753 = load s62 @160:23
+  v754 = load s64 @160:25
+  v755 = const 24 @160:23
+  v756 = mul v754, v755 @160:23
+  v757 = ldm i64, v753, v756 @160:23
+  v758 = addr m41 @160:23
+  v759 = const 0 @160:23
+  stm v758, v759, v757 @160:23
+  v760 = load s62 @160:23
+  v761 = load s64 @160:25
+  v762 = const 24 @160:23
+  v763 = mul v761, v762 @160:23
+  v764 = const 8 @160:23
+  v765 = add v763, v764 @160:23
+  v766 = ldm ptr, v760, v765 @160:23
+  v767 = const 8 @160:23
+  stm v758, v767, v766 @160:23
+  v768 = load s62 @160:23
+  v769 = load s64 @160:25
+  v770 = const 24 @160:23
+  v771 = mul v769, v770 @160:23
+  v772 = const 16 @160:23
+  v773 = add v771, v772 @160:23
+  v774 = ldm i64, v768, v773 @160:23
+  v775 = const 16 @160:23
+  stm v758, v775, v774 @160:23
+  v776 = call Counter.Get, v758 @160:23
+  store s65, v776 @160:23
+  v777 = load s52 @160:36
+  v778 = load s53 @160:36
+  v779 = load s54 @160:36
+  store s66, v777 @160:36
+  store s67, v778 @160:36
+  v780 = const 1 @160:39
+  store s68, v780 @160:38
+  v781 = conv u64, v780 @160:38
+  v782 = conv u64, v778 @160:38
+  v783 = ge v781, v782 @160:38
+  branch v783, b43, b44 @160:38
+b43:
+  v784 = load s68 @160:38
+  v785 = load s67 @160:36
+  panic index, v784, v785 @160:38
+b44:
+  v786 = load s66 @160:36
+  v787 = load s68 @160:38
+  v788 = const 24 @160:36
+  v789 = mul v787, v788 @160:36
+  v790 = ldm i64, v786, v789 @160:36
+  v791 = addr m42 @160:36
+  v792 = const 0 @160:36
+  stm v791, v792, v790 @160:36
+  v793 = load s66 @160:36
+  v794 = load s68 @160:38
+  v795 = const 24 @160:36
+  v796 = mul v794, v795 @160:36
+  v797 = const 8 @160:36
+  v798 = add v796, v797 @160:36
+  v799 = ldm ptr, v793, v798 @160:36
+  v800 = const 8 @160:36
+  stm v791, v800, v799 @160:36
+  v801 = load s66 @160:36
+  v802 = load s68 @160:38
+  v803 = const 24 @160:36
+  v804 = mul v802, v803 @160:36
+  v805 = const 16 @160:36
+  v806 = add v804, v805 @160:36
+  v807 = ldm i64, v801, v806 @160:36
+  v808 = const 16 @160:36
+  stm v791, v808, v807 @160:36
+  store s69, v791 @160:36
+  v809 = load s52 @160:49
+  v810 = load s53 @160:49
+  v811 = load s54 @160:49
+  store s70, v809 @160:49
+  store s71, v810 @160:49
+  v812 = const 0 @160:52
+  store s72, v812 @160:51
+  v813 = conv u64, v812 @160:51
+  v814 = conv u64, v810 @160:51
+  v815 = ge v813, v814 @160:51
+  branch v815, b45, b46 @160:51
+b45:
+  v816 = load s72 @160:51
+  v817 = load s71 @160:49
+  panic index, v816, v817 @160:51
+b46:
+  v818 = load s70 @160:49
+  v819 = load s72 @160:51
+  v820 = const 24 @160:49
+  v821 = mul v819, v820 @160:49
+  v822 = ldm i64, v818, v821 @160:49
+  v823 = addr m43 @160:49
+  v824 = const 0 @160:49
+  stm v823, v824, v822 @160:49
+  v825 = load s70 @160:49
+  v826 = load s72 @160:51
+  v827 = const 24 @160:49
+  v828 = mul v826, v827 @160:49
+  v829 = const 8 @160:49
+  v830 = add v828, v829 @160:49
+  v831 = ldm ptr, v825, v830 @160:49
+  v832 = const 8 @160:49
+  stm v823, v832, v831 @160:49
+  v833 = load s70 @160:49
+  v834 = load s72 @160:51
+  v835 = const 24 @160:49
+  v836 = mul v834, v835 @160:49
+  v837 = const 16 @160:49
+  v838 = add v836, v837 @160:49
+  v839 = ldm i64, v833, v838 @160:49
+  v840 = const 16 @160:49
+  stm v823, v840, v839 @160:49
+  v841 = call Counter.Get, v823 @160:49
+  v842 = load s69 @160:36
+  v843 = addr m44 @160:36
+  call Counter.Bumped, v842, v841, v843 @160:36
+  v844 = call Counter.Get, v843 @160:36
+  v845 = load s61 @160:10
+  v846 = load s65 @160:23
+  println v845, v846, v844 @160:2
+  v847 = load s52 @161:9
+  v848 = load s53 @161:9
+  v849 = load s54 @161:9
+  store s73, v847 @161:9
+  store s74, v848 @161:9
+  v850 = const 0 @161:12
+  store s75, v850 @161:11
+  v851 = conv u64, v850 @161:11
+  v852 = conv u64, v848 @161:11
+  v853 = ge v851, v852 @161:11
+  branch v853, b47, b48 @161:11
+b47:
+  v854 = load s75 @161:11
+  v855 = load s74 @161:9
+  panic index, v854, v855 @161:11
+b48:
+  v856 = load s73 @161:9
+  v857 = load s75 @161:11
+  v858 = const 24 @161:9
+  v859 = mul v857, v858 @161:9
+  v860 = padd v856, v859 @161:8
+  store s76, v860 @161:2
+  v861 = load s76 @162:2
+  v862 = call Counter.Inc, v861 @162:2
+  v863 = load s52 @163:10
+  v864 = load s53 @163:10
+  v865 = load s54 @163:10
+  store s77, v863 @163:10
+  store s78, v864 @163:10
+  v866 = const 0 @163:13
+  store s79, v866 @163:12
+  v867 = conv u64, v866 @163:12
+  v868 = conv u64, v864 @163:12
+  v869 = ge v867, v868 @163:12
+  branch v869, b49, b50 @163:12
+b49:
+  v870 = load s79 @163:12
+  v871 = load s78 @163:10
+  panic index, v870, v871 @163:12
+b50:
+  v872 = load s77 @163:10
+  v873 = load s79 @163:12
+  v874 = const 24 @163:10
+  v875 = mul v873, v874 @163:10
+  v876 = ldm i64, v872, v875 @163:10
+  v877 = addr m45 @163:10
+  v878 = const 0 @163:10
+  stm v877, v878, v876 @163:10
+  v879 = load s77 @163:10
+  v880 = load s79 @163:12
+  v881 = const 24 @163:10
+  v882 = mul v880, v881 @163:10
+  v883 = const 8 @163:10
+  v884 = add v882, v883 @163:10
+  v885 = ldm ptr, v879, v884 @163:10
+  v886 = const 8 @163:10
+  stm v877, v886, v885 @163:10
+  v887 = load s77 @163:10
+  v888 = load s79 @163:12
+  v889 = const 24 @163:10
+  v890 = mul v888, v889 @163:10
+  v891 = const 16 @163:10
+  v892 = add v890, v891 @163:10
+  v893 = ldm i64, v887, v892 @163:10
+  v894 = const 16 @163:10
+  stm v877, v894, v893 @163:10
+  v895 = call Counter.Get, v877 @163:10
+  println v895 @163:2
+  v896 = const 10 @165:15
+  v897 = call escape, v896 @165:8
+  store s80, v897 @165:2
+  v898 = const 20 @166:15
+  v899 = call escape, v898 @166:8
+  store s81, v899 @166:2
+  v900 = load s80 @167:2
+  v901 = call Counter.Inc, v900 @167:2
+  v902 = load s80 @168:10
+  store s82, v902 @168:10
+  v903 = const ptr 0 @168:10
+  v904 = eq v902, v903 @168:10
+  branch v904, b51, b52 @168:10
+b51:
+  panic nil @168:10
+b52:
+  v905 = load s82 @168:10
+  v906 = const 0 @168:13
+  v907 = ldm i64, v905, v906 @168:13
+  v908 = addr m46 @168:13
+  v909 = const 0 @168:13
+  stm v908, v909, v907 @168:13
+  v910 = load s82 @168:10
+  v911 = const 8 @168:13
+  v912 = ldm ptr, v910, v911 @168:13
+  v913 = const 8 @168:13
+  stm v908, v913, v912 @168:13
+  v914 = load s82 @168:10
+  v915 = const 16 @168:13
+  v916 = ldm i64, v914, v915 @168:13
+  v917 = const 16 @168:13
+  stm v908, v917, v916 @168:13
+  v918 = call Counter.Get, v908 @168:10
+  store s83, v918 @168:10
+  v919 = load s81 @168:20
+  store s84, v919 @168:20
+  v920 = const ptr 0 @168:20
+  v921 = eq v919, v920 @168:20
+  branch v921, b53, b54 @168:20
+b53:
+  panic nil @168:20
+b54:
+  v922 = load s84 @168:20
+  v923 = const 0 @168:23
+  v924 = ldm i64, v922, v923 @168:23
+  v925 = addr m47 @168:23
+  v926 = const 0 @168:23
+  stm v925, v926, v924 @168:23
+  v927 = load s84 @168:20
+  v928 = const 8 @168:23
+  v929 = ldm ptr, v927, v928 @168:23
+  v930 = const 8 @168:23
+  stm v925, v930, v929 @168:23
+  v931 = load s84 @168:20
+  v932 = const 16 @168:23
+  v933 = ldm i64, v931, v932 @168:23
+  v934 = const 16 @168:23
+  stm v925, v934, v933 @168:23
+  v935 = call Counter.Get, v925 @168:20
+  v936 = load s80 @168:30
+  v937 = load s81 @168:36
+  v938 = ne v936, v937 @168:33
+  v939 = load s83 @168:10
+  println v939, v935, v938 @168:2
+  v940 = const 0 @170:9
+  v941 = addr m48 @170:9
+  v942 = const 0 @170:9
+  stm v941, v942, v940 @170:9
+  v943 = const ptr 0 @170:9
+  v944 = const 8 @170:9
+  stm v941, v944, v943 @170:9
+  v945 = const 0 @170:9
+  v946 = const 16 @170:9
+  stm v941, v946, v945 @170:9
+  v947 = const 0 @170:9
+  v948 = const 24 @170:9
+  stm v941, v948, v947 @170:9
+  v949 = const ptr 0 @170:9
+  v950 = const 32 @170:9
+  stm v941, v950, v949 @170:9
+  v951 = const 0 @170:9
+  v952 = const 40 @170:9
+  stm v941, v952, v951 @170:9
+  v953 = const 48 @170:2
+  v954 = alloc v953 @170:2
+  store s85, v954 @170:2
+  v955 = const 0 @170:2
+  v956 = ldm i64, v941, v955 @170:2
+  v957 = load s85 @170:2
+  v958 = const 0 @170:2
+  stm v957, v958, v956 @170:2
+  v959 = const 8 @170:2
+  v960 = ldm ptr, v941, v959 @170:2
+  v961 = load s85 @170:2
+  v962 = const 8 @170:2
+  stm v961, v962, v960 @170:2
+  v963 = const 16 @170:2
+  v964 = ldm i64, v941, v963 @170:2
+  v965 = load s85 @170:2
+  v966 = const 16 @170:2
+  stm v965, v966, v964 @170:2
+  v967 = const 24 @170:2
+  v968 = ldm i64, v941, v967 @170:2
+  v969 = load s85 @170:2
+  v970 = const 24 @170:2
+  stm v969, v970, v968 @170:2
+  v971 = const 32 @170:2
+  v972 = ldm ptr, v941, v971 @170:2
+  v973 = load s85 @170:2
+  v974 = const 32 @170:2
+  stm v973, v974, v972 @170:2
+  v975 = const 40 @170:2
+  v976 = ldm i64, v941, v975 @170:2
+  v977 = load s85 @170:2
+  v978 = const 40 @170:2
+  stm v977, v978, v976 @170:2
+  v979 = load s85 @171:2
+  v980 = const 24 @171:9
+  v981 = padd v979, v980 @171:9
+  v982 = call Counter.Inc, v981 @171:2
+  v983 = load s85 @172:10
+  v984 = const 0 @172:10
+  v985 = ldm i64, v983, v984 @172:10
+  v986 = addr m49 @172:10
+  v987 = const 0 @172:10
+  stm v986, v987, v985 @172:10
+  v988 = load s85 @172:10
+  v989 = const 8 @172:10
+  v990 = ldm ptr, v988, v989 @172:10
+  v991 = const 8 @172:10
+  stm v986, v991, v990 @172:10
+  v992 = load s85 @172:10
+  v993 = const 16 @172:10
+  v994 = ldm i64, v992, v993 @172:10
+  v995 = const 16 @172:10
+  stm v986, v995, v994 @172:10
+  v996 = call Counter.Get, v986 @172:10
+  store s86, v996 @172:10
+  v997 = load s85 @172:24
+  v998 = const 24 @172:24
+  v999 = ldm i64, v997, v998 @172:24
+  v1000 = addr m50 @172:24
+  v1001 = const 0 @172:24
+  stm v1000, v1001, v999 @172:24
+  v1002 = load s85 @172:24
+  v1003 = const 32 @172:24
+  v1004 = ldm ptr, v1002, v1003 @172:24
+  v1005 = const 8 @172:24
+  stm v1000, v1005, v1004 @172:24
+  v1006 = load s85 @172:24
+  v1007 = const 40 @172:24
+  v1008 = ldm i64, v1006, v1007 @172:24
+  v1009 = const 16 @172:24
+  stm v1000, v1009, v1008 @172:24
+  v1010 = call Counter.Get, v1000 @172:24
+  v1011 = load s86 @172:10
+  println v1011, v1010 @172:2
+  ret @173:1
+
+func init @testdata/check/s5_m01_method_basics.go:3:1
+  mem m0 tmp 24 align 8 @94:14
+  mem m1 tmp 24 align 8 @94:14
+b0:
+  v0 = addr gm0 @93:13
+  v1 = call Counter.Inc, v0 @93:13
+  gstore g0, v1 @93:5
+  v2 = const 0 @94:14
+  v3 = addr m0 @94:14
+  v4 = const 0 @94:14
+  stm v3, v4, v2 @94:14
+  v5 = const ptr 0 @94:14
+  v6 = const 8 @94:14
+  stm v3, v6, v5 @94:14
+  v7 = const 0 @94:14
+  v8 = const 16 @94:14
+  stm v3, v8, v7 @94:14
+  v9 = const 41 @94:25
+  v10 = const 0 @94:25
+  stm v3, v10, v9 @94:25
+  v11 = const 1 @94:36
+  v12 = addr m1 @94:14
+  call Counter.Bumped, v3, v11, v12 @94:14
+  v13 = call Counter.Get, v12 @94:14
+  gstore g1, v13 @94:5
+  ret @3:1
