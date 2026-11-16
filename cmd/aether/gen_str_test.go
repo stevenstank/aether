@@ -243,3 +243,65 @@ func stringPaths(base string, t *gtype) []string {
 	}
 	return out[:min(len(out), 8)]
 }
+
+// Generated runes and string order (Phase 7 increment 7.3c, D-037).
+//
+// From an eighth random stream, statements that read the string and
+// integer variables in scope but change none (runeStmt) are added to the
+// others, so that every line the other streams generate is unchanged: < <=
+// > >= of strings, also of equal bytes at other addresses and of prefixes;
+// []rune(s) and back, also after appending runes that are not code
+// points; string(x) of integers of every type; and the runes of a string
+// with invalid UTF-8 appended.
+
+// maxRuneStmts bounds the rune statements in a program, so that main stays
+// within the limits of promotion (TestBuildBackendLimits).
+const maxRuneStmts = 4
+
+// runeLiterals are the runes runeStmt appends: of each encoded length, the
+// largest code point, and values that are not code points.
+var runeLiterals = []string{`'a'`, `'\x00'`, `'é'`, `'世'`, `'😀'`, `'\U0010FFFF'`, `'�'`, `-1`, `0xD800`, `0x110000`}
+
+// invalidUTF8 are byte sequences that are not UTF-8: cut short, overlong,
+// a surrogate, or never valid.
+var invalidUTF8 = []string{"0xe4, 0xb8", "0xff", "0xc3", "0xf0, 0x9f, 0x98", "0xed, 0xa0, 0x80", "0xc0, 0x80", "0x80, 'a'"}
+
+func (g *generator) runePick(list []string) string { return list[g.ro.IntN(len(list))] }
+
+func (g *generator) runeStmt(depth int) {
+	vars := g.visible(func(e entry) bool { return e.k == strVar })
+	if len(vars) == 0 {
+		return
+	}
+	ints := g.visible(func(e entry) bool { return (e.k == variable || e.k == counter) && contains(intTypes, e.t) })
+	s, t, lit := g.runePick(vars), g.runePick(vars), g.runePick(stringLiterals)
+	switch k := g.ro.IntN(5); {
+	case k == 0:
+		g.line(depth, "println(%s < %s, %s <= %s, %s > %s, %s >= %s)", s, t, s, lit, lit, t, t, s)
+		g.line(depth, "println(%s < string([]byte(%s)), %s[:len(%s)/2] < %s, %s >= %s+%s)", s, s, s, s, s, s, s, lit)
+	case k == 1:
+		g.line(depth, "{")
+		g.line(depth+1, "rr := []rune(%s)", s)
+		g.line(depth+1, "println(len(rr), string(rr) == %s, string(rr))", s)
+		g.line(depth+1, "if len(rr) > 0 {")
+		g.line(depth+2, "println(rr[0], rr[len(rr)-1], string(rr[len(rr)-1]), string(rr[:len(rr)/2]))")
+		g.line(depth+1, "}")
+		g.line(depth, "}")
+	case k == 2:
+		g.line(depth, "{")
+		g.line(depth+1, "rr := append([]rune(%s), %s, %s)", s, g.runePick(runeLiterals), g.runePick(runeLiterals))
+		g.line(depth+1, "rr[len(rr)-1] ^= %s", g.runePick([]string{"1", "0x7f", "0x10000"}))
+		g.line(depth+1, "println(string(rr), len(rr), string(rr[len(rr)-2:]) < %s)", t)
+		g.line(depth, "}")
+	case k == 3 && len(ints) > 0:
+		i := g.runePick(ints)
+		g.line(depth, "println(string(%s), string(rune(%s)), string(rune(%s)+%s), string(%s) <= %s)", i, i, i, g.runePick(runeLiterals), i, s)
+	case k == 3:
+		g.line(depth, "println(string(rune(len(%s))+%s))", s, g.runePick(runeLiterals))
+	default:
+		g.line(depth, "{")
+		g.line(depth+1, "rb := append([]byte(%s), %s)", s, g.runePick(invalidUTF8))
+		g.line(depth+1, "println(len([]rune(string(rb))), string([]rune(string(rb))), string(rb) < %s)", s)
+		g.line(depth, "}")
+	}
+}

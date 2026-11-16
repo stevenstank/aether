@@ -62,17 +62,21 @@ func (l *lowerer) copyBytes(p, n *ir.Instr, pos ir.Pos) *ir.Instr {
 	return q
 }
 
-// stringConversion lowers string(x) of a string, which is x, or of a
-// []byte, a copy of its elements.
+// stringConversion lowers string(x) of a string, which is x, of a []byte,
+// a copy of its elements, or of a []rune or an integer (runes.go).
 func (l *lowerer) stringConversion(call *ast.CallExpr) []*ir.Instr {
 	pos := l.pos(call, call.Pos())
 	at := l.pkg.Info.Types[call.Args[0]].Type
 	switch {
 	case isString(at):
 		return l.value(call.Args[0])
+	case isRuneSlice(at):
+		return l.runesStringConversion(call)
 	case isSlice(at):
 		w := l.value(call.Args[0])
 		return []*ir.Instr{l.copyBytes(w[0], w[1], pos), w[1]}
+	case isInteger(at):
+		return l.runeConversion(call)
 	}
 	l.fail(call, "conversion of %s to a string", at)
 	return nil
@@ -163,13 +167,72 @@ func (l *lowerer) stringEqual(x, y []*ir.Instr, pos ir.Pos) *ir.Instr {
 	return l.fn.Call(l.b, l.streqFunc(pos), []*ir.Instr{x[0], x[1], y[0], y[1]}, pos)
 }
 
-// stringCompare lowers x == y or x != y of strings: both are evaluated,
-// left to right, then compared.
+// stringCompare lowers a comparison of strings: both are evaluated, left
+// to right, then compared, for == and != by aether.streq, and for < <= >
+// >= by aether.strcmp.
 func (l *lowerer) stringCompare(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
 	xy := l.values([]ast.Expr{e.X, e.Y}, nil)
-	eq := l.stringEqual(xy[0], xy[1], pos)
-	if e.Op == token.NEQ {
-		return l.fn.Not(l.b, eq, pos)
+	x, y := xy[0], xy[1]
+	switch e.Op {
+	case token.EQL:
+		return l.stringEqual(x, y, pos)
+	case token.NEQ:
+		return l.fn.Not(l.b, l.stringEqual(x, y, pos), pos)
 	}
-	return eq
+	op, ok := binaryOps[e.Op]
+	if !ok || !op.IsComparison() {
+		l.fail(e, "string operator %s", e.Op)
+	}
+	c := l.fn.Call(l.b, l.strcmpFunc(pos), []*ir.Instr{x[0], x[1], y[0], y[1]}, pos)
+	return l.fn.Compare(l.b, op, c, l.fn.Const(l.b, 0, pos), pos)
+}
+
+// strcmpName is the name of the generated string ordering function.
+const strcmpName = "aether.strcmp"
+
+// strcmpFunc returns the program's string ordering function, which lowering
+// adds on its first use (D-037):
+//
+//	func aether.strcmp(p ptr, n i64, q ptr, m i64) i64
+//
+// It compares the n bytes at p with the m bytes at q lexicographically, as
+// unsigned bytes, a proper prefix first, as Go orders strings, and returns
+// -1, 0, or 1 as the first is less than, equal to, or greater than the
+// second.
+func (l *lowerer) strcmpFunc(pos ir.Pos) *ir.Func {
+	if l.strcmp != nil {
+		return l.strcmp
+	}
+	f := l.prog.NewFunc(strcmpName, l.fn.File, pos)
+	f.Params = []ir.Type{ir.Ptr, ir.I64, ir.Ptr, ir.I64}
+	f.Results = []ir.Type{ir.I64}
+	g := gen{f, pos}
+	entry := f.Entry()
+	ps, qs, ns, ms, is := g.slot("p", ir.Ptr), g.slot("q", ir.Ptr), g.slot("n", ir.I64), g.slot("m", ir.I64), g.slot("i", ir.I64)
+	p, n, q, m := g.param(entry, 0), g.param(entry, 1), g.param(entry, 2), g.param(entry, 3)
+	g.store(entry, ps, p)
+	g.store(entry, qs, q)
+	g.store(entry, ns, n)
+	g.store(entry, ms, m)
+	g.store(entry, is, g.c(entry, 0))
+	head, inM, body, differ, next, tail, longer := f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock(), f.NewBlock()
+	less, greater, equal := g.ret(-1), g.ret(1), g.ret(0)
+	f.Jump(entry, head, pos)
+	// for i < n && i < m: the first differing byte decides.
+	f.Branch(head, g.cmp(head, ir.Lt, g.ld(head, is), g.ld(head, ns)), inM, tail, pos)
+	f.Branch(inM, g.cmp(inM, ir.Lt, g.ld(inM, is), g.ld(inM, ms)), body, tail, pos)
+	bytes := func(b *ir.Block) (*ir.Instr, *ir.Instr) {
+		return f.LoadB(b, g.ld(b, ps), g.ld(b, is), pos), f.LoadB(b, g.ld(b, qs), g.ld(b, is), pos)
+	}
+	a, b := bytes(body)
+	f.Branch(body, g.cmp(body, ir.Lt, a, b), less, differ, pos)
+	a, b = bytes(differ)
+	f.Branch(differ, g.cmp(differ, ir.Gt, a, b), greater, next, pos)
+	g.store(next, is, f.Binary(next, ir.Add, g.ld(next, is), g.c(next, 1), pos))
+	f.Jump(next, head, pos)
+	// One is a prefix of the other: the shorter is less.
+	f.Branch(tail, g.cmp(tail, ir.Lt, g.ld(tail, ns), g.ld(tail, ms)), less, longer, pos)
+	f.Branch(longer, g.cmp(longer, ir.Gt, g.ld(longer, ns), g.ld(longer, ms)), greater, equal, pos)
+	l.strcmp = f
+	return f
 }

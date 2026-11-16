@@ -62,8 +62,6 @@ const (
 	FeatVariadic      = "variadic-call"
 	FeatPredeclared   = "predeclared-identifier"
 	FeatImagLit       = "imaginary-literal"
-	FeatRuneLit       = "rune-literal"
-	FeatStringCompare = "string-comparison"
 	FeatFuncLit       = "function-literal"
 	FeatCompositeLit  = "composite-literal"
 	FeatSelector      = "selector"
@@ -198,7 +196,7 @@ func init() {
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
-		FeatRuneLit, FeatStringCompare, FeatFuncLit, FeatCompositeLit,
+		FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
 		FeatLoopVarAddr,
@@ -951,12 +949,12 @@ func (c *checker) call(call *ast.CallExpr) bool {
 	if tv, ok := c.info.Types[call.Fun]; ok && tv.IsType() {
 		// go/types has checked that the conversion is valid, so a
 		// supported target type other than string has a numeric or bool
-		// operand. A string converts to and from a string and a []byte
-		// (D-037), not yet to or from an integer or a []rune.
+		// operand. A string converts to and from a string, a []byte, and a
+		// []rune, and from an integer (D-037).
 		at := c.info.Types[call.Args[0]]
 		switch {
-		case isString(tv.Type) && (isString(at.Type) || isByteSlice(at.Type)),
-			isByteSlice(tv.Type) && isString(at.Type):
+		case isString(tv.Type) && (isString(at.Type) || isByteSlice(at.Type) || isRuneSlice(at.Type) || isInteger(at.Type)),
+			(isByteSlice(tv.Type) || isRuneSlice(tv.Type)) && isString(at.Type):
 		case isString(tv.Type) || isString(at.Type):
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
@@ -1055,13 +1053,10 @@ func (c *checker) expr(e ast.Expr) {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		switch e.Kind {
-		case token.INT, token.FLOAT, token.STRING:
+		case token.INT, token.FLOAT, token.STRING, token.CHAR:
 			c.typed(e)
 		case token.IMAG:
 			c.reject(e, FeatImagLit, "imaginary literal "+e.Value)
-			return
-		case token.CHAR:
-			c.reject(e, FeatRuneLit, "rune literal "+e.Value)
 			return
 		default:
 			c.internal(e, "unknown literal kind %s", e.Kind)
@@ -1090,12 +1085,6 @@ func (c *checker) expr(e ast.Expr) {
 			c.expr(e.X)
 		}
 	case *ast.BinaryExpr:
-		// Strings concatenate and compare for equality (D-037), also as
-		// parts of arrays and structs, but are not ordered yet.
-		if c.isString(e.X) && e.Op != token.ADD && e.Op != token.EQL && e.Op != token.NEQ {
-			c.reject(e, FeatStringCompare, "string comparison "+e.Op.String())
-			return
-		}
 		switch e.Op {
 		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.LAND, token.LOR,
 			token.AND, token.OR, token.XOR, token.AND_NOT, token.SHL, token.SHR,
@@ -1433,6 +1422,22 @@ func isByteSlice(t types.Type) bool {
 	return ok && b.Kind() == types.Uint8
 }
 
+// isRuneSlice reports whether t is a slice of runes.
+func isRuneSlice(t types.Type) bool {
+	s, ok := t.Underlying().(*types.Slice)
+	if !ok {
+		return false
+	}
+	b, ok := s.Elem().Underlying().(*types.Basic)
+	return ok && b.Kind() == types.Int32
+}
+
+// isInteger reports whether t is an integer type, typed or untyped.
+func isInteger(t types.Type) bool {
+	b, ok := t.Underlying().(*types.Basic)
+	return ok && b.Info()&types.IsInteger != 0
+}
+
 // isString reports whether t is string or untyped string.
 func isString(t types.Type) bool {
 	b, ok := t.(*types.Basic)
@@ -1447,9 +1452,8 @@ func (c *checker) isString(e ast.Expr) bool {
 
 // supportedOrUntyped reports whether t is a supported type, typed or
 // untyped. Untyped nil is checked where it is used (valueIdent). An
-// untyped rune constant can only come from a rune literal,
-// which is rejected as such, and an untyped complex constant from an
-// imaginary literal.
+// untyped complex constant can only come from an imaginary literal, which
+// is rejected as such.
 func (c *checker) supportedOrUntyped(t types.Type) bool {
 	return c.supported(t) || types.Identical(t, types.Typ[types.UntypedNil]) || types.Identical(t, types.Typ[types.UntypedInt]) ||
 		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||

@@ -843,9 +843,13 @@ repeated in each phase below:
     function `aether.streq` (D-037); corpus programs `s3_c07` to `s3_c10`,
     `TestStringEquality` against Go's own `==`, and comparisons and switches
     in `gen_str_test.go`.
-  - Remaining: rune literals with `string(r)`, `[]rune(s)`, and
-    `string(rs)` (7.3c), and the ordering of strings, `< <= > >=`, which
-    7.3b left out.
+  - 7.3c: the ordering of strings, `< <= > >=`, through the generated IR
+    function `aether.strcmp`; rune literals; `string(x)` of integers,
+    `[]rune(s)`, and `string(rs)`, through generated UTF-8 functions
+    (D-037); corpus programs `s3_c11` to `s3_c14`, `TestStringOrder` and
+    `TestRuneConversions` against Go's own operations, and rune statements
+    from their own random stream in `gen_str_test.go`.
+  - Every item of 7.3 is done; owner review pending.
 
 ## Phase 8: Methods, interfaces, closures, maps, defer/panic/recover, generics (S5)
 

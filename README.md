@@ -123,9 +123,9 @@ potentially long-term dependencies. The exact ownership boundaries are in
 
 - Only S2, floats, string constants, arrays and structs (Phase 6 increments
   6.1 to 6.3), pointers (Phase 7 increment 7.1), slices (increment 7.2),
-  and string concatenation, slicing, equality, and `[]byte` conversions
-  (increment 7.3, in progress) are supported: no ordering of strings or rune
-  conversions, no complex
+  and strings made at run time, with comparison, rune literals, and the
+  `[]byte`, `[]rune`, and integer conversions (increment 7.3) are
+  supported: no complex
   numbers, maps, methods, interfaces, closures, `defer`, `panic`, or goroutines; no
   `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
   declarations other than of arrays and structs, and no `init` functions. Panics print no traceback.

@@ -334,6 +334,32 @@ and `TestStringEquality`; one that skips the last byte `s3_c07` to `s3_c09`
 and `TestStringEquality`; and an aggregate comparison that compares a
 string's pointer instead of its bytes 1 generated program and `s3_c09`.
 
+Since increment 7.3c an eighth random stream (`runeStmt` in
+`gen_str_test.go`) adds up to `maxRuneStmts` (4) statements that read
+string and integer variables but change none, so every line the other
+streams generate is unchanged (of seeds 0 to 2999, 2,602 programs gained
+lines and none lost or changed one): `< <= > >=` of strings, also against
+equal bytes at another address, a prefix, and a concatenation; `[]rune(s)`
+and back; runes appended, among them values that are not code points, then
+encoded; `string(x)` of integer variables of every type; and the runes of
+a string with invalid UTF-8 appended. On 2026-11-16, of seeds 1001 to
+2000, the 465 valid programs with these statements (90 of them panic) all
+gave gc's output in the interpreter, `aether build`, and `-O0`.
+`TestStringOrder` checks every ordered pair of the 13 strings of
+`TestStringEquality`, and `TestRuneConversions` `[]rune(s)`, `string(rs)`,
+and `string(x)` of 29 strings and 19 values (boundaries of each encoded
+length, surrogates, invalid UTF-8 of each kind, values outside the rune
+range), against Go's own conversions, without gc; `s3_c14` decodes every
+two-byte string and checks them against gc. Negative controls, run by hand
+and reverted, against `TestDifferentialAgainstGc` and those tests: an
+`aether.strcmp` that ignores the lengths of a common prefix fails 49
+generated programs, `s3_c11`, and `TestStringOrder`; one that compares
+bytes as signed 46 generated programs, `s3_c11`, and `TestStringOrder`; an
+`aether.decoderune` that accepts overlong forms, surrogates, and runes above
+U+10FFFF 3 generated programs, `s3_c13`, `s3_c14`, and
+`TestRuneConversions`; and an `aether.encoderune` that encodes surrogates
+18 generated programs, `s3_c12` to `s3_c14`, and `TestRuneConversions`.
+
 Since Phase 7 increment 7.1, a fifth random stream (`gen_ptr_test.go`)
 declares a list node type `PN`, a function `pinc` that writes through its
 pointer parameter and returns the address of its other one, a global list,

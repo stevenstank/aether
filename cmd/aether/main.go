@@ -27,10 +27,10 @@ Commands:
 Supported subset (S2):
   one file, package main, no imports; functions with multiple results;
   bool, every integer type, float32, float64, strings with len, indexing,
-  slicing, +, ==, !=, and []byte conversions, arrays and structs of
-  them, pointers, &, and new, and slices with make, append, and copy; if,
-  for, and switch; package-level var and const; print and println. Not
-  supported: ordering of strings, rune conversions, complex numbers, for
+  slicing, +, comparison, and []byte, []rune, and integer conversions,
+  rune literals, arrays and structs of them, pointers, &, and new, and
+  slices with make, append, and copy; if, for, and switch; package-level
+  var and const; print and println. Not supported: complex numbers, for
   range, maps, methods, interfaces, closures, defer, goroutines.
   See docs/SEMANTICS.md.
 

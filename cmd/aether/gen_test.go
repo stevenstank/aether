@@ -49,7 +49,8 @@ import (
 // assignment, and nested loops are bounded in depth.
 func generate(seed uint64) string {
 	g := &generator{r: rand.New(rand.NewPCG(seed, 0x5eed)), f: rand.New(rand.NewPCG(seed, 0xf10a7)), s: rand.New(rand.NewPCG(seed, 0x57217)),
-		a: rand.New(rand.NewPCG(seed, 0xa66)), p: rand.New(rand.NewPCG(seed, 0x9017)), so: rand.New(rand.NewPCG(seed, 0x5791))}
+		a: rand.New(rand.NewPCG(seed, 0xa66)), p: rand.New(rand.NewPCG(seed, 0x9017)), so: rand.New(rand.NewPCG(seed, 0x5791)),
+		ro: rand.New(rand.NewPCG(seed, 0x7c3c))}
 	g.line(0, "package main")
 	g.line(0, "")
 	// The package scope. Each declaration may use the ones generated
@@ -188,6 +189,8 @@ type generator struct {
 	ptrStmts   int
 	so         *rand.Rand // the string operations' choices (gen_str_test.go)
 	strOpStmts int
+	ro         *rand.Rand // the rune and string order choices (gen_str_test.go)
+	runeStmts  int
 	aggTypes   []*gtype
 	b          strings.Builder
 	scopes     []map[string]entry
@@ -355,6 +358,10 @@ func (g *generator) stmt(depth int) {
 	if g.so.IntN(4) == 0 && g.strOpStmts < maxStrOpStmts {
 		g.strOpStmts++
 		g.stringOpStmt(depth)
+	}
+	if g.ro.IntN(5) == 0 && g.runeStmts < maxRuneStmts {
+		g.runeStmts++
+		g.runeStmt(depth)
 	}
 	if g.a.IntN(5) == 0 && g.aggStmts < maxAggStmts {
 		g.aggStmts++

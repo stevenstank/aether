@@ -83,6 +83,9 @@ func (l *lowerer) sliceValue(e ast.Expr) []*ir.Instr {
 		switch {
 		case l.pkg.Info.Types[e.Fun].IsType():
 			if isString(l.pkg.Info.Types[e.Args[0]].Type) {
+				if isRuneSlice(t) {
+					return l.runesConversion(e)
+				}
 				return l.bytesConversion(e)
 			}
 			// Between slice types of identical underlying types, or of nil.

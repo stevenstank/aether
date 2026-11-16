@@ -124,7 +124,9 @@ type lowerer struct {
 	retPtrs   []*ir.Slot              // fn's array and struct results: the slot of the Ptr to each
 	addrs     map[*ir.Mem]*ir.Instr   // the addresses computed in addrBlock
 	addrBlock *ir.Block
-	streq     *ir.Func // aether.streq, once a string comparison needs it (strings.go)
+	streq     *ir.Func             // aether.streq, once a string comparison needs it (strings.go)
+	strcmp    *ir.Func             // aether.strcmp, once an ordering of strings needs it (strings.go)
+	runeFuncs [nRuneFuncs]*ir.Func // the UTF-8 functions, each once a conversion needs it (runes.go)
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -1268,7 +1270,7 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		if isAggregate(l.pkg.Info.Types[e.X].Type) {
 			return l.aggregateCompare(e, pos)
 		}
-		if isString(l.pkg.Info.Types[e.X].Type) && (e.Op == token.EQL || e.Op == token.NEQ) {
+		if isString(l.pkg.Info.Types[e.X].Type) && e.Op != token.ADD {
 			return l.stringCompare(e, pos)
 		}
 		if s := e.X; isSlice(l.pkg.Info.Types[s].Type) || isSlice(l.pkg.Info.Types[e.Y].Type) {

@@ -241,7 +241,7 @@ has a defined normalization in the test harness.
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
 | V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
 | V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, a `string(b)` of a `[]byte` before a call that changes its elements, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign, with a `string(b)` of bytes it may change, or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, and `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter. |
-| V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` is the string's length, where gc's is rounded up (increment 7.3). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)`, or depend on sharing after a growing `append`. |
+| V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` and of `[]rune(s)` is its length, where gc's may be larger (increment 7.3; measured 2026-11-16: `cap([]rune(s))` of a 3-byte string made at run time is 32 with gc, 3 with Aether). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)` or `[]rune(s)`, or depend on sharing after a growing `append`. |
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
@@ -406,8 +406,8 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
-| Literals and identifiers | `imaginary-literal`, `rune-literal`, `predeclared-identifier` |
-| Operators | `operator-receive`, `operator-other`, `string-comparison`, `loop-variable-address` |
+| Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
+| Operators | `operator-receive`, `operator-other`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
 
@@ -847,12 +847,35 @@ change; the heap is never freed (V-5).
 - **`==` and `!=` of arrays and structs** that hold strings, nested to any
   depth, compare each string by its bytes, as part of the element-by-element
   comparison of §Arrays and structs, blank fields excepted.
+- **`< <= > >=`** order strings lexicographically by their bytes, read as
+  unsigned numbers, a proper prefix first, as Go does: not by Unicode
+  (`"Z" < "a"`, `"é" > "z"`). Both operands are evaluated, left to right,
+  before they are compared, by the IR function `aether.strcmp`.
+- **Rune literals**, with every escape, are untyped rune constants, `rune`
+  (`int32`) by default, usable wherever an integer constant is.
+- **`string(x)`** of an integer of any type is the UTF-8 encoding of its
+  value, of 1 to 4 bytes; a value that is not a Unicode code point
+  (negative, above U+10FFFF, unsigned values above the `int64` range, or a
+  surrogate, U+D800 to U+DFFF) gives `"\uFFFD"`. Of a constant it is a
+  constant.
+- **`[]rune(s)`** (also `[]int32(s)`) decodes UTF-8 as gc and
+  `unicode/utf8.DecodeRune` do: each byte that does not start a valid
+  encoding (a continuation byte, `0xC0`, `0xC1`, `0xF5` to `0xFF`, an
+  overlong form, a surrogate, a rune above U+10FFFF, or a sequence cut
+  short) gives U+FFFD and decoding resumes at the next byte. The result is
+  a new array; its capacity is its length, where gc's may be larger (V-6).
+  `[]rune("")` is empty but not nil.
+- **`string(rs)`** of a `[]rune` is the concatenation of each rune's
+  encoding, as for `string(x)`; of a nil or empty slice, `""`.
+- The conversions run in IR functions that lowering adds (D-037):
+  `aether.encoderune`, `aether.decoderune`, `aether.stringtorunes`, and
+  `aether.runestostring`. Every conversion allocates (V-5): `string(x)` 4
+  bytes and `string(rs)` 4 bytes per rune, of which the result uses only
+  its length.
 
-Still `unsupported`: ordering of strings, `< <= > >=`
-(`string-comparison`); conversions between strings and integers or `[]rune`
-(`conversion`), until later in increment 7.3; rune literals (`rune-literal`); `for range` over a
-string (`for-range`). The feature name `string-concatenation` no longer
-exists.
+Still `unsupported`: `for range` over a string (`for-range`). The feature
+names `string-concatenation`, `string-comparison`, and `rune-literal` no
+longer exist.
 
 ## Support matrix
 
@@ -882,7 +905,7 @@ exists.
 | Arrays and structs: type declarations, literals, fields, indexing with index panics, copies, parameters, results, globals, `len`, `==`, `!=` | Array types, Struct types, Composite literals, Selectors, Index expressions, Assignment statements, Comparison operators | S3 / 6.3 | Supported (native), with divergences V-3 and V-4 | `s3_a01_struct_basics` to `s3_a09_aggregate_swap`; generated array and struct programs; `TestLayoutAgainstGc`; `TestNativeMemory`, `TestFrameMems`, `TestMemoryRoundTrip`, `TestVerifyMem`; gate tests |
 | Pointers: `*T`, `&`, `new`, `*p`, auto-dereference, nil checks, address-taken variables on the heap, `==`, `!=` | Pointer types, Address operators, Allocation, Selectors, Index expressions, Run-time panics | S4 / 7.1 | Supported (native), with divergences V-3 and V-4 | `s3_p01_pointer_basics` to `s3_p08_nil_address`; generated pointer programs; `TestNativeHeap`, `TestHeap`, `TestHeapErrors`; gate tests |
 | Slices: `make`, literals, indexing, two- and three-index slice expressions of slices, arrays, and pointers to arrays, `len`, `cap`, `append`, `copy`, nil comparisons | Slice types, Making slices, Index expressions, Slice expressions, Appending to and copying slices | S4 / 7.2 | Supported (native), with divergences V-3, V-5, and V-6 | `s3_l01_slice_basics` to `s3_l08_nil_array_slice`; `TestNativeMove`, `TestNativeBounds`, `TestMove`, `TestBoundsMessage`, `TestVerifySlices`; gate tests |
-| Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)`, `==`, `!=`, `switch` on strings, `==` of arrays and structs holding strings | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices, Comparison operators, Switch statements | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c10_switch_case_panic`; generated string operations; `TestStringEquality`, `TestStreqFunc`, `TestMemoryPreconditions`; gate tests |
+| Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)`, `==`, `!=`, `switch` on strings, `==` of arrays and structs holding strings, `< <= > >=`, rune literals, `string(x)` of integers, `[]rune(s)`, `string(rs)` | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices, Comparison operators, Switch statements, Rune literals | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c14_utf8_tables`; generated string operations and rune statements; `TestStringEquality`, `TestStreqFunc`, `TestStringOrder`, `TestRuneConversions`, `TestGeneratedStringFuncs`, `TestMemoryPreconditions`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
