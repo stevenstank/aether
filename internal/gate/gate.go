@@ -62,7 +62,6 @@ const (
 	FeatVariadic      = "variadic-call"
 	FeatPredeclared   = "predeclared-identifier"
 	FeatImagLit       = "imaginary-literal"
-	FeatFuncLit       = "function-literal"
 	FeatCompositeLit  = "composite-literal"
 	FeatSelector      = "selector"
 	FeatIndex         = "index-expression"
@@ -168,6 +167,8 @@ type checker struct {
 	// forVars are the variables declared in the init statements of the for
 	// statements checked so far, whose addresses are unsupported (D-035).
 	forVars map[*types.Var]bool
+	// lits are the function literals being checked, innermost last (D-040).
+	lits []*ast.FuncLit
 }
 
 func (c *checker) pos(p token.Pos) diag.Pos { return frontend.Position(c.pkg.Fset, p) }
@@ -196,7 +197,7 @@ func init() {
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
-		FeatFuncLit, FeatCompositeLit,
+		FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
 		FeatLoopVarAddr,
@@ -845,6 +846,9 @@ func (c *checker) target(e ast.Expr) {
 		c.reject(id, FeatBlank, "the blank identifier")
 		return
 	}
+	if v, ok := c.info.Uses[id].(*types.Var); ok && !c.capture(id, v) {
+		return
+	}
 	// Every variable is declared in the program, where its declaration has
 	// been checked; an unsupported type was reported there.
 	c.intVar(id, c.info.Uses[id], false)
@@ -1161,7 +1165,7 @@ func (c *checker) expr(e ast.Expr) {
 			c.typed(e)
 		}
 	case *ast.FuncLit:
-		c.reject(e, FeatFuncLit, "function literal")
+		c.funcLit(e)
 	case *ast.CompositeLit:
 		// Only array and struct literals: a slice or map literal needs the
 		// heap.
@@ -1302,7 +1306,7 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 	obj := c.info.Uses[id]
 	switch obj := obj.(type) {
 	case *types.Var:
-		return c.declared(id, obj)
+		return c.declared(id, obj) && c.capture(id, obj)
 	case *types.Const:
 		if obj == types.Universe.Lookup("true") || obj == types.Universe.Lookup("false") {
 			return true

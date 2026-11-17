@@ -1,0 +1,340 @@
+string s0 "not reached"
+string s1 "run"
+string s2 "log"
+global g0 log ptr @testdata/check/s5_c02_closure_panic.go:9:5
+mem gm0 .v.lit4 8 align 8 @testdata/check/s5_c02_closure_panic.go:15:9
+mem gm1 .v.lit1 8 align 8 @testdata/check/s5_c02_closure_panic.go:9:11
+
+func main @testdata/check/s5_c02_closure_panic.go:11:6
+  slot s0 tmp ptr @12:8
+  slot s1 xs ptr @12:2
+  slot s2 at ptr @13:2
+  slot s3 shrink ptr @14:2
+  slot s4 run ptr @15:2
+  slot s5 tmp ptr @19:10
+  slot s6 tmp ptr @19:10
+  slot s7 tmp i64 @19:10
+  slot s8 tmp ptr @20:2
+  slot s9 tmp i64 @21:10
+  slot s10 tmp ptr @21:19
+  slot s11 tmp ptr @21:19
+  slot s12 tmp i64 @21:19
+  slot s13 tmp ptr @22:10
+  slot s14 tmp ptr @22:10
+  slot s15 tmp i64 @22:10
+b0:
+  v0 = const 24 @12:8
+  v1 = alloc v0 @12:8
+  store s0, v1 @12:8
+  v2 = const 1 @12:14
+  v3 = const 0 @12:14
+  stm v1, v3, v2 @12:14
+  v4 = const 2 @12:17
+  v5 = const 8 @12:17
+  stm v1, v5, v4 @12:17
+  v6 = const 3 @12:20
+  v7 = const 16 @12:20
+  stm v1, v7, v6 @12:20
+  v8 = const 3 @12:8
+  v9 = const 3 @12:8
+  v10 = const 24 @12:2
+  v11 = alloc v10 @12:2
+  store s1, v11 @12:2
+  v12 = load s1 @12:2
+  v13 = const 0 @12:2
+  stm v12, v13, v1 @12:2
+  v14 = load s1 @12:2
+  v15 = const 8 @12:2
+  stm v14, v15, v8 @12:2
+  v16 = load s1 @12:2
+  v17 = const 16 @12:2
+  stm v16, v17, v9 @12:2
+  v18 = load s1 @13:8
+  v19 = const 16 @13:8
+  v20 = alloc v19 @13:8
+  v21 = const 0 @13:8
+  v22 = funcaddr .lit2 @13:8
+  stm v20, v21, v22 @13:8
+  v23 = const 8 @13:8
+  stm v20, v23, v18 @13:8
+  store s2, v20 @13:2
+  v24 = load s1 @14:12
+  v25 = const 16 @14:12
+  v26 = alloc v25 @14:12
+  v27 = const 0 @14:12
+  v28 = funcaddr .lit3 @14:12
+  stm v26, v27, v28 @14:12
+  v29 = const 8 @14:12
+  stm v26, v29, v24 @14:12
+  store s3, v26 @14:2
+  v30 = addr gm0 @15:9
+  store s4, v30 @15:2
+  v31 = load s4 @19:10
+  v32 = load s2 @19:14
+  v33 = const 2 @19:18
+  v34 = const ptr 0 @19:10
+  v35 = eq v31, v34 @19:10
+  store s5, v31 @19:10
+  store s6, v32 @19:10
+  store s7, v33 @19:10
+  branch v35, b1, b2 @19:10
+b1:
+  panic nil @19:10
+b2:
+  v36 = load s5 @19:10
+  v37 = load s6 @19:10
+  v38 = load s7 @19:10
+  v39 = const 0 @19:10
+  v40 = ldm ptr, v36, v39 @19:10
+  v41 = callind func(ptr, ptr, i64) i64, v40, v36, v37, v38 @19:10
+  println v41 @19:2
+  v42 = load s3 @20:2
+  v43 = const ptr 0 @20:2
+  v44 = eq v42, v43 @20:2
+  store s8, v42 @20:2
+  branch v44, b3, b4 @20:2
+b3:
+  panic nil @20:2
+b4:
+  v45 = load s8 @20:2
+  v46 = const 0 @20:2
+  v47 = ldm ptr, v45, v46 @20:2
+  callind func(ptr), v47, v45 @20:2
+  v48 = load s1 @21:14
+  v49 = const 0 @21:14
+  v50 = ldm ptr, v48, v49 @21:14
+  v51 = load s1 @21:14
+  v52 = const 8 @21:14
+  v53 = ldm i64, v51, v52 @21:14
+  v54 = load s1 @21:14
+  v55 = const 16 @21:14
+  v56 = ldm i64, v54, v55 @21:14
+  store s9, v53 @21:10
+  v57 = load s4 @21:19
+  v58 = load s2 @21:23
+  v59 = const 0 @21:27
+  v60 = const ptr 0 @21:19
+  v61 = eq v57, v60 @21:19
+  store s10, v57 @21:19
+  store s11, v58 @21:19
+  store s12, v59 @21:19
+  branch v61, b5, b6 @21:19
+b5:
+  panic nil @21:19
+b6:
+  v62 = load s10 @21:19
+  v63 = load s11 @21:19
+  v64 = load s12 @21:19
+  v65 = const 0 @21:19
+  v66 = ldm ptr, v62, v65 @21:19
+  v67 = callind func(ptr, ptr, i64) i64, v66, v62, v63, v64 @21:19
+  v68 = load s9 @21:10
+  println v68, v67 @21:2
+  v69 = load s4 @22:10
+  v70 = load s2 @22:14
+  v71 = const 2 @22:18
+  v72 = const ptr 0 @22:10
+  v73 = eq v69, v72 @22:10
+  store s13, v69 @22:10
+  store s14, v70 @22:10
+  store s15, v71 @22:10
+  branch v73, b7, b8 @22:10
+b7:
+  panic nil @22:10
+b8:
+  v74 = load s13 @22:10
+  v75 = load s14 @22:10
+  v76 = load s15 @22:10
+  v77 = const 0 @22:10
+  v78 = ldm ptr, v74, v77 @22:10
+  v79 = callind func(ptr, ptr, i64) i64, v78, v74, v75, v76 @22:10
+  println v79 @22:2
+  v80 = str s0 @23:10
+  v81 = const 11 @23:10
+  println v80, v81 @23:2
+  ret @24:1
+
+func .lit2(ptr, i64) i64 @testdata/check/s5_c02_closure_panic.go:13:8
+  slot s0 closure ptr @13:8
+  slot s1 i i64 @13:13
+  slot s2 xs ptr @13:8
+  slot s3 tmp ptr @13:33
+  slot s4 tmp i64 @13:33
+  slot s5 tmp i64 @13:35
+b0:
+  v0 = param 0 @13:8
+  store s0, v0 @13:8
+  v1 = param 1 @13:13
+  store s1, v1 @13:13
+  v2 = load s0 @13:8
+  v3 = const 8 @13:8
+  v4 = ldm ptr, v2, v3 @13:8
+  store s2, v4 @13:8
+  v5 = load s2 @13:33
+  v6 = const 0 @13:33
+  v7 = ldm ptr, v5, v6 @13:33
+  v8 = load s2 @13:33
+  v9 = const 8 @13:33
+  v10 = ldm i64, v8, v9 @13:33
+  v11 = load s2 @13:33
+  v12 = const 16 @13:33
+  v13 = ldm i64, v11, v12 @13:33
+  store s3, v7 @13:33
+  store s4, v10 @13:33
+  v14 = load s1 @13:36
+  store s5, v14 @13:35
+  v15 = conv u64, v14 @13:35
+  v16 = conv u64, v10 @13:35
+  v17 = ge v15, v16 @13:35
+  branch v17, b1, b2 @13:35
+b1:
+  v18 = load s5 @13:35
+  v19 = load s4 @13:33
+  panic index, v18, v19 @13:35
+b2:
+  v20 = load s3 @13:33
+  v21 = load s5 @13:35
+  v22 = const 8 @13:33
+  v23 = mul v21, v22 @13:33
+  v24 = ldm i64, v20, v23 @13:33
+  ret v24 @13:26
+
+func .lit3(ptr) @testdata/check/s5_c02_closure_panic.go:14:12
+  slot s0 closure ptr @14:12
+  slot s1 xs ptr @14:12
+  slot s2 tmp ptr @14:28
+  slot s3 tmp i64 @14:28
+  slot s4 tmp i64 @14:28
+  slot s5 tmp i64 @14:28
+b0:
+  v0 = param 0 @14:12
+  store s0, v0 @14:12
+  v1 = load s0 @14:12
+  v2 = const 8 @14:12
+  v3 = ldm ptr, v1, v2 @14:12
+  store s1, v3 @14:12
+  v4 = load s1 @14:26
+  v5 = const 0 @14:26
+  v6 = ldm ptr, v4, v5 @14:26
+  v7 = load s1 @14:26
+  v8 = const 8 @14:26
+  v9 = ldm i64, v7, v8 @14:26
+  v10 = load s1 @14:26
+  v11 = const 16 @14:26
+  v12 = ldm i64, v10, v11 @14:26
+  store s2, v6 @14:28
+  store s3, v9 @14:28
+  store s4, v12 @14:28
+  v13 = const 1 @14:30
+  store s5, v13 @14:28
+  v14 = conv u64, v13 @14:28
+  v15 = conv u64, v12 @14:28
+  v16 = gt v14, v15 @14:28
+  branch v16, b1, b2 @14:28
+b1:
+  v17 = load s5 @14:28
+  v18 = load s4 @14:28
+  panic sliceacap, v17, v18 @14:28
+b2:
+  v19 = load s2 @14:28
+  v20 = load s5 @14:28
+  v21 = const 0 @14:28
+  v22 = sub v20, v21 @14:28
+  v23 = load s4 @14:28
+  v24 = const 0 @14:28
+  v25 = sub v23, v24 @14:28
+  v26 = load s1 @14:21
+  v27 = const 0 @14:21
+  stm v26, v27, v19 @14:21
+  v28 = load s1 @14:21
+  v29 = const 8 @14:21
+  stm v28, v29, v22 @14:21
+  v30 = load s1 @14:21
+  v31 = const 16 @14:21
+  stm v30, v31, v25 @14:21
+  ret @14:33
+
+func .lit4(ptr, ptr, i64) i64 @testdata/check/s5_c02_closure_panic.go:15:9
+  slot s0 closure ptr @15:9
+  slot s1 f ptr @15:14
+  slot s2 i i64 @15:31
+  slot s3 tmp ptr @16:3
+  slot s4 tmp ptr @16:3
+  slot s5 tmp i64 @16:3
+  slot s6 tmp ptr @17:10
+  slot s7 tmp i64 @17:10
+b0:
+  v0 = param 0 @15:9
+  store s0, v0 @15:9
+  v1 = param 1 @15:14
+  store s1, v1 @15:14
+  v2 = param 2 @15:31
+  store s2, v2 @15:31
+  v3 = gload g0 @16:3
+  v4 = str s1 @16:7
+  v5 = const 3 @16:7
+  v6 = const ptr 0 @16:3
+  v7 = eq v3, v6 @16:3
+  store s3, v3 @16:3
+  store s4, v4 @16:3
+  store s5, v5 @16:3
+  branch v7, b1, b2 @16:3
+b1:
+  panic nil @16:3
+b2:
+  v8 = load s3 @16:3
+  v9 = load s4 @16:3
+  v10 = load s5 @16:3
+  v11 = const 0 @16:3
+  v12 = ldm ptr, v8, v11 @16:3
+  callind func(ptr, ptr, i64), v12, v8, v9, v10 @16:3
+  v13 = load s1 @17:10
+  v14 = load s2 @17:12
+  v15 = const ptr 0 @17:10
+  v16 = eq v13, v15 @17:10
+  store s6, v13 @17:10
+  store s7, v14 @17:10
+  branch v16, b3, b4 @17:10
+b3:
+  panic nil @17:10
+b4:
+  v17 = load s6 @17:10
+  v18 = load s7 @17:10
+  v19 = const 0 @17:10
+  v20 = ldm ptr, v17, v19 @17:10
+  v21 = callind func(ptr, i64) i64, v20, v17, v18 @17:10
+  ret v21 @17:3
+
+func init @testdata/check/s5_c02_closure_panic.go:3:1
+b0:
+  v1 = addr gm0 @3:1
+  v2 = const 0 @3:1
+  v3 = funcaddr .lit4 @3:1
+  stm v1, v2, v3 @3:1
+  v4 = addr gm1 @3:1
+  v5 = const 0 @3:1
+  v6 = funcaddr .lit1 @3:1
+  stm v4, v5, v6 @3:1
+  jump b1 @3:1
+b1:
+  v0 = addr gm1 @9:11
+  gstore g0, v0 @9:5
+  ret @3:1
+
+func .lit1(ptr, ptr, i64) @testdata/check/s5_c02_closure_panic.go:9:11
+  slot s0 closure ptr @9:11
+  slot s1 s ptr @9:16
+  slot s2 s i64 @9:16
+b0:
+  v0 = param 0 @9:11
+  store s0, v0 @9:11
+  v1 = param 1 @9:16
+  store s1, v1 @9:16
+  v2 = param 2 @9:16
+  store s2, v2 @9:16
+  v3 = str s2 @9:36
+  v4 = const 3 @9:36
+  v5 = load s1 @9:43
+  v6 = load s2 @9:43
+  println v3, v4, v5, v6 @9:28
+  ret @9:46

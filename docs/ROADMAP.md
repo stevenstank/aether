@@ -867,7 +867,8 @@ repeated in each phase below:
   item proves large.
 - **Increments:** 8.1 methods (D-038, owner approval 2026-11-16); 8.2 func
   values, with method values and method expressions (D-039, 2026-11-17);
-  the other items follow, each with its own design note, closures next.
+  8.3 closures (D-040, 2026-11-18); the other items follow, each with its
+  own design note.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
     pointer receivers, calls with the implicit `&` and `*`, and promotion
@@ -896,6 +897,18 @@ repeated in each phase below:
     (`gen_funcvalue_test.go`, `TESTING.md`): 100 in
     `TestDifferentialAgainstGc` and `TestFrameBound`, 30 in
     `TestFuncValuePrograms`, and one per `FuzzGenerated` seed.
+- **Status of 8.3 (done; owner review pending):**
+  - Function literals, capturing the variables around them by reference
+    on the heap, as generated functions `.litN` whose closures hold the
+    captured variables' Ptrs, with no IR, runtime, or calling-convention
+    change (`SEMANTICS.md` §Closures, D-040). Capturing a variable declared
+    in a for statement's init stays unsupported.
+  - Corpus programs `s5_c01` and `s5_c02`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestClosurePrograms`.
+  - Closure programs from their own generator (`gen_closure_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
+    30 in `TestClosurePrograms`, and one per `FuzzGenerated` seed.
 
 ## Phase 9: Garbage collection
 

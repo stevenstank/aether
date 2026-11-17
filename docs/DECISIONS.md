@@ -68,6 +68,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-037 | Strings made at run time (Phase 7 increment 7.3) | Accepted (2026-11-16, owner decision) |
 | D-038 | Methods (Phase 8 increment 8.1) | Accepted (2026-11-16, owner approval as proposed) |
 | D-039 | Func values (Phase 8 increment 8.2) | Accepted (2026-11-17, owner's instruction to proceed without an approval cycle; owner review pending) |
+| D-040 | Closures (Phase 8 increment 8.3) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 
 ## Review log
 
@@ -3131,6 +3132,56 @@ receiver's size plus 8 bytes, never freed (V-5). The method expression
 `(*T).M` of a value method, called with nil, panics with the nil
 dereference message, where gc's wrapper panics with
 `value method main.T.M called using nil *T pointer` (V-7).
+
+## D-040: Closures (Phase 8 increment 8.3)
+
+**Status:** Accepted (2026-11-18). The owner asked to proceed with the next
+milestone, following its design-first rule, without an approval cycle;
+this note is that design, and the owner's review is pending.
+
+**Context.** D-039 gave func values the representation closures need: a
+Ptr to an object whose first word is a code address, called with the
+object as its first argument. Function literals were still rejected.
+
+**Decision.**
+- **Scope.** Function literals of supported func types, without named
+  results, anywhere an expression may be: their bodies follow the rules of
+  a function's, and they may use and assign the variables of the functions
+  around them, at any depth of nesting. A variable declared in a for
+  statement's init cannot be captured (`loop-variable-address`): Go 1.22
+  gives each iteration its own copy, as for its address (D-035).
+- **Functions.** Each literal is the generated function `.litN`, numbered
+  in source order across the file, whose first parameter is its closure;
+  its other parameters and results are a function's.
+- **Captures by reference.** The variables a literal captures are the
+  local variables it, or a literal in it, uses that are declared outside
+  it. Each is address-taken, so it lives in a heap object from its
+  declaration (D-035), and the closure holds the object's Ptr, one word
+  each after the code address, in order of first use. The literal reads
+  them from its closure at entry into slots, as a function keeps its own
+  variables on the heap, so every closure and the function around them
+  share each variable. A literal nested in another captures, through it,
+  what it uses from further out.
+- **Allocation.** Making a closure allocates `8 + 8n` bytes for `n`
+  captured variables; a literal that captures nothing has a static
+  closure, as a function does (D-039), and allocates nothing.
+- **Order.** Init writes every static closure first, after all functions,
+  wrappers, and literals are lowered, since a literal lowered last may need
+  one.
+- **No IR, runtime, or calling-convention change.**
+
+**Alternatives considered.** Copy a captured variable into the closure
+when nothing assigns it after capture, as gc does: it saves a heap object
+but needs an assignment analysis, and the observable behavior is the same.
+Support capturing a for statement's init variable by giving each
+iteration a new heap object before the post statement: it is the right
+semantics, but it changes `&x` of such a variable too, and is a separate
+increment.
+
+**Consequences.** Every captured variable is on the heap, never freed
+(V-5), and each closure made allocates. A literal's body is lowered after
+every function, so the IR lists literals after the functions, in the order
+they were reached.
 
 ---
 

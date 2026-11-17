@@ -31,6 +31,7 @@ import (
 	"go/ast"
 	"go/types"
 
+	"github.com/stevenstank/aether/internal/frontend"
 	"github.com/stevenstank/aether/internal/ir"
 )
 
@@ -269,19 +270,31 @@ func (l *lowerer) valueCall(call *ast.CallExpr, sig *types.Signature) *ir.Instr 
 	return v
 }
 
-// initStatics writes the code address of each static closure, in entry,
-// an empty block of Init that runs first, and then continues at next.
-func (l *lowerer) initStatics(entry, next *ir.Block) {
+// initStatics makes Init write the code address of each static closure
+// first, in a new entry block, before any initializer can use one; it
+// creates Init if the program has none. Nothing branches to the old entry,
+// whose code moves to a block of its own.
+func (l *lowerer) initStatics() {
+	if len(l.statics) == 0 {
+		return
+	}
+	if l.prog.Init == nil {
+		f := l.pkg.Files[0]
+		file := frontend.Position(l.pkg.Fset, f.Package).File
+		l.prog.Init = l.prog.NewFunc("init", file, l.pos(f, f.Package))
+		l.prog.Init.Ret(l.prog.Init.Entry(), l.prog.Init.Pos)
+	}
+	l.fn = l.prog.Init
+	entry, body := l.fn.Entry(), l.fn.NewBlock()
+	body.Instrs, entry.Instrs = entry.Instrs, nil
 	pos := l.fn.Pos
 	for _, s := range l.statics {
 		a := l.fn.Addr(entry, s.mem, pos)
 		l.fn.StM(entry, a, l.fn.Const(entry, 0, pos), l.fn.FuncAddr(entry, s.code, pos), pos)
 	}
-	if next == nil {
-		l.fn.Ret(entry, pos)
-		return
-	}
-	l.fn.Jump(entry, next, pos)
+	l.fn.Jump(entry, body, pos)
+	prune(l.fn)
+	l.fn = nil
 }
 
 // isValueCall reports whether call is a call of a func value: not a

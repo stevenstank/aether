@@ -127,8 +127,8 @@ potentially long-term dependencies. The exact ownership boundaries are in
   and strings made at run time, with comparison, rune literals, and the
   `[]byte`, `[]rune`, and integer conversions (increment 7.3), methods
   of array and struct types (Phase 8 increment 8.1), and func values of
-  functions and methods (increment 8.2) are supported: no complex numbers,
-  maps, interfaces, function literals or closures, `defer`, `panic`, or goroutines; no
+  functions and methods (increment 8.2), and closures (increment 8.3) are
+  supported: no complex numbers, maps, interfaces, `defer`, `panic`, or goroutines; no
   `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
   declarations other than of arrays and structs, and no `init` functions. Panics print no traceback.
   Heap memory is never freed (D-010).

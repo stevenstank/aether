@@ -132,6 +132,9 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     expressions, with static closures written by Init, and `.b.D.M` for a
     method value, whose closure on the heap also holds the bound receiver
     (D-039).
+  - Lower a function literal to the function `.litN`, numbered in source
+    order, whose closure holds the Ptrs of the variables it captures, each
+    address-taken and so on the heap (D-040).
   - The program's functions are named `F` and its methods `T.M`, both
     made of Go identifiers, which are never empty. Every generated name
     begins with `.`, so it can never be one of those names, whatever the

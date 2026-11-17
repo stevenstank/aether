@@ -410,7 +410,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
 | Operators | `operator-receive`, `operator-other`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
-| Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
+| Other expressions | `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
 
 `statement` and `expression` are catch-alls. The gate is default-deny, so a
 construct with no specific rule is still rejected.
@@ -932,9 +932,23 @@ The gate also accepts func values (D-039):
   gc's panics with `value method main.T.M called using nil *T pointer`
   (V-7).
 
-Still `unsupported`: function literals (`function-literal`), so no closure
-captures a variable; variadic func types; `print` and `println` of a func
+Still `unsupported`: variadic func types; `print` and `println` of a func
 value (`println-argument-type`), which gc prints as an address.
+
+## Closures (Phase 8 increment 8.3)
+
+The gate also accepts function literals (D-040), of supported func types
+and without named results, whose bodies follow the rules of a function's.
+A literal may use and assign the local variables of the functions around
+it, at any depth: it captures them by reference, so it, the function, and
+every other closure capturing a variable share it, also after the function
+returns. Each captured variable lives on the heap (V-5), and making a
+closure that captures variables allocates. A literal called at once,
+`func(...) {...}(args)`, is a call of a func value.
+
+Still `unsupported`: capturing a variable declared in a for statement's
+init (`loop-variable-address`), of which Go 1.22 gives each iteration its
+own copy.
 
 ## Support matrix
 
@@ -967,6 +981,7 @@ value (`println-argument-type`), which gc prints as an address.
 | Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)`, `==`, `!=`, `switch` on strings, `==` of arrays and structs holding strings, `< <= > >=`, rune literals, `string(x)` of integers, `[]rune(s)`, `string(rs)` | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices, Comparison operators, Switch statements, Rune literals | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c14_utf8_tables`; generated string operations and rune statements; `TestStringEquality`, `TestStreqFunc`, `TestStringOrder`, `TestRuneConversions`, `TestGeneratedStringFuncs`, `TestMemoryPreconditions`; gate tests |
 | Methods: declarations on defined array and struct types, value and pointer receivers, calls with the implicit `&` and `*`, promotion through embedded fields and pointers, pointer receivers on nil | Method declarations, Method sets, Selectors, Calls | S5 / 8.1 | Supported (native), with divergences V-3, V-4, and V-5 | `s5_m01_method_basics` to `s5_m05_type_aether`; generated method programs; `TestMethodPrograms`, `TestMethodReceiverOrder`; gate tests |
 | Func values: func types, functions as values, calls of func values, `nil` and comparison with it, method values, method expressions | Function types, Method values, Method expressions, Calls, Comparison operators | S5 / 8.2 | Supported (native), with divergences V-3 to V-5 and V-7 | `s5_f01_func_values` to `s5_f04_nil_method_value`; generated func value programs; `TestFuncValuePrograms`, `TestNilMethodExpression`, `TestIndirectCalls`, `TestVerifyIndirect`; gate tests |
+| Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

@@ -56,6 +56,7 @@ func TestFrameBound(t *testing.T) {
 		progs = append(progs, program{fmt.Sprintf("slc%04d.go", seed), []byte(generateSlices(seed))})
 		progs = append(progs, program{fmt.Sprintf("mth%04d.go", seed), []byte(generateMethods(seed))})
 		progs = append(progs, program{fmt.Sprintf("fnv%04d.go", seed), []byte(generateFuncValues(seed))})
+		progs = append(progs, program{fmt.Sprintf("cls%04d.go", seed), []byte(generateClosures(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {
@@ -116,6 +117,20 @@ func TestFrameBound(t *testing.T) {
 		if prog.Init != nil {
 			check("init", initBound, prog.Init)
 		}
+		// Each function literal is the function .litN, numbered in source
+		// order (D-040), with a bound of its own.
+		n := 0
+		ast.Inspect(file, func(node ast.Node) bool {
+			if lit, ok := node.(*ast.FuncLit); ok {
+				n++
+				name := fmt.Sprintf(".lit%d", n)
+				if funcs[name] == nil {
+					t.Fatalf("%s: no IR function %s", p.name, name)
+				}
+				check("func "+name, gate.FrameBytes(pkg, lit.Body), funcs[name])
+			}
+			return true
+		})
 	}
 	t.Logf("%d functions checked; largest excess of the bound %d bytes", checked, slack)
 }

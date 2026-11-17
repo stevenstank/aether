@@ -216,7 +216,12 @@ func TestRejected(t *testing.T) {
 		{"println complex", `println(1i)`, []string{"println-argument-type"}},
 		{"builtin constant", `x := min(1, 2); println(x)`, []string{"builtin"}},
 		{"math function", `x := 1.5; println(min(x, 2))`, []string{"builtin"}},
-		{"function literal", `f := func() {}; f()`, []string{"function-literal"}},
+		{"function literal", `f := func() {}; f()`, nil},
+		{"closures", `x := 1; f := func(k int) int { x += k; return x }; g := func() func() int { y := x; return func() int { y++; return y + x } }(); println(f(2), g(), g(), x)`, nil},
+		{"closure of a loop variable", `for i := 0; i < 2; i++ { f := func() int { return i }; println(f()) }`, []string{"loop-variable-address"}},
+		{"closure assigning a loop variable", `for i := 0; i < 2; i++ { func() { i++ }() }`, []string{"loop-variable-address"}},
+		{"loop variable of a closure", `f := func() { for i := 0; i < 2; i++ { g := func() int { return 1 }; println(i, g()) } }; f()`, nil},
+		{"closure with named results", `f := func() (r int) { return 1 }; println(f())`, []string{"function-declaration"}},
 		{"iota", `const c = iota; println(c)`, []string{"predeclared-identifier"}},
 		{"blank assignment", `x := 1; _ = x`, []string{"blank-identifier"}},
 		{"blank var", `var _ = 1`, []string{"blank-identifier"}},
@@ -318,7 +323,7 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"pointer method expression", "package main\n\ntype T struct{}\n\nfunc (*T) m() {}\n\nfunc main() { f := (*T).m; f(nil) }\n", nil},
 		{"method of loop variable", "package main\n\ntype T struct{ x int }\n\nfunc (t *T) p() {}\n\nfunc main() { for t := (T{}); t.x < 1; t.x++ { t.p() } }\n", []string{"loop-variable-address"}},
 		{"value method of loop variable", "package main\n\ntype T struct{ x int }\n\nfunc (t T) v() {}\n\nfunc main() { for t := (T{}); t.x < 1; t.x++ { t.v() } }\n", nil},
-		{"method argument", "package main\n\ntype T struct{}\n\nfunc (T) m(x int) {}\n\nfunc main() { var t T; t.m(func() int { return 1 }()) }\n", []string{"function-literal"}},
+		{"method argument", "package main\n\ntype T struct{}\n\nfunc (T) m(x int) {}\n\nfunc main() { var t T; t.m(func() int { return 1 }()) }\n", nil},
 		{"main without body", "package main\n\nfunc main()\n", []string{"function-without-body"}},
 	}
 	for _, tt := range tests {

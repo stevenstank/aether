@@ -52,6 +52,12 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 	l := &lowerer{pkg: pkg, slots: map[*types.Var][]*ir.Slot{}, globals: map[*types.Var][]*ir.Global{}, funcs: map[*types.Func]*ir.Func{},
 		mems: map[*types.Var]*ir.Mem{}, ptrs: map[*types.Var]*ir.Slot{}, temps: map[*ir.Instr][]*ir.Mem{},
 		addrTaken: addressTaken(pkg.Info, pkg.Files)}
+	l.lits, l.captures = literals(pkg)
+	for _, vs := range l.captures {
+		for _, v := range vs {
+			l.addrTaken[v] = true // shared with the closure (D-040)
+		}
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			b, ok := r.(bailout)
@@ -85,6 +91,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 	}
 	l.init(prog)
 	l.buildWrappers()
+	l.initStatics()
 	mains := 0
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
@@ -133,6 +140,10 @@ type lowerer struct {
 	bodies     []func()             // builds each wrapper's body, after the program's functions
 	statics    []static             // the static closures, in order of first use
 	staticMems map[*ir.Func]*ir.Mem // the static closure of each wrapper that has one
+
+	lits     map[*ast.FuncLit]int          // the number of each function literal, in source order (closure.go)
+	captures map[*ast.FuncLit][]*types.Var // the variables each captures
+	litFuncs map[*ast.FuncLit]*ir.Func     // the function of each literal lowered so far
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -245,7 +256,7 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 // initializer keeps its zero value. Init is at the package clause.
 func (l *lowerer) init(prog *ir.Program) {
 	order := l.pkg.Info.InitOrder
-	if len(order) == 0 && len(l.statics) == 0 {
+	if len(order) == 0 {
 		return
 	}
 	f := l.pkg.Files[0]
@@ -268,15 +279,6 @@ func (l *lowerer) init(prog *ir.Program) {
 		}
 	}
 	l.fn.Ret(l.b, l.fn.Pos)
-	if len(l.statics) > 0 {
-		// The static closures are written first, in a new entry block,
-		// before any initializer can use one (D-039). Nothing branches to
-		// the old entry, whose code moves to a block of its own.
-		entry := l.fn.Entry()
-		body := l.fn.NewBlock()
-		body.Instrs, entry.Instrs = entry.Instrs, nil
-		l.initStatics(entry, body)
-	}
 	prune(l.fn)
 	l.fn = nil
 }
@@ -286,16 +288,25 @@ func (l *lowerer) init(prog *ir.Program) {
 func (l *lowerer) function(fd *ast.FuncDecl) {
 	obj := l.pkg.Info.Defs[fd.Name].(*types.Func)
 	l.fn, l.sig = l.funcs[obj], obj.Type().(*types.Signature)
-	l.b = l.fn.Entry()
-	l.done = false
-	l.retPtrs = nil
-	i := 0                // the first IR parameter of the next Go one
-	var heap []*ast.Ident // the address-taken parameters
 	fields := fd.Type.Params.List
 	if fd.Recv != nil {
 		// The receiver is the first parameter (D-038).
 		fields = append(append([]*ast.Field(nil), fd.Recv.List...), fields...)
 	}
+	l.body(fields, 0, fd.Body, nil, fd.Name.Name)
+}
+
+// body lowers the body of l.fn, whose Go signature is l.sig: its
+// parameters, declared by fields, are its IR parameters from first on, and
+// its array and struct results' Ptrs follow them. prologue, if not nil,
+// runs after every param is read and before the address-taken parameters
+// move to the heap.
+func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prologue func(), name string) {
+	l.b = l.fn.Entry()
+	l.done = false
+	l.retPtrs = nil
+	i := first            // the first IR parameter of the next Go one
+	var heap []*ast.Ident // the address-taken parameters
 	for _, field := range fields {
 		n := len(l.words(field.Type, l.pkg.Info.Types[field.Type].Type))
 		if len(field.Names) == 0 {
@@ -328,20 +339,23 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 		l.fn.Store(l.b, s, l.fn.Param(l.b, i, pos), pos)
 		l.retPtrs = append(l.retPtrs, s)
 	}
+	if prologue != nil {
+		prologue()
+	}
 	// After every param is read in the entry block: the copies may loop.
 	for _, id := range heap {
 		l.moveToHeap(id, l.pkg.Info.Defs[id].(*types.Var))
 	}
-	l.stmts(fd.Body.List)
+	l.stmts(body.List)
 	if !l.done {
 		// Falling off the end of a body returns; the closing brace is the
 		// return's position, as in gc's line tables. go/types has checked
 		// that a function with a result cannot fall off its end, and
 		// lowering marks the end of "for {}" without break unreachable.
 		if len(l.fn.Results) > 0 {
-			l.fail(fd.Body, "function %s falls off its end", fd.Name.Name)
+			l.fail(body, "function %s falls off its end", name)
 		}
-		l.fn.Ret(l.b, l.pos(fd.Body, fd.Body.Rbrace))
+		l.fn.Ret(l.b, l.pos(body, body.Rbrace))
 	}
 	prune(l.fn)
 	l.fn, l.sig = nil, nil
@@ -1136,6 +1150,9 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 					return false // a constant: lowered as one const
 				}
 			}
+			if _, ok := n.(*ast.FuncLit); ok {
+				return false // its body is another function's (D-040)
+			}
 			if b, ok := n.(*ast.BinaryExpr); ok {
 				switch b.Op {
 				case token.LAND, token.LOR, token.QUO, token.REM, token.SHL, token.SHR:
@@ -1228,6 +1245,8 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return l.scalar(e, l.load(l.lookup(e), l.pos(e, e.Pos())))
 	case *ast.ParenExpr:
 		return l.expr(e.X)
+	case *ast.FuncLit:
+		return l.funcLit(e) // D-040
 	case *ast.IndexExpr:
 		if isString(l.pkg.Info.Types[e.X].Type) {
 			return l.index(e)

@@ -30,9 +30,9 @@ Supported subset (S2):
   slicing, +, comparison, and []byte, []rune, and integer conversions,
   rune literals, arrays and structs of them, pointers, &, and new, and
   slices with make, append, and copy; methods of array and struct types;
-  func values of functions and methods; if, for, and switch;
-  package-level var and const; print and println. Not supported: complex
-  numbers, for range, maps, interfaces, closures, defer, goroutines.
+  func values of functions and methods, and closures; if, for, and
+  switch; package-level var and const; print and println. Not supported:
+  complex numbers, for range, maps, interfaces, defer, goroutines.
   See docs/SEMANTICS.md.
 
 Build flags:

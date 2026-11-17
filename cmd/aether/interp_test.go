@@ -110,6 +110,10 @@ const generatedMethodPrograms = 100
 // (generateFuncValues) the differential test runs besides them.
 const generatedFuncValuePrograms = 100
 
+// generatedClosurePrograms is how many closure programs (generateClosures)
+// the differential test runs besides them.
+const generatedClosurePrograms = 100
+
 // TestDifferentialAgainstGc is the three-way differential test (Phases 2
 // and 3): for every corpus program expected to run and for generated S1
 // programs, the stdout, stderr, and exit status of the interpreter and of the
@@ -166,8 +170,12 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	for seed := uint64(1); seed <= generatedFuncValuePrograms; seed++ {
 		progs[fmt.Sprintf("fnv%04d", seed)] = []byte(generateFuncValues(seed))
 	}
-	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs",
-		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms)
+	// Closure programs (gen_closure_test.go), never invalid either.
+	for seed := uint64(1); seed <= generatedClosurePrograms; seed++ {
+		progs[fmt.Sprintf("cls%04d", seed)] = []byte(generateClosures(seed))
+	}
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs",
+		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms)
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)

@@ -443,6 +443,28 @@ generated programs. On 2026-11-17, func value programs of seeds 1001 to 2000
 all gave gc's output in the interpreter, `aether build`, `-O0`, and ABI-R1;
 152 of them panic.
 
+Since Phase 8 increment 8.3, `generateClosures` (`gen_closure_test.go`)
+writes programs of its own, from an eleventh random stream;
+`TestDifferentialAgainstGc` and `TestFrameBound` run 100 of them (the
+latter checks each literal's own frame bound), `TestClosurePrograms` 30
+also under `-O0` and ABI-R1, and `FuzzGenerated` the one of each seed.
+`main` declares an int pair, a string, an array, a struct, and a slice, and
+makes closures with random bodies that read and assign them, closures made
+by closures and by a function with variables of their own, and one closure
+per iteration of a loop over the body's variable; it calls them directly
+and through a higher-order function, printing the variables between calls.
+One program in about seven ends with a closure indexing out of range or a
+call of a nil func value. A closure's call is the only call of its
+statement, with constant operands (V-4). Negative controls, run by hand
+and reverted, against `TestClosurePrograms`: captured variables not made
+address-taken stop lowering with an internal error on the first generated
+program; the captured Ptrs read one word too low fail it in the
+interpreter; and closures capturing a copy of each variable, not the
+variable, give wrong output from the first generated program in every
+path. On 2026-11-18, closure programs of seeds 1001 to 2000 all gave gc's
+output in the interpreter, `aether build`, `-O0`, and ABI-R1; 126 of them
+panic.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,
