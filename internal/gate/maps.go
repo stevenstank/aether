@@ -2,11 +2,12 @@ package gate
 
 // Maps (Phase 8 increment 8.5, D-042, docs/SEMANTICS.md §Maps): map types
 // of supported key and element types, make, literals, indexing, delete,
-// len, clear, and comparison with nil. A range over a map is increment
-// 8.5b.
+// len, clear, comparison with nil, and, in increment 8.5b, range over a
+// map.
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 )
 
@@ -43,4 +44,28 @@ func (c *checker) mapBuiltin(call *ast.CallExpr, name string) bool {
 		c.expr(a)
 	}
 	return true
+}
+
+// mapRange checks a range over a map (increment 8.5b): its operand, its
+// key and element, declared, assigned, or blank, and its body. A
+// variable it declares is new in each iteration, so, unlike one declared
+// in a for statement's init, it may be captured and its address taken.
+func (c *checker) mapRange(s *ast.RangeStmt) {
+	c.expr(s.X)
+	for _, e := range []ast.Expr{s.Key, s.Value} {
+		if id, ok := e.(*ast.Ident); e == nil || ok && id.Name == "_" {
+			continue
+		}
+		if s.Tok == token.DEFINE {
+			id, ok := e.(*ast.Ident)
+			if !ok {
+				c.internal(e, "non-identifier in a range clause")
+				continue
+			}
+			c.intVar(id, c.info.Defs[id], true)
+			continue
+		}
+		c.target(e)
+	}
+	c.stmts(s.Body.List)
 }

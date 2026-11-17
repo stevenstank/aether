@@ -471,6 +471,11 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.ifStmt(s)
 	case *ast.ForStmt:
 		l.forStmt(s)
+	case *ast.RangeStmt:
+		if !isMap(l.pkg.Info.Types[s.X].Type) {
+			l.fail(s, "unexpected statement %T", s)
+		}
+		l.mapRange(s) // D-042
 	case *ast.SwitchStmt:
 		l.switchStmt(s)
 	case *ast.TypeSwitchStmt:

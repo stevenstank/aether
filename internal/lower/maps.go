@@ -20,6 +20,7 @@ package lower
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"github.com/stevenstank/aether/internal/ir"
@@ -660,4 +661,133 @@ func (l *lowerer) mapBuiltin(call *ast.CallExpr) {
 	}
 	k := l.valueFor(call.Args[1], mt.key)
 	l.fn.Call(l.b, l.mapFunc(mt, mapDelete, pos), append([]*ir.Instr{get()}, k...), pos)
+}
+
+// mapNextFunc returns .mapnextN(m, ents, i, clears) of mt, a step of a
+// range over the map m that began on the entry array ents, after clears
+// calls of clear, now at position i: the Ptr of the next entry to visit,
+// or 0 at the end, and the next position (D-042). While ents is m's, it
+// is the next live entry. Once m has grown, it is m's entry of the next
+// live key of ents that m still holds or, while no clear has run, an
+// entry of ents whose key is not equal to itself, which m cannot hold
+// and which only a clear removes.
+func (l *lowerer) mapNextFunc(mt *mapT, pos ir.Pos) *ir.Func {
+	return l.wrapper("mapnext"+itoa(mt.id), []ir.Type{ir.Ptr, ir.Ptr, ir.I64, ir.I64}, []ir.Type{ir.Ptr, ir.I64}, pos, func(w *ir.Func) {
+		ps := l.enter(w, pos)
+		m := mb{l, pos}
+		hdr, ents, clears := ps[0], ps[1], ps[3]
+		i := m.v("i", ps[2]())
+		ret := func(e func() *ir.Instr) { l.fn.Ret(l.b, pos, e(), i.get()) }
+		nonNil := m.when(m.cmp(ir.Eq, ents(), m.nilPtr()))
+		ret(m.nilPtr)
+		l.b = nonNil
+		head := l.fn.NewBlock()
+		m.join(head)
+		same := func() *ir.Instr { return m.cmp(ir.Eq, m.ld(ir.Ptr, hdr(), hdrEntries), ents()) }
+		// The entries to visit: m's used, or the old array's final one.
+		n := m.v("n", m.c(0))
+		grown := m.when(same())
+		n.set(m.ld(ir.I64, hdr(), hdrUsed))
+		join := l.fn.NewBlock()
+		l.fn.Jump(l.b, join, pos)
+		l.b = grown
+		n.set(m.ld(ir.I64, ents(), 0))
+		m.join(join)
+		more := m.when(m.cmp(ir.Ge, i.get(), n.get()))
+		ret(m.nilPtr)
+		l.b = more
+		e := m.v("e", m.entry(ents(), i.get(), m.c(mt.esize)))
+		i.set(m.bin(ir.Add, i.get(), m.c(1)))
+		live := m.when(m.cmp(ir.Eq, m.ld(ir.I64, e.get(), entLive), m.c(0)))
+		l.fn.Jump(l.b, head, pos)
+		l.b = live
+		old := m.when(same())
+		ret(e.get)
+		l.b = old
+		// m has grown: its entry of the key, if it still holds it.
+		miss := l.fn.NewBlock()
+		nonEmpty := m.when(m.cmp(ir.Eq, m.ld(ir.I64, hdr(), hdrCount), m.c(0)))
+		l.fn.Jump(l.b, miss, pos)
+		l.b = nonEmpty
+		kp := place{base: e.get, c: entKey, t: mt.key}
+		h := m.v("h", m.ld(ir.I64, e.get(), entHash))
+		f, notFound := l.find(mt, hdr, h.get, kp, pos)
+		ret(f.get)
+		l.b = notFound
+		m.join(miss)
+		// Otherwise a key not equal to itself, unless a clear has run.
+		noClear := m.when(m.cmp(ir.Ne, clears(), m.ld(ir.I64, hdr(), hdrClears)))
+		l.fn.Jump(l.b, head, pos)
+		l.b = noClear
+		differ := m.when(l.equal(kp, kp, pos))
+		l.fn.Jump(l.b, head, pos)
+		l.b = differ
+		ret(e.get)
+		prune(l.fn)
+	})
+}
+
+// mapRange lowers a range over a map (increment 8.5b, D-042): the map is
+// evaluated once, then each step of .mapnextN gives the entry whose key
+// and element the iteration assigns, as := declares them anew, in each
+// iteration, or as = assigns them.
+func (l *lowerer) mapRange(s *ast.RangeStmt) {
+	pos := l.pos(s, s.For)
+	mt := l.mapType(l.pkg.Info.Types[s.X].Type)
+	m := mb{l, pos}
+	hdr := m.v("map", l.expr(s.X))
+	ents := m.v("ents", m.nilPtr())
+	clears := m.v("clears", m.c(0))
+	i := m.v("i", m.c(0))
+	isNil := m.when(m.cmp(ir.Ne, hdr.get(), m.nilPtr()))
+	ents.set(m.ld(ir.Ptr, hdr.get(), hdrEntries))
+	clears.set(m.ld(ir.I64, hdr.get(), hdrClears))
+	head, exit := l.fn.NewBlock(), l.fn.NewBlock()
+	l.fn.Jump(l.b, head, pos)
+	l.b = isNil
+	m.join(head)
+	r := l.fn.Call(l.b, l.mapNextFunc(mt, pos), []*ir.Instr{hdr.get(), ents.get(), i.get(), clears.get()}, pos)
+	e := m.v("e", l.fn.Extract(l.b, r, 0, pos))
+	i.set(l.fn.Extract(l.b, r, 1, pos))
+	body := l.fn.NewBlock()
+	l.fn.Branch(l.b, m.cmp(ir.Eq, e.get(), m.nilPtr()), exit, body, pos)
+	l.b, l.done = body, false
+	parts := []place{{base: e.get, c: entKey, t: mt.key}, {base: e.get, c: mt.voff, t: mt.elem}}
+	var targets []ast.Expr
+	var vals []func() []*ir.Instr
+	for k, x := range []ast.Expr{s.Key, s.Value} {
+		if id, ok := x.(*ast.Ident); x == nil || ok && id.Name == "_" {
+			continue
+		}
+		xpos := l.pos(x, x.Pos())
+		if s.Tok == token.DEFINE {
+			// An array or struct is copied straight from the entry.
+			var w []*ir.Instr
+			if isAggregate(parts[k].t) {
+				w = []*ir.Instr{l.fn.PAdd(l.b, e.get(), m.c(parts[k].c), xpos)}
+			} else {
+				w = l.loadPlace(parts[k], xpos)
+			}
+			l.store(l.defineVar(l.ident(x)), w, xpos)
+			continue
+		}
+		targets = append(targets, x)
+		vals = append(vals, l.spillWords(l.loadPlace(parts[k], xpos), xpos))
+	}
+	// As an assignment: the targets' operands, then the stores.
+	vs := make([]variable, len(targets))
+	for k, x := range targets {
+		vs[k] = l.lvalue(x)
+	}
+	for k, x := range targets {
+		l.store(vs[k], vals[k](), l.pos(x, x.Pos()))
+	}
+	lp := &target{next: head, exit: exit}
+	l.targets = append(l.targets, lp)
+	l.stmts(s.Body.List)
+	if !l.done {
+		l.fn.Jump(l.b, head, l.pos(s.Body, s.Body.Rbrace))
+	}
+	l.targets = l.targets[:len(l.targets)-1]
+	l.b, l.done = exit, false
 }

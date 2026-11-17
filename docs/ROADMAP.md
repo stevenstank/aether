@@ -923,8 +923,8 @@ repeated in each phase below:
   - Interface programs from their own generator (`gen_iface_test.go`,
     `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
     30 in `TestInterfacePrograms`, and one per `FuzzGenerated` seed.
-- **Status of 8.5 (in progress):**
-  - Maps without `for range` (`SEMANTICS.md` §Maps): a Ptr to a heap
+- **Status of 8.5 (done; owner review pending):**
+  - Maps (`SEMANTICS.md` §Maps): a Ptr to a heap
     header over an insertion-ordered entry array and a linearly probed
     index, handled by generated IR functions, with gc's panic messages
     through `PanicMsg` and a hash function word in type descriptors
@@ -935,7 +935,11 @@ repeated in each phase below:
   - Map programs from their own generator (`gen_map_test.go`,
     `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
     30 in `TestMapPrograms`, and one per `FuzzGenerated` seed.
-  - Next, 8.5b: `for range` over maps, in insertion order (V-8, D-042).
+  - 8.5b: `for range` over maps, in insertion order (V-8), through the
+    generated step function `.mapnextN`, which follows D-042's rules
+    when the map grows or is cleared during the range; `_` is accepted
+    for a range variable. Corpus program `s5_k09`, ranges in the
+    generated map programs, and `TestMapRangeOrder` for Aether's order.
 
 ## Phase 9: Garbage collection
 

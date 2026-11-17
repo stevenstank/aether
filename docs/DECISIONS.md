@@ -3283,7 +3283,9 @@ Measured with gc-built go1.26.1 binaries on 2026-11-18:
   `m[k]`, `v, ok := m[k]` (and `=` and `var` forms); `m[k]` as an
   assignment target, with `op=`, `++`, and `--`; `delete`, `len`, `clear`
   of a map; `==` and `!=` with `nil`; maps as values anywhere a type may
-  appear, interfaces included. Increment 8.5b adds `for range` over maps.
+  appear, interfaces included. Increment 8.5b adds `for range` over maps,
+  in every form of the range clause, with `_` accepted for the key or
+  element there (and still rejected elsewhere).
   `print` of a map stays rejected: gc prints an address.
 - **Representation.** A map value is one Ptr: 0 for nil, or a 56-byte heap
   header: `count`, the Ptr of the entry array, `used`, `cap`, the Ptr of the

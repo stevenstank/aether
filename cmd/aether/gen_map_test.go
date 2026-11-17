@@ -14,10 +14,11 @@ import (
 // with int, string, slice, and nested map elements, then runs random
 // statements on them: assignments, op=, ++ and --, comma-ok reads,
 // deletes, clears, tuple assignments, loops that grow a map and delete
-// from it, and calls of a function that changes a map it is passed. It
-// prints lengths and values between them, and at the end every entry,
-// found by looking up each key of the map's small key domain: without
-// range, nothing printed depends on the iteration order (V-8).
+// from it, ranges that sum, count, delete or change the entry visited, or
+// break after a number of entries, and calls of a function that changes a
+// map it is passed. It prints lengths and values between them, and at the
+// end every entry, found by looking up each key of the map's small key
+// domain, so that nothing printed depends on the iteration order (V-8).
 //
 // V-4: a call is the only call of its statement, and its arguments read
 // no map it changes.
@@ -135,7 +136,7 @@ func (g *mgen) anyKey() string {
 
 // mapStmt emits a random statement on the maps.
 func (g *mgen) mapStmt() {
-	switch g.pick(16) {
+	switch g.pick(18) {
 	case 0, 1:
 		g.line(1, "ints[%s] = %s", g.mapKey(), g.mapInt())
 	case 2:
@@ -176,6 +177,20 @@ func (g *mgen) mapStmt() {
 	case 14:
 		k1, k2 := g.mapKey(), g.mapKey()
 		g.line(1, "ints[%s], ints[%s] = ints[%s], len(ints)", k1, k2, k2)
+	case 16:
+		// Ranges whose output does not depend on the order (V-8).
+		switch g.pick(4) {
+		case 0:
+			g.line(1, "{\n\t\ts, c := 0, 0\n\t\tfor k, v := range ints {\n\t\t\ts += k*%d ^ v\n\t\t\tc++\n\t\t}\n\t\tprintln(s, c)\n\t}", 1+g.pick(5))
+		case 1:
+			g.line(1, "for k, v := range strs {\n\t\tif v %s %s {\n\t\t\tdelete(strs, k)\n\t\t}\n\t}", []string{"<", ">"}[g.pick(2)], g.small())
+		case 2:
+			g.line(1, "for k := range ints {\n\t\tints[k] %s= %s\n\t}", []string{"+", "-", "^"}[g.pick(3)], g.small())
+		default:
+			g.line(1, "{\n\t\tn := 0\n\t\tfor range anys {\n\t\t\tif n++; n == %d {\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\t\tprintln(n)\n\t}", 1+g.pick(3))
+		}
+	case 17:
+		g.line(1, "for _, f := range fl {\n\t\tstrs[f] += len(f)\n\t}")
 	case 15:
 		g.line(1, "nest[%s] = fresh(%d)\n\tnest[\"x\"][%d] += %s\n\tdelete(nest[%s], %d)",
 			mapStrs[g.pick(len(mapStrs))], g.pick(12), g.pick(30), mapStrs[g.pick(len(mapStrs))], mapStrs[g.pick(len(mapStrs))], g.pick(12))

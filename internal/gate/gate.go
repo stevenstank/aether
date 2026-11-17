@@ -549,7 +549,11 @@ func (c *checker) stmt(s ast.Stmt) {
 		}
 		c.stmts(s.Body.List)
 	case *ast.RangeStmt:
-		c.reject(s, "for-range", "for-range statement")
+		if !c.isMap(s.X) {
+			c.reject(s, "for-range", "for-range statement")
+			return
+		}
+		c.mapRange(s) // D-042
 	case *ast.SwitchStmt:
 		// go/types has checked that each case value is comparable with the
 		// tag, and converted untyped constants to the tag's type.

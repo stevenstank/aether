@@ -142,7 +142,8 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   - Lower a map value to the Ptr of a heap header over an insertion-ordered
     entry array and a linearly probed index, operated on by the generated
     functions `.mapaccessN`, `.mapassignN`, `.mapdeleteN`, `.mapgrow`,
-    `.mapclear`, `.maplen`, and the hash functions `.hashN` (D-042).
+    `.mapclear`, `.maplen`, the range step `.mapnextN`, and the hash
+    functions `.hashN` (D-042).
   - The program's functions are named `F` and its methods `T.M`, both
     made of Go identifiers, which are never empty. Every generated name
     begins with `.`, so it can never be one of those names, whatever the

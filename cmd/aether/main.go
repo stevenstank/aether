@@ -32,9 +32,9 @@ Supported subset (S2):
   slices with make, append, and copy; methods of array and struct types;
   func values of functions and methods, and closures; interfaces, type
   assertions, and type switches; maps with make, literals, indexing,
-  delete, len, and clear; if, for, and switch; package-level var and
-  const; print and println. Not supported: complex numbers, for range,
-  defer, goroutines.
+  delete, len, clear, and range; if, for, and switch; package-level var
+  and const; print and println. Not supported: complex numbers, range
+  over anything but maps, defer, goroutines.
   See docs/SEMANTICS.md.
 
 Build flags:

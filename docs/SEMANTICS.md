@@ -244,6 +244,7 @@ has a defined normalization in the test harness.
 | V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` and of `[]rune(s)` is its length, where gc's may be larger (increment 7.3; measured 2026-11-16: `cap([]rune(s))` of a 3-byte string made at run time is 32 with gc, 3 with Aether). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)` or `[]rune(s)`, or depend on sharing after a growing `append`. |
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
 | V-7 | Method expressions | The method expression `(*T).M` of a method with a value receiver, called with a nil `*T`, panics with `panic: runtime error: invalid memory address or nil pointer dereference`, where gc's generated wrapper panics with `panic: value method main.T.M called using nil *T pointer`; both exit 2 (D-039). | Phase 8 increment 8.2 | None: differential test programs never call such a method expression with nil. `TestNilMethodExpression` pins Aether's behavior in the interpreter, both backends, and ABI-R1. |
+| V-8 | Map iteration order | A range over a map visits its entries in insertion order, the same in every run, where gc's order is randomized and differs from run to run; both are allowed by the spec (D-042). Whether an entry added during a range is visited, which the spec leaves open, follows Aether's rule in D-042. | Phase 8 increment 8.5b | None: differential test programs only print what does not depend on the order (sums, counts, lookups), and add no entries during a range. `TestMapRangeOrder` pins Aether's order in the interpreter, both backends, and ABI-R1. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
 Implemented (Phase 4 increment 4.5):
@@ -1008,10 +1009,17 @@ The gate also accepts maps (D-042):
   empty map, gc's two messages.
 - **Builtins**: `len`, `delete` (a no-op for a missing key or a nil map),
   and `clear` of a map.
+- **Range** (increment 8.5b): `for k, v := range m`, `for k := range m`,
+  `for range m`, and the `=` forms, with `_` for the key or element. The
+  map is evaluated once; a nil map has no iterations. Variables declared
+  by `:=` are new in each iteration, so closures and pointers see each
+  iteration's own. Entries are visited in insertion order, not gc's
+  random order (V-8), each at most once, with its current element: an
+  entry deleted before it is reached is not visited, one added during the
+  range may or may not be, and after a `clear` none of the old ones are.
 
-Still `unsupported`: `for range` over a map (`for-range`), which is
-increment 8.5b and will visit entries in insertion order rather than
-gc's randomized order (D-042); defined map types (`local-type-declaration`,
+Still `unsupported`: `for range` over anything but a map (`for-range`);
+`_` outside a range clause (`blank-identifier`); defined map types (`local-type-declaration`,
 `package-level-declaration`); `clear` of a slice (`builtin`); `print` and
 `println` of a map (`println-argument-type`), which gc prints as an
 address.
@@ -1049,7 +1057,7 @@ address.
 | Func values: func types, functions as values, calls of func values, `nil` and comparison with it, method values, method expressions | Function types, Method values, Method expressions, Calls, Comparison operators | S5 / 8.2 | Supported (native), with divergences V-3 to V-5 and V-7 | `s5_f01_func_values` to `s5_f04_nil_method_value`; generated func value programs; `TestFuncValuePrograms`, `TestNilMethodExpression`, `TestIndirectCalls`, `TestVerifyIndirect`; gate tests |
 | Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
 | Interfaces: types, conversions, method calls, method values and expressions, comparisons, type assertions, type switches | Interface types, Conversions, Type assertions, Type switches, Comparison operators | S5 / 8.4 | Supported (native), with divergences V-3 to V-5 | `s5_i01_interfaces` to `s5_i06_nil_interface_call`; generated interface programs; `TestInterfacePrograms`, `TestGcName`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
-| Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 | `s5_k01_map_basics` to `s5_k08_large_keys`; generated map programs; `TestMapPrograms`, `TestPanicPrefix`; gate tests |
+| Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys, `for range` | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity, For statements with range clause | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 and V-8 | `s5_k01_map_basics` to `s5_k09_map_range`; generated map programs; `TestMapPrograms`, `TestMapRangeOrder`, `TestPanicPrefix`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

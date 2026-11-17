@@ -493,9 +493,11 @@ random stream. `TestDifferentialAgainstGc` and `TestFrameBound` run 100,
 one of each seed. Their maps have int, string, struct, interface, and
 float64 keys, and int, string, slice, and map elements; `main` assigns,
 uses `op=`, `++`, and comma-ok reads, deletes, clears, grows maps in
-loops, and passes a map to a function that changes it. Without `range`,
-it prints every entry at the end by looking up each key of a small key
-domain, so nothing printed depends on iteration order. One program in
+loops, ranges over maps to sum, count, delete or change the entry
+visited, or break after a number of entries, and passes a map to a
+function that changes it. It prints every entry at the end by looking up
+each key of a small key domain, so nothing printed depends on iteration
+order (V-8), which `TestMapRangeOrder` pins without gc. One program in
 about seven ends with an assignment to a nil map or an unhashable key. The
 panic comparison rule also accepts gc's `panic: assignment to entry in nil
 map` and `panic: hash of unhashable type: ` lines, which have no `runtime
