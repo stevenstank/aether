@@ -537,7 +537,7 @@ b0:
   v230 = ldm ptr, v159, v229 @33:13
   v231 = const 8 @33:13
   v232 = ldm i64, v159, v231 @33:13
-  v233 = call aether.streq, v226, v228, v230, v232 @33:13
+  v233 = call .streq, v226, v228, v230, v232 @33:13
   branch v233, b2, b1 @33:13
 b1:
   v347 = const false @33:13
@@ -564,7 +564,7 @@ b3:
   v249 = ldm ptr, v247, v248 @33:13
   v250 = const 32 @33:13
   v251 = ldm i64, v247, v250 @33:13
-  v252 = call aether.streq, v243, v246, v249, v251 @33:13
+  v252 = call .streq, v243, v246, v249, v251 @33:13
   branch v252, b4, b1 @33:13
 b4:
   v253 = load s1 @33:13
@@ -578,7 +578,7 @@ b4:
   v261 = ldm ptr, v259, v260 @33:13
   v262 = const 48 @33:13
   v263 = ldm i64, v259, v262 @33:13
-  v264 = call aether.streq, v255, v258, v261, v263 @33:13
+  v264 = call .streq, v255, v258, v261, v263 @33:13
   branch v264, b5, b1 @33:13
 b5:
   v265 = load s1 @33:13
@@ -601,7 +601,7 @@ b6:
   v280 = ldm ptr, v278, v279 @33:13
   v281 = const 72 @33:13
   v282 = ldm i64, v278, v281 @33:13
-  v283 = call aether.streq, v274, v277, v280, v282 @33:13
+  v283 = call .streq, v274, v277, v280, v282 @33:13
   branch v283, b7, b1 @33:13
 b7:
   v284 = load s1 @33:13
@@ -615,7 +615,7 @@ b7:
   v292 = ldm ptr, v290, v291 @33:13
   v293 = const 88 @33:13
   v294 = ldm i64, v290, v293 @33:13
-  v295 = call aether.streq, v286, v289, v292, v294 @33:13
+  v295 = call .streq, v286, v289, v292, v294 @33:13
   branch v295, b8, b1 @33:13
 b8:
   v296 = load s1 @33:13
@@ -638,7 +638,7 @@ b9:
   v311 = ldm ptr, v309, v310 @33:13
   v312 = const 128 @33:13
   v313 = ldm i64, v309, v312 @33:13
-  v314 = call aether.streq, v305, v308, v311, v313 @33:13
+  v314 = call .streq, v305, v308, v311, v313 @33:13
   branch v314, b10, b1 @33:13
 b10:
   v315 = load s1 @33:13
@@ -652,7 +652,7 @@ b10:
   v323 = ldm ptr, v321, v322 @33:13
   v324 = const 144 @33:13
   v325 = ldm i64, v321, v324 @33:13
-  v326 = call aether.streq, v317, v320, v323, v325 @33:13
+  v326 = call .streq, v317, v320, v323, v325 @33:13
   branch v326, b11, b1 @33:13
 b11:
   v327 = load s1 @33:13
@@ -666,7 +666,7 @@ b11:
   v335 = ldm ptr, v333, v334 @33:13
   v336 = const 160 @33:13
   v337 = ldm i64, v333, v336 @33:13
-  v338 = call aether.streq, v329, v332, v335, v337 @33:13
+  v338 = call .streq, v329, v332, v335, v337 @33:13
   branch v338, b12, b1 @33:13
 b12:
   v339 = load s1 @33:13
@@ -875,7 +875,7 @@ b14:
   v491 = ldm ptr, v420, v490 @33:23
   v492 = const 8 @33:23
   v493 = ldm i64, v420, v492 @33:23
-  v494 = call aether.streq, v487, v489, v491, v493 @33:23
+  v494 = call .streq, v487, v489, v491, v493 @33:23
   branch v494, b16, b15 @33:23
 b15:
   v608 = const false @33:23
@@ -902,7 +902,7 @@ b17:
   v510 = ldm ptr, v508, v509 @33:23
   v511 = const 32 @33:23
   v512 = ldm i64, v508, v511 @33:23
-  v513 = call aether.streq, v504, v507, v510, v512 @33:23
+  v513 = call .streq, v504, v507, v510, v512 @33:23
   branch v513, b18, b15 @33:23
 b18:
   v514 = load s5 @33:23
@@ -916,7 +916,7 @@ b18:
   v522 = ldm ptr, v520, v521 @33:23
   v523 = const 48 @33:23
   v524 = ldm i64, v520, v523 @33:23
-  v525 = call aether.streq, v516, v519, v522, v524 @33:23
+  v525 = call .streq, v516, v519, v522, v524 @33:23
   branch v525, b19, b15 @33:23
 b19:
   v526 = load s5 @33:23
@@ -939,7 +939,7 @@ b20:
   v541 = ldm ptr, v539, v540 @33:23
   v542 = const 72 @33:23
   v543 = ldm i64, v539, v542 @33:23
-  v544 = call aether.streq, v535, v538, v541, v543 @33:23
+  v544 = call .streq, v535, v538, v541, v543 @33:23
   branch v544, b21, b15 @33:23
 b21:
   v545 = load s5 @33:23
@@ -953,7 +953,7 @@ b21:
   v553 = ldm ptr, v551, v552 @33:23
   v554 = const 88 @33:23
   v555 = ldm i64, v551, v554 @33:23
-  v556 = call aether.streq, v547, v550, v553, v555 @33:23
+  v556 = call .streq, v547, v550, v553, v555 @33:23
   branch v556, b22, b15 @33:23
 b22:
   v557 = load s5 @33:23
@@ -976,7 +976,7 @@ b23:
   v572 = ldm ptr, v570, v571 @33:23
   v573 = const 128 @33:23
   v574 = ldm i64, v570, v573 @33:23
-  v575 = call aether.streq, v566, v569, v572, v574 @33:23
+  v575 = call .streq, v566, v569, v572, v574 @33:23
   branch v575, b24, b15 @33:23
 b24:
   v576 = load s5 @33:23
@@ -990,7 +990,7 @@ b24:
   v584 = ldm ptr, v582, v583 @33:23
   v585 = const 144 @33:23
   v586 = ldm i64, v582, v585 @33:23
-  v587 = call aether.streq, v578, v581, v584, v586 @33:23
+  v587 = call .streq, v578, v581, v584, v586 @33:23
   branch v587, b25, b15 @33:23
 b25:
   v588 = load s5 @33:23
@@ -1004,7 +1004,7 @@ b25:
   v596 = ldm ptr, v594, v595 @33:23
   v597 = const 160 @33:23
   v598 = ldm i64, v594, v597 @33:23
-  v599 = call aether.streq, v590, v593, v596, v598 @33:23
+  v599 = call .streq, v590, v593, v596, v598 @33:23
   branch v599, b26, b15 @33:23
 b26:
   v600 = load s5 @33:23
@@ -1230,7 +1230,7 @@ b28:
   v765 = ldm ptr, v694, v764 @36:13
   v766 = const 8 @36:13
   v767 = ldm i64, v694, v766 @36:13
-  v768 = call aether.streq, v761, v763, v765, v767 @36:13
+  v768 = call .streq, v761, v763, v765, v767 @36:13
   branch v768, b30, b29 @36:13
 b29:
   v882 = const false @36:13
@@ -1257,7 +1257,7 @@ b31:
   v784 = ldm ptr, v782, v783 @36:13
   v785 = const 32 @36:13
   v786 = ldm i64, v782, v785 @36:13
-  v787 = call aether.streq, v778, v781, v784, v786 @36:13
+  v787 = call .streq, v778, v781, v784, v786 @36:13
   branch v787, b32, b29 @36:13
 b32:
   v788 = load s8 @36:13
@@ -1271,7 +1271,7 @@ b32:
   v796 = ldm ptr, v794, v795 @36:13
   v797 = const 48 @36:13
   v798 = ldm i64, v794, v797 @36:13
-  v799 = call aether.streq, v790, v793, v796, v798 @36:13
+  v799 = call .streq, v790, v793, v796, v798 @36:13
   branch v799, b33, b29 @36:13
 b33:
   v800 = load s8 @36:13
@@ -1294,7 +1294,7 @@ b34:
   v815 = ldm ptr, v813, v814 @36:13
   v816 = const 72 @36:13
   v817 = ldm i64, v813, v816 @36:13
-  v818 = call aether.streq, v809, v812, v815, v817 @36:13
+  v818 = call .streq, v809, v812, v815, v817 @36:13
   branch v818, b35, b29 @36:13
 b35:
   v819 = load s8 @36:13
@@ -1308,7 +1308,7 @@ b35:
   v827 = ldm ptr, v825, v826 @36:13
   v828 = const 88 @36:13
   v829 = ldm i64, v825, v828 @36:13
-  v830 = call aether.streq, v821, v824, v827, v829 @36:13
+  v830 = call .streq, v821, v824, v827, v829 @36:13
   branch v830, b36, b29 @36:13
 b36:
   v831 = load s8 @36:13
@@ -1331,7 +1331,7 @@ b37:
   v846 = ldm ptr, v844, v845 @36:13
   v847 = const 128 @36:13
   v848 = ldm i64, v844, v847 @36:13
-  v849 = call aether.streq, v840, v843, v846, v848 @36:13
+  v849 = call .streq, v840, v843, v846, v848 @36:13
   branch v849, b38, b29 @36:13
 b38:
   v850 = load s8 @36:13
@@ -1345,7 +1345,7 @@ b38:
   v858 = ldm ptr, v856, v857 @36:13
   v859 = const 144 @36:13
   v860 = ldm i64, v856, v859 @36:13
-  v861 = call aether.streq, v852, v855, v858, v860 @36:13
+  v861 = call .streq, v852, v855, v858, v860 @36:13
   branch v861, b39, b29 @36:13
 b39:
   v862 = load s8 @36:13
@@ -1359,7 +1359,7 @@ b39:
   v870 = ldm ptr, v868, v869 @36:13
   v871 = const 160 @36:13
   v872 = ldm i64, v868, v871 @36:13
-  v873 = call aether.streq, v864, v867, v870, v872 @36:13
+  v873 = call .streq, v864, v867, v870, v872 @36:13
   branch v873, b40, b29 @36:13
 b40:
   v874 = load s8 @36:13
@@ -1574,7 +1574,7 @@ b42:
   v1030 = ldm ptr, v959, v1029 @38:13
   v1031 = const 8 @38:13
   v1032 = ldm i64, v959, v1031 @38:13
-  v1033 = call aether.streq, v1026, v1028, v1030, v1032 @38:13
+  v1033 = call .streq, v1026, v1028, v1030, v1032 @38:13
   branch v1033, b44, b43 @38:13
 b43:
   v1147 = const false @38:13
@@ -1601,7 +1601,7 @@ b45:
   v1049 = ldm ptr, v1047, v1048 @38:13
   v1050 = const 32 @38:13
   v1051 = ldm i64, v1047, v1050 @38:13
-  v1052 = call aether.streq, v1043, v1046, v1049, v1051 @38:13
+  v1052 = call .streq, v1043, v1046, v1049, v1051 @38:13
   branch v1052, b46, b43 @38:13
 b46:
   v1053 = load s11 @38:13
@@ -1615,7 +1615,7 @@ b46:
   v1061 = ldm ptr, v1059, v1060 @38:13
   v1062 = const 48 @38:13
   v1063 = ldm i64, v1059, v1062 @38:13
-  v1064 = call aether.streq, v1055, v1058, v1061, v1063 @38:13
+  v1064 = call .streq, v1055, v1058, v1061, v1063 @38:13
   branch v1064, b47, b43 @38:13
 b47:
   v1065 = load s11 @38:13
@@ -1638,7 +1638,7 @@ b48:
   v1080 = ldm ptr, v1078, v1079 @38:13
   v1081 = const 72 @38:13
   v1082 = ldm i64, v1078, v1081 @38:13
-  v1083 = call aether.streq, v1074, v1077, v1080, v1082 @38:13
+  v1083 = call .streq, v1074, v1077, v1080, v1082 @38:13
   branch v1083, b49, b43 @38:13
 b49:
   v1084 = load s11 @38:13
@@ -1652,7 +1652,7 @@ b49:
   v1092 = ldm ptr, v1090, v1091 @38:13
   v1093 = const 88 @38:13
   v1094 = ldm i64, v1090, v1093 @38:13
-  v1095 = call aether.streq, v1086, v1089, v1092, v1094 @38:13
+  v1095 = call .streq, v1086, v1089, v1092, v1094 @38:13
   branch v1095, b50, b43 @38:13
 b50:
   v1096 = load s11 @38:13
@@ -1675,7 +1675,7 @@ b51:
   v1111 = ldm ptr, v1109, v1110 @38:13
   v1112 = const 128 @38:13
   v1113 = ldm i64, v1109, v1112 @38:13
-  v1114 = call aether.streq, v1105, v1108, v1111, v1113 @38:13
+  v1114 = call .streq, v1105, v1108, v1111, v1113 @38:13
   branch v1114, b52, b43 @38:13
 b52:
   v1115 = load s11 @38:13
@@ -1689,7 +1689,7 @@ b52:
   v1123 = ldm ptr, v1121, v1122 @38:13
   v1124 = const 144 @38:13
   v1125 = ldm i64, v1121, v1124 @38:13
-  v1126 = call aether.streq, v1117, v1120, v1123, v1125 @38:13
+  v1126 = call .streq, v1117, v1120, v1123, v1125 @38:13
   branch v1126, b53, b43 @38:13
 b53:
   v1127 = load s11 @38:13
@@ -1703,7 +1703,7 @@ b53:
   v1135 = ldm ptr, v1133, v1134 @38:13
   v1136 = const 160 @38:13
   v1137 = ldm i64, v1133, v1136 @38:13
-  v1138 = call aether.streq, v1129, v1132, v1135, v1137 @38:13
+  v1138 = call .streq, v1129, v1132, v1135, v1137 @38:13
   branch v1138, b54, b43 @38:13
 b54:
   v1139 = load s11 @38:13
@@ -1816,7 +1816,7 @@ b56:
   v1219 = ldm ptr, v1184, v1218 @38:26
   v1220 = const 8 @38:26
   v1221 = ldm i64, v1184, v1220 @38:26
-  v1222 = call aether.streq, v1215, v1217, v1219, v1221 @38:26
+  v1222 = call .streq, v1215, v1217, v1219, v1221 @38:26
   branch v1222, b58, b57 @38:26
 b57:
   v1274 = const false @38:26
@@ -1843,7 +1843,7 @@ b59:
   v1238 = ldm ptr, v1236, v1237 @38:26
   v1239 = const 32 @38:26
   v1240 = ldm i64, v1236, v1239 @38:26
-  v1241 = call aether.streq, v1232, v1235, v1238, v1240 @38:26
+  v1241 = call .streq, v1232, v1235, v1238, v1240 @38:26
   branch v1241, b60, b57 @38:26
 b60:
   v1242 = load s15 @38:26
@@ -1857,7 +1857,7 @@ b60:
   v1250 = ldm ptr, v1248, v1249 @38:26
   v1251 = const 48 @38:26
   v1252 = ldm i64, v1248, v1251 @38:26
-  v1253 = call aether.streq, v1244, v1247, v1250, v1252 @38:26
+  v1253 = call .streq, v1244, v1247, v1250, v1252 @38:26
   branch v1253, b61, b57 @38:26
 b61:
   v1254 = load s15 @38:26
@@ -1880,7 +1880,7 @@ b62:
   v1269 = ldm ptr, v1267, v1268 @38:26
   v1270 = const 72 @38:26
   v1271 = ldm i64, v1267, v1270 @38:26
-  v1272 = call aether.streq, v1263, v1266, v1269, v1271 @38:26
+  v1272 = call .streq, v1263, v1266, v1269, v1271 @38:26
   branch v1272, b63, b57 @38:26
 b63:
   v1273 = const true @38:26
@@ -1952,7 +1952,7 @@ b64:
   v1322 = ldm ptr, v1299, v1321 @38:42
   v1323 = const 8 @38:42
   v1324 = ldm i64, v1299, v1323 @38:42
-  v1325 = call aether.streq, v1318, v1320, v1322, v1324 @38:42
+  v1325 = call .streq, v1318, v1320, v1322, v1324 @38:42
   branch v1325, b66, b65 @38:42
 b65:
   v1351 = const false @38:42
@@ -1970,7 +1970,7 @@ b66:
   v1334 = ldm ptr, v1332, v1333 @38:42
   v1335 = const 24 @38:42
   v1336 = ldm i64, v1332, v1335 @38:42
-  v1337 = call aether.streq, v1328, v1331, v1334, v1336 @38:42
+  v1337 = call .streq, v1328, v1331, v1334, v1336 @38:42
   branch v1337, b67, b65 @38:42
 b67:
   v1338 = load s19 @38:42
@@ -1984,7 +1984,7 @@ b67:
   v1346 = ldm ptr, v1344, v1345 @38:42
   v1347 = const 40 @38:42
   v1348 = ldm i64, v1344, v1347 @38:42
-  v1349 = call aether.streq, v1340, v1343, v1346, v1348 @38:42
+  v1349 = call .streq, v1340, v1343, v1346, v1348 @38:42
   branch v1349, b68, b65 @38:42
 b68:
   v1350 = const true @38:42
@@ -2196,7 +2196,7 @@ b69:
   v1505 = ldm ptr, v1434, v1504 @40:13
   v1506 = const 8 @40:13
   v1507 = ldm i64, v1434, v1506 @40:13
-  v1508 = call aether.streq, v1501, v1503, v1505, v1507 @40:13
+  v1508 = call .streq, v1501, v1503, v1505, v1507 @40:13
   branch v1508, b71, b70 @40:13
 b70:
   v1622 = const false @40:13
@@ -2223,7 +2223,7 @@ b72:
   v1524 = ldm ptr, v1522, v1523 @40:13
   v1525 = const 32 @40:13
   v1526 = ldm i64, v1522, v1525 @40:13
-  v1527 = call aether.streq, v1518, v1521, v1524, v1526 @40:13
+  v1527 = call .streq, v1518, v1521, v1524, v1526 @40:13
   branch v1527, b73, b70 @40:13
 b73:
   v1528 = load s22 @40:13
@@ -2237,7 +2237,7 @@ b73:
   v1536 = ldm ptr, v1534, v1535 @40:13
   v1537 = const 48 @40:13
   v1538 = ldm i64, v1534, v1537 @40:13
-  v1539 = call aether.streq, v1530, v1533, v1536, v1538 @40:13
+  v1539 = call .streq, v1530, v1533, v1536, v1538 @40:13
   branch v1539, b74, b70 @40:13
 b74:
   v1540 = load s22 @40:13
@@ -2260,7 +2260,7 @@ b75:
   v1555 = ldm ptr, v1553, v1554 @40:13
   v1556 = const 72 @40:13
   v1557 = ldm i64, v1553, v1556 @40:13
-  v1558 = call aether.streq, v1549, v1552, v1555, v1557 @40:13
+  v1558 = call .streq, v1549, v1552, v1555, v1557 @40:13
   branch v1558, b76, b70 @40:13
 b76:
   v1559 = load s22 @40:13
@@ -2274,7 +2274,7 @@ b76:
   v1567 = ldm ptr, v1565, v1566 @40:13
   v1568 = const 88 @40:13
   v1569 = ldm i64, v1565, v1568 @40:13
-  v1570 = call aether.streq, v1561, v1564, v1567, v1569 @40:13
+  v1570 = call .streq, v1561, v1564, v1567, v1569 @40:13
   branch v1570, b77, b70 @40:13
 b77:
   v1571 = load s22 @40:13
@@ -2297,7 +2297,7 @@ b78:
   v1586 = ldm ptr, v1584, v1585 @40:13
   v1587 = const 128 @40:13
   v1588 = ldm i64, v1584, v1587 @40:13
-  v1589 = call aether.streq, v1580, v1583, v1586, v1588 @40:13
+  v1589 = call .streq, v1580, v1583, v1586, v1588 @40:13
   branch v1589, b79, b70 @40:13
 b79:
   v1590 = load s22 @40:13
@@ -2311,7 +2311,7 @@ b79:
   v1598 = ldm ptr, v1596, v1597 @40:13
   v1599 = const 144 @40:13
   v1600 = ldm i64, v1596, v1599 @40:13
-  v1601 = call aether.streq, v1592, v1595, v1598, v1600 @40:13
+  v1601 = call .streq, v1592, v1595, v1598, v1600 @40:13
   branch v1601, b80, b70 @40:13
 b80:
   v1602 = load s22 @40:13
@@ -2325,7 +2325,7 @@ b80:
   v1610 = ldm ptr, v1608, v1609 @40:13
   v1611 = const 160 @40:13
   v1612 = ldm i64, v1608, v1611 @40:13
-  v1613 = call aether.streq, v1604, v1607, v1610, v1612 @40:13
+  v1613 = call .streq, v1604, v1607, v1610, v1612 @40:13
   branch v1613, b81, b70 @40:13
 b81:
   v1614 = load s22 @40:13
@@ -2537,7 +2537,7 @@ b83:
   v1768 = ldm ptr, v1697, v1767 @42:13
   v1769 = const 8 @42:13
   v1770 = ldm i64, v1697, v1769 @42:13
-  v1771 = call aether.streq, v1764, v1766, v1768, v1770 @42:13
+  v1771 = call .streq, v1764, v1766, v1768, v1770 @42:13
   branch v1771, b85, b84 @42:13
 b84:
   v1885 = const false @42:13
@@ -2564,7 +2564,7 @@ b86:
   v1787 = ldm ptr, v1785, v1786 @42:13
   v1788 = const 32 @42:13
   v1789 = ldm i64, v1785, v1788 @42:13
-  v1790 = call aether.streq, v1781, v1784, v1787, v1789 @42:13
+  v1790 = call .streq, v1781, v1784, v1787, v1789 @42:13
   branch v1790, b87, b84 @42:13
 b87:
   v1791 = load s25 @42:13
@@ -2578,7 +2578,7 @@ b87:
   v1799 = ldm ptr, v1797, v1798 @42:13
   v1800 = const 48 @42:13
   v1801 = ldm i64, v1797, v1800 @42:13
-  v1802 = call aether.streq, v1793, v1796, v1799, v1801 @42:13
+  v1802 = call .streq, v1793, v1796, v1799, v1801 @42:13
   branch v1802, b88, b84 @42:13
 b88:
   v1803 = load s25 @42:13
@@ -2601,7 +2601,7 @@ b89:
   v1818 = ldm ptr, v1816, v1817 @42:13
   v1819 = const 72 @42:13
   v1820 = ldm i64, v1816, v1819 @42:13
-  v1821 = call aether.streq, v1812, v1815, v1818, v1820 @42:13
+  v1821 = call .streq, v1812, v1815, v1818, v1820 @42:13
   branch v1821, b90, b84 @42:13
 b90:
   v1822 = load s25 @42:13
@@ -2615,7 +2615,7 @@ b90:
   v1830 = ldm ptr, v1828, v1829 @42:13
   v1831 = const 88 @42:13
   v1832 = ldm i64, v1828, v1831 @42:13
-  v1833 = call aether.streq, v1824, v1827, v1830, v1832 @42:13
+  v1833 = call .streq, v1824, v1827, v1830, v1832 @42:13
   branch v1833, b91, b84 @42:13
 b91:
   v1834 = load s25 @42:13
@@ -2638,7 +2638,7 @@ b92:
   v1849 = ldm ptr, v1847, v1848 @42:13
   v1850 = const 128 @42:13
   v1851 = ldm i64, v1847, v1850 @42:13
-  v1852 = call aether.streq, v1843, v1846, v1849, v1851 @42:13
+  v1852 = call .streq, v1843, v1846, v1849, v1851 @42:13
   branch v1852, b93, b84 @42:13
 b93:
   v1853 = load s25 @42:13
@@ -2652,7 +2652,7 @@ b93:
   v1861 = ldm ptr, v1859, v1860 @42:13
   v1862 = const 144 @42:13
   v1863 = ldm i64, v1859, v1862 @42:13
-  v1864 = call aether.streq, v1855, v1858, v1861, v1863 @42:13
+  v1864 = call .streq, v1855, v1858, v1861, v1863 @42:13
   branch v1864, b94, b84 @42:13
 b94:
   v1865 = load s25 @42:13
@@ -2666,7 +2666,7 @@ b94:
   v1873 = ldm ptr, v1871, v1872 @42:13
   v1874 = const 160 @42:13
   v1875 = ldm i64, v1871, v1874 @42:13
-  v1876 = call aether.streq, v1867, v1870, v1873, v1875 @42:13
+  v1876 = call .streq, v1867, v1870, v1873, v1875 @42:13
   branch v1876, b95, b84 @42:13
 b95:
   v1877 = load s25 @42:13
@@ -2739,7 +2739,7 @@ b97:
   v1927 = ldm ptr, v1907, v1926 @42:29
   v1928 = const 8 @42:29
   v1929 = ldm i64, v1907, v1928 @42:29
-  v1930 = call aether.streq, v1923, v1925, v1927, v1929 @42:29
+  v1930 = call .streq, v1923, v1925, v1927, v1929 @42:29
   branch v1930, b99, b98 @42:29
 b98:
   v1951 = const false @42:29
@@ -2766,7 +2766,7 @@ b100:
   v1946 = ldm ptr, v1944, v1945 @42:29
   v1947 = const 32 @42:29
   v1948 = ldm i64, v1944, v1947 @42:29
-  v1949 = call aether.streq, v1940, v1943, v1946, v1948 @42:29
+  v1949 = call .streq, v1940, v1943, v1946, v1948 @42:29
   branch v1949, b101, b98 @42:29
 b101:
   v1950 = const true @42:29
@@ -2830,7 +2830,7 @@ b102:
   v1993 = ldm ptr, v1973, v1992 @42:51
   v1994 = const 8 @42:51
   v1995 = ldm i64, v1973, v1994 @42:51
-  v1996 = call aether.streq, v1989, v1991, v1993, v1995 @42:51
+  v1996 = call .streq, v1989, v1991, v1993, v1995 @42:51
   branch v1996, b104, b103 @42:51
 b103:
   v2017 = const false @42:51
@@ -2857,7 +2857,7 @@ b105:
   v2012 = ldm ptr, v2010, v2011 @42:51
   v2013 = const 32 @42:51
   v2014 = ldm i64, v2010, v2013 @42:51
-  v2015 = call aether.streq, v2006, v2009, v2012, v2014 @42:51
+  v2015 = call .streq, v2006, v2009, v2012, v2014 @42:51
   branch v2015, b106, b103 @42:51
 b106:
   v2016 = const true @42:51
@@ -3079,7 +3079,7 @@ b107:
   v2176 = ldm ptr, v2105, v2175 @46:13
   v2177 = const 8 @46:13
   v2178 = ldm i64, v2105, v2177 @46:13
-  v2179 = call aether.streq, v2172, v2174, v2176, v2178 @46:13
+  v2179 = call .streq, v2172, v2174, v2176, v2178 @46:13
   branch v2179, b109, b108 @46:13
 b108:
   v2293 = const false @46:13
@@ -3106,7 +3106,7 @@ b110:
   v2195 = ldm ptr, v2193, v2194 @46:13
   v2196 = const 32 @46:13
   v2197 = ldm i64, v2193, v2196 @46:13
-  v2198 = call aether.streq, v2189, v2192, v2195, v2197 @46:13
+  v2198 = call .streq, v2189, v2192, v2195, v2197 @46:13
   branch v2198, b111, b108 @46:13
 b111:
   v2199 = load s39 @46:13
@@ -3120,7 +3120,7 @@ b111:
   v2207 = ldm ptr, v2205, v2206 @46:13
   v2208 = const 48 @46:13
   v2209 = ldm i64, v2205, v2208 @46:13
-  v2210 = call aether.streq, v2201, v2204, v2207, v2209 @46:13
+  v2210 = call .streq, v2201, v2204, v2207, v2209 @46:13
   branch v2210, b112, b108 @46:13
 b112:
   v2211 = load s39 @46:13
@@ -3143,7 +3143,7 @@ b113:
   v2226 = ldm ptr, v2224, v2225 @46:13
   v2227 = const 72 @46:13
   v2228 = ldm i64, v2224, v2227 @46:13
-  v2229 = call aether.streq, v2220, v2223, v2226, v2228 @46:13
+  v2229 = call .streq, v2220, v2223, v2226, v2228 @46:13
   branch v2229, b114, b108 @46:13
 b114:
   v2230 = load s39 @46:13
@@ -3157,7 +3157,7 @@ b114:
   v2238 = ldm ptr, v2236, v2237 @46:13
   v2239 = const 88 @46:13
   v2240 = ldm i64, v2236, v2239 @46:13
-  v2241 = call aether.streq, v2232, v2235, v2238, v2240 @46:13
+  v2241 = call .streq, v2232, v2235, v2238, v2240 @46:13
   branch v2241, b115, b108 @46:13
 b115:
   v2242 = load s39 @46:13
@@ -3180,7 +3180,7 @@ b116:
   v2257 = ldm ptr, v2255, v2256 @46:13
   v2258 = const 128 @46:13
   v2259 = ldm i64, v2255, v2258 @46:13
-  v2260 = call aether.streq, v2251, v2254, v2257, v2259 @46:13
+  v2260 = call .streq, v2251, v2254, v2257, v2259 @46:13
   branch v2260, b117, b108 @46:13
 b117:
   v2261 = load s39 @46:13
@@ -3194,7 +3194,7 @@ b117:
   v2269 = ldm ptr, v2267, v2268 @46:13
   v2270 = const 144 @46:13
   v2271 = ldm i64, v2267, v2270 @46:13
-  v2272 = call aether.streq, v2263, v2266, v2269, v2271 @46:13
+  v2272 = call .streq, v2263, v2266, v2269, v2271 @46:13
   branch v2272, b118, b108 @46:13
 b118:
   v2273 = load s39 @46:13
@@ -3208,7 +3208,7 @@ b118:
   v2281 = ldm ptr, v2279, v2280 @46:13
   v2282 = const 160 @46:13
   v2283 = ldm i64, v2279, v2282 @46:13
-  v2284 = call aether.streq, v2275, v2278, v2281, v2283 @46:13
+  v2284 = call .streq, v2275, v2278, v2281, v2283 @46:13
   branch v2284, b119, b108 @46:13
 b119:
   v2285 = load s39 @46:13
@@ -3435,7 +3435,7 @@ b121:
   v2449 = ldm ptr, v2378, v2448 @49:13
   v2450 = const 8 @49:13
   v2451 = ldm i64, v2378, v2450 @49:13
-  v2452 = call aether.streq, v2445, v2447, v2449, v2451 @49:13
+  v2452 = call .streq, v2445, v2447, v2449, v2451 @49:13
   branch v2452, b123, b122 @49:13
 b122:
   v2566 = const false @49:13
@@ -3462,7 +3462,7 @@ b124:
   v2468 = ldm ptr, v2466, v2467 @49:13
   v2469 = const 32 @49:13
   v2470 = ldm i64, v2466, v2469 @49:13
-  v2471 = call aether.streq, v2462, v2465, v2468, v2470 @49:13
+  v2471 = call .streq, v2462, v2465, v2468, v2470 @49:13
   branch v2471, b125, b122 @49:13
 b125:
   v2472 = load s46 @49:13
@@ -3476,7 +3476,7 @@ b125:
   v2480 = ldm ptr, v2478, v2479 @49:13
   v2481 = const 48 @49:13
   v2482 = ldm i64, v2478, v2481 @49:13
-  v2483 = call aether.streq, v2474, v2477, v2480, v2482 @49:13
+  v2483 = call .streq, v2474, v2477, v2480, v2482 @49:13
   branch v2483, b126, b122 @49:13
 b126:
   v2484 = load s46 @49:13
@@ -3499,7 +3499,7 @@ b127:
   v2499 = ldm ptr, v2497, v2498 @49:13
   v2500 = const 72 @49:13
   v2501 = ldm i64, v2497, v2500 @49:13
-  v2502 = call aether.streq, v2493, v2496, v2499, v2501 @49:13
+  v2502 = call .streq, v2493, v2496, v2499, v2501 @49:13
   branch v2502, b128, b122 @49:13
 b128:
   v2503 = load s46 @49:13
@@ -3513,7 +3513,7 @@ b128:
   v2511 = ldm ptr, v2509, v2510 @49:13
   v2512 = const 88 @49:13
   v2513 = ldm i64, v2509, v2512 @49:13
-  v2514 = call aether.streq, v2505, v2508, v2511, v2513 @49:13
+  v2514 = call .streq, v2505, v2508, v2511, v2513 @49:13
   branch v2514, b129, b122 @49:13
 b129:
   v2515 = load s46 @49:13
@@ -3536,7 +3536,7 @@ b130:
   v2530 = ldm ptr, v2528, v2529 @49:13
   v2531 = const 128 @49:13
   v2532 = ldm i64, v2528, v2531 @49:13
-  v2533 = call aether.streq, v2524, v2527, v2530, v2532 @49:13
+  v2533 = call .streq, v2524, v2527, v2530, v2532 @49:13
   branch v2533, b131, b122 @49:13
 b131:
   v2534 = load s46 @49:13
@@ -3550,7 +3550,7 @@ b131:
   v2542 = ldm ptr, v2540, v2541 @49:13
   v2543 = const 144 @49:13
   v2544 = ldm i64, v2540, v2543 @49:13
-  v2545 = call aether.streq, v2536, v2539, v2542, v2544 @49:13
+  v2545 = call .streq, v2536, v2539, v2542, v2544 @49:13
   branch v2545, b132, b122 @49:13
 b132:
   v2546 = load s46 @49:13
@@ -3564,7 +3564,7 @@ b132:
   v2554 = ldm ptr, v2552, v2553 @49:13
   v2555 = const 160 @49:13
   v2556 = ldm i64, v2552, v2555 @49:13
-  v2557 = call aether.streq, v2548, v2551, v2554, v2556 @49:13
+  v2557 = call .streq, v2548, v2551, v2554, v2556 @49:13
   branch v2557, b133, b122 @49:13
 b133:
   v2558 = load s46 @49:13
@@ -3677,7 +3677,7 @@ b135:
   v2638 = ldm ptr, v2603, v2637 @49:26
   v2639 = const 8 @49:26
   v2640 = ldm i64, v2603, v2639 @49:26
-  v2641 = call aether.streq, v2634, v2636, v2638, v2640 @49:26
+  v2641 = call .streq, v2634, v2636, v2638, v2640 @49:26
   branch v2641, b137, b136 @49:26
 b136:
   v2693 = const false @49:26
@@ -3704,7 +3704,7 @@ b138:
   v2657 = ldm ptr, v2655, v2656 @49:26
   v2658 = const 32 @49:26
   v2659 = ldm i64, v2655, v2658 @49:26
-  v2660 = call aether.streq, v2651, v2654, v2657, v2659 @49:26
+  v2660 = call .streq, v2651, v2654, v2657, v2659 @49:26
   branch v2660, b139, b136 @49:26
 b139:
   v2661 = load s50 @49:26
@@ -3718,7 +3718,7 @@ b139:
   v2669 = ldm ptr, v2667, v2668 @49:26
   v2670 = const 48 @49:26
   v2671 = ldm i64, v2667, v2670 @49:26
-  v2672 = call aether.streq, v2663, v2666, v2669, v2671 @49:26
+  v2672 = call .streq, v2663, v2666, v2669, v2671 @49:26
   branch v2672, b140, b136 @49:26
 b140:
   v2673 = load s50 @49:26
@@ -3741,7 +3741,7 @@ b141:
   v2688 = ldm ptr, v2686, v2687 @49:26
   v2689 = const 72 @49:26
   v2690 = ldm i64, v2686, v2689 @49:26
-  v2691 = call aether.streq, v2682, v2685, v2688, v2690 @49:26
+  v2691 = call .streq, v2682, v2685, v2688, v2690 @49:26
   branch v2691, b142, b136 @49:26
 b142:
   v2692 = const true @49:26
@@ -4036,7 +4036,7 @@ b163:
   v2893 = const 8 @55:13
   v2894 = add v2892, v2893 @55:13
   v2895 = ldm i64, v2885, v2894 @55:13
-  v2896 = call aether.streq, v2877, v2884, v2889, v2895 @55:13
+  v2896 = call .streq, v2877, v2884, v2889, v2895 @55:13
   branch v2896, b165, b161 @55:13
 b164:
   v2900 = load s66 @55:13
@@ -4050,7 +4050,7 @@ b164:
   v2908 = ldm ptr, v2906, v2907 @55:13
   v2909 = const 648 @55:13
   v2910 = ldm i64, v2906, v2909 @55:13
-  v2911 = call aether.streq, v2902, v2905, v2908, v2910 @55:13
+  v2911 = call .streq, v2902, v2905, v2908, v2910 @55:13
   branch v2911, b166, b161 @55:13
 b165:
   v2897 = load s68 @55:13
@@ -4181,7 +4181,7 @@ b176:
   v2997 = const 8 @55:29
   v2998 = add v2996, v2997 @55:29
   v2999 = ldm i64, v2989, v2998 @55:29
-  v3000 = call aether.streq, v2981, v2988, v2993, v2999 @55:29
+  v3000 = call .streq, v2981, v2988, v2993, v2999 @55:29
   branch v3000, b178, b174 @55:29
 b177:
   v3004 = const true @55:29
@@ -4339,7 +4339,7 @@ b188:
   v3110 = const 8 @57:13
   v3111 = add v3109, v3110 @57:13
   v3112 = ldm i64, v3102, v3111 @57:13
-  v3113 = call aether.streq, v3094, v3101, v3106, v3112 @57:13
+  v3113 = call .streq, v3094, v3101, v3106, v3112 @57:13
   branch v3113, b190, b186 @57:13
 b189:
   v3117 = load s79 @57:13
@@ -4353,7 +4353,7 @@ b189:
   v3125 = ldm ptr, v3123, v3124 @57:13
   v3126 = const 648 @57:13
   v3127 = ldm i64, v3123, v3126 @57:13
-  v3128 = call aether.streq, v3119, v3122, v3125, v3127 @57:13
+  v3128 = call .streq, v3119, v3122, v3125, v3127 @57:13
   branch v3128, b191, b186 @57:13
 b190:
   v3114 = load s81 @57:13
@@ -4423,7 +4423,7 @@ b196:
   v3169 = ldm i64, v3165, v3168 @57:41
   v3170 = load s88 @57:20
   v3171 = load s89 @57:20
-  v3172 = call aether.streq, v3170, v3171, v3167, v3169 @57:38
+  v3172 = call .streq, v3170, v3171, v3167, v3169 @57:38
   v3173 = load s82 @57:10
   println v3173, v3172 @57:2
   v3174 = load s52 @58:17
@@ -4634,7 +4634,7 @@ b209:
   v3322 = const 8 @60:13
   v3323 = add v3321, v3322 @60:13
   v3324 = ldm i64, v3314, v3323 @60:13
-  v3325 = call aether.streq, v3306, v3313, v3318, v3324 @60:13
+  v3325 = call .streq, v3306, v3313, v3318, v3324 @60:13
   branch v3325, b211, b207 @60:13
 b210:
   v3329 = load s101 @60:13
@@ -4648,7 +4648,7 @@ b210:
   v3337 = ldm ptr, v3335, v3336 @60:13
   v3338 = const 648 @60:13
   v3339 = ldm i64, v3335, v3338 @60:13
-  v3340 = call aether.streq, v3331, v3334, v3337, v3339 @60:13
+  v3340 = call .streq, v3331, v3334, v3337, v3339 @60:13
   branch v3340, b212, b207 @60:13
 b211:
   v3326 = load s103 @60:13
@@ -4703,7 +4703,7 @@ b213:
   v3373 = ldm ptr, v3358, v3372 @60:39
   v3374 = const 8 @60:39
   v3375 = ldm i64, v3358, v3374 @60:39
-  v3376 = call aether.streq, v3369, v3371, v3373, v3375 @60:39
+  v3376 = call .streq, v3369, v3371, v3373, v3375 @60:39
   branch v3376, b215, b214 @60:39
 b214:
   v3389 = const false @60:39
@@ -4720,7 +4720,7 @@ b215:
   v3384 = ldm ptr, v3382, v3383 @60:39
   v3385 = const 24 @60:39
   v3386 = ldm i64, v3382, v3385 @60:39
-  v3387 = call aether.streq, v3379, v3381, v3384, v3386 @60:39
+  v3387 = call .streq, v3379, v3381, v3384, v3386 @60:39
   branch v3387, b216, b214 @60:39
 b216:
   v3388 = const true @60:39
@@ -4893,7 +4893,7 @@ b221:
   v3512 = ldm ptr, v3480, v3511 @63:16
   v3513 = const 8 @63:16
   v3514 = ldm i64, v3480, v3513 @63:16
-  v3515 = call aether.streq, v3508, v3510, v3512, v3514 @63:16
+  v3515 = call .streq, v3508, v3510, v3512, v3514 @63:16
   branch v3515, b223, b222 @63:16
 b222:
   v3529 = const false @63:16
@@ -4911,7 +4911,7 @@ b223:
   v3524 = ldm ptr, v3522, v3523 @63:16
   v3525 = const 24 @63:16
   v3526 = ldm i64, v3522, v3525 @63:16
-  v3527 = call aether.streq, v3518, v3521, v3524, v3526 @63:16
+  v3527 = call .streq, v3518, v3521, v3524, v3526 @63:16
   branch v3527, b224, b222 @63:16
 b224:
   v3528 = const true @63:16
@@ -5033,7 +5033,7 @@ b229:
   v3617 = ldm ptr, v3585, v3616 @63:32
   v3618 = const 8 @63:32
   v3619 = ldm i64, v3585, v3618 @63:32
-  v3620 = call aether.streq, v3613, v3615, v3617, v3619 @63:32
+  v3620 = call .streq, v3613, v3615, v3617, v3619 @63:32
   branch v3620, b231, b230 @63:32
 b230:
   v3634 = const false @63:32
@@ -5051,7 +5051,7 @@ b231:
   v3629 = ldm ptr, v3627, v3628 @63:32
   v3630 = const 24 @63:32
   v3631 = ldm i64, v3627, v3630 @63:32
-  v3632 = call aether.streq, v3623, v3626, v3629, v3631 @63:32
+  v3632 = call .streq, v3623, v3626, v3629, v3631 @63:32
   branch v3632, b232, b230 @63:32
 b232:
   v3633 = const true @63:32
@@ -5173,7 +5173,7 @@ b237:
   v3722 = ldm ptr, v3690, v3721 @63:48
   v3723 = const 8 @63:48
   v3724 = ldm i64, v3690, v3723 @63:48
-  v3725 = call aether.streq, v3718, v3720, v3722, v3724 @63:48
+  v3725 = call .streq, v3718, v3720, v3722, v3724 @63:48
   branch v3725, b239, b238 @63:48
 b238:
   v3739 = const false @63:48
@@ -5191,7 +5191,7 @@ b239:
   v3734 = ldm ptr, v3732, v3733 @63:48
   v3735 = const 24 @63:48
   v3736 = ldm i64, v3732, v3735 @63:48
-  v3737 = call aether.streq, v3728, v3731, v3734, v3736 @63:48
+  v3737 = call .streq, v3728, v3731, v3734, v3736 @63:48
   branch v3737, b240, b238 @63:48
 b240:
   v3738 = const true @63:48
@@ -5205,7 +5205,7 @@ b241:
   println v3742, v3743, v3741 @63:2
   ret @64:1
 
-func aether.streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c09_aggregate_strings.go:33:13
+func .streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c09_aggregate_strings.go:33:13
   slot s0 p ptr @33:13
   slot s1 q ptr @33:13
   slot s2 n i64 @33:13

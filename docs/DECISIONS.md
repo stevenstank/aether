@@ -2997,7 +2997,10 @@ follows D-024's order, which gc does not (V-4).
 
 **Status:** Accepted (2026-11-16, owner approval as proposed: Phase 8 begins
 with methods as increment 8.1; a method is an ordinary IR function; method
-values and method expressions stay unsupported).
+values and method expressions stay unsupported). Amended 2026-11-17 at the
+owner's request: lowering's generated functions are named `.streq` and so
+on, not `aether.streq`, and methods of a type named `aether` are no longer
+rejected.
 
 **Context.** Phase 8 requires a design note for each of its items before
 it is implemented (`ROADMAP.md`). Methods are the first: interfaces need
@@ -3014,8 +3017,7 @@ with a value receiver `g` that `f` assigns, gc copies `g` after calling
   `x.M(args)`, including methods promoted through embedded fields and
   embedded pointers, the implicit `&x` when `M` has a pointer receiver and
   `x` is addressable, and the implicit `*p` when `M` has a value receiver
-  and `p` is a pointer. A method of a type named `aether` is rejected
-  (`method`): that name prefixes lowering's own functions. Method values
+  and `p` is a pointer. Method values
   (`x.M` not called, `method-value`) and method expressions (`T.M`,
   `method-expression`) are rejected: both are function values.
 - **Mechanism, with no IR, runtime, or calling-convention change.** Each
@@ -3024,7 +3026,11 @@ with a value receiver `g` that `f` assigns, gc copies `g` after calling
   array or struct (D-034), and for a pointer receiver, the pointer. Its
   symbol is `main.T.M`, as gc's is. Go forbids `T` and `*T` from both having
   a method `M`, and a type sharing a name with a function, and no Go
-  function name has a dot, so the name is unique.
+  function name has a dot, so the name is unique. The IR functions that
+  lowering generates (D-037) are named with a leading dot, `.streq` and so
+  on, with symbols `main..streq`, as gc names its own generated symbols. A
+  Go identifier is never empty, so no function `F` or method `T.M` has
+  such a name, whatever the program names its types, `aether` included.
 - **Calls.** The receiver is evaluated first, then the arguments, left to
   right (D-024). It follows the path of embedded fields to `M` as a
   selector does, with a nil check at each pointer it follows. At its end it

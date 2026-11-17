@@ -328,7 +328,7 @@ grows. `TestStringEquality` checks every pair of 13 strings (empty, NUL
 bytes, invalid UTF-8, prefixes, differing first or last bytes), as constants
 and as bytes made at run time, against Go's own `==`, without gc.
 Negative controls, run by hand and reverted, against
-`TestDifferentialAgainstGc` and `TestStringEquality`: an `aether.streq` that
+`TestDifferentialAgainstGc` and `TestStringEquality`: an `.streq` that
 compares only the lengths fails 17 generated programs, `s3_c07` to `s3_c09`,
 and `TestStringEquality`; one that skips the last byte `s3_c07` to `s3_c09`
 and `TestStringEquality`; and an aggregate comparison that compares a
@@ -352,12 +352,12 @@ length, surrogates, invalid UTF-8 of each kind, values outside the rune
 range), against Go's own conversions, without gc; `s3_c14` decodes every
 two-byte string and checks them against gc. Negative controls, run by hand
 and reverted, against `TestDifferentialAgainstGc` and those tests: an
-`aether.strcmp` that ignores the lengths of a common prefix fails 49
+`.strcmp` that ignores the lengths of a common prefix fails 49
 generated programs, `s3_c11`, and `TestStringOrder`; one that compares
 bytes as signed 46 generated programs, `s3_c11`, and `TestStringOrder`; an
-`aether.decoderune` that accepts overlong forms, surrogates, and runes above
+`.decoderune` that accepts overlong forms, surrogates, and runes above
 U+10FFFF 3 generated programs, `s3_c13`, `s3_c14`, and
-`TestRuneConversions`; and an `aether.encoderune` that encodes surrogates
+`TestRuneConversions`; and an `.encoderune` that encodes surrogates
 18 generated programs, `s3_c12` to `s3_c14`, and `TestRuneConversions`.
 
 Since Phase 7 increment 7.1, a fifth random stream (`gen_ptr_test.go`)

@@ -47,7 +47,7 @@ func TestStringEquality(t *testing.T) {
 	}
 }
 
-// TestStreqFunc checks that lowering adds aether.streq only to a program
+// TestStreqFunc checks that lowering adds .streq only to a program
 // that compares strings, and once however many comparisons it has.
 func TestStreqFunc(t *testing.T) {
 	tests := []struct {
@@ -69,12 +69,12 @@ func TestStreqFunc(t *testing.T) {
 		}
 		n := 0
 		for _, f := range prog.Funcs {
-			if f.Name == "aether.streq" {
+			if f.Name == ".streq" {
 				n++
 			}
 		}
 		if n != tt.want {
-			t.Errorf("%s: %d aether.streq functions, want %d", tt.src, n, tt.want)
+			t.Errorf("%s: %d .streq functions, want %d", tt.src, n, tt.want)
 		}
 	}
 }

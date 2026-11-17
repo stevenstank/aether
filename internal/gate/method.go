@@ -14,30 +14,11 @@ import (
 	"github.com/stevenstank/aether/internal/frontend"
 )
 
-// reservedTypeName is the prefix of the functions lowering generates
-// (aether.streq, aether.strcmp, the UTF-8 functions, D-037). A method's IR
-// function is named T.M, so a method of a type of this name could collide
-// with one of them.
-const reservedTypeName = "aether"
-
 // method checks a method declaration as a function declaration whose first
 // parameter is its receiver. go/types has checked that the receiver's base
 // type is a defined type of the package, neither a pointer nor an interface,
 // and that its methods' names are unique.
 func (c *checker) method(d *ast.FuncDecl) {
-	fn, ok := c.info.Defs[d.Name].(*types.Func)
-	if !ok {
-		c.internal(d, "no function object for method %s", d.Name.Name)
-		return
-	}
-	recv := fn.Type().(*types.Signature).Recv().Type()
-	if p, ok := recv.(*types.Pointer); ok {
-		recv = p.Elem()
-	}
-	if n, ok := types.Unalias(recv).(*types.Named); ok && n.Obj().Name() == reservedTypeName {
-		c.reject(d, FeatMethod, "method "+d.Name.Name+" of type "+reservedTypeName+" (a name Aether reserves for its generated functions)")
-		return
-	}
 	if d.Name.Name == "_" {
 		c.reject(d.Name, FeatBlank, "method named _")
 		return

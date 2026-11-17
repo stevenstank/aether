@@ -119,14 +119,21 @@ func (l *lowerer) concatAssign(s *ast.AssignStmt) {
 	l.store(v, l.concat([][]*ir.Instr{get(), y}, tpos), pos)
 }
 
-// streqName is the name of the generated string equality function. A Go
-// identifier has no '.', so it differs from every function of the program.
-const streqName = "aether.streq"
+// genPrefix begins the IR name of every function lowering generates: .streq,
+// .strcmp, and the UTF-8 functions (D-037), with symbols main..streq and so
+// on, as gc names its own generated symbols. The program's functions are
+// named F and its methods T.M (D-038), by Go identifiers, which are never
+// empty, so none of their names begins with a dot: the generated names are
+// disjoint from them whatever the program names its types and functions.
+const genPrefix = "."
+
+// streqName is the name of the generated string equality function.
+const streqName = genPrefix + "streq"
 
 // streqFunc returns the program's string equality function, which lowering
 // adds on its first use (D-037):
 //
-//	func aether.streq(p ptr, n i64, q ptr, m i64) bool
+//	func .streq(p ptr, n i64, q ptr, m i64) bool
 //
 // It is true exactly when n = m and the n bytes at p and q are equal, byte
 // by byte: the addresses are never compared, and a string of length 0
@@ -162,14 +169,14 @@ func (l *lowerer) streqFunc(pos ir.Pos) *ir.Func {
 }
 
 // stringEqual returns whether the strings x and y, two words each, are
-// equal: a call of aether.streq, which does not branch in the caller.
+// equal: a call of .streq, which does not branch in the caller.
 func (l *lowerer) stringEqual(x, y []*ir.Instr, pos ir.Pos) *ir.Instr {
 	return l.fn.Call(l.b, l.streqFunc(pos), []*ir.Instr{x[0], x[1], y[0], y[1]}, pos)
 }
 
 // stringCompare lowers a comparison of strings: both are evaluated, left
-// to right, then compared, for == and != by aether.streq, and for < <= >
-// >= by aether.strcmp.
+// to right, then compared, for == and != by .streq, and for < <= >
+// >= by .strcmp.
 func (l *lowerer) stringCompare(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
 	xy := l.values([]ast.Expr{e.X, e.Y}, nil)
 	x, y := xy[0], xy[1]
@@ -188,12 +195,12 @@ func (l *lowerer) stringCompare(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
 }
 
 // strcmpName is the name of the generated string ordering function.
-const strcmpName = "aether.strcmp"
+const strcmpName = genPrefix + "strcmp"
 
 // strcmpFunc returns the program's string ordering function, which lowering
 // adds on its first use (D-037):
 //
-//	func aether.strcmp(p ptr, n i64, q ptr, m i64) i64
+//	func .strcmp(p ptr, n i64, q ptr, m i64) i64
 //
 // It compares the n bytes at p with the m bytes at q lexicographically, as
 // unsigned bytes, a proper prefix first, as Go orders strings, and returns

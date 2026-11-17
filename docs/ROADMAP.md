@@ -840,11 +840,11 @@ repeated in each phase below:
     `TestDifferentialAgainstGc`.
   - 7.3b: `==` and `!=` of strings by their bytes, `switch` on strings, and
     `==` of arrays and structs holding strings, through the generated IR
-    function `aether.streq` (D-037); corpus programs `s3_c07` to `s3_c10`,
+    function `.streq` (D-037); corpus programs `s3_c07` to `s3_c10`,
     `TestStringEquality` against Go's own `==`, and comparisons and switches
     in `gen_str_test.go`.
   - 7.3c: the ordering of strings, `< <= > >=`, through the generated IR
-    function `aether.strcmp`; rune literals; `string(x)` of integers,
+    function `.strcmp`; rune literals; `string(x)` of integers,
     `[]rune(s)`, and `string(rs)`, through generated UTF-8 functions
     (D-037); corpus programs `s3_c11` to `s3_c14`, `TestStringOrder` and
     `TestRuneConversions` against Go's own operations, and rune statements

@@ -142,13 +142,14 @@ func TestGeneratedStringFuncs(t *testing.T) {
 		src  string
 		want []string
 	}{
-		{`func main() { s := "a"; println(s + s, 'a', s == s) }`, []string{"aether.streq"}},
+		{`func main() { s := "a"; println(s + s, 'a', s == s) }`, []string{".streq"}},
 		{`func main() { println("a" < "b", string(rune(65)), "é" >= "e") }`, nil}, // constants
-		{`func main() { s := "a"; println(s < s, s >= "b") }`, []string{"aether.strcmp"}},
-		{`func main() { r := 'a'; println(string(r), string(r+1)) }`, []string{"aether.encoderune"}},
-		{`func main() { s := "a"; println(len([]rune(s)), len([]rune(s+s))) }`, []string{"aether.stringtorunes", "aether.decoderune"}},
-		{`func main() { r := []rune{1}; println(string(r), string(r[:0])) }`, []string{"aether.runestostring", "aether.encoderune"}},
-		{`func main() { r := 'a'; println(string(r), string([]rune{r})) }`, []string{"aether.encoderune", "aether.runestostring"}},
+		{`func main() { s := "a"; println(s < s, s >= "b") }`, []string{".strcmp"}},
+		{`func main() { r := 'a'; println(string(r), string(r+1)) }`, []string{".encoderune"}},
+		{`func main() { s := "a"; println(len([]rune(s)), len([]rune(s+s))) }`, []string{".stringtorunes", ".decoderune"}},
+		{`func main() { r := []rune{1}; println(string(r), string(r[:0])) }`, []string{".runestostring", ".encoderune"}},
+		{`func main() { r := 'a'; println(string(r), string([]rune{r})) }`, []string{".encoderune", ".runestostring"}},
+		{`type aether struct{}; func (aether) streq() bool { return true }; func (*aether) strcmp() {}; func main() { s := "a"; println(s == s, aether{}.streq()) }`, []string{".streq"}}, // methods aether.streq and aether.strcmp
 	}
 	for _, tt := range tests {
 		prog, ds := compile([]source{{"p.go", []byte("package main\n" + tt.src + "\n")}})
@@ -158,7 +159,7 @@ func TestGeneratedStringFuncs(t *testing.T) {
 		}
 		var got []string
 		for _, f := range prog.Funcs {
-			if strings.HasPrefix(f.Name, "aether.") {
+			if strings.HasPrefix(f.Name, ".") {
 				got = append(got, f.Name)
 			}
 		}

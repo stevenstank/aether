@@ -120,14 +120,16 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   - Map `types.Object` to IR locals.
   - Map `token.Pos` to IR positions.
   - Add the IR functions that operations needing a loop call, such as
-    `aether.streq` and `aether.strcmp` for string comparison and
-    `aether.encoderune`, `aether.decoderune`, `aether.stringtorunes`, and
-    `aether.runestostring` for UTF-8, once each, to a program that uses
-    them (D-037). Their names contain a `.`, so no Go function shares one.
+    `.streq` and `.strcmp` for string comparison and
+    `.encoderune`, `.decoderune`, `.stringtorunes`, and
+    `.runestostring` for UTF-8, once each, to a program that uses
+    them (D-037).
   - Lower each method to an ordinary IR function `T.M`, after its
-    receiver's type, whose first parameter is the receiver (D-038). The
-    gate rejects methods of a type named `aether`, so no method shares a
-    name with the generated functions.
+    receiver's type, whose first parameter is the receiver (D-038).
+  - The program's functions are named `F` and its methods `T.M`, both
+    made of Go identifiers, which are never empty. Every generated name
+    begins with `.`, so it can never be one of those names, whatever the
+    program calls its types (symbols `main.F`, `main.T.M`, `main..streq`).
 - **Rules that S1 correctness depends on:**
   - **Constants.** Any expression with a non-nil `types.Info.Types[e].Value`
     becomes one IR constant, taken from that value with `constant.Int64Val`.

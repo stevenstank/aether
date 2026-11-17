@@ -5,7 +5,7 @@ package lower
 // A rune literal is an integer constant, of type rune (int32), and needs
 // nothing here. The conversions string(x) of an integer, []rune(s), and
 // string(rs) encode and decode UTF-8 in IR functions that lowering adds to
-// the program when it first needs each, as it adds aether.streq: they
+// the program when it first needs each, as it adds .streq: they
 // follow the Go specification and gc's runtime, so a value that is not a
 // Unicode code point, a surrogate included, becomes U+FFFD, and each byte
 // of invalid UTF-8 decodes to U+FFFD, as unicode/utf8.DecodeRune decodes
@@ -20,10 +20,10 @@ import (
 
 // The generated UTF-8 functions, indexes of lowerer.runeFuncs.
 const (
-	encodeRune  = iota // aether.encoderune
-	decodeRune         // aether.decoderune
-	stringRunes        // aether.stringtorunes
-	runesString        // aether.runestostring
+	encodeRune  = iota // .encoderune
+	decodeRune         // .decoderune
+	stringRunes        // .stringtorunes
+	runesString        // .runestostring
 	nRuneFuncs
 )
 
@@ -89,13 +89,13 @@ func (l *lowerer) runeFunc(i int, pos ir.Pos) *ir.Func {
 
 // encodeRuneFunc generates
 //
-//	func aether.encoderune(p ptr, r i64) i64
+//	func .encoderune(p ptr, r i64) i64
 //
 // which writes the UTF-8 encoding of r, 1 to 4 bytes, at p and returns its
 // length. An r that is not a code point, negative (or, read unsigned, above
 // U+10FFFF) or a surrogate, U+D800 to U+DFFF, is encoded as U+FFFD.
 func (l *lowerer) encodeRuneFunc(pos ir.Pos) *ir.Func {
-	f := l.prog.NewFunc("aether.encoderune", l.fn.File, pos)
+	f := l.prog.NewFunc(genPrefix+"encoderune", l.fn.File, pos)
 	f.Params = []ir.Type{ir.Ptr, ir.I64}
 	f.Results = []ir.Type{ir.I64}
 	g := gen{f, pos}
@@ -142,7 +142,7 @@ func (l *lowerer) encodeRuneFunc(pos ir.Pos) *ir.Func {
 
 // decodeRuneFunc generates
 //
-//	func aether.decoderune(p ptr, n i64, i i64) (i64, i64)
+//	func .decoderune(p ptr, n i64, i i64) (i64, i64)
 //
 // which decodes the rune that starts at byte i < n of the n bytes at p and
 // returns it and the offset after it, as unicode/utf8.DecodeRune does: a
@@ -151,7 +151,7 @@ func (l *lowerer) encodeRuneFunc(pos ir.Pos) *ir.Func {
 // above U+10FFFF), or a sequence cut short by the end, gives U+FFFD and
 // i+1.
 func (l *lowerer) decodeRuneFunc(pos ir.Pos) *ir.Func {
-	f := l.prog.NewFunc("aether.decoderune", l.fn.File, pos)
+	f := l.prog.NewFunc(genPrefix+"decoderune", l.fn.File, pos)
 	f.Params = []ir.Type{ir.Ptr, ir.I64, ir.I64}
 	f.Results = []ir.Type{ir.I64, ir.I64}
 	g := gen{f, pos}
@@ -232,13 +232,13 @@ func (l *lowerer) decodeRuneFunc(pos ir.Pos) *ir.Func {
 
 // stringRunesFunc generates
 //
-//	func aether.stringtorunes(p ptr, n i64) (ptr, i64)
+//	func .stringtorunes(p ptr, n i64) (ptr, i64)
 //
 // which returns a new array of the runes the n bytes at p decode to, and
 // their number: it counts them, allocates 4 bytes for each, and decodes
 // them again into it.
 func (l *lowerer) stringRunesFunc(pos ir.Pos) *ir.Func {
-	f := l.prog.NewFunc("aether.stringtorunes", l.fn.File, pos)
+	f := l.prog.NewFunc(genPrefix+"stringtorunes", l.fn.File, pos)
 	f.Params = []ir.Type{ir.Ptr, ir.I64}
 	f.Results = []ir.Type{ir.Ptr, ir.I64}
 	g := gen{f, pos}
@@ -278,13 +278,13 @@ func (l *lowerer) stringRunesFunc(pos ir.Pos) *ir.Func {
 
 // runesStringFunc generates
 //
-//	func aether.runestostring(p ptr, n i64) (ptr, i64)
+//	func .runestostring(p ptr, n i64) (ptr, i64)
 //
 // which returns the string of the UTF-8 encodings of the n runes, I32s, at
 // p: a new object of 4 bytes for each rune, the most one takes, which holds
 // the encodings from its start, and their total length.
 func (l *lowerer) runesStringFunc(pos ir.Pos) *ir.Func {
-	f := l.prog.NewFunc("aether.runestostring", l.fn.File, pos)
+	f := l.prog.NewFunc(genPrefix+"runestostring", l.fn.File, pos)
 	f.Params = []ir.Type{ir.Ptr, ir.I64}
 	f.Results = []ir.Type{ir.Ptr, ir.I64}
 	g := gen{f, pos}
@@ -318,7 +318,7 @@ func (l *lowerer) runeConversion(call *ast.CallExpr) []*ir.Instr {
 	pos := l.pos(call, call.Pos())
 	x := l.expr(call.Args[0])
 	if x.Type != ir.I64 {
-		// The value as a signed or unsigned number: aether.encoderune
+		// The value as a signed or unsigned number: .encoderune
 		// reads a negative one as above U+10FFFF.
 		x = l.fn.Conv(l.b, ir.I64, x, pos)
 	}

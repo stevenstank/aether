@@ -49,7 +49,6 @@ const (
 	FeatPackageDecl   = "package-level-declaration"
 	FeatInitFunc      = "init-function"
 	FeatFuncDecl      = "function-declaration"
-	FeatMethod        = "method"
 	FeatLocalType     = "local-type-declaration"
 	FeatConstImplicit = "const-implicit-value"
 	FeatBlank         = "blank-identifier"
@@ -195,7 +194,7 @@ var featureNames = map[string]bool{}
 func init() {
 	for _, f := range []string{
 		FeatMultipleFiles, FeatPackageName, FeatImport, FeatCgo, FeatDirective,
-		FeatPackageDecl, FeatInitFunc, FeatFuncDecl, FeatMethod, FeatLocalType,
+		FeatPackageDecl, FeatInitFunc, FeatFuncDecl, FeatLocalType,
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,

@@ -51,7 +51,7 @@ b0:
   v5 = const 0 @16:7
   v6 = load s2 @15:9
   v7 = load s3 @15:9
-  v8 = call aether.streq, v6, v7, v4, v5 @16:7
+  v8 = call .streq, v6, v7, v4, v5 @16:7
   branch v8, b1, b2 @16:7
 b1:
   v34 = const 0 @17:10
@@ -61,7 +61,7 @@ b2:
   v10 = const 1 @18:7
   v11 = load s2 @15:9
   v12 = load s3 @15:9
-  v13 = call aether.streq, v11, v12, v9, v10 @18:7
+  v13 = call .streq, v11, v12, v9, v10 @18:7
   branch v13, b3, b4 @18:7
 b3:
   v35 = const 1 @19:10
@@ -71,14 +71,14 @@ b4:
   v15 = const 1 @18:12
   v16 = load s2 @15:9
   v17 = load s3 @15:9
-  v18 = call aether.streq, v16, v17, v14, v15 @18:12
+  v18 = call .streq, v16, v17, v14, v15 @18:12
   branch v18, b3, b5 @18:12
 b5:
   v19 = str s3 @22:7
   v20 = const 2 @22:7
   v21 = load s2 @15:9
   v22 = load s3 @15:9
-  v23 = call aether.streq, v21, v22, v19, v20 @22:7
+  v23 = call .streq, v21, v22, v19, v20 @22:7
   branch v23, b7, b8 @22:7
 b6:
   v36 = const 9 @21:10
@@ -91,14 +91,14 @@ b8:
   v25 = const 1 @22:16
   v26 = load s2 @15:9
   v27 = load s3 @15:9
-  v28 = call aether.streq, v26, v27, v24, v25 @22:16
+  v28 = call .streq, v26, v27, v24, v25 @22:16
   branch v28, b7, b9 @22:16
 b9:
   v29 = str s5 @24:7
   v30 = const 13 @24:7
   v31 = load s2 @15:9
   v32 = load s3 @15:9
-  v33 = call aether.streq, v31, v32, v29, v30 @24:7
+  v33 = call .streq, v31, v32, v29, v30 @24:7
   branch v33, b10, b11 @24:7
 b10:
   v38 = const 3 @25:10
@@ -230,7 +230,7 @@ b3:
   v107 = extract 1, v105 @35:7
   v108 = load s13 @34:9
   v109 = load s14 @34:9
-  v110 = call aether.streq, v108, v109, v106, v107 @35:7
+  v110 = call .streq, v108, v109, v106, v107 @35:7
   branch v110, b10, b11 @35:7
 b4:
   v95 = load s4 @31:30
@@ -323,7 +323,7 @@ b9:
   v158 = extract 1, v156 @41:7
   v159 = load s17 @40:22
   v160 = load s18 @40:22
-  v161 = call aether.streq, v159, v160, v157, v158 @41:7
+  v161 = call .streq, v159, v160, v157, v158 @41:7
   branch v161, b17, b18 @41:7
 b10:
   v135 = str s11 @36:11
@@ -338,7 +338,7 @@ b11:
   v115 = extract 1, v113 @35:15
   v116 = load s13 @34:9
   v117 = load s14 @34:9
-  v118 = call aether.streq, v116, v117, v114, v115 @35:15
+  v118 = call .streq, v116, v117, v114, v115 @35:15
   branch v118, b10, b12 @35:15
 b12:
   v119 = str s10 @35:27
@@ -348,7 +348,7 @@ b12:
   v123 = extract 1, v121 @35:25
   v124 = load s13 @34:9
   v125 = load s14 @34:9
-  v126 = call aether.streq, v124, v125, v122, v123 @35:25
+  v126 = call .streq, v124, v125, v122, v123 @35:25
   branch v126, b10, b13 @35:25
 b13:
   v127 = str s9 @37:9
@@ -358,7 +358,7 @@ b13:
   v131 = extract 1, v129 @37:7
   v132 = load s13 @34:9
   v133 = load s14 @34:9
-  v134 = call aether.streq, v132, v133, v130, v131 @37:7
+  v134 = call .streq, v132, v133, v130, v131 @37:7
   branch v134, b14, b15 @37:7
 b14:
   v137 = str s12 @38:11
@@ -379,7 +379,7 @@ b16:
   v180 = extract 1, v178 @50:7
   v181 = load s19 @49:9
   v182 = load s20 @49:9
-  v183 = call aether.streq, v181, v182, v179, v180 @50:7
+  v183 = call .streq, v181, v182, v179, v180 @50:7
   branch v183, b23, b24 @50:7
 b17:
   jump b16 @42:2
@@ -391,7 +391,7 @@ b18:
   v166 = extract 1, v164 @44:7
   v167 = load s17 @40:22
   v168 = load s18 @40:22
-  v169 = call aether.streq, v167, v168, v165, v166 @44:7
+  v169 = call .streq, v167, v168, v165, v166 @44:7
   branch v169, b20, b21 @44:7
 b19:
   v170 = str s15 @43:11
@@ -415,7 +415,7 @@ b23:
 b24:
   jump b22 @49:2
 
-func aether.streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c08_string_switch.go:16:7
+func .streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c08_string_switch.go:16:7
   slot s0 p ptr @16:7
   slot s1 q ptr @16:7
   slot s2 n i64 @16:7

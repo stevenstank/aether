@@ -138,12 +138,12 @@ b3:
   v34 = conv i64, v33 @30:21
   v35 = const 4 @30:21
   v36 = alloc v35 @30:21
-  v37 = call aether.encoderune, v36, v34 @30:21
+  v37 = call .encoderune, v36, v34 @30:21
   v38 = load s2 @30:39
   v39 = conv i64, v38 @30:32
   v40 = const 4 @30:32
   v41 = alloc v40 @30:32
-  v42 = call aether.encoderune, v41, v39 @30:32
+  v42 = call .encoderune, v41, v39 @30:32
   println v30, v31, v32, v36, v37, v41, v42 @30:2
   v43 = const i32 0 @32:17
   v44 = addr m0 @32:8
@@ -301,54 +301,54 @@ b12:
   v140 = conv i64, v139 @49:7
   v141 = const 4 @49:7
   v142 = alloc v141 @49:7
-  v143 = call aether.encoderune, v142, v140 @49:7
+  v143 = call .encoderune, v142, v140 @49:7
   call show, v142, v143 @49:2
   v144 = load s9 @50:14
   v145 = conv i64, v144 @50:7
   v146 = const 4 @50:7
   v147 = alloc v146 @50:7
-  v148 = call aether.encoderune, v147, v145 @50:7
+  v148 = call .encoderune, v147, v145 @50:7
   call show, v147, v148 @50:2
   v149 = load s10 @51:14
   v150 = conv i64, v149 @51:7
   v151 = const 4 @51:7
   v152 = alloc v151 @51:7
-  v153 = call aether.encoderune, v152, v150 @51:7
+  v153 = call .encoderune, v152, v150 @51:7
   call show, v152, v153 @51:2
   v154 = load s11 @52:14
   v155 = conv i64, v154 @52:7
   v156 = const 4 @52:7
   v157 = alloc v156 @52:7
-  v158 = call aether.encoderune, v157, v155 @52:7
+  v158 = call .encoderune, v157, v155 @52:7
   call show, v157, v158 @52:2
   v159 = load s12 @53:14
   v160 = conv i64, v159 @53:7
   v161 = const 4 @53:7
   v162 = alloc v161 @53:7
-  v163 = call aether.encoderune, v162, v160 @53:7
+  v163 = call .encoderune, v162, v160 @53:7
   call show, v162, v163 @53:2
   v164 = load s13 @54:14
   v165 = conv i64, v164 @54:7
   v166 = const 4 @54:7
   v167 = alloc v166 @54:7
-  v168 = call aether.encoderune, v167, v165 @54:7
+  v168 = call .encoderune, v167, v165 @54:7
   call show, v167, v168 @54:2
   v169 = load s14 @55:14
   v170 = conv i64, v169 @55:7
   v171 = const 4 @55:7
   v172 = alloc v171 @55:7
-  v173 = call aether.encoderune, v172, v170 @55:7
+  v173 = call .encoderune, v172, v170 @55:7
   call show, v172, v173 @55:2
   v174 = load s15 @56:14
   v175 = const 4 @56:7
   v176 = alloc v175 @56:7
-  v177 = call aether.encoderune, v176, v174 @56:7
+  v177 = call .encoderune, v176, v174 @56:7
   call show, v176, v177 @56:2
   v178 = load s16 @57:14
   v179 = conv i64, v178 @57:7
   v180 = const 4 @57:7
   v181 = alloc v180 @57:7
-  v182 = call aether.encoderune, v181, v179 @57:7
+  v182 = call .encoderune, v181, v179 @57:7
   call show, v181, v182 @57:2
   v183 = str s2 @60:7
   v184 = const 4 @60:7
@@ -380,7 +380,7 @@ b15:
   v123 = conv i64, v122 @35:8
   v124 = const 4 @35:8
   v125 = alloc v124 @35:8
-  v126 = call aether.encoderune, v125, v123 @35:8
+  v126 = call .encoderune, v125, v123 @35:8
   call show, v125, v126 @35:3
   jump b13 @36:2
 b16:
@@ -433,7 +433,7 @@ b21:
   v205 = conv i64, v204 @63:8
   v206 = const 4 @63:8
   v207 = alloc v206 @63:8
-  v208 = call aether.encoderune, v207, v205 @63:8
+  v208 = call .encoderune, v207, v205 @63:8
   v209 = load s22 @63:3
   v210 = load s23 @63:3
   v211 = add v210, v208 @63:5
@@ -448,7 +448,7 @@ b21:
   store s20, v211 @63:3
   jump b19 @64:2
 
-func aether.encoderune(ptr, i64) i64 @testdata/check/s3_c12_runes.go:30:21
+func .encoderune(ptr, i64) i64 @testdata/check/s3_c12_runes.go:30:21
   slot s0 p ptr @30:21
   slot s1 r i64 @30:21
 b0:

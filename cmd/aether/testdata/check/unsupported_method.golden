@@ -1,1 +1,0 @@
-testdata/check/unsupported_method.go:10:1: unsupported: method streq of type aether (a name Aether reserves for its generated functions) is not supported in subset S1 [method]

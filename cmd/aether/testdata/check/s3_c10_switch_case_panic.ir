@@ -53,7 +53,7 @@ b0:
   v9 = extract 1, v7 @17:7
   v10 = load s3 @16:9
   v11 = load s4 @16:9
-  v12 = call aether.streq, v10, v11, v8, v9 @17:7
+  v12 = call .streq, v10, v11, v8, v9 @17:7
   branch v12, b2, b3 @17:7
 b1:
   v30 = load s0 @20:9
@@ -67,7 +67,7 @@ b1:
   v36 = extract 1, v34 @21:7
   v37 = load s8 @20:9
   v38 = load s9 @20:9
-  v39 = call aether.streq, v37, v38, v35, v36 @21:7
+  v39 = call .streq, v37, v38, v35, v36 @21:7
   branch v39, b8, b9 @21:7
 b2:
   v28 = str s2 @18:11
@@ -96,7 +96,7 @@ b5:
   v24 = sub v22, v23 @17:18
   v25 = load s3 @16:9
   v26 = load s4 @16:9
-  v27 = call aether.streq, v25, v26, v21, v24 @17:17
+  v27 = call .streq, v25, v26, v21, v24 @17:17
   branch v27, b2, b6 @17:17
 b6:
   jump b1 @16:2
@@ -129,12 +129,12 @@ b11:
   v51 = sub v49, v50 @21:16
   v52 = load s8 @20:9
   v53 = load s9 @20:9
-  v54 = call aether.streq, v52, v53, v48, v51 @21:15
+  v54 = call .streq, v52, v53, v48, v51 @21:15
   branch v54, b8, b12 @21:15
 b12:
   jump b7 @20:2
 
-func aether.streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c10_switch_case_panic.go:17:7
+func .streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c10_switch_case_panic.go:17:7
   slot s0 p ptr @17:7
   slot s1 q ptr @17:7
   slot s2 n i64 @17:7

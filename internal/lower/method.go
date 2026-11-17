@@ -7,8 +7,8 @@ package lower
 // receiver, the Ptr of the caller's copy of the array or struct (D-034), and
 // for a pointer receiver, the pointer. Go forbids T and *T from both having
 // a method M, and a type and a function of the same name, so T.M names one
-// function, and no Go function name has a dot; the gate rejects a method of
-// a type named aether, the prefix of lowering's own functions.
+// function, and no Go function name has a dot. Lowering's own functions
+// begin with a dot (genPrefix), so no method shares a name with one.
 //
 // A call x.M(args) evaluates the receiver, then the arguments, left to right
 // (D-024). The receiver follows the path of embedded fields to M, as a

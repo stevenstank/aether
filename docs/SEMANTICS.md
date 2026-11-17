@@ -402,7 +402,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Area | Feature names |
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
-| Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `method`, `function-without-body` |
+| Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `function-without-body` |
 | Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
@@ -841,7 +841,7 @@ change; the heap is never freed (V-5).
   origin, and NUL bytes and invalid UTF-8 compare as bytes, not as Unicode
   (`"é" != "e\u0301"`). Both operands are evaluated, left to right, before
   they are compared. A program that compares strings gets the IR function
-  `aether.streq`, which lowering adds (D-037).
+  `.streq`, which lowering adds (D-037).
 - **`switch`** on a string: the tag is evaluated once, then the case values
   in order, each compared by its bytes, until one matches.
 - **`==` and `!=` of arrays and structs** that hold strings, nested to any
@@ -850,7 +850,7 @@ change; the heap is never freed (V-5).
 - **`< <= > >=`** order strings lexicographically by their bytes, read as
   unsigned numbers, a proper prefix first, as Go does: not by Unicode
   (`"Z" < "a"`, `"é" > "z"`). Both operands are evaluated, left to right,
-  before they are compared, by the IR function `aether.strcmp`.
+  before they are compared, by the IR function `.strcmp`.
 - **Rune literals**, with every escape, are untyped rune constants, `rune`
   (`int32`) by default, usable wherever an integer constant is.
 - **`string(x)`** of an integer of any type is the UTF-8 encoding of its
@@ -868,8 +868,8 @@ change; the heap is never freed (V-5).
 - **`string(rs)`** of a `[]rune` is the concatenation of each rune's
   encoding, as for `string(x)`; of a nil or empty slice, `""`.
 - The conversions run in IR functions that lowering adds (D-037):
-  `aether.encoderune`, `aether.decoderune`, `aether.stringtorunes`, and
-  `aether.runestostring`. Every conversion allocates (V-5): `string(x)` 4
+  `.encoderune`, `.decoderune`, `.stringtorunes`, and
+  `.runestostring`. Every conversion allocates (V-5): `string(x)` 4
   bytes and `string(rs)` 4 bytes per rune, of which the result uses only
   its length.
 
@@ -905,9 +905,8 @@ The gate also accepts methods (D-038):
   dereference`) before the method runs.
 
 Still `unsupported`: method values, `x.M` not called (`method-value`);
-method expressions, `T.M` and `(*T).M` (`method-expression`); methods of a
-type named `aether` (`method`), a name that prefixes lowering's own
-functions; methods of other defined types, whose declarations are rejected
+method expressions, `T.M` and `(*T).M` (`method-expression`); methods of
+other defined types, whose declarations are rejected
 (`package-level-declaration`); interfaces.
 
 ## Support matrix

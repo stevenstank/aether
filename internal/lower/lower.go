@@ -124,8 +124,8 @@ type lowerer struct {
 	retPtrs   []*ir.Slot              // fn's array and struct results: the slot of the Ptr to each
 	addrs     map[*ir.Mem]*ir.Instr   // the addresses computed in addrBlock
 	addrBlock *ir.Block
-	streq     *ir.Func             // aether.streq, once a string comparison needs it (strings.go)
-	strcmp    *ir.Func             // aether.strcmp, once an ordering of strings needs it (strings.go)
+	streq     *ir.Func             // .streq, once a string comparison needs it (strings.go)
+	strcmp    *ir.Func             // .strcmp, once an ordering of strings needs it (strings.go)
 	runeFuncs [nRuneFuncs]*ir.Func // the UTF-8 functions, each once a conversion needs it (runes.go)
 }
 

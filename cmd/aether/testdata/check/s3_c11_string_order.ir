@@ -277,7 +277,7 @@ b6:
   v173 = load s12 @30:10
   v174 = load s13 @30:14
   v175 = load s14 @30:14
-  v176 = call aether.strcmp, v172, v173, v174, v175 @30:12
+  v176 = call .strcmp, v172, v173, v174, v175 @30:12
   v177 = const 0 @30:12
   v178 = lt v176, v177 @30:12
   store s15, v178 @30:10
@@ -285,7 +285,7 @@ b6:
   v180 = load s12 @30:17
   v181 = load s13 @30:22
   v182 = load s14 @30:22
-  v183 = call aether.strcmp, v179, v180, v181, v182 @30:19
+  v183 = call .strcmp, v179, v180, v181, v182 @30:19
   v184 = const 0 @30:19
   v185 = le v183, v184 @30:19
   store s16, v185 @30:17
@@ -293,7 +293,7 @@ b6:
   v187 = load s12 @30:25
   v188 = load s13 @30:29
   v189 = load s14 @30:29
-  v190 = call aether.strcmp, v186, v187, v188, v189 @30:27
+  v190 = call .strcmp, v186, v187, v188, v189 @30:27
   v191 = const 0 @30:27
   v192 = gt v190, v191 @30:27
   store s17, v192 @30:25
@@ -301,7 +301,7 @@ b6:
   v194 = load s12 @30:32
   v195 = load s13 @30:37
   v196 = load s14 @30:37
-  v197 = call aether.strcmp, v193, v194, v195, v196 @30:34
+  v197 = call .strcmp, v193, v194, v195, v196 @30:34
   v198 = const 0 @30:34
   v199 = ge v197, v198 @30:34
   store s18, v199 @30:32
@@ -395,7 +395,7 @@ b15:
   v124 = load s8 @21:10
   v125 = load s9 @21:14
   v126 = load s10 @21:14
-  v127 = call aether.strcmp, v123, v124, v125, v126 @21:12
+  v127 = call .strcmp, v123, v124, v125, v126 @21:12
   v128 = const 0 @21:12
   v129 = lt v127, v128 @21:12
   v130 = str s12 @21:17
@@ -404,7 +404,7 @@ b15:
   v133 = load s8 @21:22
   v134 = load s9 @21:27
   v135 = load s10 @21:27
-  v136 = call aether.strcmp, v132, v133, v134, v135 @21:24
+  v136 = call .strcmp, v132, v133, v134, v135 @21:24
   v137 = const 0 @21:24
   v138 = le v136, v137 @21:24
   v139 = str s12 @21:30
@@ -413,7 +413,7 @@ b15:
   v142 = load s8 @21:35
   v143 = load s9 @21:39
   v144 = load s10 @21:39
-  v145 = call aether.strcmp, v141, v142, v143, v144 @21:37
+  v145 = call .strcmp, v141, v142, v143, v144 @21:37
   v146 = const 0 @21:37
   v147 = gt v145, v146 @21:37
   v148 = str s12 @21:42
@@ -422,7 +422,7 @@ b15:
   v151 = load s8 @21:47
   v152 = load s9 @21:52
   v153 = load s10 @21:52
-  v154 = call aether.strcmp, v150, v151, v152, v153 @21:49
+  v154 = call .strcmp, v150, v151, v152, v153 @21:49
   v155 = const 0 @21:49
   v156 = ge v154, v155 @21:49
   v157 = str s13 @21:55
@@ -463,7 +463,7 @@ b19:
   v225 = sub v223, v224 @30:49
   v226 = load s22 @30:40
   v227 = load s23 @30:40
-  v228 = call aether.strcmp, v226, v227, v222, v225 @30:46
+  v228 = call .strcmp, v226, v227, v222, v225 @30:46
   v229 = const 0 @30:46
   v230 = lt v228, v229 @30:46
   store s27, v230 @30:40
@@ -507,7 +507,7 @@ b23:
   v254 = sub v252, v253 @30:62
   v255 = load s28 @30:55
   v256 = load s29 @30:55
-  v257 = call aether.strcmp, v255, v256, v251, v254 @30:58
+  v257 = call .strcmp, v255, v256, v251, v254 @30:58
   v258 = const 0 @30:58
   v259 = ge v257, v258 @30:58
   v260 = load s15 @30:10
@@ -531,7 +531,7 @@ b23:
   v276 = call v, v274, v275 @34:19
   v277 = extract 0, v276 @34:19
   v278 = extract 1, v276 @34:19
-  v279 = call aether.strcmp, v272, v273, v277, v278 @34:17
+  v279 = call .strcmp, v272, v273, v277, v278 @34:17
   v280 = const 0 @34:17
   v281 = lt v279, v280 @34:17
   v282 = str s15 @34:29
@@ -544,7 +544,7 @@ b23:
   v289 = call v, v287, v288 @34:37
   v290 = extract 0, v289 @34:37
   v291 = extract 1, v289 @34:37
-  v292 = call aether.strcmp, v285, v286, v290, v291 @34:34
+  v292 = call .strcmp, v285, v286, v290, v291 @34:34
   v293 = const 0 @34:34
   v294 = ge v292, v293 @34:34
   println v281, v294 @34:2
@@ -835,7 +835,7 @@ b45:
   v458 = ldm i64, v448, v457 @43:31
   v459 = load s49 @43:24
   v460 = load s50 @43:24
-  v461 = call aether.strcmp, v459, v460, v452, v458 @43:29
+  v461 = call .strcmp, v459, v460, v452, v458 @43:29
   v462 = const 0 @43:29
   v463 = lt v461, v462 @43:29
   store s47, v463 @43:21
@@ -960,7 +960,7 @@ b56:
   v597 = load s12 @53:5
   v598 = str s23 @53:9
   v599 = const 1 @53:9
-  v600 = call aether.strcmp, v596, v597, v598, v599 @53:7
+  v600 = call .strcmp, v596, v597, v598, v599 @53:7
   v601 = const 0 @53:7
   v602 = gt v600, v601 @53:7
   store s72, v602 @53:13
@@ -1021,7 +1021,7 @@ b62:
   v604 = load s12 @53:16
   v605 = str s24 @53:21
   v606 = const 1 @53:21
-  v607 = call aether.strcmp, v603, v604, v605, v606 @53:18
+  v607 = call .strcmp, v603, v604, v605, v606 @53:18
   v608 = const 0 @53:18
   v609 = le v607, v608 @53:18
   store s72, v609 @53:13
@@ -1046,7 +1046,7 @@ b66:
   v617 = load s74 @56:16
   v618 = str s26 @56:20
   v619 = const 4 @56:20
-  v620 = call aether.strcmp, v616, v617, v618, v619 @56:18
+  v620 = call .strcmp, v616, v617, v618, v619 @56:18
   v621 = const 0 @56:18
   v622 = lt v620, v621 @56:18
   branch v622, b67, b68 @56:2
@@ -1077,7 +1077,7 @@ b69:
   store s74, v631 @56:28
   jump b66 @56:28
 
-func aether.strcmp(ptr, i64, ptr, i64) i64 @testdata/check/s3_c11_string_order.go:21:12
+func .strcmp(ptr, i64, ptr, i64) i64 @testdata/check/s3_c11_string_order.go:21:12
   slot s0 p ptr @21:12
   slot s1 q ptr @21:12
   slot s2 n i64 @21:12

@@ -384,7 +384,7 @@ b16:
   v68 = sub v66, v67 @24:33
   v69 = alloc v65 @24:25
   move v69, v62, v65 @24:25
-  v70 = call aether.stringtorunes, v69, v65 @24:18
+  v70 = call .stringtorunes, v69, v65 @24:18
   v71 = extract 1, v70 @24:18
   v72 = extract 0, v70 @24:18
   v73 = call sum, v72, v71, v71 @24:14
@@ -640,7 +640,7 @@ b44:
   v265 = sub v263, v264 @39:34
   v266 = alloc v262 @39:26
   move v266, v259, v262 @39:26
-  v267 = call aether.stringtorunes, v266, v262 @39:19
+  v267 = call .stringtorunes, v266, v262 @39:19
   v268 = extract 1, v267 @39:19
   v269 = extract 0, v267 @39:19
   v270 = call sum, v269, v268, v268 @39:15
@@ -651,7 +651,7 @@ b44:
   v275 = load s3 @39:62
   v276 = alloc v274 @39:55
   move v276, v273, v274 @39:55
-  v277 = call aether.stringtorunes, v276, v274 @39:48
+  v277 = call .stringtorunes, v276, v274 @39:48
   v278 = extract 1, v277 @39:48
   v279 = extract 0, v277 @39:48
   v280 = call sum, v279, v278, v278 @39:44
@@ -669,12 +669,12 @@ b46:
   v301 = conv i64, v300 @46:8
   v302 = const 4 @46:8
   v303 = alloc v302 @46:8
-  v304 = call aether.encoderune, v303, v301 @46:8
+  v304 = call .encoderune, v303, v301 @46:8
   store s71, v303 @46:3
   store s72, v304 @46:3
   v305 = load s71 @47:16
   v306 = load s72 @47:16
-  v307 = call aether.stringtorunes, v305, v306 @47:9
+  v307 = call .stringtorunes, v305, v306 @47:9
   v308 = extract 1, v307 @47:9
   v309 = extract 0, v307 @47:9
   store s73, v309 @47:3
@@ -810,7 +810,7 @@ b60:
   store s69, v384 @52:3
   jump b48 @53:2
 
-func aether.stringtorunes(ptr, i64) (ptr, i64) @testdata/check/s3_c14_utf8_tables.go:24:18
+func .stringtorunes(ptr, i64) (ptr, i64) @testdata/check/s3_c14_utf8_tables.go:24:18
   slot s0 p ptr @24:18
   slot s1 n i64 @24:18
   slot s2 i i64 @24:18
@@ -836,7 +836,7 @@ b2:
   v7 = load s0 @24:18
   v8 = load s1 @24:18
   v9 = load s2 @24:18
-  v10 = call aether.decoderune, v7, v8, v9 @24:18
+  v10 = call .decoderune, v7, v8, v9 @24:18
   v11 = extract 1, v10 @24:18
   store s2, v11 @24:18
   v12 = extract 0, v10 @24:18
@@ -865,7 +865,7 @@ b5:
   v25 = load s0 @24:18
   v26 = load s1 @24:18
   v27 = load s2 @24:18
-  v28 = call aether.decoderune, v25, v26, v27 @24:18
+  v28 = call .decoderune, v25, v26, v27 @24:18
   v29 = extract 1, v28 @24:18
   store s2, v29 @24:18
   v30 = extract 0, v28 @24:18
@@ -885,7 +885,7 @@ b6:
   v40 = load s3 @24:18
   ret v39, v40 @24:18
 
-func aether.decoderune(ptr, i64, i64) (i64, i64) @testdata/check/s3_c14_utf8_tables.go:24:18
+func .decoderune(ptr, i64, i64) (i64, i64) @testdata/check/s3_c14_utf8_tables.go:24:18
   slot s0 p ptr @24:18
   slot s1 n i64 @24:18
   slot s2 i i64 @24:18
@@ -1115,7 +1115,7 @@ b25:
   store s5, v126 @24:18
   jump b21 @24:18
 
-func aether.encoderune(ptr, i64) i64 @testdata/check/s3_c14_utf8_tables.go:46:8
+func .encoderune(ptr, i64) i64 @testdata/check/s3_c14_utf8_tables.go:46:8
   slot s0 p ptr @46:8
   slot s1 r i64 @46:8
 b0:

@@ -67,7 +67,7 @@ b0:
   store s1, v1 @8:12
   v2 = load s0 @9:15
   v3 = load s1 @9:15
-  v4 = call aether.stringtorunes, v2, v3 @9:8
+  v4 = call .stringtorunes, v2, v3 @9:8
   v5 = extract 1, v4 @9:8
   v6 = extract 0, v4 @9:8
   store s2, v6 @9:2
@@ -110,7 +110,7 @@ b3:
   v39 = load s2 @15:17
   v40 = load s3 @15:17
   v41 = load s4 @15:17
-  v42 = call aether.runestostring, v39, v40 @15:10
+  v42 = call .runestostring, v39, v40 @15:10
   v43 = extract 0, v42 @15:10
   v44 = extract 1, v42 @15:10
   store s11, v43 @15:2
@@ -171,7 +171,7 @@ b9:
   v75 = load s12 @20:15
   v76 = load s0 @20:23
   v77 = load s1 @20:23
-  v78 = call aether.streq, v74, v75, v76, v77 @20:20
+  v78 = call .streq, v74, v75, v76, v77 @20:20
   println v72, v73, v78 @20:2
   ret @21:1
 b10:
@@ -536,30 +536,30 @@ b3:
   v181 = load s8 @44:17
   v182 = load s9 @44:17
   v183 = load s10 @44:17
-  v184 = call aether.runestostring, v181, v182 @44:10
+  v184 = call .runestostring, v181, v182 @44:10
   v185 = extract 0, v184 @44:10
   v186 = extract 1, v184 @44:10
   v187 = const ptr 0 @44:30
   v188 = const 0 @44:30
-  v189 = call aether.streq, v185, v186, v187, v188 @44:27
+  v189 = call .streq, v185, v186, v187, v188 @44:27
   v190 = const 0 @44:45
   v191 = alloc v190 @44:45
   store s11, v191 @44:45
   v192 = const 0 @44:45
   v193 = const 0 @44:45
-  v194 = call aether.runestostring, v191, v192 @44:38
+  v194 = call .runestostring, v191, v192 @44:38
   v195 = extract 0, v194 @44:38
   v196 = extract 1, v194 @44:38
   v197 = const ptr 0 @44:64
   v198 = const 0 @44:64
-  v199 = call aether.stringtorunes, v197, v198 @44:57
+  v199 = call .stringtorunes, v197, v198 @44:57
   v200 = extract 1, v199 @44:57
   v201 = extract 0, v199 @44:57
   v202 = const ptr 0 @44:68
   v203 = eq v201, v202 @44:68
   v204 = const ptr 0 @44:87
   v205 = const 0 @44:87
-  v206 = call aether.stringtorunes, v204, v205 @44:80
+  v206 = call .stringtorunes, v204, v205 @44:80
   v207 = extract 1, v206 @44:80
   v208 = extract 0, v206 @44:80
   v209 = load s8 @44:93
@@ -597,7 +597,7 @@ b3:
   v230 = load s13 @48:14
   v231 = load s14 @48:14
   v232 = load s15 @48:14
-  v233 = call aether.runestostring, v230, v231 @48:7
+  v233 = call .runestostring, v230, v231 @48:7
   v234 = extract 0, v233 @48:7
   v235 = extract 1, v233 @48:7
   store s16, v234 @48:2
@@ -609,7 +609,7 @@ b3:
   println v237, v238, v239 @49:2
   v240 = str s37 @53:15
   v241 = const 3 @53:15
-  v242 = call aether.stringtorunes, v240, v241 @53:8
+  v242 = call .stringtorunes, v240, v241 @53:8
   v243 = extract 1, v242 @53:8
   v244 = extract 0, v242 @53:8
   store s18, v244 @53:2
@@ -618,7 +618,7 @@ b3:
   v245 = load s18 @54:13
   v246 = load s19 @54:13
   v247 = load s20 @54:13
-  v248 = call aether.runestostring, v245, v246 @54:6
+  v248 = call .runestostring, v245, v246 @54:6
   v249 = extract 0, v248 @54:6
   v250 = extract 1, v248 @54:6
   store s16, v249 @54:2
@@ -698,7 +698,7 @@ b10:
   v281 = load s27 @56:16
   v282 = load s28 @56:16
   v283 = sub v281, v282 @56:16
-  v284 = call aether.runestostring, v277, v280 @56:7
+  v284 = call .runestostring, v277, v280 @56:7
   v285 = extract 0, v284 @56:7
   v286 = extract 1, v284 @56:7
   store s29, v285 @56:2
@@ -748,7 +748,7 @@ b12:
   v329 = load s18 @58:20
   v330 = load s19 @58:20
   v331 = load s20 @58:20
-  v332 = call aether.runestostring, v329, v330 @58:13
+  v332 = call .runestostring, v329, v330 @58:13
   v333 = extract 0, v332 @58:13
   v334 = extract 1, v332 @58:13
   v335 = load s29 @58:25
@@ -759,7 +759,7 @@ b12:
   println v327, v328, v333, v334, v335, v336, v338 @58:2
   v340 = str s38 @61:19
   v341 = const 5 @61:19
-  v342 = call aether.stringtorunes, v340, v341 @61:12
+  v342 = call .stringtorunes, v340, v341 @61:12
   v343 = extract 1, v342 @61:12
   v344 = extract 0, v342 @61:12
   v345 = addr m0 @61:7
@@ -840,7 +840,7 @@ b18:
   stm v373, v376, v372 @62:2
   v377 = str s39 @63:28
   v378 = const 2 @63:28
-  v379 = call aether.stringtorunes, v377, v378 @63:20
+  v379 = call .stringtorunes, v377, v378 @63:20
   v380 = extract 1, v379 @63:20
   v381 = extract 0, v379 @63:20
   store s43, v381 @63:6
@@ -853,7 +853,7 @@ b18:
   v386 = ldm i64, v382, v385 @64:17
   v387 = const 16 @64:17
   v388 = ldm i64, v382, v387 @64:17
-  v389 = call aether.runestostring, v384, v386 @64:10
+  v389 = call .runestostring, v384, v386 @64:10
   v390 = extract 0, v389 @64:10
   v391 = extract 1, v389 @64:10
   store s46, v390 @64:10
@@ -889,7 +889,7 @@ b20:
   v412 = load s43 @64:48
   v413 = load s44 @64:48
   v414 = load s45 @64:48
-  v415 = call aether.runestostring, v412, v413 @64:41
+  v415 = call .runestostring, v412, v413 @64:41
   v416 = extract 0, v415 @64:41
   v417 = extract 1, v415 @64:41
   v418 = load s46 @64:10
@@ -958,7 +958,7 @@ b22:
   v474 = load s54 @69:28
   v475 = alloc v473 @69:21
   move v475, v472, v473 @69:21
-  v476 = call aether.stringtorunes, v475, v473 @69:14
+  v476 = call .stringtorunes, v475, v473 @69:14
   v477 = extract 1, v476 @69:14
   v478 = extract 0, v476 @69:14
   store s64, v477 @69:10
@@ -1100,7 +1100,7 @@ b34:
   v559 = load s81 @69:77
   v560 = alloc v558 @69:70
   move v560, v557, v558 @69:70
-  v561 = call aether.stringtorunes, v560, v558 @69:63
+  v561 = call .stringtorunes, v560, v558 @69:63
   v562 = extract 1, v561 @69:63
   v563 = extract 0, v561 @69:63
   v564 = load s64 @69:10
@@ -1138,7 +1138,7 @@ b38:
   store s81, v549 @69:77
   jump b34 @69:77
 
-func aether.stringtorunes(ptr, i64) (ptr, i64) @testdata/check/s3_c13_rune_slices.go:9:8
+func .stringtorunes(ptr, i64) (ptr, i64) @testdata/check/s3_c13_rune_slices.go:9:8
   slot s0 p ptr @9:8
   slot s1 n i64 @9:8
   slot s2 i i64 @9:8
@@ -1164,7 +1164,7 @@ b2:
   v7 = load s0 @9:8
   v8 = load s1 @9:8
   v9 = load s2 @9:8
-  v10 = call aether.decoderune, v7, v8, v9 @9:8
+  v10 = call .decoderune, v7, v8, v9 @9:8
   v11 = extract 1, v10 @9:8
   store s2, v11 @9:8
   v12 = extract 0, v10 @9:8
@@ -1193,7 +1193,7 @@ b5:
   v25 = load s0 @9:8
   v26 = load s1 @9:8
   v27 = load s2 @9:8
-  v28 = call aether.decoderune, v25, v26, v27 @9:8
+  v28 = call .decoderune, v25, v26, v27 @9:8
   v29 = extract 1, v28 @9:8
   store s2, v29 @9:8
   v30 = extract 0, v28 @9:8
@@ -1213,7 +1213,7 @@ b6:
   v40 = load s3 @9:8
   ret v39, v40 @9:8
 
-func aether.decoderune(ptr, i64, i64) (i64, i64) @testdata/check/s3_c13_rune_slices.go:9:8
+func .decoderune(ptr, i64, i64) (i64, i64) @testdata/check/s3_c13_rune_slices.go:9:8
   slot s0 p ptr @9:8
   slot s1 n i64 @9:8
   slot s2 i i64 @9:8
@@ -1443,7 +1443,7 @@ b25:
   store s5, v126 @9:8
   jump b21 @9:8
 
-func aether.runestostring(ptr, i64) (ptr, i64) @testdata/check/s3_c13_rune_slices.go:15:10
+func .runestostring(ptr, i64) (ptr, i64) @testdata/check/s3_c13_rune_slices.go:15:10
   slot s0 p ptr @15:10
   slot s1 n i64 @15:10
   slot s2 i i64 @15:10
@@ -1478,7 +1478,7 @@ b2:
   v16 = load s4 @15:10
   v17 = padd v15, v16 @15:10
   v18 = conv i64, v14 @15:10
-  v19 = call aether.encoderune, v17, v18 @15:10
+  v19 = call .encoderune, v17, v18 @15:10
   v20 = load s4 @15:10
   v21 = add v20, v19 @15:10
   store s4, v21 @15:10
@@ -1492,7 +1492,7 @@ b3:
   v26 = load s4 @15:10
   ret v25, v26 @15:10
 
-func aether.encoderune(ptr, i64) i64 @testdata/check/s3_c13_rune_slices.go:15:10
+func .encoderune(ptr, i64) i64 @testdata/check/s3_c13_rune_slices.go:15:10
   slot s0 p ptr @15:10
   slot s1 r i64 @15:10
 b0:
@@ -1630,7 +1630,7 @@ b11:
   v96 = const 4 @15:10
   ret v96 @15:10
 
-func aether.streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c13_rune_slices.go:20:20
+func .streq(ptr, i64, ptr, i64) bool @testdata/check/s3_c13_rune_slices.go:20:20
   slot s0 p ptr @20:20
   slot s1 q ptr @20:20
   slot s2 n i64 @20:20
