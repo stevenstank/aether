@@ -37,28 +37,28 @@ global g0 global.tab ptr @testdata/check/s5_i01_interfaces.go:81:5
 global g1 global.data ptr @testdata/check/s5_i01_interfaces.go:81:5
 global g2 anyGlobal.tab ptr @testdata/check/s5_i01_interfaces.go:82:5
 global g3 anyGlobal.data ptr @testdata/check/s5_i01_interfaces.go:82:5
-mem gm0 .t0 24 align 8 @testdata/check/s5_i01_interfaces.go:72:6
+mem gm0 .t0 32 align 8 @testdata/check/s5_i01_interfaces.go:72:6
 mem gm1 .it0 16 align 8 @testdata/check/s5_i01_interfaces.go:76:9
-mem gm2 .t1 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm2 .t1 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
 mem gm3 .it1 24 align 8 @testdata/check/s5_i01_interfaces.go:85:16
-mem gm4 .t2 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm4 .t2 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
 mem gm5 .it2 24 align 8 @testdata/check/s5_i01_interfaces.go:88:6
-mem gm6 .t3 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm6 .t3 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
 mem gm7 .it3 16 align 8 @testdata/check/s5_i01_interfaces.go:91:16
 mem gm8 .it4 16 align 8 @testdata/check/s5_i01_interfaces.go:92:45
 mem gm9 .it5 16 align 8 @testdata/check/s5_i01_interfaces.go:92:48
-mem gm10 .t4 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm11 .t5 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm12 .t6 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm13 .t7 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm14 .t8 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm15 .t9 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm16 .t10 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm17 .t11 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
-mem gm18 .t12 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm10 .t4 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm11 .t5 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm12 .t6 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm13 .t7 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm14 .t8 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm15 .t9 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm16 .t10 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm17 .t11 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm18 .t12 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
 mem gm19 .v.mi1.Size 8 align 8 @testdata/check/s5_i01_interfaces.go:115:13
 mem gm20 .v.mi3.Size 8 align 8 @testdata/check/s5_i01_interfaces.go:116:13
-mem gm21 .t13 24 align 8 @testdata/check/s5_i01_interfaces.go:84:6
+mem gm21 .t13 32 align 8 @testdata/check/s5_i01_interfaces.go:84:6
 mem gm22 .it6 16 align 8 @testdata/check/s5_i01_interfaces.go:130:18
 mem gm23 .it7 16 align 8 @testdata/check/s5_i01_interfaces.go:90:16
 mem gm24 .it8 16 align 8 @testdata/check/s5_i01_interfaces.go:90:16

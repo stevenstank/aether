@@ -33,20 +33,20 @@ string s31 "main.Fish"
 string s32 "float64"
 string s33 "bool"
 string s34 "[3]int"
-mem gm0 .t0 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm1 .t1 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm2 .t2 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm3 .t3 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm4 .t4 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm5 .t5 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm6 .t6 24 align 8 @testdata/check/s5_i02_assertions.go:28:6
-mem gm7 .t7 24 align 8 @testdata/check/s5_i02_assertions.go:58:6
-mem gm8 .t8 24 align 8 @testdata/check/s5_i02_assertions.go:58:6
-mem gm9 .t9 24 align 8 @testdata/check/s5_i02_assertions.go:58:6
-mem gm10 .t10 24 align 8 @testdata/check/s5_i02_assertions.go:58:6
+mem gm0 .t0 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm1 .t1 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm2 .t2 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm3 .t3 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm4 .t4 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm5 .t5 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm6 .t6 32 align 8 @testdata/check/s5_i02_assertions.go:28:6
+mem gm7 .t7 32 align 8 @testdata/check/s5_i02_assertions.go:58:6
+mem gm8 .t8 32 align 8 @testdata/check/s5_i02_assertions.go:58:6
+mem gm9 .t9 32 align 8 @testdata/check/s5_i02_assertions.go:58:6
+mem gm10 .t10 32 align 8 @testdata/check/s5_i02_assertions.go:58:6
 mem gm11 .it0 16 align 8 @testdata/check/s5_i02_assertions.go:64:17
 mem gm12 .it1 16 align 8 @testdata/check/s5_i02_assertions.go:67:6
-mem gm13 .t11 24 align 8 @testdata/check/s5_i02_assertions.go:58:6
+mem gm13 .t11 32 align 8 @testdata/check/s5_i02_assertions.go:58:6
 mem gm14 .it2 24 align 8 @testdata/check/s5_i02_assertions.go:38:7
 
 func Dog.Sound(ptr) (ptr, i64) @testdata/check/s5_i02_assertions.go:19:14

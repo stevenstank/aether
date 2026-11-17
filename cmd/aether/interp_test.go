@@ -118,6 +118,10 @@ const generatedClosurePrograms = 100
 // the differential test runs besides them.
 const generatedIfacePrograms = 100
 
+// generatedMapPrograms is how many map programs (generateMaps) the
+// differential test runs besides them.
+const generatedMapPrograms = 100
+
 // TestDifferentialAgainstGc is the three-way differential test (Phases 2
 // and 3): for every corpus program expected to run and for generated S1
 // programs, the stdout, stderr, and exit status of the interpreter and of the
@@ -182,8 +186,12 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	for seed := uint64(1); seed <= generatedIfacePrograms; seed++ {
 		progs[fmt.Sprintf("ifc%04d", seed)] = []byte(generateIfaces(seed))
 	}
-	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs, %d interface programs",
-		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms, generatedIfacePrograms)
+	// Map programs (gen_map_test.go), never invalid either.
+	for seed := uint64(1); seed <= generatedMapPrograms; seed++ {
+		progs[fmt.Sprintf("map%04d", seed)] = []byte(generateMaps(seed))
+	}
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs, %d interface programs, %d map programs",
+		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms, generatedIfacePrograms, generatedMapPrograms)
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)
@@ -291,7 +299,8 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 	switch {
 	case !found:
 		return "", false, errors.New("no newline after the panic message")
-	case !runtimePanic(line, "panic: runtime error: ") && !runtimePanic(line, "panic: interface conversion: "):
+	case !runtimePanic(line, "panic: runtime error: ") && !runtimePanic(line, "panic: interface conversion: ") &&
+		!runtimePanic(line, "panic: hash of unhashable type: ") && line != "panic: "+nilMapEntry:
 		return "", false, fmt.Errorf("panic line %q is not a run-time error", line)
 	case gc.exit != 2:
 		return "", false, fmt.Errorf("exit status %d, want 2", gc.exit)
@@ -301,9 +310,14 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 	return gc.stderr[:i+len(line)+1], true, nil
 }
 
+// nilMapEntry is the message of gc's panic on an assignment to an entry of
+// a nil map (D-042).
+const nilMapEntry = "assignment to entry in nil map"
+
 // runtimePanic reports whether line is a panic of gc's run time with the
 // given prefix: a run-time error, or since D-041 a failed interface
-// conversion, which also has no "runtime error: ".
+// conversion, or since D-042 the check of an unhashable map key on an
+// empty map, which also have no "runtime error: ".
 func runtimePanic(line, prefix string) bool {
 	return strings.HasPrefix(line, prefix) && len(line) > len(prefix)
 }
@@ -315,6 +329,8 @@ func TestPanicPrefix(t *testing.T) {
 		{"1panic: runtime error: negative shift amount\n" + tb, "1panic: runtime error: negative shift amount\n"},
 		{"panic: runtime error: integer divide by zero\n", "panic: runtime error: integer divide by zero\n"},
 		{"panic: interface conversion: interface {} is int, not string\n" + tb, "panic: interface conversion: interface {} is int, not string\n"},
+		{"panic: assignment to entry in nil map\n" + tb, "panic: assignment to entry in nil map\n"},
+		{"panic: hash of unhashable type: []int\n" + tb, "panic: hash of unhashable type: []int\n"},
 	}
 	for _, tt := range good {
 		if q, ok, err := panicPrefix(result{stderr: tt.stderr, exit: 2}); err != nil || !ok || q != tt.q {

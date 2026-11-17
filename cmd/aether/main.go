@@ -31,9 +31,10 @@ Supported subset (S2):
   rune literals, arrays and structs of them, pointers, &, and new, and
   slices with make, append, and copy; methods of array and struct types;
   func values of functions and methods, and closures; interfaces, type
-  assertions, and type switches; if, for, and switch; package-level var
-  and const; print and println. Not supported: complex numbers, for range,
-  maps, defer, goroutines.
+  assertions, and type switches; maps with make, literals, indexing,
+  delete, len, and clear; if, for, and switch; package-level var and
+  const; print and println. Not supported: complex numbers, for range,
+  defer, goroutines.
   See docs/SEMANTICS.md.
 
 Build flags:

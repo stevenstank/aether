@@ -487,6 +487,20 @@ operations branch failed the verifier on `println` operands. On
 2026-11-18, interface programs of seeds 1001 to 2000 all gave gc's output in
 the interpreter, `aether build`, `-O0`, and ABI-R1; 122 of them panic.
 
+Map programs (`gen_map_test.go`, increment 8.5, D-042) come from their own
+random stream. `TestDifferentialAgainstGc` and `TestFrameBound` run 100,
+`TestMapPrograms` 30 also under `-O0` and ABI-R1, and `FuzzGenerated` the
+one of each seed. Their maps have int, string, struct, interface, and
+float64 keys, and int, string, slice, and map elements; `main` assigns,
+uses `op=`, `++`, and comma-ok reads, deletes, clears, grows maps in
+loops, and passes a map to a function that changes it. Without `range`,
+it prints every entry at the end by looking up each key of a small key
+domain, so nothing printed depends on iteration order. One program in
+about seven ends with an assignment to a nil map or an unhashable key. The
+panic comparison rule also accepts gc's `panic: assignment to entry in nil
+map` and `panic: hash of unhashable type: ` lines, which have no `runtime
+error: `.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

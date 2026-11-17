@@ -984,6 +984,38 @@ with a case value of interface type (`non-int-type`); `print` and
 `println` of an interface (`println-argument-type`), which gc prints as
 two addresses.
 
+## Maps (Phase 8 increment 8.5)
+
+The gate also accepts maps (D-042):
+- **Types**: `map[K]V` of supported key and element types, the key
+  comparable, anywhere a type may appear, interfaces included. The zero
+  value is `nil`; `==` and `!=` compare a map with `nil` only.
+- **Making maps**: `make(map[K]V)` and `make(map[K]V, n)`, whose size hint
+  is evaluated and otherwise ignored, so a negative or huge one does not
+  panic, as in gc; map literals, whose keys and elements are evaluated and
+  stored element by element, in source order, and may be elided literals.
+- **Indexing**: `m[k]`, the element or the zero value; `v, ok := m[k]` and
+  its `=` and `var` forms; `m[k]` as the target of `=`, `op=`, `++`, and
+  `--`. A nil map reads as empty; assigning to its entries panics with
+  gc's `assignment to entry in nil map`, after the right side is
+  evaluated. An element of array or struct type is copied out when read.
+- **Keys** are equal as `==` finds them: `+0` and `-0` are one key, and
+  assigning to an existing key stores the new key, as gc does; a NaN key
+  is never found, so each assignment adds an entry. A key whose dynamic
+  type is not comparable panics: with `runtime error: hash of unhashable
+  type T` for an assignment, or a read or delete on a map with entries,
+  and with `hash of unhashable type: T` for a read or delete on a nil or
+  empty map, gc's two messages.
+- **Builtins**: `len`, `delete` (a no-op for a missing key or a nil map),
+  and `clear` of a map.
+
+Still `unsupported`: `for range` over a map (`for-range`), which is
+increment 8.5b and will visit entries in insertion order rather than
+gc's randomized order (D-042); defined map types (`local-type-declaration`,
+`package-level-declaration`); `clear` of a slice (`builtin`); `print` and
+`println` of a map (`println-argument-type`), which gc prints as an
+address.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1017,6 +1049,7 @@ two addresses.
 | Func values: func types, functions as values, calls of func values, `nil` and comparison with it, method values, method expressions | Function types, Method values, Method expressions, Calls, Comparison operators | S5 / 8.2 | Supported (native), with divergences V-3 to V-5 and V-7 | `s5_f01_func_values` to `s5_f04_nil_method_value`; generated func value programs; `TestFuncValuePrograms`, `TestNilMethodExpression`, `TestIndirectCalls`, `TestVerifyIndirect`; gate tests |
 | Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
 | Interfaces: types, conversions, method calls, method values and expressions, comparisons, type assertions, type switches | Interface types, Conversions, Type assertions, Type switches, Comparison operators | S5 / 8.4 | Supported (native), with divergences V-3 to V-5 | `s5_i01_interfaces` to `s5_i06_nil_interface_call`; generated interface programs; `TestInterfacePrograms`, `TestGcName`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
+| Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 | `s5_k01_map_basics` to `s5_k08_large_keys`; generated map programs; `TestMapPrograms`, `TestPanicPrefix`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

@@ -214,7 +214,7 @@ func TestLowerUnexpected(t *testing.T) {
 		{"statement", "func main() { x := 1; for range x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.RangeStmt"},
 		{"fallthrough", "func main() { switch { case true: fallthrough; default: } }", "p.go:2:35: internal: lowering: unexpected fallthrough statement"},
 		{"slice to array", "func main() { s := []int{1, 2}; a := [2]int(s); println(a[0]) }", "p.go:2:45: internal: lowering: s is not an array or struct variable"},
-		{"type", "func main() { var m map[int]int; println(len(m)) }", "p.go:2:19: internal: lowering: unexpected type map[int]int"},
+		{"type", "func main() { var c chan int; println(len(c)) }", "p.go:2:19: internal: lowering: unexpected type chan int"},
 		{"named results", "func f() (a, b int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected result var a int"},
 		{"variadic func value", "func main() { var f func(...int); f(1) }", "p.go:2:35: internal: lowering: call of a variadic func value"},
 		{"package type", "type T int\nfunc main() {}", "p.go:2:1: internal: lowering: unexpected package-level type declaration"},

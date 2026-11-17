@@ -77,6 +77,12 @@ func FuzzGenerated(f *testing.F) {
 			t.Fatalf("interface program rejected: %s\n%s", ds[0], ifaces)
 		}
 		checkRegistersGenerated(t, ifaces, checkPromotion(t, "gen.go", ifaces, 1_000_000, &promoteStats{}))
+		// And its map program (gen_map_test.go), since 8.5.
+		maps := []byte(generateMaps(seed))
+		if ds := compileAndRun(t, maps); len(ds) > 0 {
+			t.Fatalf("map program rejected: %s\n%s", ds[0], maps)
+		}
+		checkRegistersGenerated(t, maps, checkPromotion(t, "gen.go", maps, 1_000_000, &promoteStats{}))
 		src := []byte(generate(seed))
 		ds := compileAndRun(t, src)
 		if len(ds) > 0 {

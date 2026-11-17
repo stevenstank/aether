@@ -139,6 +139,10 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     value or its heap copy; method calls through the itab; and the
     functions `.findK` and `.missK`, generated last, for assertions and
     conversions to interfaces (D-041).
+  - Lower a map value to the Ptr of a heap header over an insertion-ordered
+    entry array and a linearly probed index, operated on by the generated
+    functions `.mapaccessN`, `.mapassignN`, `.mapdeleteN`, `.mapgrow`,
+    `.mapclear`, `.maplen`, and the hash functions `.hashN` (D-042).
   - The program's functions are named `F` and its methods `T.M`, both
     made of Go identifiers, which are never empty. Every generated name
     begins with `.`, so it can never be one of those names, whatever the
@@ -669,7 +673,7 @@ Some Go features need far more runtime support than others:
 | bounds checks, nil checks | panic path |
 | strings | static data; concatenation and conversions use the heap allocator (D-037) |
 | slices, `append`, `new`, escaping locals | heap allocator (D-010) |
-| maps | hashing, allocator, iteration-order randomization policy |
+| maps | generated IR hash and table functions, heap allocator; iteration in insertion order, not randomized (D-042) |
 | interfaces | type descriptors, itabs |
 | closures | heap-allocated captured variables |
 | `defer`/`recover` | defer records, unwinding |

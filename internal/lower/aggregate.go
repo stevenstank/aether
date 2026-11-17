@@ -96,11 +96,12 @@ type place struct {
 // set, and otherwise that the index idx is below n, or below the I64 that
 // nv produces if it is set (a slice's length).
 type check struct {
-	ptr func() *ir.Instr
-	idx func() *ir.Instr
-	n   int64
-	nv  func() *ir.Instr
-	pos ir.Pos
+	assign func() // a map's element, located by its assignment (D-042)
+	ptr    func() *ir.Instr
+	idx    func() *ir.Instr
+	n      int64
+	nv     func() *ir.Instr
+	pos    ir.Pos
 }
 
 // field returns the part of p at offset off, of type t.
@@ -368,6 +369,8 @@ func (l *lowerer) storePlace(p place, w []*ir.Instr, pos ir.Pos) {
 func (l *lowerer) checkAll(p place) place {
 	for _, c := range p.checks {
 		switch {
+		case c.assign != nil:
+			c.assign()
 		case c.ptr != nil:
 			l.checkNil(c.ptr, c.pos)
 		case c.nv != nil:
@@ -431,6 +434,12 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 	case *ast.IndexExpr:
 		if isSlice(l.pkg.Info.Types[e.X].Type) {
 			return l.sliceIndex(e, lhs)
+		}
+		if isMap(l.pkg.Info.Types[e.X].Type) {
+			if lhs {
+				return l.mapTarget(e) // D-042
+			}
+			return l.mapIndex(e)
 		}
 		var p place
 		at := l.pkg.Info.Types[e.X].Type
@@ -497,6 +506,10 @@ func (l *lowerer) aggValue(e ast.Expr) *ir.Instr {
 		return l.addr(m, pos)
 	case *ast.TypeAssertExpr:
 		return l.assert(e, false)[0][0] // D-041
+	case *ast.IndexExpr:
+		if isMap(l.pkg.Info.Types[e.X].Type) {
+			return l.mapIndex(e).base() // a copy (D-042)
+		}
 	case *ast.CallExpr:
 		if l.pkg.Info.Types[e.Fun].IsType() {
 			// A conversion between types of identical underlying types,
@@ -611,6 +624,10 @@ func (l *lowerer) fillElement(p place, e ast.Expr) {
 		}
 		if isSlice(p.t) {
 			l.storePlace(p, l.sliceLit(lit), pos)
+			return
+		}
+		if isMap(p.t) {
+			l.storePlace(p, []*ir.Instr{l.mapLit(lit)}, pos)
 			return
 		}
 		l.fill(p, lit)

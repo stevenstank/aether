@@ -70,6 +70,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-039 | Func values (Phase 8 increment 8.2) | Accepted (2026-11-17, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-040 | Closures (Phase 8 increment 8.3) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-041 | Interfaces, type assertions, and type switches (Phase 8 increment 8.4) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
+| D-042 | Maps (Phase 8 increment 8.5) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 
 ## Review log
 
@@ -3246,6 +3247,108 @@ its size, never freed (V-5). An assertion to, or conversion between,
 non-empty interfaces costs a linear search over the program's types that
 implement the target. A panic's message names types as gc's run time does
 (`TestGcName` checks against reflect's names).
+
+## D-042: Maps (Phase 8 increment 8.5)
+
+**Status:** Accepted (2026-11-18). The owner asked to proceed with the next
+milestone, following its design-first rule, without an approval cycle;
+this note is that design, and the owner's review is pending.
+
+**Context.** Phase 8 lists "maps (including the randomized-iteration-order
+policy)". The IR has heap objects, moves, indirect calls, and type
+descriptors (D-035, D-036, D-039, D-041); D-037 settled that operations
+which loop are IR functions that lowering generates, not runtime helpers.
+Measured with gc-built go1.26.1 binaries on 2026-11-18:
+- Reading or deleting from a nil map is allowed; assigning to an entry of
+  one panics with `panic: assignment to entry in nil map`, after the right
+  side is evaluated.
+- A key of interface type whose dynamic type is not comparable panics when
+  the map is hashed: `panic: runtime error: hash of unhashable type []int`
+  for an assignment, and for a read or delete on a map with entries; on a
+  nil or empty map, a read or delete panics instead with `panic: hash of
+  unhashable type: []int` (gc's `mapKeyError`). Blank fields of a key are
+  skipped. All exit 2.
+- Assigning to an existing key overwrites the stored key: after
+  `m[0.0] = 1; m[-0.0] = 2`, the one key is `-0`. A NaN key is never
+  found, so every assignment of one adds an entry, which `delete` cannot
+  remove and `clear` does.
+- `make(map[K]V, n)` with a negative or huge n not constant does not
+  panic: the size is only a hint.
+- Iteration order differs from run to run.
+
+**Decision.**
+- **Scope.** Map types whose key and element types are supported, the key
+  comparable; `make`, with an optional size hint, which is evaluated and
+  otherwise ignored; map literals, keys and elements in source order;
+  `m[k]`, `v, ok := m[k]` (and `=` and `var` forms); `m[k]` as an
+  assignment target, with `op=`, `++`, and `--`; `delete`, `len`, `clear`
+  of a map; `==` and `!=` with `nil`; maps as values anywhere a type may
+  appear, interfaces included. Increment 8.5b adds `for range` over maps.
+  `print` of a map stays rejected: gc prints an address.
+- **Representation.** A map value is one Ptr: 0 for nil, or a 56-byte heap
+  header: `count`, the Ptr of the entry array, `used`, `cap`, the Ptr of the
+  index, its `mask`, and `clears`, the number of `clear` calls. The entry
+  array is a heap object whose first word is written only when it is
+  replaced, then 8-byte-aligned entries of `hash`, `live`, the key, and the
+  element, appended in order of insertion. The index is a power of two of
+  I64 slots, at least twice `cap`, each 0 or an entry's position plus 1,
+  probed linearly from the hash. Deleting clears `live` and leaves the slot,
+  which probing passes over. When `used` reaches `cap`, the live entries
+  move, in order, to new arrays of capacity max(8, 2·count); the old array
+  keeps its final `used` in its first word. `make` allocates only the header.
+- **Functions.** Lowering generates, for each map type `N`, the IR
+  functions `.mapaccessN`, `.mapassignN`, and `.mapdeleteN`, which take the
+  map and the key's words (D-034) and return the Ptr of the entry's
+  element, inserting a zeroed one for an assignment; a missing key gives
+  the Ptr of the global zero object `.mzero`, as large as the largest
+  element. Shared ones are `.mapgrow`, `.mapclear`, and `.maplen`. For each
+  hashed type, `.hashN(ctx, p, form)` hashes the value at p leaf by leaf,
+  as `==` compares it: blank fields skipped, a float's bits with -0 as +0,
+  a string's bytes, an interface through its dynamic type. A type
+  descriptor (D-041) grows a fourth word, the code address of its type's
+  hash function, or 0 if the type is not comparable, written by Init only
+  in a program that hashes an interface; 0 there panics with one of gc's
+  two messages, chosen by form.
+- **Order** (D-024). `m[k]` evaluates m, then k, then reads. An assignment
+  evaluates m and k with the other targets' operands, then the right side,
+  then calls `.mapassignN` and stores, as one deferred check of the target
+  (D-034), so nothing runs between the call and the store and its Ptr is
+  never held across user code. `m[k] op= y` evaluates y, then calls
+  `.mapassignN`, then reads, computes, and stores. An element of array or
+  struct type read in place is copied first.
+- **Iteration (8.5b).** Aether does not randomize: a range visits entries
+  in the order of the entry array, which is insertion order with deleted
+  entries removed, every run the same, as the specification allows. A
+  program depending on the order behaves differently from gc's, whose
+  order varies (divergence V-8). The iterator keeps the entry array it
+  started on, its position, and `clears`. While that array is the map's,
+  it yields each live entry it reaches, with its current element; once the
+  map has grown, it looks each key up in the map, skipping those deleted
+  and yielding the map's current entry, and, while no `clear` has run,
+  yields a key not equal to itself (NaN) as it stands, as gc does.
+  Entries added during the range may or may not be visited; each entry is
+  visited at most once.
+- **Panics.** `assignment to entry in nil map` and both unhashable messages
+  are `PanicMsg` (D-041), with gc's text: no new run-time error.
+- **No IR, runtime, or calling-convention change.**
+
+**Alternatives considered.** Runtime helpers in assembly, as gc's: every
+algorithm written twice, in assembly and in the interpreter (rejected by
+D-037's reasoning). One set of functions for all map types, driven by a
+descriptor of sizes and code addresses: fewer IR functions, but every
+key comparison an indirect call and every key copy a `move`. gc's
+buckets or Swiss tables, with in-place growth: faster, but iteration
+during growth needs gc's bookkeeping, where an append-only entry array
+makes a range's order and its rules for deletion simple. Randomized
+iteration, as gc does, to keep programs from depending on the order: it
+needs a source of randomness in the runtime and makes the interpreter's
+and native runs differ.
+
+**Consequences.** Every growth allocates new arrays and leaks the old ones
+(V-5), as do the entries of deleted keys until the next growth. Hashing
+costs a call per operation and a loop per string key. Every program with
+interfaces has 32-byte descriptors. Range order is insertion order (V-8);
+differential tests never depend on it.
 
 ---
 

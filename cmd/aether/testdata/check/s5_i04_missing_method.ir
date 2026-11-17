@@ -3,7 +3,7 @@ string s1 "interface conversion: "
 string s2 " is not main.B: missing method "
 string s3 "K"
 string s4 "main.T"
-mem gm0 .t0 24 align 8 @testdata/check/s5_i04_missing_method.go:21:6
+mem gm0 .t0 32 align 8 @testdata/check/s5_i04_missing_method.go:21:6
 mem gm1 .it0 16 align 8 @testdata/check/s5_i04_missing_method.go:22:12
 
 func T.M(ptr) i64 @testdata/check/s5_i04_missing_method.go:18:10

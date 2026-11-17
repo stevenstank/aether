@@ -868,7 +868,8 @@ repeated in each phase below:
 - **Increments:** 8.1 methods (D-038, owner approval 2026-11-16); 8.2 func
   values, with method values and method expressions (D-039, 2026-11-17);
   8.3 closures (D-040, 2026-11-18); 8.4 interfaces, type assertions, and
-  type switches (D-041, 2026-11-18); the other items follow, each with its
+  type switches (D-041, 2026-11-18); 8.5 maps (D-042, 2026-11-18), with
+  `for range` over maps as 8.5b; the other items follow, each with its
   own design note.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
@@ -922,6 +923,19 @@ repeated in each phase below:
   - Interface programs from their own generator (`gen_iface_test.go`,
     `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
     30 in `TestInterfacePrograms`, and one per `FuzzGenerated` seed.
+- **Status of 8.5 (in progress):**
+  - Maps without `for range` (`SEMANTICS.md` §Maps): a Ptr to a heap
+    header over an insertion-ordered entry array and a linearly probed
+    index, handled by generated IR functions, with gc's panic messages
+    through `PanicMsg` and a hash function word in type descriptors
+    (D-042); no IR, runtime, or calling-convention change.
+  - Corpus programs `s5_k01` to `s5_k08`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestMapPrograms`.
+  - Map programs from their own generator (`gen_map_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
+    30 in `TestMapPrograms`, and one per `FuzzGenerated` seed.
+  - Next, 8.5b: `for range` over maps, in insertion order (V-8, D-042).
 
 ## Phase 9: Garbage collection
 

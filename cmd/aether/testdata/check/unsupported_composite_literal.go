@@ -3,5 +3,5 @@
 package main
 
 func main() {
-	println(map[int]int{1: 2} == nil)
+	println(len([]complex128{1}))
 }

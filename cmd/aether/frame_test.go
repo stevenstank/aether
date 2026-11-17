@@ -58,6 +58,7 @@ func TestFrameBound(t *testing.T) {
 		progs = append(progs, program{fmt.Sprintf("fnv%04d.go", seed), []byte(generateFuncValues(seed))})
 		progs = append(progs, program{fmt.Sprintf("cls%04d.go", seed), []byte(generateClosures(seed))})
 		progs = append(progs, program{fmt.Sprintf("ifc%04d.go", seed), []byte(generateIfaces(seed))})
+		progs = append(progs, program{fmt.Sprintf("map%04d.go", seed), []byte(generateMaps(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {

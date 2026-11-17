@@ -301,6 +301,9 @@ func (l *lowerer) initStatics() {
 		if d.eq != nil {
 			l.fn.StM(entry, a, l.fn.Const(entry, 16, pos), l.fn.FuncAddr(entry, d.eq, pos), pos)
 		}
+		if d.hash != nil {
+			l.fn.StM(entry, a, l.fn.Const(entry, descHash, pos), l.fn.FuncAddr(entry, d.hash, pos), pos)
+		}
 	}
 	for _, it := range l.itabs {
 		a := l.fn.Addr(entry, it.mem, pos)

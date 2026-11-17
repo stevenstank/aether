@@ -2,7 +2,8 @@
 
 package main
 
+func g[T any]() {}
+
 func main() {
-	m := map[int]int{}
-	println(m[1])
+	g[int]()
 }

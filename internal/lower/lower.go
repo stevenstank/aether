@@ -153,6 +153,11 @@ type lowerer struct {
 	finds     map[int]*ir.Func // .findK of each interface K
 	misses    map[int]*ir.Func // .missK
 	late      []func()         // builds .findK and .missK, after every other body
+
+	maps       []*mapT      // the map types, one of identical ones (maps.go)
+	hashed     []types.Type // the types of the hash functions .hashN
+	hashIfaces bool         // a hash function hashes an interface
+	mzero      *ir.Mem      // the zero element of a missing key
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -777,6 +782,10 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 		l.copySlice(call)
 		return
 	}
+	if ok && (l.isBuiltin(call, "delete") || l.isBuiltin(call, "clear")) {
+		l.mapBuiltin(call) // D-042
+		return
+	}
 	if !ok || call.Ellipsis.IsValid() {
 		l.fail(s, "unexpected expression statement")
 	}
@@ -939,6 +948,9 @@ func (l *lowerer) valuesOrResults(list []ast.Expr, ts []types.Type) [][]*ir.Inst
 	var from *types.Tuple
 	if ta, ok := ast.Unparen(list[0]).(*ast.TypeAssertExpr); ok && len(list) == 1 && n == 2 {
 		vals = l.assert(ta, true) // v, ok := x.(T) (D-041)
+		from = l.pkg.Info.Types[list[0]].Type.(*types.Tuple)
+	} else if ix, ok := ast.Unparen(list[0]).(*ast.IndexExpr); ok && len(list) == 1 && n == 2 && isMap(l.pkg.Info.Types[ix.X].Type) {
+		vals = l.mapIndexOk(ix) // v, ok := m[k] (D-042)
 		from = l.pkg.Info.Types[list[0]].Type.(*types.Tuple)
 	} else {
 		call, ok := list[0].(*ast.CallExpr)
@@ -1239,6 +1251,9 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 			switch n := n.(type) {
 			case *ast.IndexExpr, *ast.StarExpr, *ast.SliceExpr:
 				found = true // the bounds or nil check
+			case *ast.CompositeLit:
+				// A map literal's stores may loop (D-042).
+				found = found || isMap(l.pkg.Info.Types[n].Type)
 			case *ast.CallExpr:
 				// make, append, and copy check and may grow (slice.go), and
 				// a call of a func value checks it for nil (funcvalue.go).
@@ -1324,6 +1339,10 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return l.expr(e.X)
 	case *ast.FuncLit:
 		return l.funcLit(e) // D-040
+	case *ast.CompositeLit:
+		if isMap(tv.Type) {
+			return l.mapLit(e) // D-042
+		}
 	case *ast.TypeAssertExpr:
 		return l.scalar(e, l.assert(e, false)[0]) // D-041
 	case *ast.IndexExpr:
@@ -1353,6 +1372,13 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			}
 			if b != nil && b.Name() == "copy" {
 				return l.copySlice(e)
+			}
+			if b != nil && b.Name() == "make" && isMap(tv.Type) {
+				return l.mapMake(e) // D-042
+			}
+			if b != nil && b.Name() == "len" && len(e.Args) == 1 && isMap(l.pkg.Info.Types[e.Args[0]].Type) {
+				pos := l.pos(e, e.Pos())
+				return l.fn.Call(l.b, l.mapLenFunc(pos), []*ir.Instr{l.expr(e.Args[0])}, pos)
 			}
 			if b != nil && (b.Name() == "len" || b.Name() == "cap") && len(e.Args) == 1 {
 				at := l.pkg.Info.Types[e.Args[0]].Type
@@ -1728,8 +1754,8 @@ func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
 			return it
 		}
 	}
-	if _, ok := pointee(t); ok || isFunc(t) {
-		return ir.Ptr // a func value is the Ptr of its closure (D-039)
+	if _, ok := pointee(t); ok || isFunc(t) || isMap(t) {
+		return ir.Ptr // a func value is the Ptr of its closure (D-039), a map of its header (D-042)
 	}
 	l.fail(n, "unexpected type %s", t)
 	return ir.NoType

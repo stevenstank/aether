@@ -51,10 +51,11 @@ func isDirect(t types.Type) bool {
 
 // tdesc is a type descriptor.
 type tdesc struct {
-	t   types.Type
-	id  int
-	mem *ir.Mem
-	eq  *ir.Func // nil if t is not comparable
+	t    types.Type
+	id   int
+	mem  *ir.Mem
+	eq   *ir.Func // nil if t is not comparable
+	hash *ir.Func // nil unless the program hashes an interface (D-042)
 }
 
 // itabT is the itab of a type and an interface.
@@ -90,7 +91,7 @@ func (l *lowerer) desc(t types.Type) *tdesc {
 	}
 	d := &tdesc{t: t, id: len(l.descs)}
 	pos := l.fn.Pos
-	d.mem = l.prog.NewMem(fmt.Sprintf("%st%d", genPrefix, d.id), 24, 8, l.fn.File, pos)
+	d.mem = l.prog.NewMem(fmt.Sprintf("%st%d", genPrefix, d.id), 32, 8, l.fn.File, pos)
 	if types.Comparable(t) {
 		d.eq = l.wrapper(fmt.Sprintf("eq%d", d.id), []ir.Type{ir.Ptr, ir.Ptr, ir.Ptr}, []ir.Type{ir.Bool}, pos, func(w *ir.Func) {
 			ps := l.enter(w, pos)
@@ -300,6 +301,7 @@ func (l *lowerer) buildLate() {
 	for i := 0; i < len(l.late); i++ {
 		l.late[i]()
 	}
+	l.descHashes()
 	l.fn = nil
 	l.buildWrappers()
 }

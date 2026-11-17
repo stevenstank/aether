@@ -356,14 +356,14 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 	ast.Inspect(n, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
-			inPlace[n.X] = addressed(n.X)
+			inPlace[n.X] = c.addressed(n.X)
 			// A method's value receiver is copied, for a call (D-038) or a
 			// method value (D-039).
 			if sel := c.info.Selections[n]; sel != nil && sel.Kind() == types.MethodVal {
 				add(sel.Obj().Type().(*types.Signature).Recv().Type())
 			}
 		case *ast.IndexExpr:
-			inPlace[n.X] = addressed(n.X)
+			inPlace[n.X] = c.addressed(n.X)
 		case *ast.SliceExpr:
 			inPlace[n.X] = true // an array, on the heap or global (D-036)
 		case *ast.ParenExpr:
@@ -379,6 +379,9 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 				inPlace[n.X] = true // a variable, or a literal on the heap
 			}
 		case *ast.CompositeLit:
+			if isMap(c.info.Types[n].Type) {
+				break // its elements are values, stored by assignment (D-042)
+			}
 			for _, elt := range n.Elts {
 				if kv, ok := elt.(*ast.KeyValueExpr); ok {
 					elt = kv.Value
@@ -428,6 +431,12 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 				}
 				return true
 			}
+		case *ast.IndexExpr:
+			// v, ok := m[k]: v, a temporary (D-042).
+			if tuple, ok := tv.Type.(*types.Tuple); ok {
+				add(tuple.At(0).Type())
+				return true
+			}
 		case *ast.TypeAssertExpr:
 			// v, ok := x.(T): v and its zero value, each a temporary.
 			if tuple, ok := tv.Type.(*types.Tuple); ok {
@@ -444,12 +453,14 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 }
 
 // addressed reports whether lowering uses x, the operand of a selector or
-// index expression, in place: not if it is a composite literal or a call,
-// whose value it evaluates into a temporary.
-func addressed(x ast.Expr) bool {
-	switch ast.Unparen(x).(type) {
+// index expression, in place: not if it is a composite literal, a call, or
+// a map's element, whose value it evaluates into a temporary.
+func (c *checker) addressed(x ast.Expr) bool {
+	switch x := ast.Unparen(x).(type) {
 	case *ast.CompositeLit, *ast.CallExpr:
 		return false
+	case *ast.IndexExpr:
+		return !c.isMap(x.X)
 	}
 	return true
 }
@@ -701,6 +712,12 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 		return false
 	case *ast.StarExpr:
 		return c.typeExpr(t.X) && c.sized(e)
+	case *ast.MapType:
+		// A map type (D-042).
+		mark := len(c.ds)
+		c.typeExpr(t.Key)
+		c.typeExpr(t.Value)
+		return len(c.ds) == mark && c.sized(e)
 	case *ast.InterfaceType:
 		return c.ifaceTypeExpr(t) && c.sized(e)
 	case *ast.FuncType:
@@ -855,8 +872,8 @@ func (c *checker) target(e ast.Expr) {
 			return
 		}
 	case *ast.IndexExpr:
-		if c.isArray(t.X) || c.isArrayPtr(t.X) || c.isSlice(t.X) {
-			c.operand(t.X, c.isArrayPtr(t.X) || c.isSlice(t.X))
+		if c.isArray(t.X) || c.isArrayPtr(t.X) || c.isSlice(t.X) || c.isMap(t.X) {
+			c.operand(t.X, c.isArrayPtr(t.X) || c.isSlice(t.X) || c.isMap(t.X))
 			c.expr(t.Index)
 			return
 		}
@@ -1048,11 +1065,11 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			// or a pointer to one.
 			// len and cap of a slice, cap of an array or a pointer to one.
 			if (obj.Name() == "len" || obj.Name() == "cap") && len(call.Args) == 1 && !call.Ellipsis.IsValid() &&
-				(obj.Name() == "len" && c.isString(call.Args[0]) || c.isArray(call.Args[0]) || c.isArrayPtr(call.Args[0]) || c.isSlice(call.Args[0])) {
+				(obj.Name() == "len" && (c.isString(call.Args[0]) || c.isMap(call.Args[0])) || c.isArray(call.Args[0]) || c.isArrayPtr(call.Args[0]) || c.isSlice(call.Args[0])) {
 				c.expr(call.Args[0])
 				return true
 			}
-			if c.sliceBuiltin(call, obj.Name()) {
+			if c.sliceBuiltin(call, obj.Name()) || c.mapBuiltin(call, obj.Name()) {
 				return true
 			}
 			// new(T), but not new of a value, new(expr), which Go 1.26
@@ -1114,6 +1131,11 @@ func (c *checker) multiValue(list []ast.Expr) bool {
 	}
 	if ta, ok := ast.Unparen(list[0]).(*ast.TypeAssertExpr); ok && isTuple(c.info.Types[list[0]].Type) {
 		c.typeAssert(ta) // v, ok := x.(T) (D-041)
+		return true
+	}
+	if ix, ok := ast.Unparen(list[0]).(*ast.IndexExpr); ok && isTuple(c.info.Types[list[0]].Type) && c.isMap(ix.X) {
+		c.expr(ix.X) // v, ok := m[k] (D-042)
+		c.expr(ix.Index)
 		return true
 	}
 	call, ok := list[0].(*ast.CallExpr)
@@ -1197,8 +1219,7 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.FuncLit:
 		c.funcLit(e)
 	case *ast.CompositeLit:
-		// Only array and struct literals: a slice or map literal needs the
-		// heap.
+		// A literal of a supported array, struct, slice, or map type.
 		if tv, ok := c.info.Types[e]; ok && !c.supported(tv.Type) {
 			c.reject(e, FeatCompositeLit, fmt.Sprintf("composite literal of type %s", tv.Type))
 			return
@@ -1234,7 +1255,7 @@ func (c *checker) expr(e ast.Expr) {
 		// Indexing a string gives one of its bytes (D-033), and indexing
 		// an array, a pointer to one, or a slice one of its elements;
 		// every other index expression is unsupported.
-		if !c.isString(e.X) && !c.isArray(e.X) && !c.isArrayPtr(e.X) && !c.isSlice(e.X) {
+		if !c.isString(e.X) && !c.isArray(e.X) && !c.isArrayPtr(e.X) && !c.isSlice(e.X) && !c.isMap(e.X) {
 			c.reject(e, FeatIndex, "index expression")
 			return
 		}
@@ -1294,23 +1315,32 @@ func (c *checker) compositeLit(e *ast.CompositeLit) {
 	} else if e.Type != nil && !c.typeExpr(e.Type) {
 		return
 	}
-	// An array or slice literal's keys are constant indices.
+	// An array or slice literal's keys are constant indices, and a map
+	// literal's are values, perhaps elided literals (D-042).
 	array := isArray(c.info.Types[e].Type) || isSlice(c.info.Types[e].Type)
 	for _, elt := range e.Elts {
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			if array {
 				c.expr(kv.Key)
+			} else if isMap(c.info.Types[e].Type) {
+				c.element(kv.Key)
 			}
 			elt = kv.Value
 		}
-		if lit, ok := elt.(*ast.CompositeLit); ok && lit.Type == nil {
-			if c.typed(lit) {
-				c.compositeLit(lit)
-			}
-			continue
-		}
-		c.expr(elt)
+		c.element(elt)
 	}
+}
+
+// element checks an element or map key of a composite literal: an elided
+// literal is checked in turn.
+func (c *checker) element(elt ast.Expr) {
+	if lit, ok := elt.(*ast.CompositeLit); ok && lit.Type == nil {
+		if c.typed(lit) {
+			c.compositeLit(lit)
+		}
+		return
+	}
+	c.expr(elt)
 }
 
 // typed reports whether e has a supported type, typed or untyped,
@@ -1447,6 +1477,9 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 		return c.sizedType(t.Elem(), seen)
 	case *types.Slice:
 		return c.sizedType(t.Elem(), seen)
+	case *types.Map:
+		// A map (D-042): go/types has checked that its key is comparable.
+		return c.sizedType(t.Key(), seen) && c.sizedType(t.Elem(), seen)
 	case *types.Array:
 		return isScalar(t.Elem()) || c.composite(t.Elem(), seen)
 	case *types.Struct:

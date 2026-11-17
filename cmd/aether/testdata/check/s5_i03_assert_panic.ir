@@ -7,9 +7,9 @@ string s5 "interface conversion: main.Named is nil, not *main.T"
 string s6 ", not *main.T"
 string s7 "main.T"
 string s8 "*main.T"
-mem gm0 .t0 24 align 8 @testdata/check/s5_i03_assert_panic.go:14:6
+mem gm0 .t0 32 align 8 @testdata/check/s5_i03_assert_panic.go:14:6
 mem gm1 .it0 16 align 8 @testdata/check/s5_i03_assert_panic.go:15:16
-mem gm2 .t1 24 align 8 @testdata/check/s5_i03_assert_panic.go:14:6
+mem gm2 .t1 32 align 8 @testdata/check/s5_i03_assert_panic.go:14:6
 mem gm3 .it1 16 align 8 @testdata/check/s5_i03_assert_panic.go:18:12
 
 func T.Name(ptr) (ptr, i64) @testdata/check/s5_i03_assert_panic.go:12:12
