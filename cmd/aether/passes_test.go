@@ -114,8 +114,8 @@ func TestDCEKeepsEffects(t *testing.T) {
 			}
 			for _, b := range f.Blocks {
 				for _, in := range b.Instrs {
-					// A call and an alloc are effects, kept unused (D-035).
-					if in.Type != ir.NoType && in.Op != ir.Call && in.Op != ir.Alloc && in.Op != ir.Param && uses[in] == 0 {
+					// A call and an alloc are effects, kept unused (D-035, D-039).
+					if in.Type != ir.NoType && !in.IsCall() && in.Op != ir.Alloc && in.Op != ir.Param && uses[in] == 0 {
 						t.Errorf("%s: func %s: %s is left unused", p.name, f.Name, in)
 					}
 				}

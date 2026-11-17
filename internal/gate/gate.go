@@ -75,8 +75,6 @@ const (
 	FeatNoBody        = "function-without-body"
 	FeatFrameSize     = "frame-size"
 	FeatLoopVarAddr   = "loop-variable-address"
-	FeatMethodValue   = "method-value"
-	FeatMethodExpr    = "method-expression"
 )
 
 // Operator features are "operator-" followed by a name from unaryFeature,
@@ -201,7 +199,7 @@ func init() {
 		FeatFuncLit, FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
-		FeatLoopVarAddr, FeatMethodValue, FeatMethodExpr,
+		FeatLoopVarAddr,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "type-switch", "select", "go",
 		"defer", "label", "send",
@@ -359,6 +357,11 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			inPlace[n.X] = addressed(n.X)
+			// A method's value receiver is copied, for a call (D-038) or a
+			// method value (D-039).
+			if sel := c.info.Selections[n]; sel != nil && sel.Kind() == types.MethodVal {
+				add(sel.Obj().Type().(*types.Signature).Recv().Type())
+			}
 		case *ast.IndexExpr:
 			inPlace[n.X] = addressed(n.X)
 		case *ast.SliceExpr:
@@ -390,12 +393,7 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 					inPlace[a] = true // len of an array: not evaluated
 				}
 			}
-			// A method's value receiver is copied (D-038).
-			if se, ok := ast.Unparen(n.Fun).(*ast.SelectorExpr); ok {
-				if sel := c.info.Selections[se]; sel != nil && sel.Kind() == types.MethodVal {
-					add(sel.Obj().Type().(*types.Signature).Recv().Type())
-				}
-			}
+
 		case *ast.Ident:
 			if v, ok := c.info.Defs[n].(*types.Var); ok {
 				add(v.Type())
@@ -684,6 +682,25 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 		return false
 	case *ast.StarExpr:
 		return c.typeExpr(t.X) && c.sized(e)
+	case *ast.FuncType:
+		// A func type (D-039): its parameter and result types, of which a
+		// variadic ...T is rejected.
+		if t.TypeParams != nil {
+			break
+		}
+		mark := len(c.ds)
+		for _, fl := range []*ast.FieldList{t.Params, t.Results} {
+			if fl == nil {
+				continue
+			}
+			for _, f := range fl.List {
+				c.typeExpr(f.Type)
+			}
+		}
+		if len(c.ds) == mark {
+			return c.sized(e)
+		}
+		return false
 	}
 	c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
 	return false
@@ -1032,6 +1049,27 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			}
 		}
 	}
+	if tv, ok := c.info.Types[call.Fun]; ok && !tv.IsType() && !tv.IsBuiltin() {
+		if sig, ok := tv.Type.Underlying().(*types.Signature); ok {
+			// A call of a func value (D-039), whose type, when its value is
+			// checked, must be supported.
+			if call.Ellipsis.IsValid() || sig.Variadic() {
+				c.reject(call, FeatVariadic, "variadic call")
+				return false
+			}
+			mark := len(c.ds)
+			c.expr(call.Fun)
+			if len(c.ds) > mark {
+				return false
+			}
+			if !c.multiValue(call.Args) {
+				for _, a := range call.Args {
+					c.expr(a)
+				}
+			}
+			return true
+		}
+	}
 	c.reject(call, FeatCall, "function call")
 	return false
 }
@@ -1142,11 +1180,14 @@ func (c *checker) expr(e ast.Expr) {
 		switch {
 		case sel != nil && sel.Kind() == types.MethodVal:
 			// Called, a method is checked by call; otherwise it is a
-			// function value (D-038).
-			c.reject(e, FeatMethodValue, "method value "+types.ExprString(e))
+			// method value, a func value (D-039).
+			c.methodValue(e, sel)
 			return
 		case sel != nil && sel.Kind() == types.MethodExpr:
-			c.reject(e, FeatMethodExpr, "method expression "+types.ExprString(e))
+			// A method expression T.M or (*T).M (D-039).
+			if c.typeExpr(e.X) {
+				c.typed(e)
+			}
 			return
 		case sel == nil || sel.Kind() != types.FieldVal:
 			c.reject(e, FeatSelector, "selector "+types.ExprString(e))
@@ -1281,6 +1322,10 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 	case *types.Builtin:
 		c.reject(id, FeatBuiltin, "builtin "+id.Name)
 	case *types.Func:
+		// A function of the program as a value (D-039).
+		if obj.Parent() == c.pkg.Types.Scope() {
+			return true
+		}
 		c.reject(id, FeatCall, "function value "+id.Name)
 	case nil:
 		c.internal(id, "no object for identifier %s", id.Name)
@@ -1371,6 +1416,20 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 		for f := range t.Fields() {
 			if !isScalar(f.Type()) && !c.composite(f.Type(), seen) {
 				return false
+			}
+		}
+		return true
+	case *types.Signature:
+		// A func type (D-039), not variadic, of supported parameters and
+		// results.
+		if t.Variadic() || t.Recv() != nil || t.TypeParams().Len() > 0 {
+			return false
+		}
+		for _, tuple := range []*types.Tuple{t.Params(), t.Results()} {
+			for v := range tuple.Variables() {
+				if !c.sizedType(v.Type(), seen) {
+					return false
+				}
 			}
 		}
 		return true

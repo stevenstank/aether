@@ -55,6 +55,7 @@ func TestFrameBound(t *testing.T) {
 	for seed := uint64(1); seed <= 100; seed++ {
 		progs = append(progs, program{fmt.Sprintf("slc%04d.go", seed), []byte(generateSlices(seed))})
 		progs = append(progs, program{fmt.Sprintf("mth%04d.go", seed), []byte(generateMethods(seed))})
+		progs = append(progs, program{fmt.Sprintf("fnv%04d.go", seed), []byte(generateFuncValues(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {

@@ -29,9 +29,10 @@ Supported subset (S2):
   bool, every integer type, float32, float64, strings with len, indexing,
   slicing, +, comparison, and []byte, []rune, and integer conversions,
   rune literals, arrays and structs of them, pointers, &, and new, and
-  slices with make, append, and copy; if, for, and switch; package-level
-  var and const; print and println. Not supported: complex numbers, for
-  range, maps, methods, interfaces, closures, defer, goroutines.
+  slices with make, append, and copy; methods of array and struct types;
+  func values of functions and methods; if, for, and switch;
+  package-level var and const; print and println. Not supported: complex
+  numbers, for range, maps, interfaces, closures, defer, goroutines.
   See docs/SEMANTICS.md.
 
 Build flags:

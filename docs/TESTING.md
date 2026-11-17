@@ -418,6 +418,31 @@ and the implicit `&` not making its variable address-taken fails `s5_m01`
 On 2026-11-16, method programs of seeds 1001 to 2000 all gave gc's output
 in the interpreter, `aether build`, and `-O0`; 162 of them panic.
 
+Since Phase 8 increment 8.2, `generateFuncValues` (`gen_funcvalue_test.go`)
+writes programs of its own, from a tenth random stream;
+`TestDifferentialAgainstGc` and `TestFrameBound` run 100 of them,
+`TestFuncValuePrograms` 30 also under `-O0` and ABI-R1, and `FuzzGenerated`
+the one of each seed. Five functions of type `func(int, int) int` have
+random bodies; a struct `S` holds an int and a func value, with a value
+method and a pointer method, and `W` embeds `S` and holds another. `main`
+keeps func values in variables, a package-level variable, a slice, an
+array, fields, and call results, makes method values and method
+expressions, directly and promoted, and calls them all, directly and
+through higher-order functions; one program in about seven ends with a call
+of a nil func value or a method value of a value method through a nil
+pointer. A call that writes a variable is alone in its statement with a
+constant argument, and a method value is made in a statement of its own
+(V-4). Negative controls, run by hand and reverted, against
+`TestFuncValuePrograms` and `TestDifferentialAgainstGc`: no nil check on a
+call of a func value stops a generated program in the interpreter on a read
+of address 0; a method value binding its value receiver's address instead
+of a copy, and a bound wrapper calling its method on the closure's copy
+instead of a fresh one, each fail `s5_f02` in every path; and ABI-R1
+loading the code address after the argument moves fails `checkR1` on
+generated programs. On 2026-11-17, func value programs of seeds 1001 to 2000
+all gave gc's output in the interpreter, `aether build`, `-O0`, and ABI-R1;
+152 of them panic.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

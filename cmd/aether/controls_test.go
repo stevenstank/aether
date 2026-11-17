@@ -143,8 +143,9 @@ var controls = []control{
 	{name: "4.6 globals share one word", file: "internal/amd64/amd64.go",
 		old: `%s:\n\t.zero\t8\n", sym, sym, sym)`, new: `%s:\n\t.zero\t0\n", sym, sym, sym)`,
 		// A string's length may then be another word, which a program
-		// may print for longer than runExe waits.
-		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`gen\d{4}: (native|killed after)`}},
+		// may print for longer than runExe waits. A func value program's
+		// package-level variable may fail first (D-039).
+		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`(gen|fnv)\d{4}: (native|killed after)`}},
 
 	// 4.7
 	{name: "4.7 break leaves the enclosing for", file: "internal/lower/lower.go",

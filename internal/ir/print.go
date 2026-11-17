@@ -68,6 +68,19 @@ func (p *Program) String() string {
 	return b.String()
 }
 
+// String returns the signature as a function type: "func(ptr, i64) bool".
+func (s *Sig) String() string {
+	r := "func(" + types(s.Params) + ")"
+	switch len(s.Results) {
+	case 0:
+	case 1:
+		r += " " + types(s.Results)
+	default:
+		r += " (" + types(s.Results) + ")"
+	}
+	return r
+}
+
 func (f *Func) write(b *strings.Builder) {
 	b.WriteString("func " + f.Name)
 	if len(f.Params)+len(f.Results) > 0 {
@@ -154,7 +167,13 @@ func (in *Instr) String() string {
 		ops = append(ops, fmt.Sprint(in.Index))
 	case Str:
 		ops = append(ops, fmt.Sprintf("s%d", in.Index))
-	case Call:
+	case CallInd:
+		if in.Sig != nil {
+			ops = append(ops, in.Sig.String())
+		} else {
+			ops = append(ops, "?")
+		}
+	case Call, FuncAddr:
 		if in.Callee != nil {
 			ops = append(ops, in.Callee.Name)
 		} else {

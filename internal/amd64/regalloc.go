@@ -59,7 +59,7 @@ type valueSet map[*ir.Instr]bool
 // it cannot stay in registers.
 func clobbers(in *ir.Instr) bool {
 	switch in.Op {
-	case ir.Call, ir.Println, ir.Print, ir.Panic, ir.Alloc, ir.Move:
+	case ir.Call, ir.CallInd, ir.Println, ir.Print, ir.Panic, ir.Alloc, ir.Move:
 		return true
 	}
 	return false
@@ -375,8 +375,8 @@ func preferences(f *ir.Func, regs map[*ir.Instr]int) func(v *ir.Instr) []int {
 						phisOf[a] = append(phisOf[a], in)
 					}
 				}
-			case ir.Call:
-				for i, a := range in.Args {
+			case ir.Call, ir.CallInd:
+				for i, a := range in.CallArgs() {
 					if i < len(argRegs) {
 						argOf[a] = append(argOf[a], i)
 					}

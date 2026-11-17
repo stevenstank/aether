@@ -125,9 +125,10 @@ potentially long-term dependencies. The exact ownership boundaries are in
 - Only S2, floats, string constants, arrays and structs (Phase 6 increments
   6.1 to 6.3), pointers (Phase 7 increment 7.1), slices (increment 7.2),
   and strings made at run time, with comparison, rune literals, and the
-  `[]byte`, `[]rune`, and integer conversions (increment 7.3), and methods
-  of array and struct types (Phase 8 increment 8.1) are supported: no complex
-  numbers, maps, method values, interfaces, closures, `defer`, `panic`, or goroutines; no
+  `[]byte`, `[]rune`, and integer conversions (increment 7.3), methods
+  of array and struct types (Phase 8 increment 8.1), and func values of
+  functions and methods (increment 8.2) are supported: no complex numbers,
+  maps, interfaces, function literals or closures, `defer`, `panic`, or goroutines; no
   `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
   declarations other than of arrays and structs, and no `init` functions. Panics print no traceback.
   Heap memory is never freed (D-010).

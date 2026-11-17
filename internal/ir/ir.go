@@ -313,6 +313,17 @@ const (
 	// runtime. Precondition: args[2] is 0, or each range lies in one object
 	// and every byte of the source range has been written.
 	Move
+	// FuncAddr produces the address of the code of Callee, a function of
+	// the program other than Init, as a Ptr (D-039). No args. Only CallInd
+	// may use the address, directly or after it is stored in memory and
+	// loaded again; LdM and StM never read through it.
+	FuncAddr
+	// CallInd calls the function whose code address args[0] is, a Ptr that
+	// FuncAddr produced, with args[1:], one per entry of Sig.Params and of
+	// the same type, and produces its result as Call does, typed by Sig's
+	// Results (D-039). The callee's Params and Results must be Sig's.
+	// Each call has a fresh set of slots.
+	CallInd
 )
 
 var opNames = [...]string{
@@ -327,6 +338,7 @@ var opNames = [...]string{
 	FEq: "feq", FNe: "fne", FLt: "flt", FLe: "fle", FGt: "fgt", FGe: "fge",
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
 	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd", Move: "move",
+	FuncAddr: "funcaddr", CallInd: "callind",
 }
 
 func (op Op) String() string {
@@ -530,12 +542,40 @@ type Instr struct {
 	Slot    *Slot    // for Load and Store
 	Const   int64    // for Const
 	Index   int      // for Param, Extract, and Panic
-	Callee  *Func    // for Call
+	Callee  *Func    // for Call and FuncAddr
+	Sig     *Sig     // for CallInd
 	Global  *Global  // for GLoad and GStore
 	Mem     *Mem     // for Addr
 	Targets []*Block // for Jump and Branch
 	Edges   []Edge   // for Phi: the incoming edge of each arg
 	Pos     Pos
+}
+
+// Sig is the signature of an indirect call: the types of the callee's
+// parameters and results (D-039).
+type Sig struct {
+	Params, Results []Type
+}
+
+// CallResults returns the result types of a Call or CallInd.
+func (in *Instr) CallResults() []Type {
+	if in.Op == CallInd {
+		return in.Sig.Results
+	}
+	return in.Callee.Results
+}
+
+// IsCall reports whether in calls a function of the program: a Call or a
+// CallInd.
+func (in *Instr) IsCall() bool { return in.Op == Call || in.Op == CallInd }
+
+// CallArgs returns the arguments a Call or CallInd passes to its callee:
+// a CallInd's args after the code address.
+func (in *Instr) CallArgs() []*Instr {
+	if in.Op == CallInd {
+		return in.Args[1:]
+	}
+	return in.Args
 }
 
 // Edge is a control-flow edge: the one from block From to target Index of
@@ -783,16 +823,27 @@ func (f *Func) Param(b *Block, i int, pos Pos) *Instr {
 
 // Call appends a call of callee with args.
 func (f *Func) Call(b *Block, callee *Func, args []*Instr, pos Pos) *Instr {
-	return f.add(b, &Instr{Op: Call, Type: callType(callee), Args: args, Callee: callee, Pos: pos})
+	return f.add(b, &Instr{Op: Call, Type: callType(callee.Results), Args: args, Callee: callee, Pos: pos})
 }
 
-// callType is the type of a call of callee.
-func callType(callee *Func) Type {
-	switch len(callee.Results) {
+// FuncAddr appends the address of callee's code (D-039).
+func (f *Func) FuncAddr(b *Block, callee *Func, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: FuncAddr, Type: Ptr, Callee: callee, Pos: pos})
+}
+
+// CallInd appends a call, of signature sig, of the code at the address
+// code, with args (D-039).
+func (f *Func) CallInd(b *Block, sig *Sig, code *Instr, args []*Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: CallInd, Type: callType(sig.Results), Args: append([]*Instr{code}, args...), Sig: sig, Pos: pos})
+}
+
+// callType is the type of a call of a function with results rs.
+func callType(rs []Type) Type {
+	switch len(rs) {
 	case 0:
 		return NoType
 	case 1:
-		return callee.Results[0]
+		return rs[0]
 	}
 	return Tuple
 }
@@ -818,5 +869,5 @@ func (phi *Instr) AddIncoming(e Edge, v *Instr) {
 
 // Extract appends result i of call, a Tuple call.
 func (f *Func) Extract(b *Block, call *Instr, i int, pos Pos) *Instr {
-	return f.add(b, &Instr{Op: Extract, Type: call.Callee.Results[i], Args: []*Instr{call}, Index: i, Pos: pos})
+	return f.add(b, &Instr{Op: Extract, Type: call.CallResults()[i], Args: []*Instr{call}, Index: i, Pos: pos})
 }

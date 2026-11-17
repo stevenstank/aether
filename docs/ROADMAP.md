@@ -865,8 +865,9 @@ repeated in each phase below:
 - **Depends on:** Phase 7.
 - **Risks:** this is the largest scope jump. Split it into sub-phases if any
   item proves large.
-- **Increments:** 8.1 methods (D-038, owner approval 2026-11-16); the
-  other items follow, each with its own design note.
+- **Increments:** 8.1 methods (D-038, owner approval 2026-11-16); 8.2 func
+  values, with method values and method expressions (D-039, 2026-11-17);
+  the other items follow, each with its own design note, closures next.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
     pointer receivers, calls with the implicit `&` and `*`, and promotion
@@ -880,6 +881,21 @@ repeated in each phase below:
   - Method programs from their own generator (`gen_method_test.go`,
     `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
     30 in `TestMethodPrograms`, and one per `FuzzGenerated` seed.
+- **Status of 8.2 (done; owner review pending):**
+  - Func types, functions as values, calls of func values with their nil
+    check, comparison with `nil`, method values, and method expressions
+    (`SEMANTICS.md` §Func values), through the IR operations `FuncAddr`
+    and `CallInd` and generated wrappers, with no calling-convention
+    change (D-039). Function literals stay unsupported.
+  - Corpus programs `s5_f01` to `s5_f04`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestFuncValuePrograms`; divergence V-7 pinned by
+    `TestNilMethodExpression`; `TestIndirectCalls` and
+    `TestVerifyIndirect` for the IR.
+  - Func value programs from their own generator
+    (`gen_funcvalue_test.go`, `TESTING.md`): 100 in
+    `TestDifferentialAgainstGc` and `TestFrameBound`, 30 in
+    `TestFuncValuePrograms`, and one per `FuzzGenerated` seed.
 
 ## Phase 9: Garbage collection
 

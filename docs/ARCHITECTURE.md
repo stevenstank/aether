@@ -126,6 +126,12 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     them (D-037).
   - Lower each method to an ordinary IR function `T.M`, after its
     receiver's type, whose first parameter is the receiver (D-038).
+  - Lower a func value to the Ptr of a closure whose first word is the code
+    address of a generated wrapper taking the closure as its first
+    parameter: `.f.F` for a function, `.m.T.M` and `.p.T.M` for method
+    expressions, with static closures written by Init, and `.b.D.M` for a
+    method value, whose closure on the heap also holds the bound receiver
+    (D-039).
   - The program's functions are named `F` and its methods `T.M`, both
     made of Go identifiers, which are never empty. Every generated name
     begins with `.`, so it can never be one of those names, whatever the
@@ -191,6 +197,9 @@ memory objects, local to a call or global, which `addr`, `ldm`, and `stm`
 address, read, and write (D-034). Heap objects come from `alloc`, `padd`
 makes pointers into an object, and `eq` and `ne` compare pointers (D-035).
 `move` copies bytes between objects, overlapping or not, for slices (D-036).
+`funcaddr` produces a function's code address, and `callind` calls the code
+at such an address with arguments typed by the signature it carries, for
+func values (D-039).
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|
@@ -306,7 +315,7 @@ and value numbering never depend on map iteration order.
   changes. It removes code only from blocks that never execute and moves
   nothing.
 - **Implemented: dead code elimination** (`opt.DCE`), after folding. It keeps
-  the instructions with an effect (terminators, `call`, `println`, `print`,
+  the instructions with an effect (terminators, `call`, `callind`, `println`, `print`,
   `gstore`, and `param`) and their operands, transitively, and removes the
   rest, dead phi cycles included. `div` and `rem` cannot trap (lowering's zero
   check is a branch of its own), and a dead `gload` is not reordered but gone.

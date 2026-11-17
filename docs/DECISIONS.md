@@ -67,6 +67,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-036 | Slices (Phase 7 increment 7.2) | Accepted (2026-11-15, owner decision) |
 | D-037 | Strings made at run time (Phase 7 increment 7.3) | Accepted (2026-11-16, owner decision) |
 | D-038 | Methods (Phase 8 increment 8.1) | Accepted (2026-11-16, owner approval as proposed) |
+| D-039 | Func values (Phase 8 increment 8.2) | Accepted (2026-11-17, owner's instruction to proceed without an approval cycle; owner review pending) |
 
 ## Review log
 
@@ -3055,6 +3056,81 @@ among the arguments that changes it, or checked for nil before such a
 call, follows D-024's order, which gc does not (V-4,
 `TestMethodReceiverOrder`). The implicit `&` puts a variable on the heap
 for the rest of its life, as `&x` does (V-5).
+
+## D-039: Func values (Phase 8 increment 8.2)
+
+**Status:** Accepted (2026-11-17). The owner asked to proceed with the next
+milestone, following its design-first rule, without an approval cycle;
+this note is that design, and the owner's review is pending.
+
+**Context.** Phase 8 lists "methods and method values". Method values and
+method expressions are func values, and so are closures, which come next,
+and an interface's methods will be called through code addresses too. The
+IR had only direct calls of a named function.
+
+**Decision.**
+- **Scope.** Func types, not variadic, of supported parameter and result
+  types, anywhere a type may appear: variables, parameters, results,
+  fields, elements. Functions of the program as values; calls of any
+  expression of func type; `nil`, and `==` and `!=` with `nil`; method
+  values `x.M` and method expressions `T.M` and `(*T).M` of the program's
+  methods. Function literals stay rejected (`function-literal`): closures
+  are the next increment. `print` and `println` of a func value stay
+  rejected: gc prints an address.
+- **Representation.** A func value is one Ptr: 0 for nil, or the address of
+  a closure object whose first word is a code address. The code takes the
+  closure's Ptr as its first parameter, the context, then the words of the
+  Go parameters as a direct call passes them (D-034). This is gc's layout,
+  and closures will store their captured variables after the code address.
+- **IR.** Two operations. `FuncAddr` produces the code address of a function
+  of the program, other than Init, as a Ptr. `CallInd` calls the code at the
+  address in its first operand with the rest, typed by a signature it
+  carries (`Sig`), and produces its results as `Call` does: one value, or a
+  Tuple read with `Extract`. A code address is only stored, loaded, and
+  called: `LdM` and `StM` never read through one. The interpreter gives each
+  function a read-only object of no bytes as its address and refuses a call
+  of anything else, or with another signature.
+- **Backend, with no calling-convention change.** `FuncAddr` is a `leaq` of
+  the function's symbol. A `CallInd` passes its arguments exactly as `Call`
+  does under ABI-S0 and ABI-R1, the context as argument 0, and calls through
+  `%rcx`, one of the reserved scratch registers (D-011, D-030). Under ABI-R1
+  the code address goes to `%rcx` before the argument moves, which never
+  write it, and `checkR1` verifies it is there at the call.
+- **Wrappers.** No Go function takes a context, so lowering generates the
+  code that a func value calls, named with a leading dot like its other
+  generated functions:
+  - `.f.F` calls the function `F`. Its closure, holding only the code
+    address, is the global memory object `.v.f.F`, which Init writes before
+    any initializer runs. Every value of `F` is that one Ptr, so making one
+    allocates nothing.
+  - `.m.T.M` and `.p.T.M`, for `T.M` and `(*T).M`, take the receiver as
+    their first Go parameter and select `M` on it as a call `x.M()` does,
+    with the same nil checks. Their closures are static too.
+  - `.b.D.M`, for a method value of `M` declared on `D`. Evaluating `x.M`
+    selects the receiver as a call does, then allocates a closure holding
+    the code address and the receiver: a copy of the value, or the pointer.
+    Each call copies a value receiver again before calling `M`, which may
+    change its copy.
+- **Order.** A call of a func value evaluates the function value, then the
+  arguments, left to right (D-024), then panics with gc's nil dereference
+  message if the func value is nil, as gc's load of the code address
+  faults. A method value with a value receiver, through a nil pointer,
+  panics when it is evaluated, as gc's does.
+
+**Alternatives considered.** Represent a func value by its code address
+alone: it cannot carry a receiver or captured variables, so closures would
+need a second representation. Pass the context in a dedicated register as
+gc does (`%rdx`): it changes the convention of every function that can be
+called through a func value, where an ordinary first parameter changes
+none. Allocate a closure each time a function is used as a value: it would
+use heap that is never freed (V-5) in a loop.
+
+**Consequences.** A call through a func value costs a wrapper call more
+than a direct call. A method value with a value receiver allocates its
+receiver's size plus 8 bytes, never freed (V-5). The method expression
+`(*T).M` of a value method, called with nil, panics with the nil
+dereference message, where gc's wrapper panics with
+`value method main.T.M called using nil *T pointer` (V-7).
 
 ---
 

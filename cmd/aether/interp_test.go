@@ -106,6 +106,10 @@ const generatedSlicePrograms = 100
 // differential test runs besides them.
 const generatedMethodPrograms = 100
 
+// generatedFuncValuePrograms is how many func value programs
+// (generateFuncValues) the differential test runs besides them.
+const generatedFuncValuePrograms = 100
+
 // TestDifferentialAgainstGc is the three-way differential test (Phases 2
 // and 3): for every corpus program expected to run and for generated S1
 // programs, the stdout, stderr, and exit status of the interpreter and of the
@@ -158,8 +162,12 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	for seed := uint64(1); seed <= generatedMethodPrograms; seed++ {
 		progs[fmt.Sprintf("mth%04d", seed)] = []byte(generateMethods(seed))
 	}
-	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs",
-		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms)
+	// Func value programs (gen_funcvalue_test.go), never invalid either.
+	for seed := uint64(1); seed <= generatedFuncValuePrograms; seed++ {
+		progs[fmt.Sprintf("fnv%04d", seed)] = []byte(generateFuncValues(seed))
+	}
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs",
+		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms)
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)

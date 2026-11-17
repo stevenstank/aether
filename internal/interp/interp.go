@@ -285,16 +285,29 @@ func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps i
 			_, _ = stderr.Write(line)
 		case ir.Param:
 			fr.values[in.ID] = fr.args[in.Index]
-		case ir.Call:
+		case ir.FuncAddr:
+			fr.values[in.ID] = mem.funcAddr(in.Callee)
+		case ir.Call, ir.CallInd:
+			callee, first := in.Callee, 0
+			if in.Op == ir.CallInd {
+				// Only a FuncAddr's value is a code address (D-039).
+				callee, first = mem.funcs[arg(0)], 1
+				if callee == nil {
+					return 0, fmt.Errorf("interp: func %s: %s: %#x is not a code address", fr.f.Name, in, arg(0))
+				}
+				if !slices.Equal(callee.Params, in.Sig.Params) || !slices.Equal(callee.Results, in.Sig.Results) {
+					return 0, fmt.Errorf("interp: func %s: %s: callee %s has another signature", fr.f.Name, in, callee.Name)
+				}
+			}
 			if len(stack) == MaxDepth {
 				_, _ = io.WriteString(stderr, stackOverflow)
 				return 2, nil
 			}
-			args := make([]int64, len(in.Args))
+			args := make([]int64, len(in.Args)-first)
 			for i := range args {
-				args[i] = arg(i)
+				args[i] = arg(first + i)
 			}
-			stack = append(stack, newFrame(in.Callee, args))
+			stack = append(stack, newFrame(callee, args))
 		case ir.Ret:
 			results := make([]int64, len(in.Args))
 			for i := range results {

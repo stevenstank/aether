@@ -42,6 +42,28 @@ func TestRunUsage(t *testing.T) {
 	}
 }
 
+// TestUsageSubset checks that the usage message's summary of the subset
+// lists methods (D-038) and func values (D-039) as supported, and neither
+// as not.
+func TestUsageSubset(t *testing.T) {
+	sum := strings.Join(strings.Fields(usage), " ")
+	for _, want := range []string{"methods of array and struct types", "func values of functions and methods"} {
+		if !strings.Contains(sum, want) {
+			t.Errorf("usage does not list %q as supported:\n%s", want, usage)
+		}
+	}
+	_, unsupported, ok := strings.Cut(sum, "Not supported:")
+	if !ok {
+		t.Fatalf("usage has no Not supported list:\n%s", usage)
+	}
+	unsupported, _, _ = strings.Cut(unsupported, ".")
+	for item := range strings.SplitSeq(unsupported, ",") {
+		if item := strings.TrimSpace(item); item == "methods" || item == "method values" {
+			t.Errorf("usage lists methods as not supported: %s", unsupported)
+		}
+	}
+}
+
 func checkStream(t *testing.T, name, got, want string) {
 	t.Helper()
 	if want == "" && got != "" {

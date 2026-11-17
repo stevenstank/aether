@@ -84,6 +84,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		l.function(fd)
 	}
 	l.init(prog)
+	l.buildWrappers()
 	mains := 0
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
@@ -127,6 +128,11 @@ type lowerer struct {
 	streq     *ir.Func             // .streq, once a string comparison needs it (strings.go)
 	strcmp    *ir.Func             // .strcmp, once an ordering of strings needs it (strings.go)
 	runeFuncs [nRuneFuncs]*ir.Func // the UTF-8 functions, each once a conversion needs it (runes.go)
+
+	wrappers   map[string]*ir.Func  // the wrappers of func values, by name (funcvalue.go)
+	bodies     []func()             // builds each wrapper's body, after the program's functions
+	statics    []static             // the static closures, in order of first use
+	staticMems map[*ir.Func]*ir.Mem // the static closure of each wrapper that has one
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -239,7 +245,7 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 // initializer keeps its zero value. Init is at the package clause.
 func (l *lowerer) init(prog *ir.Program) {
 	order := l.pkg.Info.InitOrder
-	if len(order) == 0 {
+	if len(order) == 0 && len(l.statics) == 0 {
 		return
 	}
 	f := l.pkg.Files[0]
@@ -262,6 +268,15 @@ func (l *lowerer) init(prog *ir.Program) {
 		}
 	}
 	l.fn.Ret(l.b, l.fn.Pos)
+	if len(l.statics) > 0 {
+		// The static closures are written first, in a new entry block,
+		// before any initializer can use one (D-039). Nothing branches to
+		// the old entry, whose code moves to a block of its own.
+		entry := l.fn.Entry()
+		body := l.fn.NewBlock()
+		body.Instrs, entry.Instrs = entry.Instrs, nil
+		l.initStatics(entry, body)
+	}
 	prune(l.fn)
 	l.fn = nil
 }
@@ -773,13 +788,19 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 	case *ast.SelectorExpr:
 		sel := l.pkg.Info.Selections[fn]
 		if sel == nil || sel.Kind() != types.MethodVal {
-			l.fail(call, "unexpected call of %s", types.ExprString(fn))
+			break // a func value
 		}
 		obj, _ = sel.Obj().(*types.Func)
 		w := l.receiver(fn, sel)
 		recv = func() []*ir.Instr { return w }
 		if l.branches(call.Args) {
 			recv = l.spillWords(w, pos)
+		}
+	}
+	if obj == nil && l.isValueCall(call) {
+		// A call of a func value (D-039).
+		if sig, ok := l.pkg.Info.Types[call.Fun].Type.Underlying().(*types.Signature); ok {
+			return l.valueCall(call, sig)
 		}
 	}
 	if obj == nil || l.funcs[obj] == nil {
@@ -839,7 +860,7 @@ func (l *lowerer) results(call *ast.CallExpr, v *ir.Instr) [][]*ir.Instr {
 		var w []*ir.Instr
 		for range l.words(call, t) {
 			switch {
-			case i >= len(v.Callee.Results):
+			case i >= len(v.CallResults()):
 				l.fail(call, "call has too few result words")
 			case v.Type == ir.Tuple:
 				w = append(w, l.fn.Extract(l.b, v, i, l.pos(call, call.Pos())))
@@ -850,8 +871,8 @@ func (l *lowerer) results(call *ast.CallExpr, v *ir.Instr) [][]*ir.Instr {
 		}
 		vals = append(vals, w)
 	}
-	if i != len(v.Callee.Results) || k != len(temps) || v.Type != ir.Tuple && i > 1 {
-		l.fail(call, "call has %d result words and %d objects for %d results", len(v.Callee.Results), len(temps), len(ts))
+	if i != len(v.CallResults()) || k != len(temps) || v.Type != ir.Tuple && i > 1 {
+		l.fail(call, "call has %d result words and %d objects for %d results", len(v.CallResults()), len(temps), len(ts))
 	}
 	return vals
 }
@@ -1125,11 +1146,17 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 			case *ast.IndexExpr, *ast.StarExpr, *ast.SliceExpr:
 				found = true // the bounds or nil check
 			case *ast.CallExpr:
-				// make, append, and copy check and may grow (slice.go).
-				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy")
+				// make, append, and copy check and may grow (slice.go), and
+				// a call of a func value checks it for nil (funcvalue.go).
+				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy") || l.isValueCall(n)
 			case *ast.SelectorExpr:
 				if sel := l.pkg.Info.Selections[n]; sel != nil && sel.Indirect() {
 					found = true
+				}
+				// A method value copies its receiver, which may loop.
+				if sel := l.pkg.Info.Selections[n]; sel != nil && sel.Kind() == types.MethodVal {
+					rt := sel.Obj().Type().(*types.Signature).Recv().Type()
+					found = found || isAggregate(rt) && mayLoop(rt)
 				}
 			}
 			if e, ok := n.(ast.Expr); ok {
@@ -1195,6 +1222,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	}
 	switch e := e.(type) {
 	case *ast.Ident:
+		if obj, ok := l.pkg.Info.Uses[e].(*types.Func); ok {
+			return l.funcValue(e, obj)
+		}
 		return l.scalar(e, l.load(l.lookup(e), l.pos(e, e.Pos())))
 	case *ast.ParenExpr:
 		return l.expr(e.X)
@@ -1203,7 +1233,15 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			return l.index(e)
 		}
 		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
-	case *ast.SelectorExpr, *ast.StarExpr:
+	case *ast.SelectorExpr:
+		switch sel := l.pkg.Info.Selections[e]; {
+		case sel != nil && sel.Kind() == types.MethodVal:
+			return l.methodValue(e, sel)
+		case sel != nil && sel.Kind() == types.MethodExpr:
+			return l.methodExpr(e, sel)
+		}
+		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
+	case *ast.StarExpr:
 		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
 	case *ast.CallExpr:
 		if id, ok := ast.Unparen(e.Fun).(*ast.Ident); ok {
@@ -1576,8 +1614,8 @@ func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
 			return it
 		}
 	}
-	if _, ok := pointee(t); ok {
-		return ir.Ptr
+	if _, ok := pointee(t); ok || isFunc(t) {
+		return ir.Ptr // a func value is the Ptr of its closure (D-039)
 	}
 	l.fail(n, "unexpected type %s", t)
 	return ir.NoType

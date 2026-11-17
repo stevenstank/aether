@@ -34,6 +34,25 @@ type memory struct {
 	live     int64   // the bytes of the local objects in existence
 	heap     int64   // the bytes of the heap objects, each rounded up to 8
 	zerobase int64   // the Ptr every zero-size allocation returns, 0 until the first
+	// The code addresses of functions (D-039): each a read-only object of
+	// no bytes, made when FuncAddr first takes it, so that no LdM or StM
+	// can go through one.
+	funcAddrs map[*ir.Func]int64
+	funcs     map[int64]*ir.Func
+}
+
+// funcAddr returns the code address of f.
+func (m *memory) funcAddr(f *ir.Func) int64 {
+	if p, ok := m.funcAddrs[f]; ok {
+		return p
+	}
+	if m.funcAddrs == nil {
+		m.funcAddrs, m.funcs = map[*ir.Func]int64{}, map[int64]*ir.Func{}
+	}
+	p := m.alloc(0, true)
+	m.objs[p>>offBits].readOnly = true
+	m.funcAddrs[f], m.funcs[p] = p, f
+	return p
 }
 
 type object struct {

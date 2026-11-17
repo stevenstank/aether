@@ -675,7 +675,22 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if in.Callee == v.p.Init {
 			v.errorf(bi, i, in, "call of init")
 		}
-		want, args = callType(in.Callee), in.Callee.Params
+		want, args = callType(in.Callee.Results), in.Callee.Params
+	case FuncAddr:
+		want = Ptr
+		switch {
+		case in.Callee == nil || !v.funcs[in.Callee]:
+			v.errorf(bi, i, in, "funcaddr of a function not of the program")
+		case in.Callee == v.p.Init:
+			v.errorf(bi, i, in, "funcaddr of init")
+		}
+	case CallInd:
+		if in.Sig == nil {
+			v.errorf(bi, i, in, "callind without a signature")
+			want = in.Type
+			break
+		}
+		want, args = callType(in.Sig.Results), append([]Type{Ptr}, in.Sig.Params...)
 	case GLoad, GStore:
 		if !v.globals[in.Global] {
 			// Report only this, not the types it leaves unknown.
@@ -697,8 +712,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		// The tuple must be a call in this block (checked with the
 		// operands), so its callee is known.
 		args = []Type{Tuple}
-		if len(in.Args) == 1 && in.Args[0] != nil && in.Args[0].Op == Call && in.Args[0].Callee != nil {
-			if rs := in.Args[0].Callee.Results; in.Index >= 0 && in.Index < len(rs) {
+		if c := in.Args; len(c) == 1 && c[0] != nil && (c[0].Op == Call && c[0].Callee != nil || c[0].Op == CallInd && c[0].Sig != nil) {
+			if rs := c[0].CallResults(); in.Index >= 0 && in.Index < len(rs) {
 				want = rs[in.Index]
 			} else {
 				v.errorf(bi, i, in, "extract %d of a call with %d results", in.Index, len(rs))
@@ -747,8 +762,11 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Op != Str && in.Index != 0 {
 		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
 	}
-	if in.Op != Call && in.Callee != nil {
+	if in.Op != Call && in.Op != FuncAddr && in.Callee != nil {
 		v.errorf(bi, i, in, "%s has a callee", in.Op)
+	}
+	if in.Op != CallInd && in.Sig != nil {
+		v.errorf(bi, i, in, "%s has a signature", in.Op)
 	}
 	if in.Op != GLoad && in.Op != GStore && in.Global != nil {
 		v.errorf(bi, i, in, "%s has a global operand", in.Op)

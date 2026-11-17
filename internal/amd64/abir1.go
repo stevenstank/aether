@@ -37,11 +37,11 @@ type abiR1 struct {
 	sites map[*ir.Instr][2]int // each instruction's text
 }
 
-// outgoingWords is the outgoing area a call of c needs. Under ABI-R1 a call with
-// no word to pass needs none; any other keeps the whole ABI-S0 area, unused words
-// included, so that its stack words stay at their ABI-S0 positions.
-func outgoingWords(c *ir.Func, r1 bool) int {
-	p, r := len(c.Params), len(c.Results)
+// outgoingWords is the outgoing area a call needs, Call or CallInd. Under ABI-R1
+// a call with no word to pass needs none; any other keeps the whole ABI-S0 area,
+// unused words included, so that its stack words stay at their ABI-S0 positions.
+func outgoingWords(call *ir.Instr, r1 bool) int {
+	p, r := len(call.CallArgs()), len(call.CallResults())
 	if r1 && p <= len(argRegs) && r <= 1 {
 		return 0
 	}
@@ -106,10 +106,15 @@ func (e *emitter) toMem(src, dst string) {
 }
 
 // r1Call emits a call. The stack words go first: writing them reads the
-// argument registers' old contents, and they may use %rax.
+// argument registers' old contents, and they may use %rax. A CallInd's code
+// address goes to %rcx before anything else, which the moves never write
+// (D-039).
 func (e *emitter) r1Call(in *ir.Instr) {
+	if in.Op == ir.CallInd {
+		e.load(in.Args[0], "%rcx")
+	}
 	var moves []regCopy
-	for i, a := range in.Args {
+	for i, a := range in.CallArgs() {
 		if i < len(argRegs) {
 			moves = append(moves, regCopy{argRegs[i], e.val(a)})
 		} else {
@@ -117,12 +122,12 @@ func (e *emitter) r1Call(in *ir.Instr) {
 		}
 	}
 	e.parallelCopy(moves)
-	e.op("call\t%s", funcSym(in.Callee))
+	e.op("call\t%s", callTarget(in))
 	switch in.Type {
 	case ir.NoType:
 	case ir.Tuple:
-		for j := range in.Callee.Results {
-			e.op("movq\t%d(%%rsp), %%rax", 8*(len(in.Args)+j))
+		for j := range in.CallResults() {
+			e.op("movq\t%d(%%rsp), %%rax", 8*(len(in.CallArgs())+j))
 			e.op("movq\t%%rax, %d(%%rbp)", e.fr.ValueOffset(e.tuples[in]+j))
 		}
 	default:
@@ -286,7 +291,7 @@ func (e *emitter) checkR1() error {
 			switch in.Op {
 			case ir.Param:
 				err = e.checkR1Param(in, site(in))
-			case ir.Call:
+			case ir.Call, ir.CallInd:
 				err = e.checkR1Call(in, site(in))
 			case ir.Ret:
 				err = e.checkR1Ret(in, site(in))
@@ -318,18 +323,22 @@ func (e *emitter) checkR1Param(in *ir.Instr, code []asmInstr) error {
 }
 
 func (e *emitter) checkR1Call(in *ir.Instr, code []asmInstr) error {
-	c := in.Callee
-	p, r := len(c.Params), len(c.Results)
+	args := in.CallArgs()
+	p, r := len(args), len(in.CallResults())
 	if (p > len(argRegs) || r > 1) && e.fr.Out < p+r {
 		return fmt.Errorf("outgoing area of %d words, want at least %d", e.fr.Out, p+r)
 	}
 	call := slices.IndexFunc(code, func(x asmInstr) bool { return x.op == "call" })
-	if call < 0 || code[call].src != funcSym(c) {
-		return fmt.Errorf("no call of %s", funcSym(c))
+	if call < 0 || code[call].src != callTarget(in) {
+		return fmt.Errorf("no call of %s", callTarget(in))
 	}
 	may := map[string]bool{"%rax": true}
 	want := map[string]string{}
-	for i, a := range in.Args {
+	if in.Op == ir.CallInd {
+		// The code address, in %rcx at the call.
+		may["%rcx"], want["%rcx"] = true, e.val(in.Args[0])
+	}
+	for i, a := range args {
 		loc := fmt.Sprintf("%d(%%rsp)", 8*i)
 		if i < len(argRegs) {
 			loc = argRegs[i]
@@ -340,13 +349,18 @@ func (e *emitter) checkR1Call(in *ir.Instr, code []asmInstr) error {
 	if err := before.run(code[:call]); err != nil {
 		return err
 	}
-	for i := range in.Args {
+	for i := range args {
 		loc := fmt.Sprintf("%d(%%rsp)", 8*i)
 		if i < len(argRegs) {
 			loc = argRegs[i]
 		}
 		if got := before.read(loc); got != want[loc] {
 			return fmt.Errorf("argument %d: %s holds %s, not %s", i, loc, got, want[loc])
+		}
+	}
+	if in.Op == ir.CallInd {
+		if got := before.read("%rcx"); got != want["%rcx"] {
+			return fmt.Errorf("code address: %%rcx holds %s, not %s", got, want["%rcx"])
 		}
 	}
 	// After the call, what the callee left is the only thing worth reading: %rax,

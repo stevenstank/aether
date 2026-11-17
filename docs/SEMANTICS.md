@@ -243,6 +243,7 @@ has a defined normalization in the test harness.
 | V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, a `string(b)` of a `[]byte` before a call that changes its elements, a method's value receiver copied before a call among its arguments that changes it, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order, §Methods). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign, with a `string(b)` of bytes it may change, with a method's value receiver it may change, or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter, and `TestMethodReceiverOrder` pins it for receivers in the interpreter, both backends, and ABI-R1. |
 | V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` and of `[]rune(s)` is its length, where gc's may be larger (increment 7.3; measured 2026-11-16: `cap([]rune(s))` of a 3-byte string made at run time is 32 with gc, 3 with Aether). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)` or `[]rune(s)`, or depend on sharing after a growing `append`. |
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
+| V-7 | Method expressions | The method expression `(*T).M` of a method with a value receiver, called with a nil `*T`, panics with `panic: runtime error: invalid memory address or nil pointer dereference`, where gc's generated wrapper panics with `panic: value method main.T.M called using nil *T pointer`; both exit 2 (D-039). | Phase 8 increment 8.2 | None: differential test programs never call such a method expression with nil. `TestNilMethodExpression` pins Aether's behavior in the interpreter, both backends, and ABI-R1. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
 Implemented (Phase 4 increment 4.5):
@@ -409,7 +410,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
 | Operators | `operator-receive`, `operator-other`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
-| Other expressions | `function-literal`, `composite-literal`, `selector`, `method-value`, `method-expression`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
+| Other expressions | `function-literal`, `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
 
 `statement` and `expression` are catch-alls. The gate is default-deny, so a
 construct with no specific rule is still rejected.
@@ -904,10 +905,36 @@ The gate also accepts methods (D-038):
   follow, panics with gc's message (`invalid memory address or nil pointer
   dereference`) before the method runs.
 
-Still `unsupported`: method values, `x.M` not called (`method-value`);
-method expressions, `T.M` and `(*T).M` (`method-expression`); methods of
-other defined types, whose declarations are rejected
-(`package-level-declaration`); interfaces.
+Still `unsupported`: methods of other defined types, whose declarations
+are rejected (`package-level-declaration`); interfaces. Method values and
+method expressions are func values (§Func values).
+
+## Func values (Phase 8 increment 8.2)
+
+The gate also accepts func values (D-039):
+- **Types** `func(params) results`, not variadic, of supported types, for
+  variables, package-level variables, parameters, results, struct fields,
+  and array and slice elements. The zero value is `nil`; a func value
+  compares with `nil` by `==` and `!=`, and with nothing else, as in Go.
+- **Values**: the program's functions, by name; method values `x.M`, which
+  evaluate `x` and bind the receiver at once, a copy of a value receiver
+  or the pointer of a pointer receiver, with the implicit `&` and `*` and
+  promotion of a call (§Methods); and method expressions `T.M` and
+  `(*T).M`, whose first parameter is the receiver.
+- **Calls** of any expression of func type: the function value is
+  evaluated, then the arguments, left to right (D-024); then a nil func
+  value panics with gc's message (`invalid memory address or nil pointer
+  dereference`), after the arguments' calls have run, as with gc.
+- **Nil receivers.** A method value of a value receiver through a nil
+  pointer panics when it is evaluated, as gc's does; one of a pointer
+  receiver binds nil and its method is called on nil. `(*T).M` of a value
+  method called with nil panics with the nil dereference message, where
+  gc's panics with `value method main.T.M called using nil *T pointer`
+  (V-7).
+
+Still `unsupported`: function literals (`function-literal`), so no closure
+captures a variable; variadic func types; `print` and `println` of a func
+value (`println-argument-type`), which gc prints as an address.
 
 ## Support matrix
 
@@ -938,7 +965,8 @@ other defined types, whose declarations are rejected
 | Pointers: `*T`, `&`, `new`, `*p`, auto-dereference, nil checks, address-taken variables on the heap, `==`, `!=` | Pointer types, Address operators, Allocation, Selectors, Index expressions, Run-time panics | S4 / 7.1 | Supported (native), with divergences V-3 and V-4 | `s3_p01_pointer_basics` to `s3_p08_nil_address`; generated pointer programs; `TestNativeHeap`, `TestHeap`, `TestHeapErrors`; gate tests |
 | Slices: `make`, literals, indexing, two- and three-index slice expressions of slices, arrays, and pointers to arrays, `len`, `cap`, `append`, `copy`, nil comparisons | Slice types, Making slices, Index expressions, Slice expressions, Appending to and copying slices | S4 / 7.2 | Supported (native), with divergences V-3, V-5, and V-6 | `s3_l01_slice_basics` to `s3_l08_nil_array_slice`; `TestNativeMove`, `TestNativeBounds`, `TestMove`, `TestBoundsMessage`, `TestVerifySlices`; gate tests |
 | Strings at run time: `+`, `+=`, `s[i:j]`, `string(b)`, `[]byte(s)`, `append(b, s...)`, `copy(b, s)`, `==`, `!=`, `switch` on strings, `==` of arrays and structs holding strings, `< <= > >=`, rune literals, `string(x)` of integers, `[]rune(s)`, `string(rs)` | Arithmetic operators, Slice expressions, Conversions, Appending to and copying slices, Comparison operators, Switch statements, Rune literals | S4 / 7.3 | Supported (native), with divergences V-3 to V-6 | `s3_c01_concatenation` to `s3_c14_utf8_tables`; generated string operations and rune statements; `TestStringEquality`, `TestStreqFunc`, `TestStringOrder`, `TestRuneConversions`, `TestGeneratedStringFuncs`, `TestMemoryPreconditions`; gate tests |
-| Methods: declarations on defined array and struct types, value and pointer receivers, calls with the implicit `&` and `*`, promotion through embedded fields and pointers, pointer receivers on nil | Method declarations, Method sets, Selectors, Calls | S5 / 8.1 | Supported (native), with divergences V-3, V-4, and V-5 | `s5_m01_method_basics` to `s5_m04_nil_embedded`; generated method programs; `TestMethodPrograms`, `TestMethodReceiverOrder`; gate tests |
+| Methods: declarations on defined array and struct types, value and pointer receivers, calls with the implicit `&` and `*`, promotion through embedded fields and pointers, pointer receivers on nil | Method declarations, Method sets, Selectors, Calls | S5 / 8.1 | Supported (native), with divergences V-3, V-4, and V-5 | `s5_m01_method_basics` to `s5_m05_type_aether`; generated method programs; `TestMethodPrograms`, `TestMethodReceiverOrder`; gate tests |
+| Func values: func types, functions as values, calls of func values, `nil` and comparison with it, method values, method expressions | Function types, Method values, Method expressions, Calls, Comparison operators | S5 / 8.2 | Supported (native), with divergences V-3 to V-5 and V-7 | `s5_f01_func_values` to `s5_f04_nil_method_value`; generated func value programs; `TestFuncValuePrograms`, `TestNilMethodExpression`, `TestIndirectCalls`, `TestVerifyIndirect`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

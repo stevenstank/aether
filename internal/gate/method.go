@@ -48,3 +48,20 @@ func (c *checker) methodCall(call *ast.CallExpr, x ast.Expr, sel *types.Selectio
 	}
 	return true
 }
+
+// methodValue checks a method value x.M, not called (D-039): its receiver
+// operand x, as for a call of M.
+func (c *checker) methodValue(e *ast.SelectorExpr, sel *types.Selection) {
+	if fn, ok := sel.Obj().(*types.Func); !ok || fn.Pkg() != c.pkg.Types {
+		c.reject(e, FeatSelector, "selector "+types.ExprString(e))
+		return
+	}
+	if !c.typed(e) {
+		return
+	}
+	if frontend.TakesAddress(sel) {
+		c.address(e.X)
+	} else {
+		c.expr(e.X)
+	}
+}

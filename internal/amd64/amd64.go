@@ -261,6 +261,15 @@ func funcSym(f *ir.Func) string { return "main." + f.Name }
 
 const symInit = "main.init"
 
+// callTarget is the operand of a call's call instruction: the callee's
+// symbol, or for a CallInd its code address, which is in %rcx (D-039).
+func callTarget(in *ir.Instr) string {
+	if in.Op == ir.CallInd {
+		return "*%rcx"
+	}
+	return funcSym(in.Callee)
+}
+
 // globalSym is the symbol of a global variable, local to the program's
 // object file. Go gives package-level variables and functions distinct
 // names, and no variable is named init or main.
@@ -335,8 +344,8 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 			if _, ok := regs[in]; in.ID >= 0 && !ok && !none[in] {
 				vals = append(vals, in)
 			}
-			if in.Op == ir.Call {
-				out = max(out, outgoingWords(in.Callee, opts.ABIR1))
+			if in.IsCall() {
+				out = max(out, outgoingWords(in, opts.ABIR1))
 			}
 		}
 	}
@@ -353,7 +362,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 		for _, in := range blk.Instrs {
 			if in.Type == ir.Tuple {
 				tuples[in] = values
-				values += len(in.Callee.Results)
+				values += len(in.CallResults())
 			}
 		}
 	}
@@ -768,28 +777,36 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		}
 		op("movq\t%d(%%rbp), %%rax", 16+8*in.Index)
 		op("movq\t%%rax, %s", res())
-	case ir.Call:
+	case ir.FuncAddr:
+		t := e.target(in)
+		op("leaq\t%s(%%rip), %s", funcSym(in.Callee), t)
+		e.finish(in, t)
+	case ir.Call, ir.CallInd:
 		if e.r1 != nil {
 			e.r1Call(in)
 			break
 		}
 		// Arguments and results go through the outgoing area at the
 		// bottom of the frame (D-011); %rsp is aligned (see Frame).
-		for i, a := range in.Args {
+		args := in.CallArgs()
+		for i, a := range args {
 			e.put(a, fmt.Sprintf("%d(%%rsp)", 8*i))
 		}
-		op("call\t%s", funcSym(in.Callee))
+		if in.Op == ir.CallInd {
+			e.load(in.Args[0], "%rcx")
+		}
+		op("call\t%s", callTarget(in))
 		// Results are copied out before any other call can reuse the
 		// outgoing area.
 		switch in.Type {
 		case ir.NoType:
 		case ir.Tuple:
-			for j := range in.Callee.Results {
-				op("movq\t%d(%%rsp), %%rax", 8*(len(in.Args)+j))
+			for j := range in.CallResults() {
+				op("movq\t%d(%%rsp), %%rax", 8*(len(args)+j))
 				op("movq\t%%rax, %d(%%rbp)", fr.ValueOffset(tuples[in]+j))
 			}
 		default:
-			op("movq\t%d(%%rsp), %%rax", 8*len(in.Args))
+			op("movq\t%d(%%rsp), %%rax", 8*len(args))
 			op("movq\t%%rax, %s", res())
 		}
 	case ir.Extract:

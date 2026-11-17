@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -364,5 +365,57 @@ func TestPanicInInit(t *testing.T) {
 	code, err := Run(p, &stderr)
 	if want := "1panic: runtime error: integer divide by zero\n"; err != nil || code != 2 || stderr.String() != want {
 		t.Errorf("exit %d, %v, stderr %q; want exit 2, %q", code, err, stderr.String(), want)
+	}
+}
+
+// indirect returns a program that stores f's code address in a global
+// memory object, after which it stores 1, loads the address again, and
+// calls it with that object as the context and 20; f returns its argument
+// plus the word after the code address in its context. sig is the call's
+// signature.
+func indirect(sig *ir.Sig) *ir.Program {
+	p := &ir.Program{}
+	m := p.NewFunc("main", "p.go", p1)
+	f := p.NewFunc("f", "p.go", p1)
+	f.Params, f.Results = []ir.Type{ir.Ptr, ir.I64}, []ir.Type{ir.I64}
+	fb := f.Entry()
+	ctx, x := f.Param(fb, 0, p1), f.Param(fb, 1, p1)
+	one := f.LdM(fb, ir.I64, ctx, f.Const(fb, 8, p1), p1)
+	f.Ret(fb, p1, f.Binary(fb, ir.Add, x, one, p1))
+	g := p.NewMem("g", 16, 8, "p.go", p1)
+	mb := m.Entry()
+	a := m.Addr(mb, g, p1)
+	m.StM(mb, a, m.Const(mb, 0, p1), m.FuncAddr(mb, f, p1), p1)
+	m.StM(mb, a, m.Const(mb, 8, p1), m.Const(mb, 1, p1), p1)
+	code := m.LdM(mb, ir.Ptr, a, m.Const(mb, 0, p1), p1)
+	m.Println(mb, []*ir.Instr{m.CallInd(mb, sig, code, []*ir.Instr{a, m.Const(mb, 20, p1)}, p1)}, p1)
+	m.Ret(mb, p1)
+	return p
+}
+
+// TestIndirectCalls checks CallInd (D-039): a call through a code address
+// that went through memory, and the interpreter's refusal of a call whose
+// signature is not the callee's or of an address that is not code.
+func TestIndirectCalls(t *testing.T) {
+	sig := &ir.Sig{Params: []ir.Type{ir.Ptr, ir.I64}, Results: []ir.Type{ir.I64}}
+	if got, want := output(t, indirect(sig)), "21\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// A signature other than f's: valid IR, but not a call the
+	// interpreter will make.
+	bad := indirect(&ir.Sig{Params: []ir.Type{ir.Ptr, ir.I64}, Results: []ir.Type{ir.Bool}})
+	if _, err := Run(bad, io.Discard); err == nil || !strings.Contains(err.Error(), "another signature") {
+		t.Errorf("signature mismatch: err = %v", err)
+	}
+	// The address of a memory object is not code.
+	notCode := indirect(sig)
+	main := notCode.Funcs[0].Entry().Instrs
+	for _, in := range main {
+		if in.Op == ir.CallInd {
+			in.Args[0] = main[0] // the addr
+		}
+	}
+	if _, err := Run(notCode, io.Discard); err == nil || !strings.Contains(err.Error(), "is not a code address") {
+		t.Errorf("not code: err = %v", err)
 	}
 }

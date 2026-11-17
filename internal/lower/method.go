@@ -68,26 +68,33 @@ func (l *lowerer) selectPath(e ast.Expr, p place, path []int, pos ir.Pos) place 
 // receiver lowers the receiver of the call e(...) of the method that sel,
 // of kind MethodVal, selects, and returns its words.
 func (l *lowerer) receiver(e *ast.SelectorExpr, sel *types.Selection) []*ir.Instr {
-	pos := l.pos(e, e.Sel.Pos())
+	_, xPtr := pointee(l.pkg.Info.Types[e.X].Type)
+	return l.recvOf(e, sel, xPtr, func() []*ir.Instr { return l.value(e.X) },
+		func() place { return l.deref(e.X) }, func() place { return l.addrOf(e.X, false) }, l.pos(e, e.Sel.Pos()))
+}
+
+// recvOf returns the receiver words of the method sel selects on an operand
+// x, a pointer if xPtr: value lowers x, and deref, if xPtr, and addr, if
+// not, return the place x points to or is. Each is called at most once.
+func (l *lowerer) recvOf(e ast.Expr, sel *types.Selection, xPtr bool, value func() []*ir.Instr, deref, addr func() place, pos ir.Pos) []*ir.Instr {
 	_, ptrRecv := sel.Obj().Type().(*types.Signature).Recv().Type().(*types.Pointer)
 	path := sel.Index()[:len(sel.Index())-1]
-	_, xPtr := pointee(l.pkg.Info.Types[e.X].Type)
 	if len(path) == 0 {
 		switch {
 		case xPtr && ptrRecv:
-			return l.value(e.X) // not checked for nil
+			return value() // not checked for nil
 		case xPtr:
-			return l.loadPlace(l.deref(e.X), pos)
+			return l.loadPlace(deref(), pos)
 		case ptrRecv:
-			return []*ir.Instr{l.pointer(l.addrOf(e.X, false), pos)}
+			return []*ir.Instr{l.pointer(addr(), pos)}
 		}
-		return l.value(e.X)
+		return value()
 	}
 	var p place
 	if xPtr {
-		p = l.deref(e.X)
+		p = deref()
 	} else {
-		p = l.addrOf(e.X, false)
+		p = addr()
 	}
 	p = l.selectPath(e, p, path, pos)
 	if t, ok := pointee(p.t); ok {
