@@ -43,11 +43,11 @@ func TestRunUsage(t *testing.T) {
 }
 
 // TestUsageSubset checks that the usage message's summary of the subset
-// lists methods (D-038), func values (D-039), and closures (D-040) as
-// supported, and none of them as not.
+// lists methods (D-038), func values (D-039), closures (D-040), and
+// interfaces (D-041) as supported, and none of them as not.
 func TestUsageSubset(t *testing.T) {
 	sum := strings.Join(strings.Fields(usage), " ")
-	for _, want := range []string{"methods of array and struct types", "func values of functions and methods", "closures"} {
+	for _, want := range []string{"methods of array and struct types", "func values of functions and methods", "closures", "interfaces, type assertions, and type switches"} {
 		if !strings.Contains(sum, want) {
 			t.Errorf("usage does not list %q as supported:\n%s", want, usage)
 		}
@@ -58,7 +58,7 @@ func TestUsageSubset(t *testing.T) {
 	}
 	unsupported, _, _ = strings.Cut(unsupported, ".")
 	for item := range strings.SplitSeq(unsupported, ",") {
-		if item := strings.TrimSpace(item); item == "methods" || item == "method values" || item == "closures" {
+		if item := strings.TrimSpace(item); item == "methods" || item == "method values" || item == "closures" || item == "interfaces" {
 			t.Errorf("usage lists methods as not supported: %s", unsupported)
 		}
 	}

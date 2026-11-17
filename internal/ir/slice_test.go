@@ -39,7 +39,7 @@ func TestBoundsMessage(t *testing.T) {
 		if IsBounds(k) != (boundsFormats[k] != [4]string{}) {
 			t.Errorf("kind %s: IsBounds %v but format %q", panicNames[k], IsBounds(k), boundsFormats[k])
 		}
-		if panicNames[k] == "" || PanicMessages[k] == "" {
+		if panicNames[k] == "" || PanicMessages[k] == "" && k != PanicMsg {
 			t.Errorf("kind %d has no name or message", k)
 		}
 	}

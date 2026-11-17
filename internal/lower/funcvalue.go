@@ -67,8 +67,8 @@ func (l *lowerer) wrapper(name string, params, results []ir.Type, pos ir.Pos, bo
 
 // buildWrappers builds the bodies of the wrappers, which create no others.
 func (l *lowerer) buildWrappers() {
-	for i := 0; i < len(l.bodies); i++ {
-		l.bodies[i]()
+	for ; l.built < len(l.bodies); l.built++ {
+		l.bodies[l.built]()
 	}
 	l.fn = nil
 }
@@ -275,7 +275,7 @@ func (l *lowerer) valueCall(call *ast.CallExpr, sig *types.Signature) *ir.Instr 
 // creates Init if the program has none. Nothing branches to the old entry,
 // whose code moves to a block of its own.
 func (l *lowerer) initStatics() {
-	if len(l.statics) == 0 {
+	if len(l.statics)+len(l.descs) == 0 {
 		return
 	}
 	if l.prog.Init == nil {
@@ -291,6 +291,23 @@ func (l *lowerer) initStatics() {
 	for _, s := range l.statics {
 		a := l.fn.Addr(entry, s.mem, pos)
 		l.fn.StM(entry, a, l.fn.Const(entry, 0, pos), l.fn.FuncAddr(entry, s.code, pos), pos)
+	}
+	// The type descriptors and itabs (D-041).
+	for _, d := range l.descs {
+		a := l.fn.Addr(entry, d.mem, pos)
+		name := gcName(d.t)
+		l.fn.StM(entry, a, l.fn.Const(entry, 0, pos), l.fn.Str(entry, l.prog.Intern(name), pos), pos)
+		l.fn.StM(entry, a, l.fn.Const(entry, 8, pos), l.fn.Const(entry, int64(len(name)), pos), pos)
+		if d.eq != nil {
+			l.fn.StM(entry, a, l.fn.Const(entry, 16, pos), l.fn.FuncAddr(entry, d.eq, pos), pos)
+		}
+	}
+	for _, it := range l.itabs {
+		a := l.fn.Addr(entry, it.mem, pos)
+		l.fn.StM(entry, a, l.fn.Const(entry, 0, pos), l.fn.Addr(entry, it.d.mem, pos), pos)
+		for i, f := range it.funcs {
+			l.fn.StM(entry, a, l.fn.Const(entry, int64(8+8*i), pos), l.fn.FuncAddr(entry, f, pos), pos)
+		}
 	}
 	l.fn.Jump(entry, body, pos)
 	prune(l.fn)

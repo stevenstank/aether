@@ -52,7 +52,7 @@ func (c *checker) methodCall(call *ast.CallExpr, x ast.Expr, sel *types.Selectio
 // methodValue checks a method value x.M, not called (D-039): its receiver
 // operand x, as for a call of M.
 func (c *checker) methodValue(e *ast.SelectorExpr, sel *types.Selection) {
-	if fn, ok := sel.Obj().(*types.Func); !ok || fn.Pkg() != c.pkg.Types {
+	if fn, ok := sel.Obj().(*types.Func); !ok || fn.Pkg() != c.pkg.Types && !isInterface(sel.Recv()) {
 		c.reject(e, FeatSelector, "selector "+types.ExprString(e))
 		return
 	}

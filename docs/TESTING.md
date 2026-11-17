@@ -465,6 +465,28 @@ path. On 2026-11-18, closure programs of seeds 1001 to 2000 all gave gc's
 output in the interpreter, `aether build`, `-O0`, and ABI-R1; 126 of them
 panic.
 
+Since Phase 8 increment 8.4, `generateIfaces` (`gen_iface_test.go`) writes
+programs of its own, from a twelfth random stream;
+`TestDifferentialAgainstGc` and `TestFrameBound` run 100 of them,
+`TestInterfacePrograms` 30 also under `-O0` and ABI-R1, and `FuzzGenerated`
+the one of each seed. Its types are a struct with value methods, a struct
+with pointer methods, one of which writes it, and an array type; its
+interfaces embed one another. `main` converts values of these and of
+predeclared types to the interfaces and to `any`, calls methods through
+them, makes method values and expressions, compares interface values,
+asserts with the comma-ok form, and switches on types. One program in about
+seven ends with a failed assertion, a call on a nil interface, or a
+comparison of uncomparable values. The panic comparison rule accepts gc's
+`panic: interface conversion:` lines as it does run-time errors. Negative
+controls, run by hand and reverted, against `TestInterfacePrograms`: an
+itab wrapper calling a value method on the interface's own copy fails
+`s5_i01` in every path, and an equality function that finds every two
+values of a type equal fails a generated program in every path; while
+the increment was written, `branches` not knowing that interface
+operations branch failed the verifier on `println` operands. On
+2026-11-18, interface programs of seeds 1001 to 2000 all gave gc's output in
+the interpreter, `aether build`, `-O0`, and ABI-R1; 122 of them panic.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

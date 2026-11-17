@@ -114,6 +114,10 @@ const generatedFuncValuePrograms = 100
 // the differential test runs besides them.
 const generatedClosurePrograms = 100
 
+// generatedIfacePrograms is how many interface programs (generateIfaces)
+// the differential test runs besides them.
+const generatedIfacePrograms = 100
+
 // TestDifferentialAgainstGc is the three-way differential test (Phases 2
 // and 3): for every corpus program expected to run and for generated S1
 // programs, the stdout, stderr, and exit status of the interpreter and of the
@@ -174,8 +178,12 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	for seed := uint64(1); seed <= generatedClosurePrograms; seed++ {
 		progs[fmt.Sprintf("cls%04d", seed)] = []byte(generateClosures(seed))
 	}
-	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs",
-		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms)
+	// Interface programs (gen_iface_test.go), never invalid either.
+	for seed := uint64(1); seed <= generatedIfacePrograms; seed++ {
+		progs[fmt.Sprintf("ifc%04d", seed)] = []byte(generateIfaces(seed))
+	}
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs, %d interface programs",
+		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms, generatedIfacePrograms)
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)
@@ -283,7 +291,7 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 	switch {
 	case !found:
 		return "", false, errors.New("no newline after the panic message")
-	case !strings.HasPrefix(line, "panic: runtime error: ") || len(line) == len("panic: runtime error: "):
+	case !runtimePanic(line, "panic: runtime error: ") && !runtimePanic(line, "panic: interface conversion: "):
 		return "", false, fmt.Errorf("panic line %q is not a run-time error", line)
 	case gc.exit != 2:
 		return "", false, fmt.Errorf("exit status %d, want 2", gc.exit)
@@ -293,12 +301,20 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 	return gc.stderr[:i+len(line)+1], true, nil
 }
 
+// runtimePanic reports whether line is a panic of gc's run time with the
+// given prefix: a run-time error, or since D-041 a failed interface
+// conversion, which also has no "runtime error: ".
+func runtimePanic(line, prefix string) bool {
+	return strings.HasPrefix(line, prefix) && len(line) > len(prefix)
+}
+
 func TestPanicPrefix(t *testing.T) {
 	const tb = "\ngoroutine 1 [running]:\nmain.main()\n\t/x/main.go:6 +0x1d\nexit status 2\n"
 	good := []struct{ stderr, q string }{
 		{"7\npanic: runtime error: integer divide by zero\n" + tb, "7\npanic: runtime error: integer divide by zero\n"},
 		{"1panic: runtime error: negative shift amount\n" + tb, "1panic: runtime error: negative shift amount\n"},
 		{"panic: runtime error: integer divide by zero\n", "panic: runtime error: integer divide by zero\n"},
+		{"panic: interface conversion: interface {} is int, not string\n" + tb, "panic: interface conversion: interface {} is int, not string\n"},
 	}
 	for _, tt := range good {
 		if q, ok, err := panicPrefix(result{stderr: tt.stderr, exit: 2}); err != nil || !ok || q != tt.q {
@@ -314,6 +330,7 @@ func TestPanicPrefix(t *testing.T) {
 		{stderr: "panic: runtime error: integer divide by zero", exit: 2},
 		{stderr: "panic: 1\n" + tb, exit: 2},
 		{stderr: "panic: runtime error: \n", exit: 2},
+		{stderr: "panic: interface conversion: \n", exit: 2},
 	}
 	for _, r := range bad {
 		if q, ok, err := panicPrefix(r); err == nil {

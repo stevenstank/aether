@@ -181,7 +181,8 @@ const (
 	// Panic ends the program with the run-time error Index, one of the
 	// Panic constants: the message and exit status 2. It is a terminator.
 	// PanicIndex and the slice bounds errors (IsBounds) have args: x, of any
-	// integer type, and y, an I64 (BoundsMessage); the others have none.
+	// integer type, and y, an I64 (BoundsMessage); PanicMsg has its
+	// message's Ptr and I64 length; the others have none.
 	Panic
 	// Conv produces args[0], of any integer type, converted to the
 	// instruction's integer type: the canonical form of its value reduced
@@ -370,6 +371,10 @@ const (
 	PanicMakeLen    // make with a length out of range
 	PanicMakeCap    // make with a capacity out of range
 	PanicGrowLen    // append beyond the largest int
+	// PanicMsg ends the program with a message made at run time, the
+	// string args[0] (a Ptr) and args[1] (an I64): it writes "panic: ", the
+	// message, and a newline, with no "runtime error: " of its own (D-041).
+	PanicMsg
 )
 
 // PanicMessages are the run-time errors' messages, as gc prints them after
@@ -381,7 +386,8 @@ var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShif
 	PanicSliceAlen: "slice bounds out of range", PanicSliceAcap: "slice bounds out of range", PanicSliceB: "slice bounds out of range",
 	PanicSlice3Alen: "slice bounds out of range", PanicSlice3Acap: "slice bounds out of range", PanicSlice3B: "slice bounds out of range",
 	PanicSlice3C: "slice bounds out of range",
-	PanicMakeLen: "makeslice: len out of range", PanicMakeCap: "makeslice: cap out of range", PanicGrowLen: "growslice: len out of range"}
+	PanicMakeLen: "makeslice: len out of range", PanicMakeCap: "makeslice: cap out of range", PanicGrowLen: "growslice: len out of range",
+	PanicMsg: ""}
 
 // IsBounds reports whether the run-time error kind has operands: it is
 // PanicIndex or a slice bounds error.

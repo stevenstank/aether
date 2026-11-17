@@ -39,7 +39,8 @@ func FuzzCheck(f *testing.F) {
 // natively when it finishes (checkRegistersGenerated). Since Phase 7
 // increment 7.2, each seed's slice program goes through the same checks,
 // since Phase 8 increment 8.1 its method program, since 8.2 its func value
-// program, and since 8.3 its closure program.
+// program, since 8.3 its closure program, and since 8.4 its interface
+// program.
 func FuzzGenerated(f *testing.F) {
 	f.Add(uint64(1))
 	f.Fuzz(func(t *testing.T, seed uint64) {
@@ -70,6 +71,12 @@ func FuzzGenerated(f *testing.F) {
 			t.Fatalf("closure program rejected: %s\n%s", ds[0], closures)
 		}
 		checkRegistersGenerated(t, closures, checkPromotion(t, "gen.go", closures, 1_000_000, &promoteStats{}))
+		// And its interface program (gen_iface_test.go), since 8.4.
+		ifaces := []byte(generateIfaces(seed))
+		if ds := compileAndRun(t, ifaces); len(ds) > 0 {
+			t.Fatalf("interface program rejected: %s\n%s", ds[0], ifaces)
+		}
+		checkRegistersGenerated(t, ifaces, checkPromotion(t, "gen.go", ifaces, 1_000_000, &promoteStats{}))
 		src := []byte(generate(seed))
 		ds := compileAndRun(t, src)
 		if len(ds) > 0 {

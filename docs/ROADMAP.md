@@ -867,7 +867,8 @@ repeated in each phase below:
   item proves large.
 - **Increments:** 8.1 methods (D-038, owner approval 2026-11-16); 8.2 func
   values, with method values and method expressions (D-039, 2026-11-17);
-  8.3 closures (D-040, 2026-11-18); the other items follow, each with its
+  8.3 closures (D-040, 2026-11-18); 8.4 interfaces, type assertions, and
+  type switches (D-041, 2026-11-18); the other items follow, each with its
   own design note.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
@@ -909,6 +910,18 @@ repeated in each phase below:
   - Closure programs from their own generator (`gen_closure_test.go`,
     `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
     30 in `TestClosurePrograms`, and one per `FuzzGenerated` seed.
+- **Status of 8.4 (done; owner review pending):**
+  - Interface types, conversions, method calls through itabs, method values
+    and expressions, comparisons, type assertions, and type switches
+    (`SEMANTICS.md` §Interfaces), with the run-time error `PanicMsg` for
+    gc's messages (D-041). Interfaces embedded in structs and switch
+    statements on interfaces stay unsupported.
+  - Corpus programs `s5_i01` to `s5_i06`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestInterfacePrograms`; `TestGcName` checks type names against gc's.
+  - Interface programs from their own generator (`gen_iface_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
+    30 in `TestInterfacePrograms`, and one per `FuzzGenerated` seed.
 
 ## Phase 9: Garbage collection
 

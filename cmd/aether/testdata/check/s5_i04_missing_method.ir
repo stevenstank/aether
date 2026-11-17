@@ -1,0 +1,296 @@
+string s0 "interface conversion: interface is nil, not main.B"
+string s1 "interface conversion: "
+string s2 " is not main.B: missing method "
+string s3 "K"
+string s4 "main.T"
+mem gm0 .t0 24 align 8 @testdata/check/s5_i04_missing_method.go:21:6
+mem gm1 .it0 16 align 8 @testdata/check/s5_i04_missing_method.go:22:12
+
+func T.M(ptr) i64 @testdata/check/s5_i04_missing_method.go:18:10
+b0:
+  v0 = const 1 @18:27
+  ret v0 @18:20
+
+func T.N(ptr) i64 @testdata/check/s5_i04_missing_method.go:19:10
+b0:
+  v0 = const 2 @19:27
+  ret v0 @19:20
+
+func main @testdata/check/s5_i04_missing_method.go:21:6
+  slot s0 tmp ptr @22:12
+  slot s1 tmp ptr @22:12
+  slot s2 tmp ptr @22:12
+  slot s3 tmp ptr @22:12
+  slot s4 a ptr @22:6
+  slot s5 a ptr @22:6
+  slot s6 tmp ptr @23:13
+  slot s7 tmp ptr @23:13
+  slot s8 v ptr @23:13
+  slot s9 v ptr @23:13
+  slot s10 ok bool @23:13
+  slot s11 b ptr @23:2
+  slot s12 b ptr @23:2
+  slot s13 ok bool @23:5
+  slot s14 tmp bool @24:10
+  slot s15 tmp ptr @25:12
+  slot s16 tmp ptr @25:12
+  slot s17 v ptr @25:12
+  slot s18 v ptr @25:12
+  slot s19 ok bool @25:12
+  slot s20 tmp ptr @25:10
+  slot s21 tmp ptr @25:10
+  mem m0 tmp 24 align 8 @22:12
+b0:
+  v0 = const ptr 0 @22:12
+  v1 = addr m0 @22:12
+  v2 = const 0 @22:12
+  stm v1, v2, v0 @22:12
+  v3 = const 0 @22:12
+  v4 = const 8 @22:12
+  stm v1, v4, v3 @22:12
+  v5 = const 0 @22:12
+  v6 = const 16 @22:12
+  stm v1, v6, v5 @22:12
+  store s0, v1 @22:12
+  v7 = const 24 @22:12
+  v8 = alloc v7 @22:12
+  store s1, v8 @22:12
+  v9 = load s0 @22:12
+  store s2, v9 @22:12
+  v10 = const 0 @22:12
+  v11 = ldm ptr, v9, v10 @22:12
+  v12 = const 0 @22:12
+  stm v8, v12, v11 @22:12
+  v13 = const 8 @22:12
+  v14 = ldm i64, v9, v13 @22:12
+  v15 = const 8 @22:12
+  stm v8, v15, v14 @22:12
+  v16 = const 16 @22:12
+  v17 = ldm i64, v9, v16 @22:12
+  v18 = const 16 @22:12
+  stm v8, v18, v17 @22:12
+  store s3, v8 @22:12
+  v19 = addr gm1 @22:12
+  v20 = load s3 @22:12
+  store s4, v19 @22:6
+  store s5, v20 @22:6
+  v21 = load s4 @23:11
+  v22 = load s5 @23:11
+  store s6, v21 @23:13
+  store s7, v22 @23:13
+  v23 = const ptr 0 @23:13
+  v24 = load s6 @23:13
+  v25 = ne v24, v23 @23:13
+  branch v25, b4, b2 @23:13
+b1:
+  v32 = load s6 @23:13
+  v33 = const 0 @23:13
+  v34 = ldm ptr, v32, v33 @23:13
+  v35 = call .find1, v34, v34 @23:13
+  v36 = load s7 @23:13
+  store s8, v35 @23:13
+  store s9, v36 @23:13
+  v37 = const true @23:13
+  store s10, v37 @23:13
+  jump b3 @23:13
+b2:
+  v38 = const ptr 0 @23:13
+  v39 = const ptr 0 @23:13
+  store s8, v38 @23:13
+  store s9, v39 @23:13
+  v40 = const false @23:13
+  store s10, v40 @23:13
+  jump b3 @23:13
+b3:
+  v41 = load s8 @23:13
+  v42 = load s9 @23:13
+  v43 = load s10 @23:13
+  store s11, v41 @23:2
+  store s12, v42 @23:2
+  store s13, v43 @23:5
+  v44 = load s13 @24:10
+  store s14, v44 @24:10
+  v45 = load s11 @24:14
+  v46 = load s12 @24:14
+  v47 = const ptr 0 @24:16
+  v48 = eq v45, v47 @24:16
+  v49 = load s14 @24:10
+  println v49, v48 @24:2
+  v50 = load s4 @25:10
+  v51 = load s5 @25:10
+  store s15, v50 @25:12
+  store s16, v51 @25:12
+  v52 = const ptr 0 @25:12
+  v53 = load s15 @25:12
+  v54 = ne v53, v52 @25:12
+  branch v54, b8, b6 @25:12
+b4:
+  v26 = load s6 @23:13
+  v27 = const 0 @23:13
+  v28 = ldm ptr, v26, v27 @23:13
+  v29 = call .find1, v28, v28 @23:13
+  v30 = const ptr 0 @23:13
+  v31 = ne v29, v30 @23:13
+  branch v31, b1, b2 @23:13
+b5:
+  v61 = load s15 @25:12
+  v62 = const 0 @25:12
+  v63 = ldm ptr, v61, v62 @25:12
+  v64 = call .find1, v63, v63 @25:12
+  v65 = load s16 @25:12
+  store s17, v64 @25:12
+  store s18, v65 @25:12
+  v66 = const true @25:12
+  store s19, v66 @25:12
+  jump b7 @25:12
+b6:
+  v67 = load s15 @25:12
+  v68 = const ptr 0 @25:12
+  v69 = eq v67, v68 @25:12
+  branch v69, b9, b10 @25:12
+b7:
+  v101 = load s17 @25:12
+  v102 = load s18 @25:12
+  v103 = const ptr 0 @25:10
+  v104 = eq v101, v103 @25:10
+  store s20, v101 @25:10
+  store s21, v102 @25:10
+  branch v104, b11, b12 @25:10
+b8:
+  v55 = load s15 @25:12
+  v56 = const 0 @25:12
+  v57 = ldm ptr, v55, v56 @25:12
+  v58 = call .find1, v57, v57 @25:12
+  v59 = const ptr 0 @25:12
+  v60 = ne v58, v59 @25:12
+  branch v60, b5, b6 @25:12
+b9:
+  v70 = str s0 @25:12
+  v71 = const 50 @25:12
+  v72 = alloc v71 @25:12
+  v73 = const 0 @25:12
+  v74 = padd v72, v73 @25:12
+  move v74, v70, v71 @25:12
+  panic msg, v72, v71 @25:12
+b10:
+  v75 = load s15 @25:12
+  v76 = const 0 @25:12
+  v77 = ldm ptr, v75, v76 @25:12
+  v78 = call .miss1, v77, v77 @25:12
+  v79 = extract 0, v78 @25:12
+  v80 = extract 1, v78 @25:12
+  v81 = str s1 @25:12
+  v82 = const 22 @25:12
+  v83 = const 0 @25:12
+  v84 = ldm ptr, v77, v83 @25:12
+  v85 = const 8 @25:12
+  v86 = ldm i64, v77, v85 @25:12
+  v87 = str s2 @25:12
+  v88 = const 31 @25:12
+  v89 = add v82, v86 @25:12
+  v90 = add v89, v88 @25:12
+  v91 = add v90, v80 @25:12
+  v92 = alloc v91 @25:12
+  v93 = const 0 @25:12
+  v94 = padd v92, v93 @25:12
+  move v94, v81, v82 @25:12
+  v95 = add v93, v82 @25:12
+  v96 = padd v92, v95 @25:12
+  move v96, v84, v86 @25:12
+  v97 = add v95, v86 @25:12
+  v98 = padd v92, v97 @25:12
+  move v98, v87, v88 @25:12
+  v99 = add v97, v88 @25:12
+  v100 = padd v92, v99 @25:12
+  move v100, v79, v80 @25:12
+  panic msg, v92, v91 @25:12
+b11:
+  panic nil @25:10
+b12:
+  v105 = load s20 @25:10
+  v106 = load s21 @25:10
+  v107 = const 16 @25:10
+  v108 = ldm ptr, v105, v107 @25:10
+  v109 = callind func(ptr, ptr) i64, v108, v105, v106 @25:10
+  println v109 @25:2
+  ret @26:1
+
+func .i0.M(ptr, ptr) i64 @testdata/check/s5_i04_missing_method.go:22:12
+  slot s0 tmp ptr @22:12
+  slot s1 tmp ptr @22:12
+  slot s2 tmp ptr @22:12
+  mem m0 recv 24 align 8 @22:12
+b0:
+  v0 = param 0 @22:12
+  v1 = param 1 @22:12
+  store s0, v0 @22:12
+  store s1, v1 @22:12
+  v2 = load s1 @22:12
+  store s2, v2 @22:12
+  v3 = const 0 @22:12
+  v4 = ldm ptr, v2, v3 @22:12
+  v5 = addr m0 @22:12
+  v6 = const 0 @22:12
+  stm v5, v6, v4 @22:12
+  v7 = const 8 @22:12
+  v8 = ldm i64, v2, v7 @22:12
+  v9 = const 8 @22:12
+  stm v5, v9, v8 @22:12
+  v10 = const 16 @22:12
+  v11 = ldm i64, v2, v10 @22:12
+  v12 = const 16 @22:12
+  stm v5, v12, v11 @22:12
+  v13 = call T.M, v5 @22:12
+  ret v13 @22:12
+
+func .find1(ptr, ptr) ptr @testdata/check/s5_i04_missing_method.go:23:13
+  slot s0 tmp ptr @23:13
+  slot s1 tmp ptr @23:13
+b0:
+  v0 = param 0 @23:13
+  v1 = param 1 @23:13
+  store s0, v0 @23:13
+  store s1, v1 @23:13
+  v2 = const ptr 0 @23:13
+  ret v2 @23:13
+
+func .miss1(ptr, ptr) (ptr, i64) @testdata/check/s5_i04_missing_method.go:25:12
+  slot s0 tmp ptr @25:12
+  slot s1 tmp ptr @25:12
+b0:
+  v0 = param 0 @25:12
+  v1 = param 1 @25:12
+  store s0, v0 @25:12
+  store s1, v1 @25:12
+  v2 = load s1 @25:12
+  v3 = addr gm0 @25:12
+  v4 = eq v2, v3 @25:12
+  branch v4, b1, b2 @25:12
+b1:
+  v5 = str s3 @25:12
+  v6 = const 1 @25:12
+  ret v5, v6 @25:12
+b2:
+  v7 = const ptr 0 @25:12
+  v8 = const 0 @25:12
+  ret v7, v8 @25:12
+
+func init @testdata/check/s5_i04_missing_method.go:3:1
+b0:
+  v0 = addr gm0 @3:1
+  v1 = const 0 @3:1
+  v2 = str s4 @3:1
+  stm v0, v1, v2 @3:1
+  v3 = const 8 @3:1
+  v4 = const 6 @3:1
+  stm v0, v3, v4 @3:1
+  v5 = addr gm1 @3:1
+  v6 = const 0 @3:1
+  v7 = addr gm0 @3:1
+  stm v5, v6, v7 @3:1
+  v8 = const 8 @3:1
+  v9 = funcaddr .i0.M @3:1
+  stm v5, v8, v9 @3:1
+  jump b1 @3:1
+b1:
+  ret @3:1

@@ -239,7 +239,7 @@ has a defined normalization in the test harness.
 | ID | Area | Divergence | Since | Normalization in tests |
 |---|---|---|---|---|
 | V-1 | Startup resources | If the runtime cannot map `main`'s stack (for example under a small `ulimit -v`), the program prints `fatal error: cannot allocate the main stack` and exits with status 2. gc's fatal errors also exit 2, with different messages. | Phase 3 (F1 fix) | None: no differential test runs under such limits. `TestRuntimeStack` checks this path directly. |
-| V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
+| V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, or for a failed type assertion `panic: interface conversion: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
 | V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, a `string(b)` of a `[]byte` before a call that changes its elements, a method's value receiver copied before a call among its arguments that changes it, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order, §Methods). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign, with a `string(b)` of bytes it may change, with a method's value receiver it may change, or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter, and `TestMethodReceiverOrder` pins it for receivers in the interpreter, both backends, and ABI-R1. |
 | V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` and of `[]rune(s)` is its length, where gc's may be larger (increment 7.3; measured 2026-11-16: `cap([]rune(s))` of a 3-byte string made at run time is 32 with gc, 3 with Aether). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)` or `[]rune(s)`, or depend on sharing after a growing `append`. |
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
@@ -404,13 +404,13 @@ brackets. The names are a stable contract (D-018), used by tests and the
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `function-without-body` |
-| Statements | `for-range`, `type-switch`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
+| Statements | `for-range`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
 | Operators | `operator-receive`, `operator-other`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
-| Other expressions | `composite-literal`, `selector`, `index-expression`, `slice-expression`, `type-assertion`, `expression` |
+| Other expressions | `composite-literal`, `selector`, `index-expression`, `slice-expression`, `expression` |
 
 `statement` and `expression` are catch-alls. The gate is default-deny, so a
 construct with no specific rule is still rejected.
@@ -637,7 +637,7 @@ matches; the `default` clause runs if none does, wherever it appears. A
 switch without a tag tests each case value as a condition. Lowering builds
 the tests from the IR's existing comparisons and branches; the IR is
 unchanged. Still `unsupported`: `fallthrough`, labeled switches (`label`),
-type switches (`type-switch`), and switches on other types. The feature name
+and switches on other types. Type switches came with interfaces (§Interfaces). The feature name
 `switch` no longer exists.
 
 ## Floating point (Phase 6 increment 6.1)
@@ -950,6 +950,40 @@ Still `unsupported`: capturing a variable declared in a for statement's
 init (`loop-variable-address`), of which Go 1.22 gives each iteration its
 own copy.
 
+## Interfaces (Phase 8 increment 8.4)
+
+The gate also accepts interfaces (D-041):
+- **Types**: interface types of methods with supported signatures, declared
+  or literal, embedding others, `any`, and `error`. A value of any
+  supported type converts to one whose methods it has, implicitly in
+  assignments, arguments, results, fields, and elements, or explicitly,
+  `I(x)`; an interface converts to one of fewer methods. The zero value is
+  `nil`.
+- **Calls** `i.M(args)` call the dynamic type's method: the interface, then
+  the arguments, are evaluated, then a nil interface panics with gc's nil
+  dereference message, as gc's does. A nil pointer in an interface is not
+  a nil interface, and its pointer methods are called on nil. Method values
+  `i.M`, which panic at once on nil, and method expressions `I.M` are func
+  values.
+- **Comparisons** `==` and `!=` of interfaces, with `nil`, and of an
+  interface with a value of a type that converts to it: equal if both are
+  nil, or if their dynamic types are identical and their values equal. If
+  the dynamic type is not comparable, the comparison panics with gc's
+  `runtime error: comparing uncomparable type T`.
+- **Type assertions** `x.(T)` and `v, ok := x.(T)`, to concrete and
+  interface types; a failed one panics with gc's message, such as
+  `interface conversion: interface {} is string, not int` or
+  `interface conversion: main.T is not main.J: missing method N`, or in
+  the comma-ok form gives the zero value and false.
+- **Type switches** with cases of one or several types, `nil`, and
+  `default`, binding the switch's variable to each clause's type.
+
+Still `unsupported`: an interface embedded in a struct (`non-int-type`),
+whose methods would be promoted; a switch statement on an interface, or
+with a case value of interface type (`non-int-type`); `print` and
+`println` of an interface (`println-argument-type`), which gc prints as
+two addresses.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -982,6 +1016,7 @@ own copy.
 | Methods: declarations on defined array and struct types, value and pointer receivers, calls with the implicit `&` and `*`, promotion through embedded fields and pointers, pointer receivers on nil | Method declarations, Method sets, Selectors, Calls | S5 / 8.1 | Supported (native), with divergences V-3, V-4, and V-5 | `s5_m01_method_basics` to `s5_m05_type_aether`; generated method programs; `TestMethodPrograms`, `TestMethodReceiverOrder`; gate tests |
 | Func values: func types, functions as values, calls of func values, `nil` and comparison with it, method values, method expressions | Function types, Method values, Method expressions, Calls, Comparison operators | S5 / 8.2 | Supported (native), with divergences V-3 to V-5 and V-7 | `s5_f01_func_values` to `s5_f04_nil_method_value`; generated func value programs; `TestFuncValuePrograms`, `TestNilMethodExpression`, `TestIndirectCalls`, `TestVerifyIndirect`; gate tests |
 | Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
+| Interfaces: types, conversions, method calls, method values and expressions, comparisons, type assertions, type switches | Interface types, Conversions, Type assertions, Type switches, Comparison operators | S5 / 8.4 | Supported (native), with divergences V-3 to V-5 | `s5_i01_interfaces` to `s5_i06_nil_interface_call`; generated interface programs; `TestInterfacePrograms`, `TestGcName`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

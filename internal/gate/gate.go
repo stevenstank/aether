@@ -66,7 +66,6 @@ const (
 	FeatSelector      = "selector"
 	FeatIndex         = "index-expression"
 	FeatSlice         = "slice-expression"
-	FeatTypeAssert    = "type-assertion"
 	FeatTypeExpr      = "type-expression"
 	FeatExpression    = "expression"
 	FeatStatement     = "statement"
@@ -198,11 +197,11 @@ func init() {
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
 		FeatCompositeLit,
-		FeatSelector, FeatIndex, FeatSlice, FeatTypeAssert,
+		FeatSelector, FeatIndex, FeatSlice,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
 		FeatLoopVarAddr,
 		// Statement kinds, named by the statement keyword (see stmt).
-		"for-range", "type-switch", "select", "go",
+		"for-range", "select", "go",
 		"defer", "label", "send",
 		token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
@@ -400,6 +399,13 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 				add(v.Type())
 				return false
 			}
+		case *ast.CaseClause:
+			// A type switch's variable in this clause, and the value
+			// copied into it (D-041).
+			if v, ok := c.info.Implicits[n].(*types.Var); ok {
+				add(v.Type())
+				add(v.Type())
+			}
 		}
 		e, ok := n.(ast.Expr)
 		if !ok || inPlace[e] {
@@ -422,6 +428,14 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 				}
 				return true
 			}
+		case *ast.TypeAssertExpr:
+			// v, ok := x.(T): v and its zero value, each a temporary.
+			if tuple, ok := tv.Type.(*types.Tuple); ok {
+				add(tuple.At(0).Type())
+				add(tuple.At(0).Type())
+				return true
+			}
+			add(tv.Type) // the value, and its own copy
 		}
 		add(tv.Type)
 		return true
@@ -532,7 +546,7 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.stmt(s.Init)
 		}
 		if s.Tag != nil {
-			if tv, ok := c.info.Types[s.Tag]; ok && isAggregate(tv.Type) {
+			if tv, ok := c.info.Types[s.Tag]; ok && (isAggregate(tv.Type) || isInterface(tv.Type)) {
 				c.reject(s.Tag, FeatNonIntType, fmt.Sprintf("switch on a value of type %s", tv.Type))
 				return
 			}
@@ -541,12 +555,16 @@ func (c *checker) stmt(s ast.Stmt) {
 		for _, cc := range s.Body.List {
 			cc := cc.(*ast.CaseClause)
 			for _, e := range cc.List {
+				if tv, ok := c.info.Types[e]; ok && isInterface(tv.Type) {
+					c.reject(e, FeatNonIntType, fmt.Sprintf("case value of type %s", tv.Type))
+					continue
+				}
 				c.expr(e)
 			}
 			c.stmts(cc.Body)
 		}
 	case *ast.TypeSwitchStmt:
-		c.reject(s, "type-switch", "type switch statement")
+		c.typeSwitch(s)
 	case *ast.SelectStmt:
 		c.reject(s, "select", "select statement")
 	case *ast.GoStmt:
@@ -637,7 +655,7 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 var supportedTypeNames = []string{
 	"bool", "int", "int8", "int16", "int32", "int64",
 	"uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "byte", "rune",
-	"float32", "float64", "string",
+	"float32", "float64", "string", "any", "error",
 }
 
 // typeExpr allows the predeclared types in supportedTypeNames, identified by
@@ -683,6 +701,8 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 		return false
 	case *ast.StarExpr:
 		return c.typeExpr(t.X) && c.sized(e)
+	case *ast.InterfaceType:
+		return c.ifaceTypeExpr(t) && c.sized(e)
 	case *ast.FuncType:
 		// A func type (D-039): its parameter and result types, of which a
 		// variadic ...T is rejected.
@@ -722,6 +742,10 @@ func (c *checker) sized(e ast.Expr) bool {
 		return false
 	}
 	if !c.supported(tv.Type) {
+		if !isScalar(tv.Type) && !c.composite(tv.Type, map[*types.Named]bool{}) {
+			c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
+			return false
+		}
 		c.reject(e, FeatNonIntType, fmt.Sprintf("type %s (larger than %d bytes)", types.ExprString(e), maxAggregate))
 		return false
 	}
@@ -747,8 +771,8 @@ func (c *checker) typeDecl(d *ast.GenDecl, feature string) {
 			c.reject(spec, feature, "type alias "+spec.Name.Name)
 		case spec.TypeParams != nil:
 			c.reject(spec, feature, "generic type "+spec.Name.Name)
-		case !isAggregate(tn.Type()):
-			c.reject(spec, feature, fmt.Sprintf("type %s of underlying type %s (only arrays and structs)", spec.Name.Name, tn.Type().Underlying()))
+		case !isAggregate(tn.Type()) && !isInterface(tn.Type()):
+			c.reject(spec, feature, fmt.Sprintf("type %s of underlying type %s (only arrays, structs, and interfaces)", spec.Name.Name, tn.Type().Underlying()))
 		default:
 			c.typeExpr(spec.Type)
 		}
@@ -986,6 +1010,8 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		// []rune, and from an integer (D-037).
 		at := c.info.Types[call.Args[0]]
 		switch {
+		case isInterface(tv.Type):
+			// To an interface (D-041): any supported value.
 		case isString(tv.Type) && (isString(at.Type) || isByteSlice(at.Type) || isRuneSlice(at.Type) || isInteger(at.Type)),
 			(isByteSlice(tv.Type) || isRuneSlice(tv.Type)) && isString(at.Type):
 		case isString(tv.Type) || isString(at.Type):
@@ -1010,7 +1036,7 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		// A method of the program's (D-038): the gate allows no other
 		// type with methods.
 		if sel := c.info.Selections[se]; sel != nil && sel.Kind() == types.MethodVal {
-			if fn, ok := sel.Obj().(*types.Func); ok && fn.Pkg() == c.pkg.Types {
+			if fn, ok := sel.Obj().(*types.Func); ok && (fn.Pkg() == c.pkg.Types || isInterface(sel.Recv())) {
 				return c.methodCall(call, se.X, sel)
 			}
 		}
@@ -1085,6 +1111,10 @@ func (c *checker) call(call *ast.CallExpr) bool {
 func (c *checker) multiValue(list []ast.Expr) bool {
 	if len(list) != 1 {
 		return false
+	}
+	if ta, ok := ast.Unparen(list[0]).(*ast.TypeAssertExpr); ok && isTuple(c.info.Types[list[0]].Type) {
+		c.typeAssert(ta) // v, ok := x.(T) (D-041)
+		return true
 	}
 	call, ok := list[0].(*ast.CallExpr)
 	if !ok {
@@ -1233,7 +1263,7 @@ func (c *checker) expr(e ast.Expr) {
 		}
 		c.typed(e)
 	case *ast.TypeAssertExpr:
-		c.reject(e, FeatTypeAssert, "type assertion")
+		c.typeAssert(e)
 	case *ast.StarExpr:
 		// go/types has checked that e.X is a pointer: as a value, e is
 		// not a type.
@@ -1400,6 +1430,9 @@ func (c *checker) sizedType(t types.Type, seen map[*types.Named]bool) bool {
 func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	t = types.Unalias(t)
 	if n, ok := t.(*types.Named); ok {
+		if n == types.Universe.Lookup("error").Type() {
+			return true // an interface (D-041)
+		}
 		if n.Obj().Pkg() != c.pkg.Types || n.Obj().Parent() == types.Universe || n.TypeParams().Len() > 0 || n.TypeArgs().Len() > 0 {
 			return false
 		}
@@ -1421,8 +1454,13 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 			if !isScalar(f.Type()) && !c.composite(f.Type(), seen) {
 				return false
 			}
+			if f.Embedded() && isInterface(f.Type()) {
+				return false // its methods would be promoted (D-041)
+			}
 		}
 		return true
+	case *types.Interface:
+		return c.ifaceType(t, seen)
 	case *types.Signature:
 		// A func type (D-039), not variadic, of supported parameters and
 		// results.

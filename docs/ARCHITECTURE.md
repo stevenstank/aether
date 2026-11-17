@@ -135,6 +135,10 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
   - Lower a function literal to the function `.litN`, numbered in source
     order, whose closure holds the Ptrs of the variables it captures, each
     address-taken and so on the heap (D-040).
+  - Lower an interface value to two Ptrs, an itab or type descriptor and the
+    value or its heap copy; method calls through the itab; and the
+    functions `.findK` and `.missK`, generated last, for assertions and
+    conversions to interfaces (D-041).
   - The program's functions are named `F` and its methods `T.M`, both
     made of Go identifiers, which are never empty. Every generated name
     begins with `.`, so it can never be one of those names, whatever the

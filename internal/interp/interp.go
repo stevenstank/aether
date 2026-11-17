@@ -164,11 +164,18 @@ func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps i
 		case ir.Shl, ir.Shr:
 			fr.values[in.ID] = in.Type.Canonical(shift(in.Op, in.Type, arg(0), uint64(arg(1))))
 		case ir.Panic:
-			msg := ir.PanicMessages[in.Index]
-			if ir.IsBounds(in.Index) {
-				msg = ir.BoundsMessage(in.Index, arg(0), in.Args[0].Type.Signed(), arg(1))
+			msg := "runtime error: " + ir.PanicMessages[in.Index]
+			switch {
+			case ir.IsBounds(in.Index):
+				msg = "runtime error: " + ir.BoundsMessage(in.Index, arg(0), in.Args[0].Type.Signed(), arg(1))
+			case in.Index == ir.PanicMsg:
+				b, err := mem.bytes(arg(0), arg(1))
+				if err != nil {
+					return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+				}
+				msg = string(b)
 			}
-			_, _ = io.WriteString(stderr, "panic: runtime error: "+msg+"\n")
+			_, _ = io.WriteString(stderr, "panic: "+msg+"\n")
 			return 2, nil
 		case ir.Str:
 			fr.values[in.ID] = mem.strs[in.Index]

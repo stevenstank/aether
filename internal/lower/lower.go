@@ -90,7 +90,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		l.function(fd)
 	}
 	l.init(prog)
-	l.buildWrappers()
+	l.buildLate()
 	l.initStatics()
 	mains := 0
 	for _, f := range prog.Funcs {
@@ -138,12 +138,21 @@ type lowerer struct {
 
 	wrappers   map[string]*ir.Func  // the wrappers of func values, by name (funcvalue.go)
 	bodies     []func()             // builds each wrapper's body, after the program's functions
+	built      int                  // the bodies built so far
 	statics    []static             // the static closures, in order of first use
 	staticMems map[*ir.Func]*ir.Mem // the static closure of each wrapper that has one
 
 	lits     map[*ast.FuncLit]int          // the number of each function literal, in source order (closure.go)
 	captures map[*ast.FuncLit][]*types.Var // the variables each captures
 	litFuncs map[*ast.FuncLit]*ir.Func     // the function of each literal lowered so far
+
+	ifaces    []*types.Interface // the interface types, one of identical ones (iface.go)
+	descs     []*tdesc           // the type descriptors
+	descsDone bool               // the interface functions list every descriptor
+	itabs     []*itabT
+	finds     map[int]*ir.Func // .findK of each interface K
+	misses    map[int]*ir.Func // .missK
+	late      []func()         // builds .findK and .missK, after every other body
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -240,7 +249,10 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 			ts := l.words(id, v.Type())
 			for i, t := range ts {
 				name := id.Name
-				if len(ts) > 1 {
+				switch {
+				case isIface(v.Type()):
+					name += [2]string{".tab", ".data"}[i]
+				case len(ts) > 1:
 					name += [3]string{".ptr", ".len", ".cap"}[i]
 				}
 				l.globals[v] = append(l.globals[v], prog.NewGlobal(name, t, file, l.pos(id, id.Pos())))
@@ -456,6 +468,8 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.forStmt(s)
 	case *ast.SwitchStmt:
 		l.switchStmt(s)
+	case *ast.TypeSwitchStmt:
+		l.typeSwitch(s) // D-041
 	case *ast.BranchStmt:
 		if s.Label != nil || s.Tok != token.BREAK && s.Tok != token.CONTINUE {
 			l.fail(s, "unexpected %s statement", s.Tok)
@@ -804,6 +818,9 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 		if sel == nil || sel.Kind() != types.MethodVal {
 			break // a func value
 		}
+		if isIface(sel.Recv()) {
+			return l.ifaceCall(call, fn, sel) // D-041
+		}
 		obj, _ = sel.Obj().(*types.Func)
 		w := l.receiver(fn, sel)
 		recv = func() []*ir.Instr { return w }
@@ -918,13 +935,43 @@ func (l *lowerer) valuesOrResults(list []ast.Expr, ts []types.Type) [][]*ir.Inst
 	if len(list) == n {
 		return l.values(list, ts)
 	}
-	call, ok := list[0].(*ast.CallExpr)
-	if len(list) != 1 || !ok || n < 2 {
-		l.fail(list[0], "%d values where %d are needed", len(list), n)
+	var vals [][]*ir.Instr
+	var from *types.Tuple
+	if ta, ok := ast.Unparen(list[0]).(*ast.TypeAssertExpr); ok && len(list) == 1 && n == 2 {
+		vals = l.assert(ta, true) // v, ok := x.(T) (D-041)
+		from = l.pkg.Info.Types[list[0]].Type.(*types.Tuple)
+	} else {
+		call, ok := list[0].(*ast.CallExpr)
+		if len(list) != 1 || !ok || n < 2 {
+			l.fail(list[0], "%d values where %d are needed", len(list), n)
+		}
+		vals = l.results(call, l.call(call))
+		from, _ = l.pkg.Info.Types[call].Type.(*types.Tuple)
 	}
-	vals := l.results(call, l.call(call))
-	if len(vals) != n {
-		l.fail(call, "call does not have %d results", n)
+	if len(vals) != n || from == nil || from.Len() != n {
+		l.fail(list[0], "%d values where %d are needed", len(vals), n)
+	}
+	// A result assigned to an interface is converted to it (D-041). A
+	// conversion may branch, so every word is kept in a slot meanwhile.
+	conv := false
+	for i, t := range ts {
+		conv = conv || t != nil && isIface(t) && !types.Identical(t.Underlying(), from.At(i).Type().Underlying())
+	}
+	if !conv {
+		return vals
+	}
+	pos := l.pos(list[0], list[0].Pos())
+	gets := make([]func() []*ir.Instr, n)
+	for i := range vals {
+		gets[i] = l.spillWords(vals[i], pos)
+	}
+	for i, t := range ts {
+		if t != nil && isIface(t) {
+			gets[i] = l.spillWords(l.toIface(gets[i](), from.At(i).Type(), t, pos), pos)
+		}
+	}
+	for i := range vals {
+		vals[i] = gets[i]()
 	}
 	return vals
 }
@@ -1000,11 +1047,26 @@ func (l *lowerer) globalVar(v *types.Var, pos ir.Pos) (variable, bool) {
 // (D-034), and slots otherwise.
 func (l *lowerer) defineVar(id *ast.Ident) variable {
 	v, ok := l.pkg.Info.Defs[id].(*types.Var)
-	if ok && l.addrTaken[v] {
+	if !ok {
+		return variable{slots: l.define(id)} // fails
+	}
+	return l.defineObj(id, v)
+}
+
+// defineObj creates the storage of the local variable v, declared by id,
+// or for a type switch's variable in a clause (D-041), named by it.
+func (l *lowerer) defineObj(id *ast.Ident, v *types.Var) variable {
+	if l.addrTaken[v] {
 		return l.defineHeap(id, v)
 	}
-	if !ok || !isAggregate(v.Type()) {
-		return variable{slots: l.define(id)}
+	if !isAggregate(v.Type()) {
+		if l.slots[v] != nil {
+			l.fail(id, "variable %s declared twice", id.Name)
+		}
+		for _, t := range l.words(id, v.Type()) {
+			l.slots[v] = append(l.slots[v], l.fn.NewSlot(id.Name, t, l.pos(id, id.Pos())))
+		}
+		return variable{slots: l.slots[v]}
 	}
 	if l.mems[v] != nil {
 		l.fail(id, "variable %s declared twice", id.Name)
@@ -1153,6 +1215,21 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 			if _, ok := n.(*ast.FuncLit); ok {
 				return false // its body is another function's (D-040)
 			}
+			// An interface's conversion to another interface, comparison,
+			// assertion, and method call or value may branch (D-041).
+			if e, ok := n.(ast.Expr); ok {
+				if tv, ok := l.pkg.Info.Types[e]; ok && !tv.IsType() && tv.Type != nil && isIface(tv.Type) {
+					found = true
+				}
+			}
+			if _, ok := n.(*ast.TypeAssertExpr); ok {
+				found = true
+			}
+			if se, ok := n.(*ast.SelectorExpr); ok {
+				if sel := l.pkg.Info.Selections[se]; sel != nil && isIface(sel.Recv()) {
+					found = true
+				}
+			}
 			if b, ok := n.(*ast.BinaryExpr); ok {
 				switch b.Op {
 				case token.LAND, token.LOR, token.QUO, token.REM, token.SHL, token.SHR:
@@ -1247,6 +1324,8 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return l.expr(e.X)
 	case *ast.FuncLit:
 		return l.funcLit(e) // D-040
+	case *ast.TypeAssertExpr:
+		return l.scalar(e, l.assert(e, false)[0]) // D-041
 	case *ast.IndexExpr:
 		if isString(l.pkg.Info.Types[e.X].Type) {
 			return l.index(e)
@@ -1254,6 +1333,10 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
 	case *ast.SelectorExpr:
 		switch sel := l.pkg.Info.Selections[e]; {
+		case sel != nil && sel.Kind() == types.MethodVal && isIface(sel.Recv()):
+			return l.ifaceMethodValue(e, sel) // D-041
+		case sel != nil && sel.Kind() == types.MethodExpr && isIface(sel.Recv()):
+			return l.ifaceMethodExpr(e, sel)
 		case sel != nil && sel.Kind() == types.MethodVal:
 			return l.methodValue(e, sel)
 		case sel != nil && sel.Kind() == types.MethodExpr:
@@ -1349,6 +1432,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		case token.LAND, token.LOR:
 			return l.logical(e, pos)
 		}
+		if isIface(l.pkg.Info.Types[e.X].Type) || isIface(l.pkg.Info.Types[e.Y].Type) {
+			return l.ifaceCompare(e, pos) // D-041
+		}
 		if isAggregate(l.pkg.Info.Types[e.X].Type) {
 			return l.aggregateCompare(e, pos)
 		}
@@ -1382,6 +1468,12 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 	tv, ok := l.pkg.Info.Types[e]
 	if !ok {
 		l.fail(e, "no type for expression %s", types.ExprString(e))
+	}
+	if ta, ok := ast.Unparen(e).(*ast.TypeAssertExpr); ok {
+		return l.assert(ta, false)[0] // D-041
+	}
+	if isIface(tv.Type) {
+		return l.ifaceValue(e)
 	}
 	if isAggregate(tv.Type) {
 		return []*ir.Instr{l.aggValue(e)}
@@ -1614,6 +1706,9 @@ var irTypes = map[types.BasicKind]ir.Type{
 // string (D-033), Ptr for an array or struct (D-034), and its one IR type
 // otherwise.
 func (l *lowerer) words(n ast.Node, t types.Type) []ir.Type {
+	if isIface(t) {
+		return []ir.Type{ir.Ptr, ir.Ptr} // tab and data (D-041)
+	}
 	if isAggregate(t) {
 		return []ir.Type{ir.Ptr}
 	}
@@ -1714,7 +1809,7 @@ func int64Val(tv types.TypeAndValue) (int64, bool) {
 func (l *lowerer) typeDecl(d *ast.GenDecl, what string) {
 	for _, spec := range d.Specs {
 		tn, ok := l.pkg.Info.Defs[spec.(*ast.TypeSpec).Name].(*types.TypeName)
-		if !ok || tn.IsAlias() || !isAggregate(tn.Type()) {
+		if !ok || tn.IsAlias() || !isAggregate(tn.Type()) && !isIface(tn.Type()) {
 			l.fail(d, "unexpected %s", what)
 		}
 	}

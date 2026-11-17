@@ -127,10 +127,11 @@ potentially long-term dependencies. The exact ownership boundaries are in
   and strings made at run time, with comparison, rune literals, and the
   `[]byte`, `[]rune`, and integer conversions (increment 7.3), methods
   of array and struct types (Phase 8 increment 8.1), and func values of
-  functions and methods (increment 8.2), and closures (increment 8.3) are
-  supported: no complex numbers, maps, interfaces, `defer`, `panic`, or goroutines; no
-  `fallthrough`, type switches, labels, `goto`, or `for range`; no `type`
-  declarations other than of arrays and structs, and no `init` functions. Panics print no traceback.
+  functions and methods (increment 8.2), closures (increment 8.3), and
+  interfaces with type assertions and type switches (increment 8.4) are
+  supported: no complex numbers, maps, `defer`, `panic`, or goroutines; no
+  `fallthrough`, labels, `goto`, or `for range`; no `type`
+  declarations other than of arrays, structs, and interfaces, and no `init` functions. Panics print no traceback.
   Heap memory is never freed (D-010).
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The

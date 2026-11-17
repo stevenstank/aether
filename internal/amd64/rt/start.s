@@ -166,7 +166,33 @@ aether.panicindexu:
 	hlt				# not reached
 	.size	aether.panicindexu, .-aether.panicindexu
 
+# aether.panicmsg ends the program with a panic whose message is made at
+# run time (D-041): the %rsi bytes at %rdi. It writes "panic: ", the message,
+# and a newline, and exits with status 2. It uses at most 24 bytes below
+# %rsp: its return address, 8 bytes of alignment, and aether.write's.
+	.globl	aether.panicmsg
+	.type	aether.panicmsg, @function
+aether.panicmsg:
+	subq	$8, %rsp		# align for the helpers' calls
+	movq	%rdi, %rbx		# the helpers preserve %rbx and %r12
+	movq	%rsi, %r12
+	leaq	.Lpanicmsg(%rip), %rsi
+	movl	$.Lpanicmsglen, %edx
+	call	aether.write
+	movq	%rbx, %rsi
+	movq	%r12, %rdx
+	call	aether.write
+	call	aether.printnl
+	movl	$231, %eax		# exit_group
+	movl	$2, %edi
+	syscall
+	hlt				# not reached
+	.size	aether.panicmsg, .-aether.panicmsg
+
 	.section	.rodata
+.Lpanicmsg:
+	.ascii	"panic: "
+	.set	.Lpanicmsglen, .-.Lpanicmsg
 .Lpanicindex:
 	.ascii	"panic: runtime error: index out of range ["
 	.set	.Lpanicindexlen, .-.Lpanicindex

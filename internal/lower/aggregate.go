@@ -68,6 +68,9 @@ func leaves(t types.Type) int64 {
 	if isSlice(t) {
 		return 3
 	}
+	if isIface(t) {
+		return 2
+	}
 	return 1
 }
 
@@ -297,9 +300,12 @@ func (l *lowerer) equal(x, y place, pos ir.Pos) *ir.Instr {
 	differ := l.fn.NewBlock()
 	l.walkValues(x.t, []place{x, y}, true, pos, func(t types.Type, ps []place) {
 		var eq *ir.Instr
-		if isString(t) {
+		switch {
+		case isIface(t):
+			eq = l.ifaceEqual(l.loadPlace(ps[0], pos), l.loadPlace(ps[1], pos), t, pos)
+		case isString(t):
 			eq = l.stringEqual(l.loadPlace(ps[0], pos), l.loadPlace(ps[1], pos), pos)
-		} else {
+		default:
 			it := l.irType(nil, t)
 			eq = l.compare(ir.Eq, l.ldm(it, ps[0], pos), l.ldm(it, ps[1], pos), pos)
 		}
@@ -489,6 +495,8 @@ func (l *lowerer) aggValue(e ast.Expr) *ir.Instr {
 		}
 		l.fill(p, e)
 		return l.addr(m, pos)
+	case *ast.TypeAssertExpr:
+		return l.assert(e, false)[0][0] // D-041
 	case *ast.CallExpr:
 		if l.pkg.Info.Types[e.Fun].IsType() {
 			// A conversion between types of identical underlying types,
@@ -595,7 +603,7 @@ func (l *lowerer) covers(lit *ast.CompositeLit) bool {
 // zeros. A literal of pointer type is an elided &T{…} (spec §Composite
 // literals), whose value is a new heap object.
 func (l *lowerer) fillElement(p place, e ast.Expr) {
-	if lit, ok := ast.Unparen(e).(*ast.CompositeLit); ok {
+	if lit, ok := ast.Unparen(e).(*ast.CompositeLit); ok && !isIface(p.t) {
 		pos := l.pos(e, e.Pos())
 		if t, ok := pointee(p.t); ok {
 			l.storePlace(p, []*ir.Instr{l.heapLit(lit, t, pos)}, pos)

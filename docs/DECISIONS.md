@@ -69,6 +69,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-038 | Methods (Phase 8 increment 8.1) | Accepted (2026-11-16, owner approval as proposed) |
 | D-039 | Func values (Phase 8 increment 8.2) | Accepted (2026-11-17, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-040 | Closures (Phase 8 increment 8.3) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
+| D-041 | Interfaces, type assertions, and type switches (Phase 8 increment 8.4) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 
 ## Review log
 
@@ -3182,6 +3183,69 @@ increment.
 (V-5), and each closure made allocates. A literal's body is lowered after
 every function, so the IR lists literals after the functions, in the order
 they were reached.
+
+## D-041: Interfaces, type assertions, and type switches (Phase 8 increment 8.4)
+
+**Status:** Accepted (2026-11-18). The owner asked to proceed with the next
+milestone, following its design-first rule, without an approval cycle;
+this note is that design, and the owner's review is pending.
+
+**Context.** Phase 8 lists "interfaces and type assertions/switches".
+Func values (D-039) gave the IR calls through code addresses; the methods
+of an interface's dynamic type are called that way. The whole program is
+one file, so every type converted to an interface, and every interface, is
+known when lowering ends.
+
+**Decision.**
+- **Scope.** Interface types of methods with supported signatures, declared
+  or literal, embedding others, `any`, and `error`; conversions to them;
+  method calls, method values, and method expressions; `==` and `!=`; type
+  assertions, single and comma-ok; type switches. Rejected: interfaces
+  embedded in structs (their methods would be promoted through a field),
+  switch statements on interfaces or with interface case values, `print` of
+  an interface, and constraint interfaces.
+- **Representation.** An interface value is two Ptr words, `tab` and `data`,
+  both 0 for nil, as gc's. `data` is a pointer type's value itself, and
+  otherwise the Ptr of a heap copy that is never written. `tab` is, for an
+  empty interface, the address of the dynamic type's descriptor `.tN` (its
+  name as gc writes it, and the code address of its equality function `.eqN`,
+  or 0 if not comparable), and for a non-empty interface `I`, of the itab
+  `.itN` of the type and `I`: the descriptor's address, then a wrapper's
+  code address for each of `I`'s methods in `I`'s order. Init writes all of
+  them. Identical interface types share their itabs, so two values of one
+  interface type have the same dynamic type exactly when their tabs are
+  equal.
+- **Method calls** load the code from the itab and call it with `CallInd`
+  (D-039), passing the itab as the closure and `data` first. The wrapper
+  `.iN.M` selects `M` on the value as a call does, through embedded fields;
+  for a value it copies the heap value first, since a method may change its
+  receiver.
+- **Dynamic itabs.** A conversion between interfaces, and an assertion to an
+  interface `J`, call `.findK` (generated after every other function, when
+  every descriptor is known), which compares the descriptor with those of
+  the types implementing `J` and returns their itab, or 0; `.missK` returns
+  the first method by name that a type lacks, for gc's message.
+- **Panics.** A new run-time error, `PanicMsg`, carries a message made at
+  run time, a string, which the runtime helper `aether.panicmsg` writes
+  after `panic: ` with no `runtime error: ` of its own. It extends D-023's
+  closed set of panics. Failed assertions and comparisons of uncomparable
+  values use it, with gc's text and type names.
+- **Order.** As gc: in `i.M(args)`, the interface, then the arguments, then
+  the nil check; a method value checks at once. Comparisons evaluate both
+  operands left to right (D-024).
+
+**Alternatives considered.** Keep one representation for empty and
+non-empty interfaces, a descriptor in both: every call would search for its
+method. Build itabs at run time, as gc does: it needs a runtime type
+system, where the whole program's types are known when lowering ends. Box
+every value, pointers too: a pointer method would need a wrapper, and a
+nil pointer in an interface could not be told apart from what it points to.
+
+**Consequences.** Converting a non-pointer value to an interface allocates
+its size, never freed (V-5). An assertion to, or conversion between,
+non-empty interfaces costs a linear search over the program's types that
+implement the target. A panic's message names types as gc's run time does
+(`TestGcName` checks against reflect's names).
 
 ---
 

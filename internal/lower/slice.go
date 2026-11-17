@@ -48,6 +48,14 @@ func (l *lowerer) isBuiltin(call *ast.CallExpr, name string) bool {
 // valueFor is value for an expression whose context gives it the type t,
 // nil if unknown: untyped nil in a slice context is the nil slice.
 func (l *lowerer) valueFor(e ast.Expr, t types.Type) []*ir.Instr {
+	if t != nil && isIface(t) {
+		// Converted to the interface (D-041); nil is two 0 words.
+		pos := l.pos(e, e.Pos())
+		if tv := l.pkg.Info.Types[e]; tv.IsNil() {
+			return []*ir.Instr{l.fn.TypedConst(l.b, ir.Ptr, 0, pos), l.fn.TypedConst(l.b, ir.Ptr, 0, pos)}
+		}
+		return l.toIface(l.value(e), l.pkg.Info.Types[e].Type, t, pos)
+	}
 	if t != nil && isSlice(t) && l.pkg.Info.Types[e].IsNil() {
 		pos := l.pos(e, e.Pos())
 		return []*ir.Instr{l.fn.TypedConst(l.b, ir.Ptr, 0, pos), l.fn.Const(l.b, 0, pos), l.fn.Const(l.b, 0, pos)}
