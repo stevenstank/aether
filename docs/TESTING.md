@@ -510,6 +510,24 @@ comparison rule accepts any `panic: ` line with a message, and its Q takes
 in the following lines that begin with a tab: gc's later panics and the
 lines of a value with newlines.
 
+Named-result programs (`gen_named_test.go`, increment 8.7, D-044) come
+from their own random stream. `TestDifferentialAgainstGc` and
+`TestFrameBound` run 100, `TestNamedResultPrograms` 30 also under `-O0`
+and ABI-R1 (with corpus program `s5_n01`; `s5_d12` and `s5_d13` run in
+`TestDeferPrograms`), and `FuzzGenerated` the one of each seed. Functions
+`f0` to `f3` have the named results `(r int, s string, p P, a [2]int)`;
+their bodies assign them directly, through a pointer, and from a literal
+that captures them, and return early or at the end, bare or with values;
+some defer calls that set the results or print them, and some recover and
+may then panic, by `panic` or by indexing out of range. `main` prints each
+call's results. One program in about seven ends with an unrecovered panic
+from a function whose deferred call prints its named result. Negative
+control, run by hand and reverted: a `return` with values in a function
+with `defer` that does not assign the results makes all 30 generated
+programs differ from gc in `TestNamedResultPrograms`. On 2026-11-20,
+named-result programs of seeds 1001 to 2000 all gave gc's output in the
+interpreter, `aether build`, `-O0`, and ABI-R1; 125 of them panic.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

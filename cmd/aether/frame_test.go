@@ -59,6 +59,7 @@ func TestFrameBound(t *testing.T) {
 		progs = append(progs, program{fmt.Sprintf("cls%04d.go", seed), []byte(generateClosures(seed))})
 		progs = append(progs, program{fmt.Sprintf("ifc%04d.go", seed), []byte(generateIfaces(seed))})
 		progs = append(progs, program{fmt.Sprintf("map%04d.go", seed), []byte(generateMaps(seed))})
+		progs = append(progs, program{fmt.Sprintf("nmd%04d.go", seed), []byte(generateNamed(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {
@@ -105,7 +106,7 @@ func TestFrameBound(t *testing.T) {
 				if funcs[name] == nil {
 					t.Fatalf("%s: no IR function %s", p.name, name)
 				}
-				check("func "+name, gate.FrameBytes(pkg, d.Body), funcs[name])
+				check("func "+name, gate.FuncBytes(pkg, d.Type, d.Body), funcs[name])
 			case *ast.GenDecl:
 				if d.Tok == token.VAR {
 					for _, spec := range d.Specs {
@@ -129,7 +130,7 @@ func TestFrameBound(t *testing.T) {
 				if funcs[name] == nil {
 					t.Fatalf("%s: no IR function %s", p.name, name)
 				}
-				check("func "+name, gate.FrameBytes(pkg, lit.Body), funcs[name])
+				check("func "+name, gate.FuncBytes(pkg, lit.Type, lit.Body), funcs[name])
 			}
 			return true
 		})

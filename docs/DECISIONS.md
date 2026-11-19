@@ -72,6 +72,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-041 | Interfaces, type assertions, and type switches (Phase 8 increment 8.4) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-042 | Maps (Phase 8 increment 8.5) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-043 | Defer, panic, and recover (Phase 8 increment 8.6) | Accepted (2026-11-19, owner's instruction to proceed with the design-first rule; owner review pending) |
+| D-044 | Named results (Phase 8 increment 8.7) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
 
 ## Review log
 
@@ -3478,6 +3479,64 @@ the panics are printed, gc ends with `panic while printing panic value`;
 Aether writes the panics with that value empty (V-9). The goroutine
 traceback is not written (V-3); the panic comparison rule extends Q over
 the lines after the first panic line that begin with a tab.
+
+---
+
+## D-044: Named results (Phase 8 increment 8.7)
+
+**Status:** Accepted (2026-11-20). D-043 made named results their own
+increment after 8.6b; the owner asked to proceed with it under the
+design-first rule. This note is that design, written before its code, and
+the owner's review is pending.
+
+**Context.** A result parameter with a name is a variable of the function,
+zero at entry (spec §Function declarations, §Return statements), which a
+deferred call may read and set after a `return` stored it and before the
+caller sees it; it is the only way a function that recovers can return
+something other than zero. Measured with gc-built go1.26.1 binaries on
+2026-11-20: `func f() (r int) { defer func() { r *= 2 }(); return 21 }`
+returns 42; a deferred call that recovers and sets `err` and `q` makes the
+function return them; a struct result's field set by a deferred call is
+seen by the caller; a bare `return` returns the variables' values, a blank
+result `_` returning zero; `return b, a` with named `a, b` returns them
+swapped; and a function that recovers returns the values its named results
+held when it panicked.
+
+**Decision.**
+- **Scope.** Named results of function declarations, methods, and function
+  literals, of every supported type, `_` included; bare `return` in such a
+  function. No IR, runtime, or calling-convention change: the IR function
+  keeps the signature it would have with unnamed results.
+- **Variables.** At entry, after the parameters are read, each named
+  result is declared as a local variable is (D-034, D-035, D-040): slots,
+  a frame object for an array or struct, or a heap object if its address
+  is taken or a function literal captures it; and is set to zero.
+- **Return without defer.** `return e1, …` returns its values as it does
+  with unnamed results: nothing can observe the variables afterwards. A
+  bare `return` returns the variables' values, an array or struct result
+  copied into the caller's object (D-034).
+- **Return with defer.** In a function with a `defer` statement, `return
+  e1, …` evaluates every value, then assigns them to the result
+  variables, in order, as an assignment does; then it, and a bare
+  `return`, go to the exit (D-043). The exit, after the deferred calls,
+  returns the variables' values as a bare return does; D-043's result
+  slots are not created, and a function that recovers returns the values
+  its variables hold. This replaces D-043's "the results its return
+  stored, or zero" for named results only.
+- **Gate.** The `function-declaration` rejection of named results is
+  removed; their types are checked as unnamed results' are, and an array
+  or struct named result counts towards the function's frame bound.
+
+**Alternatives considered.** Storing every `return`'s values in the result
+variables also without `defer`: one path, but a copy more for array and
+struct results where nothing can observe the difference. Making an array
+or struct named result alias the caller's object: no copy at return, but
+the caller would see stores made before a panic it recovers from.
+
+**Consequences.** A function with named results and a `defer` statement
+returns through memory: each result is loaded from its variable at the
+exit. Captured or address-taken results live on the heap and are never
+freed (V-5).
 
 ---
 

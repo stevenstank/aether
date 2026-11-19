@@ -143,6 +143,7 @@ type lowerer struct {
 	addrTaken map[*types.Var]bool     // the variables whose address is taken (pointer.go)
 	temps     map[*ir.Instr][]*ir.Mem // each call's objects for its array and struct results
 	retPtrs   []*ir.Slot              // fn's array and struct results: the slot of the Ptr to each
+	named     []variable              // fn's result variables, if its results are named (D-044)
 	addrs     map[*ir.Mem]*ir.Instr   // the addresses computed in addrBlock
 	addrBlock *ir.Block
 	streq     *ir.Func             // .streq, once a string comparison needs it (strings.go)
@@ -226,9 +227,6 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 		f.Params = append(f.Params, l.words(fd, v.Type())...)
 	}
 	for v := range sig.Results().Variables() {
-		if v.Name() != "" {
-			l.fail(fd, "unexpected result %s", v)
-		}
 		if isAggregate(v.Type()) {
 			continue // a Ptr parameter below
 		}
@@ -331,18 +329,18 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 		// The receiver is the first parameter (D-038).
 		fields = append(append([]*ast.Field(nil), fd.Recv.List...), fields...)
 	}
-	l.body(fields, 0, fd.Body, nil, fd.Name.Name)
+	l.body(fields, 0, fd.Type.Results, fd.Body, nil, fd.Name.Name)
 }
 
 // body lowers the body of l.fn, whose Go signature is l.sig: its
 // parameters, declared by fields, are its IR parameters from first on, and
-// its array and struct results' Ptrs follow them. prologue, if not nil,
-// runs after every param is read and before the address-taken parameters
-// move to the heap.
-func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prologue func(), name string) {
+// its array and struct results' Ptrs follow them; results declares its
+// results. prologue, if not nil, runs after every param is read and before
+// the address-taken parameters move to the heap.
+func (l *lowerer) body(fields []*ast.Field, first int, results *ast.FieldList, body *ast.BlockStmt, prologue func(), name string) {
 	l.b = l.fn.Entry()
 	l.done = false
-	l.retPtrs = nil
+	l.retPtrs, l.named = nil, nil
 	i := first            // the first IR parameter of the next Go one
 	var heap []*ast.Ident // the address-taken parameters
 	for _, field := range fields {
@@ -384,6 +382,16 @@ func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prol
 	for _, id := range heap {
 		l.moveToHeap(id, l.pkg.Info.Defs[id].(*types.Var))
 	}
+	// Named results are variables, zero at entry (D-044).
+	if results != nil && len(results.List) > 0 && len(results.List[0].Names) > 0 {
+		k := 0
+		for _, field := range results.List {
+			for _, id := range field.Names {
+				l.named = append(l.named, l.zeroVar(id, l.sig.Results().At(k)))
+				k++
+			}
+		}
+	}
 	l.dfr = nil
 	l.enterRecover(body, l.pos(body, body.Lbrace))
 	if hasDefer(body) {
@@ -408,7 +416,7 @@ func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prol
 	} else {
 		prune(l.fn)
 	}
-	l.fn, l.sig = nil, nil
+	l.fn, l.sig, l.named = nil, nil, nil
 }
 
 // prune removes the blocks that no path from the entry reaches and
@@ -705,20 +713,11 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 	if len(spec.Values) == 0 {
 		for _, id := range spec.Names {
-			pos := l.pos(id, id.Pos())
-			v := l.defineVar(id)
-			if obj, ok := l.pkg.Info.Defs[id].(*types.Var); ok && l.addrTaken[obj] {
-				continue // a new heap object holds zeros
+			v, ok := l.pkg.Info.Defs[id].(*types.Var)
+			if !ok {
+				l.defineVar(id) // fails
 			}
-			if v.mem != nil {
-				l.zero(*v.mem, pos)
-				continue
-			}
-			// Every zero value, the empty string's (0, 0) included, is
-			// all zero words.
-			for _, slot := range v.slots {
-				l.fn.Store(l.b, slot, l.fn.TypedConst(l.b, slot.Type, 0, pos), pos)
-			}
+			l.zeroVar(id, v)
 		}
 		return
 	}
@@ -731,6 +730,26 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 	for i, id := range spec.Names {
 		l.store(l.defineVar(id), get[i](), l.pos(id, id.Pos()))
 	}
+}
+
+// zeroVar creates the storage of the local variable v, declared by id,
+// holding its zero value, and returns it.
+func (l *lowerer) zeroVar(id *ast.Ident, v *types.Var) variable {
+	pos := l.pos(id, id.Pos())
+	s := l.defineObj(id, v)
+	switch {
+	case l.addrTaken[v]:
+		// A new heap object holds zeros.
+	case s.mem != nil:
+		l.zero(*s.mem, pos)
+	default:
+		// Every zero value, the empty string's (0, 0) included, is all
+		// zero words.
+		for _, slot := range s.slots {
+			l.fn.Store(l.b, slot, l.fn.TypedConst(l.b, slot.Type, 0, pos), pos)
+		}
+	}
+	return s
 }
 
 // assign lowers =, :=, and the compound assignments. For = and :=, every
@@ -1818,7 +1837,51 @@ func (l *lowerer) ret(s *ast.ReturnStmt) {
 	for v := range l.sig.Results().Variables() {
 		ts = append(ts, v.Type())
 	}
-	vals := l.valuesOrResults(s.Results, ts)
+	var vals [][]*ir.Instr
+	if len(s.Results) > 0 {
+		vals = l.valuesOrResults(s.Results, ts)
+	}
+	if l.named != nil {
+		switch {
+		case l.dfr != nil:
+			// The values are assigned to the results, which the exit
+			// returns after the deferred calls (D-044).
+			if vals != nil {
+				inMemory := false
+				for _, v := range l.named {
+					inMemory = inMemory || v.mem != nil
+				}
+				get := l.keepAcrossStores(vals, len(vals) > 1 && inMemory, pos)
+				for i, v := range l.named {
+					l.store(v, get[i](), pos)
+				}
+			}
+			l.fn.Jump(l.b, l.dfr.exit, pos)
+			return
+		case vals == nil:
+			vals = l.namedValues(pos)
+		}
+	}
+	l.retValues(s, vals, pos)
+}
+
+// namedValues returns the values of the named results: an array's or
+// struct's the Ptr of its variable, which a return copies from at once.
+func (l *lowerer) namedValues(pos ir.Pos) [][]*ir.Instr {
+	vals := make([][]*ir.Instr, len(l.named))
+	for i, v := range l.named {
+		if v.mem != nil && isAggregate(v.mem.t) {
+			vals[i] = []*ir.Instr{v.mem.base()}
+			continue
+		}
+		vals[i] = l.load(v, pos)
+	}
+	return vals
+}
+
+// retValues ends the current block with a return of vals, a value for
+// each result, n's: an array or struct is copied into the caller's object.
+func (l *lowerer) retValues(n ast.Node, vals [][]*ir.Instr, pos ir.Pos) {
 	if len(l.retPtrs) == 0 {
 		l.retWords(pos, flatten(vals)...)
 		return
@@ -1840,7 +1903,7 @@ func (l *lowerer) ret(s *ast.ReturnStmt) {
 		dst := place{base: func() *ir.Instr { return l.fn.Load(l.b, slot, pos) }, t: r.Type()}
 		// The source is made here, in the block that computed it: a copy
 		// before it may loop.
-		copies = append(copies, copyOut{dst, l.valuePlace(l.scalar(s, vals[i]), r.Type(), pos)})
+		copies = append(copies, copyOut{dst, l.valuePlace(l.scalar(n, vals[i]), r.Type(), pos)})
 	}
 	get := func() []*ir.Instr { return scalars }
 	if len(scalars) > 0 {

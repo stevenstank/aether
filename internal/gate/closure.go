@@ -18,16 +18,12 @@ func (c *checker) funcLit(e *ast.FuncLit) {
 	if !c.typed(e) {
 		return
 	}
-	if r := e.Type.Results; r.NumFields() > 0 && len(r.List[0].Names) > 0 {
-		c.reject(r, FeatFuncDecl, "function literal with named results")
-		return
-	}
 	mark := len(c.ds)
 	c.lits = append(c.lits, e)
 	c.stmts(e.Body.List)
 	c.lits = c.lits[:len(c.lits)-1]
 	if len(c.ds) == mark {
-		if n := c.frameBytes(e.Body); n > maxFrameObjects {
+		if n := c.funcBytes(e.Type, e.Body); n > maxFrameObjects {
 			c.reject(e, FeatFrameSize, fmt.Sprintf("function literal, whose arrays and structs may need %d bytes of stack (more than %d)", n, maxFrameObjects))
 		}
 	}

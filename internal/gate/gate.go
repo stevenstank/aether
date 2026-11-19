@@ -276,7 +276,7 @@ func (c *checker) topDecl(d ast.Decl) {
 }
 
 // funcDecl checks a function declaration: main, or a function whose
-// parameters and unnamed results are int or bool. Blank and unnamed
+// parameters and results are of supported types. Blank and unnamed
 // parameters are allowed. The body is checked only if the signature
 // is supported, so one problem yields one diagnostic.
 func (c *checker) funcDecl(d *ast.FuncDecl) {
@@ -308,14 +308,10 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	}
 	// An empty result list, "func f() ()", means no result. Precheck has
 	// rejected it on main and init.
-	if results := d.Type.Results; results.NumFields() > 0 {
-		// Results are either all named or all unnamed.
-		if len(results.List[0].Names) > 0 {
-			c.reject(results, FeatFuncDecl, "function "+name+" with named results")
-		} else {
-			for _, field := range results.List {
-				ok = c.typeExpr(field.Type) && ok
-			}
+	// Named results are variables of the function (D-044).
+	if results := d.Type.Results; results != nil {
+		for _, field := range results.List {
+			ok = c.typeExpr(field.Type) && ok
 		}
 	}
 	if len(c.ds) > mark || !ok {
@@ -323,10 +319,20 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	}
 	c.stmts(d.Body.List)
 	if len(c.ds) == mark {
-		if n := c.frameBytes(d.Body); n > maxFrameObjects {
+		if n := c.funcBytes(d.Type, d.Body); n > maxFrameObjects {
 			c.reject(d.Name, FeatFrameSize, fmt.Sprintf("function %s, whose arrays and structs may need %d bytes of stack (more than %d)", name, n, maxFrameObjects))
 		}
 	}
+}
+
+// funcBytes returns frameBytes of a function's body plus the frame
+// objects of the named array and struct results its type declares (D-044).
+func (c *checker) funcBytes(ft *ast.FuncType, body *ast.BlockStmt) int64 {
+	n := c.frameBytes(body)
+	if ft.Results != nil {
+		n += c.frameBytes(ft.Results)
+	}
+	return n
 }
 
 // maxFrameObjects bounds the stack a function's array and struct variables
@@ -470,6 +476,12 @@ func (c *checker) addressed(x ast.Expr) bool {
 // objects lowering gives n.
 func FrameBytes(pkg *frontend.Package, n ast.Node) int64 {
 	return (&checker{pkg: pkg, info: pkg.Info}).frameBytes(n)
+}
+
+// FuncBytes is the bound funcBytes of a function of pkg, of type ft and
+// body body, as FrameBytes is of other code.
+func FuncBytes(pkg *frontend.Package, ft *ast.FuncType, body *ast.BlockStmt) int64 {
+	return (&checker{pkg: pkg, info: pkg.Info}).funcBytes(ft, body)
 }
 
 // initFrame rejects package initialization whose frame, holding the

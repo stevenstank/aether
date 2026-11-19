@@ -215,7 +215,6 @@ func TestLowerUnexpected(t *testing.T) {
 		{"fallthrough", "func main() { switch { case true: fallthrough; default: } }", "p.go:2:35: internal: lowering: unexpected fallthrough statement"},
 		{"slice to array", "func main() { s := []int{1, 2}; a := [2]int(s); println(a[0]) }", "p.go:2:45: internal: lowering: s is not an array or struct variable"},
 		{"type", "func main() { var c chan int; println(len(c)) }", "p.go:2:19: internal: lowering: unexpected type chan int"},
-		{"named results", "func f() (a, b int) { return 1, 2 }\nfunc main() { f() }", "p.go:2:1: internal: lowering: unexpected result var a int"},
 		{"variadic func value", "func main() { var f func(...int); f(1) }", "p.go:2:35: internal: lowering: call of a variadic func value"},
 		{"package type", "type T int\nfunc main() {}", "p.go:2:1: internal: lowering: unexpected package-level type declaration"},
 		{"blank target", "func main() { _ = 1 }", "p.go:2:15: internal: lowering: unexpected assignment target _"},

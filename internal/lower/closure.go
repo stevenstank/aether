@@ -119,9 +119,6 @@ func (l *lowerer) litFunc(e *ast.FuncLit, pos ir.Pos) *ir.Func {
 		f.Params = append(f.Params, l.words(e, v.Type())...)
 	}
 	for v := range sig.Results().Variables() {
-		if v.Name() != "" {
-			l.fail(e, "unexpected result %s", v)
-		}
 		if !isAggregate(v.Type()) {
 			f.Results = append(f.Results, l.words(e, v.Type())...)
 		}
@@ -140,7 +137,7 @@ func (l *lowerer) litFunc(e *ast.FuncLit, pos ir.Pos) *ir.Func {
 		ctx := l.fn.Param(l.fn.Entry(), 0, pos)
 		cs := l.fn.NewSlot("closure", ir.Ptr, pos)
 		l.fn.Store(l.fn.Entry(), cs, ctx, pos)
-		l.body(e.Type.Params.List, 1, e.Body, func() {
+		l.body(e.Type.Params.List, 1, e.Type.Results, e.Body, func() {
 			// The Ptr of each captured variable, from the closure.
 			for i, v := range l.captures[e] {
 				s := l.fn.NewSlot(v.Name(), ir.Ptr, pos)

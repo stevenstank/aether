@@ -122,6 +122,10 @@ const generatedIfacePrograms = 100
 // differential test runs besides them.
 const generatedMapPrograms = 100
 
+// generatedNamedPrograms is how many named-result programs (generateNamed)
+// the differential test runs besides them.
+const generatedNamedPrograms = 100
+
 // TestDifferentialAgainstGc is the three-way differential test (Phases 2
 // and 3): for every corpus program expected to run and for generated S1
 // programs, the stdout, stderr, and exit status of the interpreter and of the
@@ -190,8 +194,12 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	for seed := uint64(1); seed <= generatedMapPrograms; seed++ {
 		progs[fmt.Sprintf("map%04d", seed)] = []byte(generateMaps(seed))
 	}
-	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs, %d interface programs, %d map programs",
-		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms, generatedIfacePrograms, generatedMapPrograms)
+	// Named-result programs (gen_named_test.go), never invalid either.
+	for seed := uint64(1); seed <= generatedNamedPrograms; seed++ {
+		progs[fmt.Sprintf("nmd%04d", seed)] = []byte(generateNamed(seed))
+	}
+	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs, %d interface programs, %d map programs, %d named-result programs",
+		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms, generatedIfacePrograms, generatedMapPrograms, generatedNamedPrograms)
 	gcRejects(t, gobin, rejected)
 
 	want := gcRun(t, gobin, progs)

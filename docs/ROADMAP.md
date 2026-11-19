@@ -870,8 +870,9 @@ repeated in each phase below:
   8.3 closures (D-040, 2026-11-18); 8.4 interfaces, type assertions, and
   type switches (D-041, 2026-11-18); 8.5 maps (D-042, 2026-11-18), with
   `for range` over maps as 8.5b; 8.6 defer, panic, and recover (D-043,
-  2026-11-19), as 8.6a defer and panic and 8.6b recover; the other items
-  follow, each with its own design note.
+  2026-11-19), as 8.6a defer and panic and 8.6b recover; 8.7 named results
+  (D-044, 2026-11-20); the other items follow, each with its own design
+  note.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
     pointer receivers, calls with the implicit `&` and `*`, and promotion
@@ -960,6 +961,19 @@ repeated in each phase below:
     declares with gc's names and messages; the `[recovered]` and
     `[recovered, repanicked]` marks. Corpus programs `s5_d08` to
     `s5_d11`, also in `TestDeferPrograms`.
+- **Status of 8.7 (done; owner review pending):**
+  - Named results of functions, methods, and literals, as local variables
+    zero at entry, with bare `return`; in a function with `defer`, a
+    return assigns them and the exit returns their values after the
+    deferred calls, also when the function recovers (`SEMANTICS.md`
+    §Named results, D-044). No IR, runtime, or calling-convention change.
+  - Corpus programs `s5_n01`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestNamedResultPrograms`, and `s5_d12` and `s5_d13`, also in
+    `TestDeferPrograms`.
+  - Named-result programs from their own generator (`gen_named_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
+    30 in `TestNamedResultPrograms`, and one per `FuzzGenerated` seed.
 
 ## Phase 9: Garbage collection
 

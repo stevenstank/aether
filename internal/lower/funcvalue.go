@@ -117,7 +117,7 @@ func (l *lowerer) forward(callee *ir.Func, recv func() *ir.Instr, ps []func() *i
 // block. The params come first, as ABI-R1 requires (D-030), each stored in
 // a slot.
 func (l *lowerer) enter(w *ir.Func, pos ir.Pos) []func() *ir.Instr {
-	l.fn, l.sig, l.b, l.done, l.retPtrs = w, nil, w.Entry(), false, nil
+	l.fn, l.sig, l.b, l.done, l.retPtrs, l.named = w, nil, w.Entry(), false, nil, nil
 	var ps []*ir.Instr
 	for i := range w.Params {
 		ps = append(ps, l.fn.Param(l.b, i, pos))

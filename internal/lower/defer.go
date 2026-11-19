@@ -256,6 +256,14 @@ func (l *lowerer) startDefers(pos ir.Pos) {
 	if l.panics().recovers {
 		d.entry = l.fn.NewSlot("entry", ir.Ptr, pos)
 		l.fn.Store(l.b, d.entry, l.fn.GLoad(l.b, l.ps.panics, pos), pos)
+	}
+	if l.named != nil {
+		// The exit returns the result variables (D-044).
+		l.dfr = d
+		l.panics().exits[l.fn] = d.exit
+		return
+	}
+	if l.ps.recovers {
 		// A recovering function returns zero results unless its return
 		// stored others.
 		k := 0
@@ -332,6 +340,13 @@ func (l *lowerer) deferExit(pos ir.Pos) {
 		l.b = end
 		l.endProgram(pos)
 		l.b = ret
+	}
+	if l.named != nil {
+		// The values of the result variables, which the deferred calls
+		// may have set (D-044).
+		l.dfr = nil
+		l.retValues(nil, l.namedValues(pos), pos)
+		return
 	}
 	var rs []*ir.Instr
 	for _, s := range d.results {

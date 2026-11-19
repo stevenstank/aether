@@ -2,6 +2,6 @@
 
 package main
 
-func f() (a, b int) { return 1, 2 }
+func f[T any](x T) T { return x }
 
 func main() {}
