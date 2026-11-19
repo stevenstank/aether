@@ -995,7 +995,7 @@ repeated in each phase below:
     (`e.([2]int)[1]`) as used in place, while lowering copies its value
     into a temporary; a non-generic case is now in `TestFrameBound`.
 
-## Phase 9: Garbage collection
+## Phase 9: Garbage collection (done 2026-11-20; owner review pending)
 
 - **Scope:** the collector chosen in D-010, with root scanning (stack maps or
   conservative scanning) and write barriers if required.
@@ -1005,6 +1005,25 @@ repeated in each phase below:
   randomized allocation fuzzing.
 - **Depends on:** Phases 5 and 7.
 - **Risks:** missing roots, which are silent memory corruption.
+- **Status (done; owner review pending):**
+  - D-046 chose D-010's option 2: a conservative, non-moving mark-sweep
+    collector in `internal/amd64/rt/heap.s`, with size-class pages, a page
+    table for interior pointers, and free pages released to the kernel.
+    Roots: the stack and `.bss`, complete because no value stays in a
+    register across `aether.alloc`. No IR, lowering, or backend change; the
+    interpreter is unchanged. No write barriers: the collector stops the
+    world and does not move objects.
+  - `TestGCStress` runs every corpus program expected to run, 60 generated
+    allocation programs (`gen_alloc_test.go`, `TESTING.md`), and 10
+    programs of each other generator, built with and without `-O0`, under
+    `AETHER_GCSTRESS=1`, against gc, and checks that `.bss` is the only
+    writable section. Negative controls, run by hand and reverted: not
+    scanning the stack, not scanning `.bss`, or marking only through
+    pointers to an object's start each make it fail.
+  - `TestGCMemoryBound`: two workloads that allocate several GiB in all
+    stay below 64 MiB of peak resident memory, with gc's output. Measured
+    through a fresh helper process, whose own peak is included: at most
+    7 MiB on 2026-11-20. Without collection they would need gigabytes.
 
 ## Phase 10: Concurrency
 

@@ -143,7 +143,9 @@ func TestNativeHeap(t *testing.T) {
 
 // TestNativeHeapLimits checks the nil panic and the end of the heap
 // natively: 64 GiB is reserved, not touched, so allocations up to it
-// succeed at once and the next fails with gc's fatal error.
+// succeed at once and the next fails with gc's fatal error. Each object
+// has an 8-byte header and a large one whole 8 KiB pages (D-046), so two
+// halves of the heap do not fit, and two halves less a page do.
 func TestNativeHeapLimits(t *testing.T) {
 	const heap = 1 << 36 // interp.HeapLimit, aether.alloc's reservation
 	if interp.HeapLimit != heap {
@@ -155,8 +157,8 @@ func TestNativeHeapLimits(t *testing.T) {
 		want  string
 		code  int
 	}{
-		{"fits exactly", []int64{heap/2 - 3, heap / 2}, "1\n2\n", 0},
-		{"8 bytes over", []int64{heap / 2, heap/2 + 1}, "1\nfatal error: runtime: out of memory\n", 2},
+		{"fits", []int64{heap/2 - 8192, heap/2 - 8192}, "1\n2\n", 0},
+		{"a header over", []int64{heap/2 - 8192, heap/2 - 7}, "1\nfatal error: runtime: out of memory\n", 2},
 		{"near 2^64", []int64{-1}, "fatal error: runtime: out of memory\n", 2},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

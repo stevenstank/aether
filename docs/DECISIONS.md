@@ -896,7 +896,7 @@ reusing or adapting gc's runtime must be re-evaluated explicitly.
 
 **Status:** Accepted (2026-11-14, owner decision): option 1 for Phase 7, without
 the resolving experiment. The choice between options 2 and 3 stays open until
-Phase 9.
+Phase 9. Phase 9: option 2, by D-046.
 
 **Decision (Phase 7).** A non-collecting bump allocator. The runtime reserves a
 64 GiB heap with `MAP_NORESERVE` on the first allocation and hands out
@@ -3599,6 +3599,74 @@ gate's diagnostics in a generic body come from the copies, at the
 generic source's positions, once per position. A generic function's body
 is checked against the subset only for the type arguments the program
 uses.
+
+---
+
+## D-046: A conservative mark-sweep collector (Phase 9)
+
+**Status:** Accepted (2026-11-20). D-010 left options 2 (conservative
+mark-sweep) and 3 (precise) open until Phase 9; the owner asked to proceed
+with the phase under its design-first rule. This note is the choice and
+design, written before the code; the owner's review is pending.
+
+**Context.** Since D-026 and D-030, no value lives in a register across a
+call, `aether.alloc` included (regalloc.go `clobbers`): at every allocation,
+each live value of every frame is in its stack cell or in memory. The only
+writable section of a program is `.bss` (its globals, global memory
+objects, and the runtime's variables). Heap pointers may point inside
+objects (fields, elements, slices, strings), and nothing records which
+words of a frame or object are pointers.
+
+**Decision.**
+- **Option 2.** A conservative, non-moving, stop-the-world mark-sweep
+  collector, all in `internal/amd64/rt/heap.s`. Every 8-byte-aligned word
+  of the roots and of every marked object is treated as a possible pointer.
+  No IR, lowering, backend, or calling-convention change; the interpreter
+  is unchanged (it never frees, D-010).
+- **Roots.** At a collection, which only `aether.alloc` starts, the stack
+  from the collector's `%rsp` to the stack top `_start` saved, with the
+  callee-saved registers pushed onto it, and `.bss` from `__bss_start` to
+  `_end`.
+- **Heap.** The 64 GiB `MAP_NORESERVE` reservation, in 8 KiB pages, with a
+  page table (one word per page): free, a page of small objects of one
+  size class (32 classes from 16 to 4096 bytes), or a run of pages of one
+  large object. Each object starts with an 8-byte header (allocated,
+  marked); the pointer returned is just after it. A word points to an
+  object if it lies anywhere in the object's bytes, header included. Small
+  objects come from per-class free lists and are zeroed when allocated;
+  large ones from first-fit runs of free pages, which are always zero
+  (never used, or released with `madvise(MADV_DONTNEED)`).
+- **Sweep.** Rebuilds the free lists; a small page with no live object and
+  every dead large object return their pages, which are released to the
+  kernel in runs.
+- **Pacing.** A collection starts when the bytes allocated since the last
+  one reach the larger of 4 MiB and the live bytes it left (gc's
+  `GOGC=100`), and when no run of free pages fits a request. So the heap
+  in use stays below about twice the live bytes plus 4 MiB, plus
+  fragmentation and what conservative scanning retains.
+- **Stress mode.** With the environment variable `AETHER_GCSTRESS=1`, a
+  collection starts every 8 KiB plus an eighth of the live bytes, and the
+  words of each freed small object are overwritten with
+  `0xdeadbeefdeadbeef`, so that a missing root shows as wrong output or a
+  crash. Tests run programs in it; nothing else reads the environment.
+
+**Alternatives considered.** Option 3: exact, but it needs pointer maps for
+every frame and heap object from lowering through the backend; nothing
+here would use them that conservative scanning cannot replace. A copying
+collector: needs exact roots.
+
+**Consequences.** A word that happens to look like a pointer keeps an
+object alive (never the reverse). Every word of every reachable object is
+scanned, pointer-free ones such as byte slices included: a collection
+costs time in proportion to the live bytes (a 32 GiB live object takes
+seconds), until lowering tells the allocator which objects hold no
+pointers. Objects never move, so addresses, and
+map hashes of pointers, stay stable. Pointers kept only one byte past an
+object's end (a slice or string of length and capacity 0 at its end) do
+not keep it alive, which is safe: nothing can be read through them. Any
+future change that keeps a heap pointer only in a register across
+`aether.alloc`, or writes one into a section other than `.bss`, breaks the
+roots; `TestGCRoots` checks the second.
 
 ---
 

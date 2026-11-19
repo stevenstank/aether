@@ -10,13 +10,15 @@
 # error and exits with status 2. Otherwise it stores the stack limit L, the
 # lowest address a frame may use, in aether.stacklimit, calls main.init,
 # which runs package initialization (D-023), then main.main, and exits with
-# status 0 through exit_group.
+# status 0 through exit_group. Before, it saves the stack's top in
+# aether.stacktop and, if the environment has AETHER_GCSTRESS=1, sets
+# aether.gcstress, for the collector (heap.s, D-046).
 #
 # Every function's prologue checks its frame against L and jumps to
 # aether.stackoverflow if it does not fit (D-011).
 
 	.set	.Lpage, 4096
-	.set	.Lreserve, 4096		# helpers use at most 120 bytes below %rsp
+	.set	.Lreserve, 4096		# helpers use at most 256 bytes below %rsp
 	.set	.Ldefault, 268435456	# 256 MiB
 
 	.text
@@ -24,7 +26,22 @@
 	.type	_start, @function
 _start:
 	xorl	%ebp, %ebp		# outermost frame
-	andq	$-16, %rsp
+	movq	(%rsp), %rax		# argc
+	leaq	16(%rsp,%rax,8), %rcx	# envp, after argv and its 0
+2:	movq	(%rcx), %rsi		# AETHER_GCSTRESS=1 sets aether.gcstress (D-046)
+	testq	%rsi, %rsi
+	jz	4f
+	addq	$8, %rcx
+	leaq	.Lstressvar(%rip), %rdi
+3:	movb	(%rdi), %al
+	cmpb	%al, (%rsi)
+	jne	2b
+	incq	%rdi
+	incq	%rsi
+	testb	%al, %al
+	jnz	3b
+	movq	$1, aether.gcstress(%rip)
+4:	andq	$-16, %rsp
 	movq	aether.mainstack(%rip), %rsi
 	movl	$.Ldefault, %eax
 	cmpq	%rax, %rsi
@@ -50,6 +67,7 @@ _start:
 	syscall
 	testq	%rax, %rax
 	jnz	1f
+	movq	%rbx, aether.stacktop(%rip)	# the end of the collector's roots
 	movq	%rbx, %rsp		# 16-byte aligned at the calls
 	call	main.init		# ABI-S0: no register survives
 	call	main.main
@@ -221,6 +239,8 @@ aether.panicmsg:
 .Lpanicnil:
 	.ascii	"panic: runtime error: invalid memory address or nil pointer dereference\n"
 	.set	.Lpanicnillen, .-.Lpanicnil
+.Lstressvar:
+	.asciz	"AETHER_GCSTRESS=1"
 .Lnostack:
 	.ascii	"fatal error: cannot allocate the main stack\n"
 	.set	.Lnostacklen, .-.Lnostack

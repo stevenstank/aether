@@ -544,6 +544,26 @@ generated programs unsupported (a constant overflows in a copy), and
 writing unexported field names unqualified in type arguments makes
 `s5_g02` differ from gc.
 
+Allocation programs (`gen_alloc_test.go`, Phase 9, D-046) come from their
+own random stream, for the garbage collector. A loop of 1000 to 4000
+iterations runs random statements, each on some iterations, that build
+and drop binary trees, linked lists, map entries of slices of pointers,
+closures capturing pointers, interfaces, run-time strings, large slices,
+tails of slices, and pointers to arrays inside structs; trees, the map,
+tails, and inner pointers are package-level variables. Checksums that
+read everything reachable are printed along the way and at the end.
+`TestGCStress` runs 60 of them, with every corpus program expected to run
+and 10 programs of each other generator, built by `aether build` and with
+`-O0`, under `AETHER_GCSTRESS=1` (a collection every 8 KiB plus an eighth
+of the live bytes, freed objects overwritten with `0xdeadbeefdeadbeef`),
+and compares them with gc. Negative controls, run by hand and reverted:
+without the stack scan, or without the `.bss` scan, an allocation program
+hangs until the run timeout; marking only through pointers to an object's
+start makes allocation programs differ from gc. On 2026-11-20,
+allocation programs of seeds 1001 to 1300, built by `aether build`, all
+gave gc's output under stress. The interpreter never frees, so these run
+natively only, and `FuzzGenerated` does not reach them.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

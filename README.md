@@ -135,7 +135,7 @@ potentially long-term dependencies. The exact ownership boundaries are in
   supported: no complex numbers or goroutines; no
   `fallthrough`, labels, `goto`, or `for range` except over maps; no `type`
   declarations other than of arrays, structs, and interfaces, and no `init` functions. Panics print no traceback.
-  Heap memory is never freed (D-010).
+  The heap is collected by a conservative mark-sweep collector (D-046).
 - Only one source file, `package main`, with no imports, is ever accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).

@@ -122,12 +122,21 @@ func TestBuildCorpus(t *testing.T) {
 // descriptor until it execs (golang/go#22315). The start is retried then.
 func runExe(t *testing.T, path string) result {
 	t.Helper()
+	return runExeEnv(t, path, nil)
+}
+
+// runExeEnv is runExe with env added to the environment.
+func runExeEnv(t *testing.T, path string, env []string) result {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
 	var cmd *exec.Cmd
 	for try := 0; ; try++ {
 		cmd = exec.CommandContext(ctx, path)
+		if env != nil {
+			cmd.Env = append(os.Environ(), env...)
+		}
 		cmd.WaitDelay = waitDelay
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
 		err := cmd.Start()

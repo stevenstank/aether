@@ -167,7 +167,8 @@ includes nested blocks specifically to test this.
   pointers, and no heap. Pointers come in Phase 7 increment 7.1 (§Pointers).
 - The spec has no stack/heap distinction. A variable whose address escapes must
   outlive its frame. Aether has no escape analysis, so every address-taken
-  variable is heap-allocated, and heap memory is never freed (D-010, D-035).
+  variable is heap-allocated; heap memory is reclaimed by a conservative
+  collector (D-046, V-5).
 - Nil dereference, out-of-range index, and slice-bounds violations are run-time
   panics, and the generated code must check for them. Aether will use explicit
   checks rather than relying on hardware faults unless a later decision says
@@ -242,7 +243,7 @@ has a defined normalization in the test harness.
 | V-3 | Panics | A run-time panic prints only `panic: runtime error: <message>`, or for a failed type assertion `panic: interface conversion: <message>`, with no goroutine traceback, nor for a nil dereference gc's `[signal SIGSEGV …]` line; both exit 2. | Phase 4 increment 4.5 | The panic comparison rule below (`panicPrefix` in `TestDifferentialAgainstGc`). |
 | V-4 | Evaluation order | Aether evaluates operands strictly left to right (D-024); gc evaluates a statement's calls before its other operands. A global read before a call that assigns it, a `string(b)` of a `[]byte` before a call that changes its elements, a method's value receiver copied before a call among its arguments that changes it, or a division, shift, index, or nil check that panics before a call, behaves differently (§Evaluation order, §Methods). Both orders are allowed by the spec. | Phase 4 increment 4.6 | None: differential test programs never combine, in one statement, a call with a global it may assign, with a `string(b)` of bytes it may change, with a method's value receiver it may change, or with a panicking operation before it. `TestGlobalReadOrder` pins Aether's order for globals without gc, `TestABIR1PanicOrder` pins the panic case without gc, under ABI-R1 and in the interpreter, and `TestMethodReceiverOrder` pins it for receivers in the interpreter, both backends, and ABI-R1. |
 | V-6 | Slices | When `append` grows a slice, its new capacity is the largest of the needed length, twice the old capacity, and 4 elements (D-036), where gc's depends on its size classes and allocation; the capacity, and whether a later `append` shares the array, can differ. The capacity of `[]byte(s)` and of `[]rune(s)` is its length, where gc's may be larger (increment 7.3; measured 2026-11-16: `cap([]rune(s))` of a 3-byte string made at run time is 32 with gc, 3 with Aether). | Phase 7 increment 7.2 | None: differential test programs never print a capacity after growth or of `[]byte(s)` or `[]rune(s)`, or depend on sharing after a growing `append`. |
-| V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
+| V-5 | Memory | Since Phase 9 the heap is collected by a conservative, non-moving mark-sweep collector (D-046), not gc's: memory use differs from gc's, a word that looks like a pointer keeps an object alive, and a collection starts after the larger of 4 MiB and the live bytes have been allocated, so the heap in use stays below about twice the live bytes plus 4 MiB, plus fragmentation. Live data over the 64 GiB reservation ends the program with `fatal error: runtime: out of memory`, exit 2. The interpreter never frees (D-010). Before Phase 9 the heap was never freed (`docs/benchmarks/2026-11-15-heap/README.md`). | Phase 7 increment 7.1; Phase 9 | `TestGCMemoryBound`, `TestGCStress` |
 | V-7 | Method expressions | The method expression `(*T).M` of a method with a value receiver, called with a nil `*T`, panics with `panic: runtime error: invalid memory address or nil pointer dereference`, where gc's generated wrapper panics with `panic: value method main.T.M called using nil *T pointer`; both exit 2 (D-039). | Phase 8 increment 8.2 | None: differential test programs never call such a method expression with nil. `TestNilMethodExpression` pins Aether's behavior in the interpreter, both backends, and ABI-R1. |
 | V-8 | Map iteration order | A range over a map visits its entries in insertion order, the same in every run, where gc's order is randomized and differs from run to run; both are allowed by the spec (D-042). Whether an entry added during a range is visited, which the spec leaves open, follows Aether's rule in D-042. | Phase 8 increment 8.5b | None: differential test programs only print what does not depend on the order (sums, counts, lookups), and add no entries during a range. `TestMapRangeOrder` pins Aether's order in the interpreter, both backends, and ABI-R1. |
 | V-9 | Panic values | A panic value of a type other than a basic type, `error`, or `fmt.Stringer`-like (`String() string`) is written as `(T) ` and its data word in hex, which is an address of Aether's (or the interpreter's), not gc's, except for nil (`0x0`). If an `Error` or `String` method panics while the panics are written at exit, gc ends with `panic while printing panic value`; Aether writes that value as empty (D-043). | Phase 8 increment 8.6a | None: differential test programs panic with such values only when nil, and with no method that panics. |
@@ -827,7 +828,7 @@ channels (`builtin`).
 
 The gate also accepts these operations on strings, which make strings at run
 time (D-037). A string's bytes are a constant's or a heap object's, and never
-change; the heap is never freed (V-5).
+change; the heap is collected (V-5).
 - **`+` and `+=`** concatenate, of any operands: variables, fields,
   elements, call results, and constants. The operands of a chain such as
   `a + f() + b[i]` are evaluated left to right, and the result is a new
@@ -1114,6 +1115,17 @@ the copies. Instantiated types have gc's names, such as
   as `interface{ ~int | ~float64 }`) is accepted, and left out of the
   program, also in a program without generic code.
 
+## Garbage collection (Phase 9)
+
+The heap is collected (D-046): a conservative, non-moving, stop-the-world
+mark-sweep collector in the runtime finds the objects reachable from the
+stack and the package-level variables, through pointers to anywhere in
+an object, and frees the rest; their memory is reused, and pages left
+empty are returned to the kernel. Nothing a program prints depends on it;
+the program's memory use does (V-5). No finalizers, no `runtime.GC`, and
+no way to tune it, except `AETHER_GCSTRESS=1` in the environment, for
+tests, which makes collections frequent and overwrites freed objects.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1151,6 +1163,7 @@ the copies. Instantiated types have gc's names, such as
 | Defer, panic, and recover: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Named results: variables zero at entry, bare `return`, set by deferred calls and by recovering functions | Function declarations, Return statements, Defer statements | S5 / 8.7 | Supported (native), with divergences V-3 to V-5 | `s5_n01_named_results`, `s5_d12_named_defer`, `s5_d13_named_recover`; generated named-result programs; `TestNamedResultPrograms`, `TestDeferPrograms`; gate tests |
 | Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g04_generic_panic`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
+| Garbage collection of the heap: unreachable objects freed and their memory reused, with a bound on memory use | Memory model (allocation), Run-time panics | Phase 9 | Supported (native), with divergence V-5 | `TestGCStress` (every corpus program, generated allocation programs, and every generator, under stress), `TestGCMemoryBound` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
