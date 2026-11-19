@@ -53,6 +53,7 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		mems: map[*types.Var]*ir.Mem{}, ptrs: map[*types.Var]*ir.Slot{}, temps: map[*ir.Instr][]*ir.Mem{},
 		addrTaken: addressTaken(pkg.Info, pkg.Files)}
 	l.lits, l.captures = literals(pkg)
+	l.unwinds = programDefers(pkg)
 	for _, vs := range l.captures {
 		for _, v := range vs {
 			l.addrTaken[v] = true // shared with the closure (D-040)
@@ -90,8 +91,14 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 		l.function(fd)
 	}
 	l.init(prog)
+	if l.unwinds {
+		l.panics() // before the late functions: they include .printval
+	}
 	l.buildLate()
 	l.initStatics()
+	if l.unwinds {
+		l.unwind()
+	}
 	mains := 0
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
@@ -158,6 +165,10 @@ type lowerer struct {
 	hashed     []types.Type // the types of the hash functions .hashN
 	hashIfaces bool         // a hash function hashes an interface
 	mzero      *ir.Mem      // the zero element of a missing key
+
+	unwinds bool        // the program has a defer statement (defer.go)
+	ps      *panicState // its panic state, once needed
+	dfr     *deferFn    // the defer state of the function being lowered, if it has a defer statement
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -363,6 +374,10 @@ func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prol
 	for _, id := range heap {
 		l.moveToHeap(id, l.pkg.Info.Defs[id].(*types.Var))
 	}
+	l.dfr = nil
+	if hasDefer(body) {
+		l.startDefers(l.pos(body, body.Lbrace))
+	}
 	l.stmts(body.List)
 	if !l.done {
 		// Falling off the end of a body returns; the closing brace is the
@@ -372,9 +387,16 @@ func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prol
 		if len(l.fn.Results) > 0 {
 			l.fail(body, "function %s falls off its end", name)
 		}
-		l.fn.Ret(l.b, l.pos(body, body.Rbrace))
+		l.retWords(l.pos(body, body.Rbrace))
 	}
-	prune(l.fn)
+	if l.dfr != nil {
+		// The unwinding pass prunes the function once a panic may go
+		// to its exit.
+		l.deferExit(l.pos(body, body.Rbrace))
+		l.dfr = nil
+	} else {
+		prune(l.fn)
+	}
 	l.fn, l.sig = nil, nil
 }
 
@@ -463,6 +485,8 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.store(v, []*ir.Instr{l.fn.Binary(l.b, op, x, one, pos)}, tpos)
 	case *ast.ExprStmt:
 		l.exprStmt(s)
+	case *ast.DeferStmt:
+		l.deferStmt(s) // D-043
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
 		l.ret(s)
@@ -785,6 +809,10 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	call, ok := s.X.(*ast.CallExpr)
 	if ok && l.isBuiltin(call, "copy") {
 		l.copySlice(call)
+		return
+	}
+	if ok && l.isBuiltin(call, "panic") {
+		l.panicCall(call) // D-043
 		return
 	}
 	if ok && (l.isBuiltin(call, "delete") || l.isBuiltin(call, "clear")) {
@@ -1777,7 +1805,7 @@ func (l *lowerer) ret(s *ast.ReturnStmt) {
 	}
 	vals := l.valuesOrResults(s.Results, ts)
 	if len(l.retPtrs) == 0 {
-		l.fn.Ret(l.b, pos, flatten(vals)...)
+		l.retWords(pos, flatten(vals)...)
 		return
 	}
 	var scalars []*ir.Instr
@@ -1806,7 +1834,7 @@ func (l *lowerer) ret(s *ast.ReturnStmt) {
 	for _, c := range copies {
 		l.copyPlace(c.dst, c.src, pos)
 	}
-	l.fn.Ret(l.b, pos, get()...)
+	l.retWords(pos, get()...)
 }
 
 // compoundPlace lowers "x op= y" where x is a field or element: the

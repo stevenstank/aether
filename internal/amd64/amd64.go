@@ -56,7 +56,8 @@ const (
 // symPanicBounds (D-036).
 var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift", ir.PanicIndex: "aether.panicindexu",
 	ir.PanicNil: "aether.panicnil", ir.PanicMakeLen: "aether.panicmakelen", ir.PanicMakeCap: "aether.panicmakecap",
-	ir.PanicGrowLen: "aether.panicgrowlen", ir.PanicMsg: "aether.panicmsg"}
+	ir.PanicGrowLen: "aether.panicgrowlen", ir.PanicMsg: "aether.panicmsg",
+	ir.PanicExit: "aether.panicexit"}
 
 // symPanicBounds takes a slice bounds error's x in %rdi, its y in %rsi, and
 // in %edx the error's number from ir.PanicSliceAlen times 2, plus 1 if x is

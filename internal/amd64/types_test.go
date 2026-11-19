@@ -193,8 +193,8 @@ func TestConversions(t *testing.T) {
 // and exit status 2, also when stderr is unwritable.
 func TestPanics(t *testing.T) {
 	for kind, msg := range ir.PanicMessages {
-		if ir.IsBounds(kind) || kind == ir.PanicMsg {
-			continue // TestPanicIndex, TestNativeBounds, TestPanicMsg: they have operands
+		if ir.IsBounds(kind) || kind == ir.PanicMsg || kind == ir.PanicExit {
+			continue // TestPanicIndex, TestNativeBounds, TestPanicMsg: they have operands; TestPanicMsg also checks PanicExit
 		}
 		for _, newline := range []bool{true, false} {
 			p := &ir.Program{}
@@ -256,5 +256,22 @@ func TestPanicMsg(t *testing.T) {
 	exe := link(t, t.TempDir(), withRuntime(asm))
 	if out, code := execute(t, exe, nil); code != 2 || out != want {
 		t.Errorf("native: exit %d, stderr %q; want exit 2, %q", code, out, want)
+	}
+	// PanicExit writes nothing (D-043).
+	p = &ir.Program{}
+	f = p.NewFunc("main", "p.go", p1)
+	b = f.Entry()
+	f.Print(b, []*ir.Instr{f.Const(b, 7, p1)}, p1)
+	f.Panic(b, ir.PanicExit, p1)
+	got.Reset()
+	if code, err := interp.Run(p, &got); err != nil || code != 2 || got.String() != "7" {
+		t.Errorf("PanicExit, interpreter: exit %d, %v, stderr %q; want exit 2, \"7\"", code, err, got.String())
+	}
+	if asm, err = Emit(p); err != nil {
+		t.Fatal(err)
+	}
+	exe = link(t, t.TempDir(), withRuntime(asm))
+	if out, code := execute(t, exe, nil); code != 2 || out != "7" {
+		t.Errorf("PanicExit, native: exit %d, stderr %q; want exit 2, \"7\"", code, out)
 	}
 }

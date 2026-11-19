@@ -71,6 +71,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-040 | Closures (Phase 8 increment 8.3) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-041 | Interfaces, type assertions, and type switches (Phase 8 increment 8.4) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-042 | Maps (Phase 8 increment 8.5) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
+| D-043 | Defer, panic, and recover (Phase 8 increment 8.6) | Accepted (2026-11-19, owner's instruction to proceed with the design-first rule; owner review pending) |
 
 ## Review log
 
@@ -3351,6 +3352,100 @@ and native runs differ.
 costs a call per operation and a loop per string key. Every program with
 interfaces has 32-byte descriptors. Range order is insertion order (V-8);
 differential tests never depend on it.
+
+## D-043: Defer, panic, and recover (Phase 8 increment 8.6)
+
+**Status:** Accepted (2026-11-19). The owner asked to proceed with the next
+milestone, following its design-first rule; this note is that design, and
+the owner's review is pending.
+
+**Context.** Phase 8 lists "`defer`, `panic(v)`, `recover`", with panic
+values printed as gc does or a documented divergence. Today every panic is
+the terminator `Panic`, which ends the program in the runtime. Measured
+with gc-built go1.26.1 binaries on 2026-11-19:
+- Deferred calls run last in, first out, when the function returns and
+  when a panic passes through it; the function value and arguments are
+  evaluated at the `defer` statement. `defer i.M()` with a nil interface
+  panics at the statement; `defer f()` with a nil func value panics when
+  the call runs. Run-time errors run deferred calls like `panic`.
+- After the deferred calls of every frame have run, gc writes the panics
+  oldest first, `panic: ` and the value, later ones after a tab:
+  `panic: first\n\tpanic: second`. A value whose type has `Error() string`
+  or `String() string` is replaced by the method's result first, before
+  anything is written. Unnamed basic types print as `print` does (floats
+  short, `1.5`); named ones as `main.E(3)`, strings `main.S("x")`; other
+  types `(T) ` and the data word in hex (`(*int) 0x0`). A string's newlines
+  are followed by a tab. `panic(nil)` panics with `panic called with nil
+  argument`. Exit status 2.
+- A recovered panic that is still listed is marked ` [recovered]`; a
+  recovered panic raised again with the same value (both words equal) is
+  written once, marked ` [recovered, repanicked]`.
+
+**Decision.**
+- **Increments.** 8.6a: `defer` and `panic`; `recover` stays rejected.
+  8.6b: `recover`, with run-time errors recovered as `error` values of
+  gc's dynamic types and messages, and the `[recovered]` marks. Named
+  results, which a deferred function may set, are their own increment
+  after 8.6b, with a note of their own if they change this design.
+- **Scope of 8.6a.** `defer` of a call of a function, method, func value,
+  function literal, or interface method, or of `print` or `println`,
+  arguments as for the call (including `f(g())`); other builtins (`panic`,
+  `recover`, and the rest) stay rejected after `defer`. `panic(v)` with an
+  operand of any supported type, converted to `any`.
+- **Unwinding without runtime support.** A program *unwinds* if it has a
+  `defer` statement. The panic state is two globals: `.panics`, the Ptr of
+  the newest panic record (a heap object: the link, `tab` and `data`, a
+  kind, and a run-time error's operands), and `.unwinding`, a Bool, true
+  while a panic is passing through frames. In an unwinding program a
+  panic, and every run-time error, calls `.raise`, which pushes a record
+  and sets `.unwinding`, then goes to the function's exit; and after every
+  call of a function that may raise (the transitive closure of raising,
+  with every indirect call counted), lowering inserts a check of
+  `.unwinding` that goes to the exit. These checks are added by a pass over
+  the IR once lowering ends, which splits the block after each call and
+  carries the values used across the split in slots.
+- **Defer.** A `defer` statement evaluates the function value (a method's
+  receiver included, as a method value: D-039) and the arguments, copies
+  them into a heap record with the code address of a function `.deferN`
+  generated for the statement, and pushes it on the function's list, a
+  slot that starts at 0. `.deferN` loads them and makes the call (the nil
+  check of a func value happens there).
+- **Exit.** In a function with a `defer` statement, every return stores
+  its results in slots, zeroed at entry, and goes to the exit, which pops
+  and calls each record with `.unwinding` cleared during the call; after
+  it, `.unwinding` is set if it was set before or the call raised. Then
+  the function returns its results, or, if unwinding, zeros, which its
+  caller never reads. A function without `defer` statements exits on a
+  panic by returning zeros. main's and Init's exit, if unwinding, call
+  `.printpanics` and end with a new run-time error, `PanicExit`, which
+  writes nothing and exits with status 2. In a program that does not
+  unwind, `panic(v)` pushes its record, calls `.printpanics`, and ends with
+  `PanicExit` at once; run-time errors stay `Panic` terminators.
+- **Printing.** `.printpanics`, generated, follows gc's `printpanics`:
+  first each value whose dynamic type has `Error() string` or `String()
+  string` (as a method set) is replaced by the method's result, then the
+  records are written oldest first as listed above. The value's form is
+  chosen by comparing `tab` with each descriptor (D-041) of the program; a
+  run-time error writes its message as its `Panic` does.
+- **IR change.** The run-time error `PanicExit`, with no args, extends
+  D-023's closed set; the runtime helper `aether.panicexit` exits with
+  status 2. Nothing else in the IR, runtime, or calling convention changes.
+
+**Alternatives considered.** Unwinding in the runtime (a jump to the
+nearest frame with deferred calls, as `setjmp`): no check after calls, but
+the runtime and the interpreter would each need it, and under ABI-R1 every
+callee-saved register would have to be restored. Checks after calls in
+every program: a cost for programs that cannot observe it. Deferred records
+in the frame: a `defer` in a loop needs a variable number of them.
+
+**Consequences.** In a program with `defer`, a call of a function that may
+raise costs a load and a branch. Records are never freed (V-5). Types
+printed as `(T) ` and an address print Aether's address, which differs from
+gc's except for nil (V-9). If an `Error` or `String` method panics while
+the panics are printed, gc ends with `panic while printing panic value`;
+Aether writes the panics with that value empty (V-9). The goroutine
+traceback is not written (V-3); the panic comparison rule extends Q over
+the lines after the first panic line that begin with a tab.
 
 ---
 

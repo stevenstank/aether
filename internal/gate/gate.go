@@ -585,7 +585,7 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.GoStmt:
 		c.reject(s, "go", "go statement")
 	case *ast.DeferStmt:
-		c.reject(s, "defer", "defer statement")
+		c.deferStmt(s)
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
 		if !c.multiValue(s.Results) {
@@ -1080,6 +1080,13 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			// added.
 			if obj.Name() == "new" && len(call.Args) == 1 && c.info.Types[call.Args[0]].IsType() {
 				return c.typeExpr(call.Args[0])
+			}
+			// panic(v), of any supported operand, converted to any (D-043).
+			if obj.Name() == "panic" && len(call.Args) == 1 && !call.Ellipsis.IsValid() {
+				if !c.multiValue(call.Args) {
+					c.expr(call.Args[0])
+				}
+				return true
 			}
 			c.reject(call, FeatBuiltin, "builtin "+obj.Name())
 			return false

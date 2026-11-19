@@ -375,6 +375,9 @@ const (
 	// string args[0] (a Ptr) and args[1] (an I64): it writes "panic: ", the
 	// message, and a newline, with no "runtime error: " of its own (D-041).
 	PanicMsg
+	// PanicExit ends the program with exit status 2 and writes nothing:
+	// the panics have been written already (D-043). No args.
+	PanicExit
 )
 
 // PanicMessages are the run-time errors' messages, as gc prints them after
@@ -387,7 +390,7 @@ var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShif
 	PanicSlice3Alen: "slice bounds out of range", PanicSlice3Acap: "slice bounds out of range", PanicSlice3B: "slice bounds out of range",
 	PanicSlice3C: "slice bounds out of range",
 	PanicMakeLen: "makeslice: len out of range", PanicMakeCap: "makeslice: cap out of range", PanicGrowLen: "growslice: len out of range",
-	PanicMsg: ""}
+	PanicMsg: "", PanicExit: ""}
 
 // IsBounds reports whether the run-time error kind has operands: it is
 // PanicIndex or a slice bounds error.
@@ -408,6 +411,11 @@ var boundsFormats = map[int][4]string{
 	PanicSlice3B:    {"[:", ":", "]", ":]"},
 	PanicSlice3C:    {"[", ":", ":]", "::]"},
 }
+
+// BoundsFormat returns the texts of the message of PanicIndex or a slice
+// bounds error kind around its operands, as BoundsMessage uses them:
+// before x, between x and y, after y, and after a negative signed x.
+func BoundsFormat(kind int) [4]string { return boundsFormats[kind] }
 
 // BoundsMessage is the message of PanicIndex or a slice bounds error kind,
 // with x, of a signed type if signed, and y, as gc writes it: a negative x

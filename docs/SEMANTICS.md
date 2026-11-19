@@ -179,9 +179,8 @@ includes nested blocks specifically to test this.
   `panic: runtime error: <message>` and exits with status **2**. It prints no
   goroutine traceback, which is a documented divergence from gc (E1 confirmed
   gc's exit status 2 and message prefix).
-- `defer`, `recover`, unwinding, and `panic(v)` with arbitrary values are
-  Phase 8 items. They need a design for defer records and frame unwinding,
-  which does not exist yet.
+- `defer`, unwinding, and `panic(v)` are supported since Phase 8
+  increment 8.6a (§Defer and panic, D-043); `recover` is increment 8.6b.
 
 ### Concurrency and the memory model
 
@@ -245,6 +244,7 @@ has a defined normalization in the test harness.
 | V-5 | Memory | Heap memory is never freed (D-010): a program's resident set grows by every byte it allocates, garbage included, where gc's levels off at its live data; after 64 GiB of allocations in all, the program writes `fatal error: runtime: out of memory` and exits 2. Measured in `docs/benchmarks/2026-11-15-heap/README.md`. | Phase 7 increment 7.1 | None: no test program allocates enough to run out. |
 | V-7 | Method expressions | The method expression `(*T).M` of a method with a value receiver, called with a nil `*T`, panics with `panic: runtime error: invalid memory address or nil pointer dereference`, where gc's generated wrapper panics with `panic: value method main.T.M called using nil *T pointer`; both exit 2 (D-039). | Phase 8 increment 8.2 | None: differential test programs never call such a method expression with nil. `TestNilMethodExpression` pins Aether's behavior in the interpreter, both backends, and ABI-R1. |
 | V-8 | Map iteration order | A range over a map visits its entries in insertion order, the same in every run, where gc's order is randomized and differs from run to run; both are allowed by the spec (D-042). Whether an entry added during a range is visited, which the spec leaves open, follows Aether's rule in D-042. | Phase 8 increment 8.5b | None: differential test programs only print what does not depend on the order (sums, counts, lookups), and add no entries during a range. `TestMapRangeOrder` pins Aether's order in the interpreter, both backends, and ABI-R1. |
+| V-9 | Panic values | A panic value of a type other than a basic type, `error`, or `fmt.Stringer`-like (`String() string`) is written as `(T) ` and its data word in hex, which is an address of Aether's (or the interpreter's), not gc's, except for nil (`0x0`). If an `Error` or `String` method panics while the panics are written at exit, gc ends with `panic while printing panic value`; Aether writes that value as empty (D-043). | Phase 8 increment 8.6a | None: differential test programs panic with such values only when nil, and with no method that panics. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
 
 Implemented (Phase 4 increment 4.5):
@@ -259,7 +259,9 @@ Implemented (Phase 4 increment 4.5):
   executable and of the interpreter must each be exactly Q, with nothing
   after it, and the gc-built binary, the Aether-built executable, and the
   interpreter must each write nothing to stdout and exit with status 2.
-  gc's traceback after Q is not compared.
+  gc's traceback after Q is not compared. Since D-043 the line may be any
+  `panic: ` and a message, and Q also takes in each following line that
+  begins with a tab: later panics, and the lines of a value with newlines.
 
 Implemented (Phase 4 increment 4.2):
 - **V-2, stack overflow** (increment 4.2, D-009). Aether's stack is at least
@@ -1024,6 +1026,31 @@ Still `unsupported`: `for range` over anything but a map (`for-range`);
 `println` of a map (`println-argument-type`), which gc prints as an
 address.
 
+## Defer and panic (Phase 8 increment 8.6a)
+
+The gate also accepts (D-043):
+- **`defer`** of a call of a function, method, func value, function
+  literal, or interface method, or of `print` or `println`, with arguments
+  as for the call, `f(g())` included. The function value (a method's
+  receiver included) and the arguments are evaluated at the statement;
+  the call runs when the function returns, or when a panic passes through
+  it, last deferred first. A nil interface's method panics at the
+  statement; a nil func value when the call runs, as in gc.
+- **`panic(v)`** of a value of any supported type. A panic, and every
+  run-time error, runs the deferred calls of each frame it passes
+  through; a deferred call that panics adds a later panic. Then the
+  panics are written oldest first, as gc writes them: `panic: ` and the
+  value, later ones after a tab; a value whose type has `Error() string` or
+  `String() string` is replaced by the method's result first; a string has
+  a tab after each newline; a value of any other non-basic type is written
+  as `(T) ` and its data word in hex (V-9); `panic(nil)` panics with `panic
+  called with nil argument`. The program exits with status 2, with no
+  traceback (V-3). A panic during package initialization does the same.
+
+Still `unsupported`: `recover` and deferring any other builtin
+(`builtin`, `defer`), until increment 8.6b; named results
+(`function-declaration`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1058,6 +1085,7 @@ address.
 | Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
 | Interfaces: types, conversions, method calls, method values and expressions, comparisons, type assertions, type switches | Interface types, Conversions, Type assertions, Type switches, Comparison operators | S5 / 8.4 | Supported (native), with divergences V-3 to V-5 | `s5_i01_interfaces` to `s5_i06_nil_interface_call`; generated interface programs; `TestInterfacePrograms`, `TestGcName`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys, `for range` | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity, For statements with range clause | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 and V-8 | `s5_k01_map_basics` to `s5_k09_map_range`; generated map programs; `TestMapPrograms`, `TestMapRangeOrder`, `TestPanicPrefix`; gate tests |
+| Defer and panic: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included | Defer statements, Handling panics, Run-time panics | S5 / 8.6a | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d07_panic_nil`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

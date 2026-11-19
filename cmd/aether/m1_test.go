@@ -290,7 +290,7 @@ func checkELF(t *testing.T, out, ref string) {
 		}
 	}
 	slices.Sort(defined)
-	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.alloc", "aether.mainstack", "aether.memmove", "aether.panicbounds", "aether.panicdivide", "aether.panicgrowlen", "aether.panicindex", "aether.panicindexu", "aether.panicmakecap", "aether.panicmakelen", "aether.panicmsg", "aether.panicnil", "aether.panicshift", "aether.pow10", "aether.printbool", "aether.printfloat32", "aether.printfloat64", "aether.printint", "aether.printnl", "aether.printsp", "aether.printstr", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.write", "aether.zerobase", "main.init", "main.main"}
+	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.alloc", "aether.mainstack", "aether.memmove", "aether.panicbounds", "aether.panicdivide", "aether.panicexit", "aether.panicgrowlen", "aether.panicindex", "aether.panicindexu", "aether.panicmakecap", "aether.panicmakelen", "aether.panicmsg", "aether.panicnil", "aether.panicshift", "aether.pow10", "aether.printbool", "aether.printfloat32", "aether.printfloat64", "aether.printint", "aether.printnl", "aether.printsp", "aether.printstr", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.write", "aether.zerobase", "main.init", "main.main"}
 	if !slices.Equal(defined, want) {
 		t.Errorf("nm: defined symbols %v, want %v", defined, want)
 	}
@@ -374,7 +374,7 @@ func TestMilestone1Rejections(t *testing.T) {
 		code      int
 		feature   string
 	}{
-		{"defer", main("defer println(1)"), 3, "defer"},
+		{"defer", main("defer recover()"), 3, "defer"},
 		{"import", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(1) }\n", 3, "import"},
 		{"fallthrough", main("x := 1\nswitch x {\ncase 1:\n\tfallthrough\ndefault:\n}\nprintln(x)"), 3, "fallthrough"},
 		{"named results", "package main\n\nfunc f() (a, b int) { return 1, 2 }\n\nfunc main() { f() }\n", 3, "function-declaration"},

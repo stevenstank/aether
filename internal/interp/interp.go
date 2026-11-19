@@ -164,6 +164,9 @@ func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps i
 		case ir.Shl, ir.Shr:
 			fr.values[in.ID] = in.Type.Canonical(shift(in.Op, in.Type, arg(0), uint64(arg(1))))
 		case ir.Panic:
+			if in.Index == ir.PanicExit {
+				return 2, nil
+			}
 			msg := "runtime error: " + ir.PanicMessages[in.Index]
 			switch {
 			case ir.IsBounds(in.Index):

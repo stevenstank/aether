@@ -166,6 +166,17 @@ aether.panicindexu:
 	hlt				# not reached
 	.size	aether.panicindexu, .-aether.panicindexu
 
+# aether.panicexit ends the program with exit status 2 after the panics have
+# been written (D-043). It writes nothing.
+	.globl	aether.panicexit
+	.type	aether.panicexit, @function
+aether.panicexit:
+	movl	$231, %eax		# exit_group
+	movl	$2, %edi
+	syscall
+	hlt				# not reached
+	.size	aether.panicexit, .-aether.panicexit
+
 # aether.panicmsg ends the program with a panic whose message is made at
 # run time (D-041): the %rsi bytes at %rdi. It writes "panic: ", the message,
 # and a newline, and exits with status 2. It uses at most 24 bytes below

@@ -503,6 +503,13 @@ panic comparison rule also accepts gc's `panic: assignment to entry in nil
 map` and `panic: hash of unhashable type: ` lines, which have no `runtime
 error: `.
 
+Defer and panic programs (increment 8.6a, D-043) are corpus programs
+`s5_d01` to `s5_d07`, which `TestDeferPrograms` also runs under `-O0` and
+ABI-R1; there is no generator for them yet. Since D-043 the panic
+comparison rule accepts any `panic: ` line with a message, and its Q takes
+in the following lines that begin with a tab: gc's later panics and the
+lines of a value with newlines.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

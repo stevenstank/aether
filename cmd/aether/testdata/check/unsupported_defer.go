@@ -3,5 +3,5 @@
 package main
 
 func main() {
-	defer println()
+	defer recover()
 }

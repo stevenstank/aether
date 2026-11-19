@@ -869,8 +869,9 @@ repeated in each phase below:
   values, with method values and method expressions (D-039, 2026-11-17);
   8.3 closures (D-040, 2026-11-18); 8.4 interfaces, type assertions, and
   type switches (D-041, 2026-11-18); 8.5 maps (D-042, 2026-11-18), with
-  `for range` over maps as 8.5b; the other items follow, each with its
-  own design note.
+  `for range` over maps as 8.5b; 8.6 defer, panic, and recover (D-043,
+  2026-11-19), as 8.6a defer and panic and 8.6b recover; the other items
+  follow, each with its own design note.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
     pointer receivers, calls with the implicit `&` and `*`, and promotion
@@ -940,6 +941,21 @@ repeated in each phase below:
     when the map grows or is cleared during the range; `_` is accepted
     for a range variable. Corpus program `s5_k09`, ranges in the
     generated map programs, and `TestMapRangeOrder` for Aether's order.
+- **Status of 8.6 (8.6a done, owner review pending; 8.6b not started):**
+  - 8.6a: `defer` of calls of functions, methods, func values, literals,
+    interface methods, `print`, and `println`, and `panic(v)`
+    (`SEMANTICS.md` §Defer and panic, D-043). A program with `defer`
+    unwinds through checks of `.unwinding` after calls that may raise,
+    added by a pass once lowering ends; run-time errors raise there too.
+    The panics are written as gc's `printpanics` does, then the new
+    run-time error `PanicExit` ends the program with status 2. V-9
+    records the values written by address.
+  - Corpus programs `s5_d01` to `s5_d07`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestDeferPrograms`; `TestPanicMsg` checks `PanicExit`. No program
+    generator yet.
+  - 8.6b: `recover`, run-time errors recovered as `error` values, and the
+    `[recovered]` marks.
 
 ## Phase 9: Garbage collection
 

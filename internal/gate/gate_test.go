@@ -181,6 +181,9 @@ func TestAccepted(t *testing.T) {
 		"rune literals":        "const c = 'a'\nvar g = [2]rune{'\\n', '世'}\nfunc main() { var x int = 'a'; println('a', x+c, g[1], '\\U0001F600') }",
 		"rune conversions":     "type P struct{ r []rune }\nfunc main() { s := \"x\"; r := []rune(s); var u8 uint8 = 1; p := P{[]int32(\"y\")}; println(string(r), string(r[0]), string(s[0]), string(u8), string(p.r), len([]rune(\"\"))) }",
 	}
+	// Defer and panic (D-043).
+	files["defer forms"] = "type T struct{ x int }\nfunc (t T) m(a int) { println(t.x, a) }\ntype I interface{ m(int) }\nfunc f() (int, string) { return 1, \"a\" }\nfunc g(int, string) {}\nfunc main() { var i I = T{}; v := func() {}; defer g(f()); defer T{}.m(1); defer i.m(2); defer v(); defer func() { println() }(); defer print(f()); defer println(\"x\", 1) }"
+	files["panic values"] = "type E struct{}\nfunc main() { var e any = E{}; if e == nil { panic(nil) }; if e != nil { panic(e) }; panic(\"x\" + \"y\") }"
 	for name, src := range files {
 		t.Run(name, func(t *testing.T) {
 			if got := classifyFile(t, "package main\n\n"+src+"\n"); len(got) != 0 {
@@ -233,10 +236,15 @@ func TestRejected(t *testing.T) {
 		{"range", `for range 3 {}`, []string{"for-range"}},
 		{"fallthrough", `switch { case true: fallthrough; default: }`, []string{"fallthrough"}},
 		{"labeled switch", "L:\nswitch {\ndefault:\nbreak L\n}", []string{"label"}},
-		{"switch with a rejected case body", `switch { case true: defer println() }`, []string{"defer"}},
+		{"switch with a rejected case body", `switch { case true: defer recover() }`, []string{"defer"}},
 		{"select", `select {}`, []string{"select"}},
 		{"go", `go println()`, []string{"go"}},
-		{"defer", `defer println()`, []string{"defer"}},
+		{"defer of recover", `defer recover()`, []string{"defer"}},
+		{"defer of panic", `defer panic(1)`, []string{"defer"}},
+		{"defer of copy", `s := []int{}; defer copy(s, s)`, []string{"defer"}},
+		{"recover", `println(recover() == nil)`, []string{"builtin"}},
+		{"panic of an unsupported value", `var c complex128; panic(c)`, []string{"non-int-type"}},
+		{"defer of an unsupported call", `var c complex128; defer println(c)`, []string{"non-int-type", "println-argument-type"}},
 		{"goto and label", "goto L\nL:", []string{"goto", "label"}},
 		{"labeled break", "L:\nfor {\nbreak L\n}", []string{"label"}},
 		{"labeled continue", "L:\nfor i := 0; i < 1; i++ {\ncontinue L\n}", []string{"label"}},

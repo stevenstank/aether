@@ -285,11 +285,12 @@ func gcRejects(t *testing.T, gobin string, progs map[string][]byte) {
 // panicPrefix applies the panic comparison rule (SEMANTICS.md, V-3) to a
 // gc-built binary's result. A result is a panic if its stderr contains the
 // text "panic: ". Then Q is the exact stderr up to and including the first
-// newline after its first occurrence, the line from there must be
-// "panic: runtime error: " and a message, stdout must be empty, and the
-// exit status 2; Q is what Aether must write, with nothing after it. The
-// traceback after Q is not compared. Programs print only integers and
-// bool, so earlier output cannot contain the text.
+// newline after its first occurrence, and since D-043 every following line
+// that begins with a tab (later panics, and the lines of a value with
+// newlines); the line from there must be "panic: " and a message, stdout
+// must be empty, and the exit status 2. Q is what Aether must write, with
+// nothing after it. The traceback after Q is not compared. Test programs
+// never print the text themselves.
 func panicPrefix(gc result) (q string, ok bool, err error) {
 	i := strings.Index(gc.stderr, "panic: ")
 	if i < 0 {
@@ -299,25 +300,25 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 	switch {
 	case !found:
 		return "", false, errors.New("no newline after the panic message")
-	case !runtimePanic(line, "panic: runtime error: ") && !runtimePanic(line, "panic: interface conversion: ") &&
-		!runtimePanic(line, "panic: hash of unhashable type: ") && line != "panic: "+nilMapEntry:
-		return "", false, fmt.Errorf("panic line %q is not a run-time error", line)
+	case !runtimePanic(line, "panic: "):
+		return "", false, fmt.Errorf("panic line %q has no message", line)
 	case gc.exit != 2:
 		return "", false, fmt.Errorf("exit status %d, want 2", gc.exit)
 	case gc.stdout != "":
 		return "", false, fmt.Errorf("stdout %q, want none", gc.stdout)
 	}
-	return gc.stderr[:i+len(line)+1], true, nil
+	end := i + len(line) + 1
+	for strings.HasPrefix(gc.stderr[end:], "\t") {
+		next, _, found := strings.Cut(gc.stderr[end:], "\n")
+		if !found {
+			return "", false, errors.New("no newline after a panic line")
+		}
+		end += len(next) + 1
+	}
+	return gc.stderr[:end], true, nil
 }
 
-// nilMapEntry is the message of gc's panic on an assignment to an entry of
-// a nil map (D-042).
-const nilMapEntry = "assignment to entry in nil map"
-
-// runtimePanic reports whether line is a panic of gc's run time with the
-// given prefix: a run-time error, or since D-041 a failed interface
-// conversion, or since D-042 the check of an unhashable map key on an
-// empty map, which also have no "runtime error: ".
+// runtimePanic reports whether line has the prefix and a message after it.
 func runtimePanic(line, prefix string) bool {
 	return strings.HasPrefix(line, prefix) && len(line) > len(prefix)
 }
@@ -331,6 +332,9 @@ func TestPanicPrefix(t *testing.T) {
 		{"panic: interface conversion: interface {} is int, not string\n" + tb, "panic: interface conversion: interface {} is int, not string\n"},
 		{"panic: assignment to entry in nil map\n" + tb, "panic: assignment to entry in nil map\n"},
 		{"panic: hash of unhashable type: []int\n" + tb, "panic: hash of unhashable type: []int\n"},
+		{"panic: 1\n" + tb, "panic: 1\n"},
+		{"panic: a\n\tb\n\tpanic: runtime error: index out of range [1] with length 0\n[signal SIGSEGV]\n" + tb,
+			"panic: a\n\tb\n\tpanic: runtime error: index out of range [1] with length 0\n"},
 	}
 	for _, tt := range good {
 		if q, ok, err := panicPrefix(result{stderr: tt.stderr, exit: 2}); err != nil || !ok || q != tt.q {
@@ -344,9 +348,8 @@ func TestPanicPrefix(t *testing.T) {
 		{stderr: "panic: runtime error: integer divide by zero\n" + tb, exit: 1},
 		{stderr: "panic: runtime error: integer divide by zero\n", exit: 2, stdout: "x"},
 		{stderr: "panic: runtime error: integer divide by zero", exit: 2},
-		{stderr: "panic: 1\n" + tb, exit: 2},
-		{stderr: "panic: runtime error: \n", exit: 2},
-		{stderr: "panic: interface conversion: \n", exit: 2},
+		{stderr: "panic: \n", exit: 2},
+		{stderr: "panic: 1\n\tpanic: 2", exit: 2},
 	}
 	for _, r := range bad {
 		if q, ok, err := panicPrefix(r); err == nil {
