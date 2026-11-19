@@ -220,7 +220,7 @@ func TestLowerUnexpected(t *testing.T) {
 		{"package type", "type T int\nfunc main() {}", "p.go:2:1: internal: lowering: unexpected package-level type declaration"},
 		{"blank target", "func main() { _ = 1 }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
 		{"builtin call", "func main() { _ = len([1]int{}) }", "p.go:2:15: internal: lowering: unexpected assignment target _"},
-		{"builtin call statement", "func main() { recover() }", "p.go:2:15: internal: lowering: unexpected call of recover"},
+		{"builtin call statement", "func main() { defer recover() }", "p.go:2:15: internal: lowering: defer of builtin recover"},
 		{"complex variable", "func main() { var x complex128 = 1; println(real(x) > 0) }", "p.go:2:34: internal: lowering: unexpected type complex128"},
 		{"no body", "func main()", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 	}

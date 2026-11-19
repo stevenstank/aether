@@ -503,8 +503,8 @@ panic comparison rule also accepts gc's `panic: assignment to entry in nil
 map` and `panic: hash of unhashable type: ` lines, which have no `runtime
 error: `.
 
-Defer and panic programs (increment 8.6a, D-043) are corpus programs
-`s5_d01` to `s5_d07`, which `TestDeferPrograms` also runs under `-O0` and
+Defer, panic, and recover programs (increments 8.6a and 8.6b, D-043)
+are corpus programs `s5_d01` to `s5_d11`, which `TestDeferPrograms` also runs under `-O0` and
 ABI-R1; there is no generator for them yet. Since D-043 the panic
 comparison rule accepts any `panic: ` line with a message, and its Q takes
 in the following lines that begin with a tab: gc's later panics and the

@@ -180,7 +180,7 @@ includes nested blocks specifically to test this.
   goroutine traceback, which is a documented divergence from gc (E1 confirmed
   gc's exit status 2 and message prefix).
 - `defer`, unwinding, and `panic(v)` are supported since Phase 8
-  increment 8.6a (§Defer and panic, D-043); `recover` is increment 8.6b.
+  increment 8.6a, and `recover` since 8.6b (§Defer and panic, D-043).
 
 ### Concurrency and the memory model
 
@@ -1026,7 +1026,7 @@ Still `unsupported`: `for range` over anything but a map (`for-range`);
 `println` of a map (`println-argument-type`), which gc prints as an
 address.
 
-## Defer and panic (Phase 8 increment 8.6a)
+## Defer, panic, and recover (Phase 8 increments 8.6a and 8.6b)
 
 The gate also accepts (D-043):
 - **`defer`** of a call of a function, method, func value, function
@@ -1046,10 +1046,23 @@ The gate also accepts (D-043):
   as `(T) ` and its data word in hex (V-9); `panic(nil)` panics with `panic
   called with nil argument`. The program exits with status 2, with no
   traceback (V-3). A panic during package initialization does the same.
+- **`recover()`** (increment 8.6b), of type `any`: it stops the newest
+  panic, and returns its value, only when called in the function that a
+  deferred call invokes directly while a panic runs it, and only once per
+  panic; otherwise it returns nil. The function that deferred the call
+  then returns normally, with the results its `return` stored, or zero,
+  and the panics raised since it was entered are dropped. A recovered
+  run-time error is an `error` with a `RuntimeError` method, of gc's
+  dynamic type (`runtime.boundsError`, `runtime.errorString`,
+  `runtime.plainError`, `maps.unhashableTypeError`,
+  `*runtime.TypeAssertionError`, or for `panic(nil)`
+  `*runtime.PanicNilError`), whose `Error` is gc's message. A recovered
+  panic still listed when the program ends is written with ` [recovered]`,
+  and one panicked again with the same value once, with ` [recovered,
+  repanicked]`.
 
-Still `unsupported`: `recover` and deferring any other builtin
-(`builtin`, `defer`), until increment 8.6b; named results
-(`function-declaration`).
+Still `unsupported`: deferring a builtin other than `print` and `println`,
+`recover` included (`defer`); named results (`function-declaration`).
 
 ## Support matrix
 
@@ -1085,7 +1098,7 @@ Still `unsupported`: `recover` and deferring any other builtin
 | Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
 | Interfaces: types, conversions, method calls, method values and expressions, comparisons, type assertions, type switches | Interface types, Conversions, Type assertions, Type switches, Comparison operators | S5 / 8.4 | Supported (native), with divergences V-3 to V-5 | `s5_i01_interfaces` to `s5_i06_nil_interface_call`; generated interface programs; `TestInterfacePrograms`, `TestGcName`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys, `for range` | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity, For statements with range clause | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 and V-8 | `s5_k01_map_basics` to `s5_k09_map_range`; generated map programs; `TestMapPrograms`, `TestMapRangeOrder`, `TestPanicPrefix`; gate tests |
-| Defer and panic: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included | Defer statements, Handling panics, Run-time panics | S5 / 8.6a | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d07_panic_nil`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
+| Defer, panic, and recover: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

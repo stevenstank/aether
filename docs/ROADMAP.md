@@ -941,7 +941,7 @@ repeated in each phase below:
     when the map grows or is cleared during the range; `_` is accepted
     for a range variable. Corpus program `s5_k09`, ranges in the
     generated map programs, and `TestMapRangeOrder` for Aether's order.
-- **Status of 8.6 (8.6a done, owner review pending; 8.6b not started):**
+- **Status of 8.6 (done; owner review pending):**
   - 8.6a: `defer` of calls of functions, methods, func values, literals,
     interface methods, `print`, and `println`, and `panic(v)`
     (`SEMANTICS.md` §Defer and panic, D-043). A program with `defer`
@@ -954,8 +954,12 @@ repeated in each phase below:
     `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
     `TestDeferPrograms`; `TestPanicMsg` checks `PanicExit`. No program
     generator yet.
-  - 8.6b: `recover`, run-time errors recovered as `error` values, and the
-    `[recovered]` marks.
+  - 8.6b: `recover`, through `.rframe`, set while a deferred call runs
+    for a panic and copied at entry by every function of the source;
+    run-time errors recovered as `error` values of six types Aether
+    declares with gc's names and messages; the `[recovered]` and
+    `[recovered, repanicked]` marks. Corpus programs `s5_d08` to
+    `s5_d11`, also in `TestDeferPrograms`.
 
 ## Phase 9: Garbage collection
 

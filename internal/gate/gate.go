@@ -1081,6 +1081,10 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			if obj.Name() == "new" && len(call.Args) == 1 && c.info.Types[call.Args[0]].IsType() {
 				return c.typeExpr(call.Args[0])
 			}
+			// recover(), of type any (D-043).
+			if obj.Name() == "recover" && len(call.Args) == 0 {
+				return true
+			}
 			// panic(v), of any supported operand, converted to any (D-043).
 			if obj.Name() == "panic" && len(call.Args) == 1 && !call.Ellipsis.IsValid() {
 				if !c.multiValue(call.Args) {

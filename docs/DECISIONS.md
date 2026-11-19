@@ -3427,6 +3427,38 @@ with gc-built go1.26.1 binaries on 2026-11-19:
   records are written oldest first as listed above. The value's form is
   chosen by comparing `tab` with each descriptor (D-041) of the program; a
   run-time error writes its message as its `Panic` does.
+- **Recover (8.6b, detailed 2026-11-19 before its code).** Measured with
+  gc: `recover` returns non-nil only in the function a deferred call
+  invokes directly, while a panic runs it, once per panic; a recovered
+  run-time error is an `error` with `RuntimeError()`, of dynamic type
+  `runtime.boundsError` (index and slice bounds), `runtime.errorString`
+  (the other run-time errors, `comparing uncomparable`, and `hash of
+  unhashable type T`), `runtime.plainError` (`assignment to entry in nil
+  map`), `maps.unhashableTypeError` (`hash of unhashable type: T`),
+  `*runtime.TypeAssertionError` (`interface conversion: …`), or
+  `*runtime.PanicNilError` (`panic(nil)`), whose `Error()` is the message
+  gc writes. Aether declares these six types itself, the four non-pointer
+  ones over a string and the two others over a struct of one string, each
+  holding the whole message, with methods `Error` and `RuntimeError`
+  generated as IR, so D-041's descriptors, itabs, assertions, and
+  equality apply to them unchanged. In a program that calls `recover`:
+  - A global `.rframe` is set by the exit loop while it runs a deferred
+    call for a panic, and every function of the program's source copies it
+    at entry and clears it; `recover()` calls `.gorecover` with that copy.
+    Generated wrappers do not clear it, so it reaches the deferred function
+    through them.
+  - `.gorecover` returns nil unless the copy is set and the newest panic is
+    not recovered; otherwise it marks the panic recovered, makes its value
+    (a run-time error's message, integers formatted by a generated `.itoa`)
+    and returns it.
+  - A function with a defer statement also keeps, at entry, the newest
+    panic then, and zeroes its array and struct results. When a deferred
+    call it ran for a panic returns with the newest panic recovered, the
+    panics raised since entry are dropped and the function continues as
+    if returning normally, with the results its return stored, or zero.
+  - The panics are written with gc's ` [recovered]` and ` [recovered,
+    repanicked]` marks, a repanicked value (both words equal to the one
+    before it) written once.
 - **IR change.** The run-time error `PanicExit`, with no args, extends
   D-023's closed set; the runtime helper `aether.panicexit` exits with
   status 2. Nothing else in the IR, runtime, or calling convention changes.

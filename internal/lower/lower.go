@@ -87,6 +87,12 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 			decls = append(decls, fd)
 		}
 	}
+	for _, f := range pkg.Files {
+		l.wantRecover = l.wantRecover || l.unwinds && programRecovers(f, pkg.Info)
+	}
+	if l.wantRecover {
+		l.panics() // every function of the source copies .rframe
+	}
 	for _, fd := range decls {
 		l.function(fd)
 	}
@@ -168,7 +174,10 @@ type lowerer struct {
 
 	unwinds bool        // the program has a defer statement (defer.go)
 	ps      *panicState // its panic state, once needed
-	dfr     *deferFn    // the defer state of the function being lowered, if it has a defer statement
+	rtok    *ir.Slot    // the copy of .rframe of the function being lowered, if it calls recover (recover.go)
+
+	wantRecover bool     // the program unwinds and calls recover
+	dfr         *deferFn // the defer state of the function being lowered, if it has a defer statement
 }
 
 // target is a for or switch statement being lowered: break jumps to exit,
@@ -292,6 +301,7 @@ func (l *lowerer) init(prog *ir.Program) {
 	l.fn = prog.NewFunc("init", file, l.pos(f, f.Package))
 	prog.Init = l.fn
 	l.b, l.done = l.fn.Entry(), false
+	l.rtok = nil
 	for _, init := range order {
 		var ts []types.Type
 		for _, v := range init.Lhs {
@@ -375,6 +385,7 @@ func (l *lowerer) body(fields []*ast.Field, first int, body *ast.BlockStmt, prol
 		l.moveToHeap(id, l.pkg.Info.Defs[id].(*types.Var))
 	}
 	l.dfr = nil
+	l.enterRecover(body, l.pos(body, body.Lbrace))
 	if hasDefer(body) {
 		l.startDefers(l.pos(body, body.Lbrace))
 	}
@@ -809,6 +820,10 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 	call, ok := s.X.(*ast.CallExpr)
 	if ok && l.isBuiltin(call, "copy") {
 		l.copySlice(call)
+		return
+	}
+	if ok && l.isBuiltin(call, "recover") {
+		l.recoverCall(call) // D-043
 		return
 	}
 	if ok && l.isBuiltin(call, "panic") {

@@ -369,6 +369,9 @@ func (l *lowerer) ifaceValue(e ast.Expr) []*ir.Instr {
 		if l.pkg.Info.Types[e.Fun].IsType() {
 			return l.valueFor(e.Args[0], t)
 		}
+		if l.isBuiltin(e, "recover") {
+			return l.recoverCall(e) // D-043
+		}
 		vals := l.results(e, l.call(e))
 		if len(vals) != 1 {
 			l.fail(e, "call of %d results used as one value", len(vals))

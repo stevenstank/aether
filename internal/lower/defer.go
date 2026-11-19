@@ -33,6 +33,8 @@ const (
 	recX      = 32
 	recY      = 40
 	recSigned = 48
+	recRecov  = 49 // recovered (8.6b)
+	recRepan  = 50 // repanicked: written once, with the next newer panic
 	recMsg    = 56
 	recMsgLen = 64
 	recSize   = 72
@@ -49,6 +51,7 @@ const (
 // deferFn is the defer state of the function being lowered.
 type deferFn struct {
 	list    *ir.Slot   // the Ptr of the newest defer record, 0 if none
+	entry   *ir.Slot   // in a program that recovers, the newest panic at entry
 	results []*ir.Slot // the words of the results a return stores
 	exit    *ir.Block
 }
@@ -62,7 +65,12 @@ type panicState struct {
 	preprint, printv  *ir.Func // late: they list every descriptor
 	chain, indented   *ir.Func
 	hex               *ir.Func
-	defers            int                    // the defer statements lowered so far
+	defers            int        // the defer statements lowered so far
+	recovers          bool       // the program calls recover (recover.go)
+	rframe            *ir.Global // set while a deferred call runs for a panic
+	gorecover, mat    *ir.Func   // .gorecover and .materialize
+	itoa              *ir.Func
+	rt                map[string]types.Type  // the run-time error types, by gc's name
 	exits             map[*ir.Func]*ir.Block // each function's exit
 	final             map[*ir.Instr]bool     // the PanicExits that end the program
 	noCheck           map[*ir.Instr]bool     // the calls no check follows
@@ -158,6 +166,10 @@ func (l *lowerer) panics() *panicState {
 	ps.preprint = l.genFunc("preprint", []ir.Type{ir.Ptr}, nil, nil)
 	ps.printv = l.genFunc("printval", []ir.Type{ir.Ptr}, nil, nil)
 	l.late = append(l.late, func() { l.buildPreprint(pos) }, func() { l.buildPrintval(pos) })
+	if l.wantRecover {
+		ps.recovers = true
+		defer l.recoverSetup(file, pos)
+	}
 	ps.indented = l.genFunc("printindented", []ir.Type{ir.Ptr, ir.I64}, nil, l.buildIndented)
 	ps.hex = l.genFunc("printhex", []ir.Type{ir.I64}, nil, l.buildHex)
 	ps.chain = l.genFunc("printchain", []ir.Type{ir.Ptr}, nil, func(p []func() *ir.Instr, pos ir.Pos) {
@@ -166,11 +178,21 @@ func (l *lowerer) panics() *panicState {
 		l.fn.Branch(l.b, l.fn.Compare(l.b, ir.Ne, link, l.nilPtr(pos), pos), older, own, pos)
 		l.b = older
 		l.fn.Call(l.b, ps.chain, []*ir.Instr{l.fn.LdM(l.b, ir.Ptr, p[0](), l.fn.Const(l.b, recLink, pos), pos)}, pos)
+		if ps.recovers {
+			// A repanicked value is written once, with the older panic.
+			link := l.fn.LdM(l.b, ir.Ptr, p[0](), l.fn.Const(l.b, recLink, pos), pos)
+			no := l.when(l.fn.LdM(l.b, ir.Bool, link, l.fn.Const(l.b, recRepan, pos), pos), pos)
+			l.fn.Ret(l.b, pos)
+			l.b = no
+		}
 		l.fn.Print(l.b, l.strWords("\t", pos), pos)
 		l.fn.Jump(l.b, own, pos)
 		l.b = own
 		l.fn.Print(l.b, l.strWords("panic: ", pos), pos)
 		l.fn.Call(l.b, ps.printv, []*ir.Instr{p[0]()}, pos)
+		if ps.recovers {
+			l.recoveredMarks(p[0], pos)
+		}
 		l.fn.Println(l.b, nil, pos)
 		l.fn.Ret(l.b, pos)
 	})
@@ -184,6 +206,9 @@ func (l *lowerer) panics() *panicState {
 		l.b = head
 		l.fn.Branch(l.b, l.fn.Compare(l.b, ir.Ne, l.fn.Load(l.b, p, pos), l.nilPtr(pos), pos), body, done, pos)
 		l.b = body
+		if ps.recovers {
+			l.markRepanicked(func() *ir.Instr { return l.fn.Load(l.b, p, pos) }, pos)
+		}
 		l.fn.Call(l.b, ps.preprint, []*ir.Instr{l.fn.Load(l.b, p, pos)}, pos)
 		l.fn.Store(l.b, p, l.fn.LdM(l.b, ir.Ptr, l.fn.Load(l.b, p, pos), l.fn.Const(l.b, recLink, pos), pos), pos)
 		l.fn.Jump(l.b, head, pos)
@@ -228,6 +253,20 @@ func (l *lowerer) panicCall(call *ast.CallExpr) {
 func (l *lowerer) startDefers(pos ir.Pos) {
 	d := &deferFn{list: l.fn.NewSlot("defers", ir.Ptr, pos), exit: l.fn.NewBlock()}
 	l.fn.Store(l.b, d.list, l.nilPtr(pos), pos)
+	if l.panics().recovers {
+		d.entry = l.fn.NewSlot("entry", ir.Ptr, pos)
+		l.fn.Store(l.b, d.entry, l.fn.GLoad(l.b, l.ps.panics, pos), pos)
+		// A recovering function returns zero results unless its return
+		// stored others.
+		k := 0
+		for r := range l.sig.Results().Variables() {
+			if isAggregate(r.Type()) {
+				s := l.retPtrs[k]
+				k++
+				l.zero(place{base: func() *ir.Instr { return l.fn.Load(l.b, s, pos) }, t: r.Type()}, pos)
+			}
+		}
+	}
 	for _, t := range l.fn.Results {
 		s := l.fn.NewSlot("result", t, pos)
 		l.fn.Store(l.b, s, l.fn.TypedConst(l.b, t, 0, pos), pos)
@@ -265,10 +304,25 @@ func (l *lowerer) deferExit(pos ir.Pos) {
 	was := l.spill(l.fn.GLoad(l.b, ps.unwinding, pos), pos)
 	l.fn.GStore(l.b, ps.unwinding, l.fn.BoolConst(l.b, false, pos), pos)
 	code := l.fn.LdM(l.b, ir.Ptr, rec(), l.fn.Const(l.b, 8, pos), pos)
+	if ps.recovers {
+		l.fn.GStore(l.b, ps.rframe, was(), pos)
+	}
 	ps.noCheck[l.fn.CallInd(l.b, &ir.Sig{Params: []ir.Type{ir.Ptr}}, code, []*ir.Instr{rec()}, pos)] = true
+	if ps.recovers {
+		l.fn.GStore(l.b, ps.rframe, l.fn.BoolConst(l.b, false, pos), pos)
+	}
 	set := l.fn.NewBlock()
 	l.fn.Branch(l.b, was(), set, d.exit, pos)
 	l.b = set
+	if ps.recovers {
+		// Recovered: the panics raised since entry are dropped, and the
+		// function goes on as if returning normally.
+		p := l.fn.GLoad(l.b, ps.panics, pos)
+		still := l.when(l.fn.LdM(l.b, ir.Bool, p, l.fn.Const(l.b, recRecov, pos), pos), pos)
+		l.fn.GStore(l.b, ps.panics, l.fn.Load(l.b, d.entry, pos), pos)
+		l.fn.Jump(l.b, d.exit, pos)
+		l.b = still
+	}
 	l.fn.GStore(l.b, ps.unwinding, l.fn.BoolConst(l.b, true, pos), pos)
 	l.fn.Jump(l.b, d.exit, pos)
 	l.b = done

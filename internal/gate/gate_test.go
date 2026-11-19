@@ -183,6 +183,7 @@ func TestAccepted(t *testing.T) {
 	}
 	// Defer and panic (D-043).
 	files["defer forms"] = "type T struct{ x int }\nfunc (t T) m(a int) { println(t.x, a) }\ntype I interface{ m(int) }\nfunc f() (int, string) { return 1, \"a\" }\nfunc g(int, string) {}\nfunc main() { var i I = T{}; v := func() {}; defer g(f()); defer T{}.m(1); defer i.m(2); defer v(); defer func() { println() }(); defer print(f()); defer println(\"x\", 1) }"
+	files["recover"] = "func main() { defer func() { r := recover(); if e, ok := r.(error); ok { println(e.Error()) }; recover() }(); println(recover() == nil) }"
 	files["panic values"] = "type E struct{}\nfunc main() { var e any = E{}; if e == nil { panic(nil) }; if e != nil { panic(e) }; panic(\"x\" + \"y\") }"
 	for name, src := range files {
 		t.Run(name, func(t *testing.T) {
@@ -242,7 +243,6 @@ func TestRejected(t *testing.T) {
 		{"defer of recover", `defer recover()`, []string{"defer"}},
 		{"defer of panic", `defer panic(1)`, []string{"defer"}},
 		{"defer of copy", `s := []int{}; defer copy(s, s)`, []string{"defer"}},
-		{"recover", `println(recover() == nil)`, []string{"builtin"}},
 		{"panic of an unsupported value", `var c complex128; panic(c)`, []string{"non-int-type"}},
 		{"defer of an unsupported call", `var c complex128; defer println(c)`, []string{"non-int-type", "println-argument-type"}},
 		{"goto and label", "goto L\nL:", []string{"goto", "label"}},
