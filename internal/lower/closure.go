@@ -28,33 +28,38 @@ func literals(pkg *frontend.Package) (map[*ast.FuncLit]int, map[*ast.FuncLit][]*
 	nums := map[*ast.FuncLit]int{}
 	caps := map[*ast.FuncLit][]*types.Var{}
 	var open []*ast.FuncLit // the literals around the node visited
+	// Each declaration is walked on its own: the copies of generic code
+	// have the positions of the code they copy (D-045), so positions
+	// order the nodes of one declaration only.
 	for _, f := range pkg.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			if n == nil {
-				return true
-			}
-			for len(open) > 0 && n.Pos() >= open[len(open)-1].End() {
-				open = open[:len(open)-1]
-			}
-			switch n := n.(type) {
-			case *ast.FuncLit:
-				nums[n] = len(nums) + 1
-				open = append(open, n)
-			case *ast.Ident:
-				v, ok := pkg.Info.Uses[n].(*types.Var)
-				if !ok || v.IsField() || v.Parent() == nil || v.Parent() == pkg.Types.Scope() || v.Parent() == types.Universe {
-					break
+		for _, d := range f.Decls {
+			open = open[:0]
+			ast.Inspect(d, func(n ast.Node) bool {
+				if n == nil {
+					return true
 				}
-				for _, lit := range open {
-					inside := v.Pos() >= lit.Pos() && v.Pos() < lit.End()
-					if !inside && !contains(caps[lit], v) {
-						caps[lit] = append(caps[lit], v)
+				for len(open) > 0 && n.Pos() >= open[len(open)-1].End() {
+					open = open[:len(open)-1]
+				}
+				switch n := n.(type) {
+				case *ast.FuncLit:
+					nums[n] = len(nums) + 1
+					open = append(open, n)
+				case *ast.Ident:
+					v, ok := pkg.Info.Uses[n].(*types.Var)
+					if !ok || v.IsField() || v.Parent() == nil || v.Parent() == pkg.Types.Scope() || v.Parent() == types.Universe {
+						break
+					}
+					for _, lit := range open {
+						inside := v.Pos() >= lit.Pos() && v.Pos() < lit.End()
+						if !inside && !contains(caps[lit], v) {
+							caps[lit] = append(caps[lit], v)
+						}
 					}
 				}
-			}
-			return true
-		})
-		open = open[:0]
+				return true
+			})
+		}
 	}
 	return nums, caps
 }

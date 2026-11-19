@@ -25,6 +25,8 @@ changing anything architectural.
 - `internal/frontend`: a wrapper around `go/parser` and `go/types`, plus
   program-level checks.
 - `internal/gate`: the S2 subset gate (default-deny).
+- `internal/mono`: monomorphization: generic code copied per instance and
+  type-checked again, before the gate (D-045).
 - `internal/ir`: the IR, its printer, and its verifier. No `go/*` imports.
 - `internal/lower`: typed AST to IR.
 - `internal/interp`: the IR interpreter, a test oracle (D-005, D-021).

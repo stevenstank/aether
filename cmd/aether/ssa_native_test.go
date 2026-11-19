@@ -39,7 +39,7 @@ func (s *codeStats) add(c funcCode) {
 }
 
 var (
-	funcType   = regexp.MustCompile(`^\t\.type\t(main\.[\w.]+), @function$`)
+	funcType   = regexp.MustCompile(`^\t\.type\t(main\.[\w.]+|"main\.[^"]*"), @function$`) // quoted for instances of generic code (D-045)
 	frameAlloc = regexp.MustCompile(`^\tsubq\t\$(\d+), %rsp$`)
 	mainStack  = regexp.MustCompile(`aether\.mainstack:\n\t\.quad\t(\d+)\n`)
 )
@@ -56,6 +56,9 @@ func measureAsm(t *testing.T, asm []byte) (map[string]funcCode, int) {
 	for _, line := range strings.Split(string(asm), "\n") {
 		if m := funcType.FindStringSubmatch(line); m != nil {
 			cur = m[1]
+			if u, err := strconv.Unquote(cur); err == nil {
+				cur = u
+			}
 			funcs[cur] = funcCode{}
 			continue
 		}

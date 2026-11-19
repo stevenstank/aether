@@ -1,0 +1,1 @@
+testdata/check/unsupported_generic_duplicate_case.go:12:7: unsupported: generic code whose instance does not type-check (duplicate case int in type switch) is not supported in subset S1 [generic-instance]

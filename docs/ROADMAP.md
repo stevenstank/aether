@@ -871,8 +871,8 @@ repeated in each phase below:
   type switches (D-041, 2026-11-18); 8.5 maps (D-042, 2026-11-18), with
   `for range` over maps as 8.5b; 8.6 defer, panic, and recover (D-043,
   2026-11-19), as 8.6a defer and panic and 8.6b recover; 8.7 named results
-  (D-044, 2026-11-20); the other items follow, each with its own design
-  note.
+  (D-044, 2026-11-20); 8.8 generics, by monomorphization (D-045,
+  2026-11-20), which completes the scope listed above.
 - **Status of 8.1 (done; owner review pending):**
   - Method declarations on defined array and struct types, value and
     pointer receivers, calls with the implicit `&` and `*`, and promotion
@@ -974,6 +974,26 @@ repeated in each phase below:
   - Named-result programs from their own generator (`gen_named_test.go`,
     `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
     30 in `TestNamedResultPrograms`, and one per `FuzzGenerated` seed.
+- **Status of 8.8 (done; owner review pending):**
+  - Generic functions and types, methods of generic types, explicit and
+    inferred instantiation, constraints with type sets, and instances as
+    func values (`SEMANTICS.md` §Generics), by a new stage, `internal/mono`,
+    that copies the generic code per instance at the source level and
+    type-checks the copies again before the gate (D-045). Instantiated
+    types have gc's names. No IR, runtime, or calling-convention change;
+    the backend quotes symbols with characters such as `[`.
+  - Corpus programs `s5_g01` to `s5_g04`, checked against gc by
+    `TestDifferentialAgainstGc` and, with `-O0` and ABI-R1, by
+    `TestGenericPrograms`; five unsupported corpus programs for the
+    rejections; `TestInstantiate`, `TestMaxInstances`, and `TestTypeName`
+    (names measured from gc) in `internal/mono`.
+  - Generic programs from their own generator (`gen_generic_test.go`,
+    `TESTING.md`): 100 in `TestDifferentialAgainstGc` and `TestFrameBound`,
+    30 in `TestGenericPrograms`, and one per `FuzzGenerated` seed.
+  - Fixed on the way, found by `TestFrameBound` on `s5_g02`: the gate's
+    frame bound counted a type assertion indexed or selected
+    (`e.([2]int)[1]`) as used in place, while lowering copies its value
+    into a temporary; a non-generic case is now in `TestFrameBound`.
 
 ## Phase 9: Garbage collection
 

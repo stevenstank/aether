@@ -1,2 +1,0 @@
-testdata/check/unsupported_index.go:5:1: unsupported: generic function g is not supported in subset S1 [function-declaration]
-testdata/check/unsupported_index.go:8:2: unsupported: index expression is not supported in subset S1 [index-expression]

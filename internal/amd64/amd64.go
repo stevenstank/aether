@@ -28,6 +28,7 @@ import (
 	"math"
 	"math/bits"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/stevenstank/aether/internal/ir"
@@ -258,7 +259,19 @@ func EmitWith(prog *ir.Program, opts EmitOptions) ([]byte, error) {
 
 // funcSym is the symbol of an Aether-compiled function (D-011). The
 // program's Init is main.init, which _start calls before main.main.
-func funcSym(f *ir.Func) string { return "main." + f.Name }
+func funcSym(f *ir.Func) string { return sym("main." + f.Name) }
+
+// sym returns name as a symbol of the assembly: quoted if it has
+// characters other than letters, digits, '_', and '.', as the names of
+// instances of generic code do (D-045). Go names never have '"' or '\\'.
+func sym(name string) string {
+	for _, c := range name {
+		if !(c == '_' || c == '.' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+			return strconv.Quote(name)
+		}
+	}
+	return name
+}
 
 const symInit = "main.init"
 
@@ -274,11 +287,11 @@ func callTarget(in *ir.Instr) string {
 // globalSym is the symbol of a global variable, local to the program's
 // object file. Go gives package-level variables and functions distinct
 // names, and no variable is named init or main.
-func globalSym(g *ir.Global) string { return "main." + g.Name }
+func globalSym(g *ir.Global) string { return sym("main." + g.Name) }
 
 // memSym is the symbol of a global memory object (D-034), like a global
 // variable's local to the program's object file.
-func memSym(m *ir.Mem) string { return "main." + m.Name }
+func memSym(m *ir.Mem) string { return sym("main." + m.Name) }
 
 // emitMems emits the program's global memory objects in .bss, zero at
 // startup, each aligned as it requires. A symbol that another global or

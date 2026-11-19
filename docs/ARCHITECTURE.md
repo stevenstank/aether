@@ -27,6 +27,9 @@ Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this d
                                                                    │
                          ┌─────────────── Aether-owned ────────────┘
                          ▼
+                   monomorphization (D-045): generic code copied per
+                         │   instance, then go/types again ──► unsupported
+                         ▼
                    subset gate (D-003) ──► unsupported diagnostics
                          │
                          ▼
@@ -81,6 +84,20 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
 - **Output:** a *checked package*: the file set, the `[]*ast.File`, the
   `*types.Package`, and the populated `*types.Info`.
 - **Not done here:** any decision about whether Aether supports the program.
+
+### 1b. Monomorphization (Aether, D-045)
+
+- **Responsibility:** replace the generic functions and types of a
+  type-checked program by copies of their syntax trees, one per instance,
+  with type expressions of the type arguments in place of the type
+  parameters, and references to instances replaced by identifiers that
+  name the copies (`F[int]`, `Box[main.P]`, gc's spelling). The copies
+  keep the source positions. The result is type-checked again with
+  `go/types` and replaces the program for every later stage.
+- **Output:** the instantiated package, or `unsupported` diagnostics
+  (`generic-instance`, `generic-uninstantiated`). A program without generic
+  declarations is passed through untouched.
+- **Implemented in Phase 8** (increment 8.8) as `internal/mono`.
 
 ### 2. Subset gate (Aether, D-003)
 
@@ -704,6 +721,9 @@ Packages are created only when code exists. Everything lives under one module.
 - `internal/toolchain`
 - `cmd/aether`: `build`, in `build.go`
 
+**Implemented in Phase 8:**
+- `internal/mono` (increment 8.8, D-045)
+
 The other rows are still candidates.
 
 | Candidate path | Contents | Depends on | Stability |
@@ -712,6 +732,7 @@ The other rows are still candidates.
 | `internal/diag` | Diagnostic type, classes, rendering, exit codes | — (no `go/*`) | stable within the repo |
 | `internal/frontend` | Load, parse, type-check; produce the checked package | `go/*`, `diag` | internal |
 | `internal/gate` | Subset gate | `frontend`, `diag` | internal |
+| `internal/mono` | Monomorphization of generic code (D-045) | `frontend`, `gate`, `diag` | internal |
 | `internal/ir` | IR types, builder, verifier, printer; dominator tree, dominance frontiers, and slot promotion to SSA (Phase 5, D-006, D-025) | — (no `go/*`) | **contract:** text format + invariants |
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |

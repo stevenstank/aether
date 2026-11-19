@@ -1,4 +1,4 @@
-// aether:expect unsupported function-declaration
+// aether:expect unsupported generic-uninstantiated
 
 package main
 

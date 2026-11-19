@@ -13,6 +13,7 @@ import (
 	"github.com/stevenstank/aether/internal/gate"
 	"github.com/stevenstank/aether/internal/ir"
 	"github.com/stevenstank/aether/internal/lower"
+	"github.com/stevenstank/aether/internal/mono"
 )
 
 // TestFrameBound checks the gate's bound on the stack a function's arrays
@@ -39,12 +40,13 @@ func TestFrameBound(t *testing.T) {
 	}
 	// Operands of an index or selector that lowering evaluates into a
 	// temporary rather than using in place: a literal, a call's result,
-	// and a conversion.
+	// a conversion, and a type assertion's value.
 	for i, body := range []string{
 		"i := 1; println([2]int{1, 2}[i], [3]int8{}[2])",
 		"println(f()[1], f()[0])",
 		"q := Q{1}; println(P(q).x, P{2}.x)",
 		"println([2]*P{{1}, nil}[0].x)",
+		"var e any = [2]int{5, 6}; println(e.([2]int)[1], e.(Q).x)",
 	} {
 		src := "package main\n\ntype P struct{ x int }\n\ntype Q struct{ x int }\n\nfunc f() [2]int { return [2]int{3, 4} }\n\nfunc main() {\n" + body + "\n}\n"
 		progs = append(progs, program{fmt.Sprintf("operand%d.go", i), []byte(src)})
@@ -60,6 +62,7 @@ func TestFrameBound(t *testing.T) {
 		progs = append(progs, program{fmt.Sprintf("ifc%04d.go", seed), []byte(generateIfaces(seed))})
 		progs = append(progs, program{fmt.Sprintf("map%04d.go", seed), []byte(generateMaps(seed))})
 		progs = append(progs, program{fmt.Sprintf("nmd%04d.go", seed), []byte(generateNamed(seed))})
+		progs = append(progs, program{fmt.Sprintf("gnr%04d.go", seed), []byte(generateGenerics(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {
@@ -72,6 +75,11 @@ func TestFrameBound(t *testing.T) {
 		if len(ds) > 0 {
 			continue // a generated program with an overflowing constant
 		}
+		// Generic code is checked in its instances' copies (D-045).
+		if pkg, ds = mono.Instantiate(pkg); len(ds) > 0 {
+			t.Fatalf("%s: %v", p.name, ds)
+		}
+		file = pkg.Files[0]
 		if ds := gate.Check(pkg); len(ds) > 0 {
 			t.Fatalf("%s: %v", p.name, ds)
 		}

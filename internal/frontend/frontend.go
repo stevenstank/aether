@@ -121,6 +121,7 @@ func TypeCheck(fset *token.FileSet, files []*ast.File) (*Package, []diag.Diagnos
 		Implicits:  map[ast.Node]types.Object{},
 		Selections: map[*ast.SelectorExpr]*types.Selection{},
 		Scopes:     map[ast.Node]*types.Scope{},
+		Instances:  map[*ast.Ident]types.Instance{},
 	}
 	// The package path of a main package is "main", as in gc.
 	pkg, _ := conf.Check(files[0].Name.Name, fset, files, info)

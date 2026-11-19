@@ -73,6 +73,9 @@ const (
 	FeatNoBody        = "function-without-body"
 	FeatFrameSize     = "frame-size"
 	FeatLoopVarAddr   = "loop-variable-address"
+	// Reported by monomorphization (internal/mono, D-045).
+	FeatGenericInstance = "generic-instance"
+	FeatGenericUnused   = "generic-uninstantiated"
 )
 
 // Operator features are "operator-" followed by a name from unaryFeature,
@@ -199,7 +202,7 @@ func init() {
 		FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
-		FeatLoopVarAddr,
+		FeatLoopVarAddr, FeatGenericInstance, FeatGenericUnused,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "select", "go",
 		"defer", "label", "send",
@@ -221,6 +224,13 @@ func Features() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// Reject returns the Unsupported diagnostic for what, a construct of the
+// registered feature, for the stages besides the gate that reject
+// constructs (internal/mono, D-045).
+func Reject(pos diag.Pos, feature, what string) diag.Diagnostic {
+	return unsupported(pos, feature, what)
 }
 
 func unsupported(pos diag.Pos, feature, what string) diag.Diagnostic {
@@ -459,11 +469,12 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 }
 
 // addressed reports whether lowering uses x, the operand of a selector or
-// index expression, in place: not if it is a composite literal, a call, or
-// a map's element, whose value it evaluates into a temporary.
+// index expression, in place: not if it is a composite literal, a call, a
+// type assertion, or a map's element, whose value it evaluates into a
+// temporary.
 func (c *checker) addressed(x ast.Expr) bool {
 	switch x := ast.Unparen(x).(type) {
-	case *ast.CompositeLit, *ast.CallExpr:
+	case *ast.CompositeLit, *ast.CallExpr, *ast.TypeAssertExpr:
 		return false
 	case *ast.IndexExpr:
 		return !c.isMap(x.X)

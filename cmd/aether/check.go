@@ -9,6 +9,7 @@ import (
 	"github.com/stevenstank/aether/internal/gate"
 	"github.com/stevenstank/aether/internal/ir"
 	"github.com/stevenstank/aether/internal/lower"
+	"github.com/stevenstank/aether/internal/mono"
 )
 
 type source struct {
@@ -23,7 +24,9 @@ type source struct {
 //  2. syntax errors: invalid (a file must parse before it can be inspected)
 //  3. file-level constructs: unsupported (gate.Precheck)
 //  4. type errors and program-level checks: invalid (frontend.TypeCheck)
-//  5. everything else outside the subset: unsupported (gate.Check)
+//  5. everything else outside the subset: unsupported (mono.Instantiate,
+//     which replaces generic declarations by their instances, D-045, then
+//     gate.Check on the instances)
 //  6. lowering to IR and verifying it: internal (lower.Lower, ir.Verify)
 //
 // An empty result means the program is inside the subset (S2). Step 6 cannot fail for a
@@ -67,8 +70,12 @@ func compile(srcs []source) (*ir.Program, []diag.Diagnostic) {
 	if len(ds) > 0 {
 		return nil, ds
 	}
-	if ds := gate.Check(pkg); len(ds) > 0 {
+	pkg, ds = mono.Instantiate(pkg)
+	if len(ds) > 0 {
 		return nil, ds
+	}
+	if ds := gate.Check(pkg); len(ds) > 0 {
+		return nil, distinct(ds)
 	}
 	prog, ds := lower.Lower(pkg)
 	if len(ds) > 0 {
@@ -92,4 +99,18 @@ func verify(prog *ir.Program, file string) []diag.Diagnostic {
 		})
 	}
 	return ds
+}
+
+// distinct returns ds without repetitions, which the gate reports once per
+// instance of the generic code they are in (D-045).
+func distinct(ds []diag.Diagnostic) []diag.Diagnostic {
+	seen := map[diag.Diagnostic]bool{}
+	var out []diag.Diagnostic
+	for _, d := range ds {
+		if !seen[d] {
+			seen[d] = true
+			out = append(out, d)
+		}
+	}
+	return out
 }

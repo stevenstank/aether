@@ -922,3 +922,21 @@ func TestInitStack(t *testing.T) {
 		t.Errorf("exit %d, %q; want exit 0, no output", code, got)
 	}
 }
+
+// TestSym checks that symbols with characters an assembler symbol may not
+// have, as the names of instances of generic code have (D-045), are
+// quoted, and others are not.
+func TestSym(t *testing.T) {
+	for name, want := range map[string]string{
+		"main.main":                       "main.main",
+		"main.P.M":                        "main.P.M",
+		"main..lit3":                      "main..lit3",
+		"main.F[int]":                     `"main.F[int]"`,
+		"main.Box[*main.P].Set":           `"main.Box[*main.P].Set"`,
+		"main.F[struct { main.a int },x]": `"main.F[struct { main.a int },x]"`,
+	} {
+		if got := sym(name); got != want {
+			t.Errorf("sym(%q) = %s, want %s", name, got, want)
+		}
+	}
+}

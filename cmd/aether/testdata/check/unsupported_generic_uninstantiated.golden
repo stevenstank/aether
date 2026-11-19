@@ -1,0 +1,1 @@
+testdata/check/unsupported_generic_uninstantiated.go:5:6: unsupported: generic function f, never instantiated, is not supported in subset S1 [generic-uninstantiated]

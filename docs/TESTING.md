@@ -528,6 +528,22 @@ programs differ from gc in `TestNamedResultPrograms`. On 2026-11-20,
 named-result programs of seeds 1001 to 2000 all gave gc's output in the
 interpreter, `aether build`, `-O0`, and ABI-R1; 125 of them panic.
 
+Generic programs (`gen_generic_test.go`, increment 8.8, D-045) come from
+their own random stream. `TestDifferentialAgainstGc` and `TestFrameBound`
+run 100, `TestGenericPrograms` 30 also under `-O0` and ABI-R1 (with corpus
+programs `s5_g01` to `s5_g04`), and `FuzzGenerated` the one of each seed.
+Generic functions `i0` to `i2` (integer type sets), `n0` and `n1` (every
+number type), and `f0` (floats) have random bodies over a type parameter,
+with constant conversions `T(c)` that must stay non-constant in the copies,
+shifts by constants up to 69, and calls of another instance; `main` calls
+each with random type arguments, explicit or inferred, directly, as func
+values, through `Apply` and `Fold`, and into the generic types `Box` and
+`Pair`, on values that wrap around in the narrow types. Negative controls,
+run by hand and reverted: copying `T(c)` as a constant conversion makes the
+generated programs unsupported (a constant overflows in a copy), and
+writing unexported field names unqualified in type arguments makes
+`s5_g02` differ from gc.
+
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18
 types chosen for padding, nesting, embedding, blank and zero-size fields,

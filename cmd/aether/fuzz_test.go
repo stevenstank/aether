@@ -89,6 +89,12 @@ func FuzzGenerated(f *testing.F) {
 			t.Fatalf("named-result program rejected: %s\n%s", ds[0], named)
 		}
 		checkRegistersGenerated(t, named, checkPromotion(t, "gen.go", named, 1_000_000, &promoteStats{}))
+		// And its generic program (gen_generic_test.go), since 8.8.
+		generic := []byte(generateGenerics(seed))
+		if ds := compileAndRun(t, generic); len(ds) > 0 {
+			t.Fatalf("generic program rejected: %s\n%s", ds[0], generic)
+		}
+		checkRegistersGenerated(t, generic, checkPromotion(t, "gen.go", generic, 1_000_000, &promoteStats{}))
 		src := []byte(generate(seed))
 		ds := compileAndRun(t, src)
 		if len(ds) > 0 {

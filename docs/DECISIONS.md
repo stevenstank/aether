@@ -3540,6 +3540,68 @@ freed (V-5).
 
 ---
 
+## D-045: Generics by monomorphization (Phase 8 increment 8.8)
+
+**Status:** Accepted (2026-11-20). Phase 8 listed generics with
+"monomorphization vs. dictionaries: undecided"; the owner chose to finish
+Phase 8 with them. This note is the design, written before its code, and
+the owner's review is pending.
+
+**Context.** Generic functions and types are type-checked once, under
+their type parameters, but run as their instances. gc compiles shapes
+with dictionaries; nothing gc prints depends on that, except the names of
+instantiated types, measured with gc-built go1.26.1 binaries on
+2026-11-20: `main.Box[int]`, `main.Pair[string,*main.P]` (no space after
+the comma), `main.Box[uint8]` for `Box[byte]`, `main.Box[interface {}]`
+for `Box[any]`, and `main.Box[struct { A int; main.b string; main.P }]`:
+in type arguments, unexported field and method names are qualified.
+
+**Decision.**
+- **Monomorphization at the source level.** A new stage, `internal/mono`,
+  runs after type checking and before the gate (D-003 step 5). Starting
+  from the program's non-generic declarations, it copies every
+  declaration's syntax tree, and for every instance it reaches, a copy of
+  the generic declaration with each type parameter replaced by a type
+  expression of its argument (a generic type's copy brings a copy of each
+  of its methods). References to instances, explicit (`F[int]`,
+  `Box[int]`) or inferred (`F(x)`), become identifiers naming the copy:
+  `F[int]`, `Box[int]`, with the type arguments written as gc writes them,
+  so that a copied type's name is gc's. The copies keep the source
+  positions. The result, without generic declarations and without
+  interfaces that can only be constraints, is type-checked again and is
+  what the gate, lowering, and every later stage see; they are unchanged.
+  A program without generic declarations is passed through untouched.
+- **Constant conversions.** Under a type parameter, `T(c)` of a constant
+  is not a constant, and arithmetic on it rounds or wraps at run time; in
+  a copy it would be a constant folded exactly. A copy therefore writes it
+  as `[1]X{X(c)}[0]`, which has the same value and is not a constant.
+- **Checks.** Each type expression written for an argument must denote
+  that type after the second type check (a local declaration could shadow
+  its name); the second type check must succeed; at most 1000 instances.
+  Each failure is `unsupported` (`generic-instance`), as are type
+  arguments that cannot be written at package level (a type declared in a
+  function, a struct with tags, a channel), generic aliases, and a
+  generic function or type other than an interface that the program never
+  instantiates (`generic-uninstantiated`): its code would be neither
+  checked nor compiled.
+- **Backend.** Symbols whose names have characters other than letters,
+  digits, `_`, and `.` are quoted in the assembly, which GNU `as` accepts
+  (checked 2026-11-20 with `as` 2.42).
+
+**Alternatives considered.** Dictionaries, as gc: one body per shape, but
+lowering, the gate, and the IR would all have to handle type parameters.
+Substituting types inside lowering: no second type check, but about 190
+places in lowering ask go/types for a type, and the gate would also need
+to understand type parameters.
+
+**Consequences.** Code size grows with the number of instances. The
+gate's diagnostics in a generic body come from the copies, at the
+generic source's positions, once per position. A generic function's body
+is checked against the subset only for the type arguments the program
+uses.
+
+---
+
 ## Phase 0 research notes
 
 Experiments E1–E12 ran in a scratch directory outside the repository on

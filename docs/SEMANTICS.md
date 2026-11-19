@@ -408,6 +408,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `function-without-body` |
+| Generics (D-045) | `generic-instance`, `generic-uninstantiated` |
 | Statements | `for-range`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
@@ -1082,6 +1083,37 @@ a function literal, like any other local (§Pointers, §Closures).
   (§Defer, panic, and recover) returns its results' values then: those its
   body or a deferred call stored before, zero for any never assigned.
 
+## Generics (Phase 8 increment 8.8)
+
+Generic functions and generic types are accepted (D-045): type parameter
+lists with any constraint, including interfaces with type sets declared
+for use as constraints; methods of generic types; instances named with
+explicit type arguments (`F[int]`, `Box[P]`), partly or wholly inferred
+ones (`F(x)`), and instantiated functions used as values. Each instance
+is compiled as its own copy of the generic code, with its type arguments
+in place of the type parameters (monomorphization), and each copy must be
+inside the subset like any other code: a body that the gate rejects for
+some type argument is rejected at the generic source's position. Under a
+type parameter, `T(c)` of a constant is not a constant, and stays one in
+the copies. Instantiated types have gc's names, such as
+`main.Pair[string,*main.P]`.
+- Every generic function and type must be instantiated by the program
+  (`generic-uninstantiated`): the body of one that is never instantiated
+  would be neither checked nor compiled. A generic interface, which has
+  no code, is exempt.
+- Type arguments must be types that can be written at package level: not
+  a type declared in a function, a struct with field tags, or a channel
+  (`generic-instance`); a copy must type-check, which rejects for example
+  a type switch whose cases become duplicates for some type argument, and
+  a type argument's name must not be shadowed where it is used
+  (`generic-instance`); at most 1000 instances. Generic type aliases are
+  rejected (`package-level-declaration`).
+- The generic type's underlying type is checked as a type declaration's
+  is: an array, a struct, or an interface.
+- An interface that can only be a constraint (one with a type set, such
+  as `interface{ ~int | ~float64 }`) is accepted, and left out of the
+  program, also in a program without generic code.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1118,6 +1150,7 @@ a function literal, like any other local (§Pointers, §Closures).
 | Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys, `for range` | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity, For statements with range clause | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 and V-8 | `s5_k01_map_basics` to `s5_k09_map_range`; generated map programs; `TestMapPrograms`, `TestMapRangeOrder`, `TestPanicPrefix`; gate tests |
 | Defer, panic, and recover: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Named results: variables zero at entry, bare `return`, set by deferred calls and by recovering functions | Function declarations, Return statements, Defer statements | S5 / 8.7 | Supported (native), with divergences V-3 to V-5 | `s5_n01_named_results`, `s5_d12_named_defer`, `s5_d13_named_recover`; generated named-result programs; `TestNamedResultPrograms`, `TestDeferPrograms`; gate tests |
+| Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g04_generic_panic`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

@@ -377,7 +377,7 @@ func TestMilestone1Rejections(t *testing.T) {
 		{"defer", main("defer recover()"), 3, "defer"},
 		{"import", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(1) }\n", 3, "import"},
 		{"fallthrough", main("x := 1\nswitch x {\ncase 1:\n\tfallthrough\ndefault:\n}\nprintln(x)"), 3, "fallthrough"},
-		{"generic function", "package main\n\nfunc f[T any](x T) T { return x }\n\nfunc main() {}\n", 3, "function-declaration"},
+		{"generic function", "package main\n\nfunc f[T any](x T) T { return x }\n\nfunc main() {}\n", 3, "generic-uninstantiated"},
 		{"range over a string", main("for i := range \"hi\" {\n\tprintln(i)\n}"), 3, "for-range"},
 		{"complex type", main("var c complex64\nprintln(c == 0)"), 3, "non-int-type"},
 		{"package name", "package foo\n\nfunc main() {}\n", 3, "package-name"},
