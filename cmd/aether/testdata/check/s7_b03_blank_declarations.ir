@@ -1,0 +1,4 @@
+func main @testdata/check/s7_b03_blank_declarations.go:5:6
+b0:
+  v0 = const 1 @6:10
+  ret @9:1

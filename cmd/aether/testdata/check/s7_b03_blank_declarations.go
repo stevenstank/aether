@@ -1,4 +1,4 @@
-// aether:expect unsupported blank-identifier
+// aether:expect run
 
 package main
 

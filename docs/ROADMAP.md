@@ -1126,7 +1126,7 @@ repeated in each phase below:
     past gathering baseline coverage of its 2,673 cached inputs (993 in
     300 s), so it ran no new inputs: open.
 
-## Phase 11: Packages, standard library, conformance
+## Phase 11: Packages, standard library, conformance (in progress)
 
 - **Scope:**
   - multi-file and multi-package compilation
@@ -1144,6 +1144,36 @@ repeated in each phase below:
 - **Risks:**
   - the standard library depends on gc runtime internals
   - full compatibility may require ABI or runtime decisions that revisit D-009
+- **Design (D-049, 2026-11-20):** a loader in `internal/frontend` as
+  D-002's importer; GOROOT source with embedded overlays and intrinsics;
+  the gate and lowering limited to what `main` can reach in imported
+  packages; `TestGorootRun` and its golden file as the published pass
+  rate. Baseline before any Phase 11 code: 207 of 1,010 `// run` files
+  pass, 801 are `unsupported`, 2 are `internal`.
+- **Increments** (D-049):
+  - **11.1** The conformance harness, its golden baseline, directives, and
+    the `internal` bugs it found. *Done 2026-11-20, owner review pending:*
+    `TestGorootRun` and `testdata/goroot/run.golden` (265 of 1,005 pass,
+    0 bugs); `//go:build` and `// +build` before the package clause and
+    `//go:noinline`, `//go:norace`, `//go:nocheckptr`, and
+    `//go:registerparams` before a function accepted; a `switch` on a
+    slice and the address of a slice or map literal fixed (`s7_r01`,
+    `s7_r02`, gate tests).
+  - **11.2** Defined types of every supported underlying type, and the
+    blank identifier. *Done 2026-11-20, owner review pending:* the gate
+    and lowering treat a defined type by its underlying type; interface,
+    method value, and method expression wrappers pass a receiver of any
+    number of words; blank targets are evaluated and discarded.
+    `TestGorootRun`: 395 of 1,005 pass, 0 bugs. Tests: `s7_t01`, `s7_t02`,
+    `s7_b01` to `s7_b03`, gate tests.
+  - **11.3** `for range` over integers, arrays, slices, and strings;
+    labels and `goto`; `init` functions; local types.
+  - **11.4** Several files of `package main`; packages of the main module.
+  - **11.5** The standard library from GOROOT source: overlays,
+    intrinsics, reachability.
+  - **11.6** `runtime`, `os`, `sync`, and `sync/atomic` overlays.
+  - **11.7** `unsafe` and generics across packages.
+  - **11.8** A `reflect` subset and `fmt` from source.
 
 ---
 

@@ -212,6 +212,6 @@ func (l *lowerer) addressOf(e *ast.UnaryExpr) *ir.Instr {
 // composite literal lit, of type t.
 func (l *lowerer) heapLit(lit *ast.CompositeLit, t types.Type, pos ir.Pos) *ir.Instr {
 	p := place{base: l.keep(l.alloc(t, pos), pos), t: t}
-	l.fill(p, lit) // the object holds zeros
+	l.fillElement(p, lit) // the object holds zeros; a slice or map literal is stored whole
 	return p.base()
 }

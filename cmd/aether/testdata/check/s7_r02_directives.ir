@@ -1,0 +1,32 @@
+func add(i64, i64) i64 @testdata/check/s7_r02_directives.go:13:6
+  slot s0 a i64 @13:10
+  slot s1 b i64 @13:13
+b0:
+  v0 = param 0 @13:10
+  store s0, v0 @13:10
+  v1 = param 1 @13:13
+  store s1, v1 @13:13
+  v2 = load s0 @13:33
+  v3 = load s1 @13:37
+  v4 = add v2, v3 @13:35
+  ret v4 @13:26
+
+func twice(i64) i64 @testdata/check/s7_r02_directives.go:20:6
+  slot s0 x i64 @20:12
+b0:
+  v0 = param 0 @20:12
+  store s0, v0 @20:12
+  v1 = load s0 @20:36
+  v2 = load s0 @20:39
+  v3 = call add, v1, v2 @20:32
+  ret v3 @20:25
+
+func main @testdata/check/s7_r02_directives.go:22:6
+b0:
+  v0 = const 1 @23:14
+  v1 = const 2 @23:17
+  v2 = call add, v0, v1 @23:10
+  v3 = const 21 @23:27
+  v4 = call twice, v3 @23:21
+  println v2, v4 @23:2
+  ret @24:1

@@ -260,8 +260,11 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 	}
 	for _, spec := range d.Specs {
 		for _, id := range spec.(*ast.ValueSpec).Names {
+			if id.Name == "_" {
+				continue // no storage: its initializer runs in Init
+			}
 			v, ok := l.pkg.Info.Defs[id].(*types.Var)
-			if !ok || id.Name == "_" {
+			if !ok {
 				l.fail(id, "%s does not declare a variable", id.Name)
 			}
 			file := frontend.Position(l.pkg.Fset, id.Pos()).File
@@ -309,6 +312,9 @@ func (l *lowerer) init(prog *ir.Program) {
 		}
 		vals := l.valuesOrResults([]ast.Expr{init.Rhs}, ts)
 		for i, v := range init.Lhs {
+			if v.Name() == "_" {
+				continue // evaluated and discarded
+			}
 			gv, ok := l.globalVar(v, l.pos(init.Rhs, v.Pos()))
 			if !ok {
 				l.fail(init.Rhs, "initializer of %s, which is not a global", v.Name())
@@ -656,10 +662,17 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 	}
 	var tag func() *ir.Instr
 	var strTag func() []*ir.Instr // a string tag's words (D-037)
+	sliceTag := false
 	if s.Tag != nil {
-		if isString(l.pkg.Info.Types[s.Tag].Type) {
+		switch tt := l.pkg.Info.Types[s.Tag].Type; {
+		case isString(tt):
 			strTag = l.spillWords(l.value(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
-		} else {
+		case isSlice(tt):
+			// A slice is comparable only with nil, so every case value is
+			// nil and the tag's Ptr decides (D-036).
+			tag = l.spill(l.value(s.Tag)[0], l.pos(s.Tag, s.Tag.Pos()))
+			sliceTag = true
+		default:
 			tag = l.spill(l.expr(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
 		}
 	}
@@ -677,10 +690,16 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 		for _, e := range cc.List {
 			pos := l.pos(e, e.Pos())
 			var cond *ir.Instr
-			if strTag != nil {
+			switch {
+			case strTag != nil:
 				v := l.value(e)
 				cond = l.stringEqual(strTag(), v, pos)
-			} else {
+			case sliceTag:
+				if !l.pkg.Info.Types[e].IsNil() {
+					l.fail(e, "case value of a slice tag that is not nil")
+				}
+				cond = l.fn.TypedConst(l.b, ir.Ptr, 0, pos)
+			default:
 				cond = l.expr(e)
 			}
 			if tag != nil {
@@ -725,6 +744,9 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 	if len(spec.Values) == 0 {
 		for _, id := range spec.Names {
+			if id.Name == "_" {
+				continue
+			}
 			v, ok := l.pkg.Info.Defs[id].(*types.Var)
 			if !ok {
 				l.defineVar(id) // fails
@@ -740,6 +762,9 @@ func (l *lowerer) varSpec(spec *ast.ValueSpec) {
 	vals := l.valuesOrResults(spec.Values, ts)
 	get := l.keepAcrossStores(vals, len(spec.Names) > 1 && l.anyAggregate(spec.Names), l.pos(spec, spec.Pos()))
 	for i, id := range spec.Names {
+		if id.Name == "_" {
+			continue // evaluated and discarded
+		}
 		l.store(l.defineVar(id), get[i](), l.pos(id, id.Pos()))
 	}
 }
@@ -778,6 +803,9 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		targets := make([]variable, len(s.Lhs))
 		inMemory := false
 		for i, e := range s.Lhs {
+			if isBlank(e) {
+				continue // the value is discarded
+			}
 			if id, ok := e.(*ast.Ident); ok && s.Tok == token.DEFINE && l.pkg.Info.Defs[id] != nil {
 				continue // defined after the right side is evaluated
 			}
@@ -786,7 +814,9 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		}
 		var ts []types.Type
 		for _, e := range s.Lhs {
-			if id, ok := e.(*ast.Ident); ok {
+			if isBlank(e) {
+				ts = append(ts, l.blankType(s, len(ts)))
+			} else if id, ok := e.(*ast.Ident); ok {
 				ts = append(ts, l.pkg.Info.ObjectOf(id).Type())
 			} else {
 				ts = append(ts, l.pkg.Info.Types[e].Type)
@@ -794,12 +824,15 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		}
 		vals := l.valuesOrResults(s.Rhs, ts)
 		for _, e := range s.Lhs {
-			if id, ok := e.(*ast.Ident); ok && isAggregate(l.pkg.Info.ObjectOf(id).Type()) {
+			if id, ok := e.(*ast.Ident); ok && !isBlank(e) && isAggregate(l.pkg.Info.ObjectOf(id).Type()) {
 				inMemory = true
 			}
 		}
 		get := l.keepAcrossStores(vals, len(s.Lhs) > 1 && inMemory, l.pos(s, s.Pos()))
 		for i, e := range s.Lhs {
+			if isBlank(e) {
+				continue
+			}
 			v := targets[i]
 			if v.slots == nil && v.globals == nil && v.mem == nil {
 				v = l.defineVar(l.ident(e))
@@ -1085,6 +1118,29 @@ func (l *lowerer) ident(e ast.Expr) *ast.Ident {
 		l.fail(e, "unexpected assignment target %s", types.ExprString(e))
 	}
 	return id
+}
+
+// isBlank reports whether e is the blank identifier.
+func isBlank(e ast.Expr) bool {
+	id, ok := e.(*ast.Ident)
+	return ok && id.Name == "_"
+}
+
+// blankType returns the type of the value that s assigns to its i-th target,
+// the blank identifier: that value's own type, a nil entry for values, or,
+// for a target of := that go/types declared, the variable's type.
+func (l *lowerer) blankType(s *ast.AssignStmt, i int) types.Type {
+	if v, ok := l.pkg.Info.Defs[s.Lhs[i].(*ast.Ident)].(*types.Var); ok {
+		return v.Type()
+	}
+	if len(s.Rhs) == len(s.Lhs) {
+		return l.pkg.Info.Types[s.Rhs[i]].Type
+	}
+	if t, ok := l.pkg.Info.Types[s.Rhs[0]].Type.(*types.Tuple); ok {
+		return t.At(i).Type()
+	}
+	l.fail(s, "no type for the blank target %d", i)
+	return nil
 }
 
 // define creates the slots, one per word, for the variable that id
@@ -1651,7 +1707,7 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 }
 
 func isString(t types.Type) bool {
-	b, ok := t.(*types.Basic)
+	b, ok := t.Underlying().(*types.Basic)
 	return ok && (b.Kind() == types.String || b.Kind() == types.UntypedString)
 }
 
@@ -1847,7 +1903,7 @@ func (l *lowerer) words(n ast.Node, t types.Type) []ir.Type {
 
 // irType returns the IR type of a bool, integer, float, or pointer Go type.
 func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
-	if b, ok := t.(*types.Basic); ok {
+	if b, ok := t.Underlying().(*types.Basic); ok {
 		if it, ok := irTypes[b.Kind()]; ok {
 			return it
 		}
@@ -1977,7 +2033,7 @@ func int64Val(tv types.TypeAndValue) (int64, bool) {
 func (l *lowerer) typeDecl(d *ast.GenDecl, what string) {
 	for _, spec := range d.Specs {
 		tn, ok := l.pkg.Info.Defs[spec.(*ast.TypeSpec).Name].(*types.TypeName)
-		if !ok || tn.IsAlias() || !isAggregate(tn.Type()) && !isIface(tn.Type()) {
+		if !ok || tn.IsAlias() {
 			l.fail(d, "unexpected %s", what)
 		}
 	}

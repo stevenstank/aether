@@ -161,31 +161,45 @@ func (l *lowerer) methodValue(e *ast.SelectorExpr, sel *types.Selection) *ir.Ins
 	pos := l.pos(e, e.Sel.Pos())
 	f, ptrRecv := l.method(e, sel)
 	rt := sel.Obj().Type().(*types.Signature).Recv().Type()
-	r := l.scalar(e, l.receiver(e, sel))
-	w := l.wrapper("b."+f.Name, append([]ir.Type{ir.Ptr}, f.Params[1:]...), f.Results, f.Pos, func(w *ir.Func) {
+	r := l.receiver(e, sel)
+	nrecv := len(l.words(e, rt))
+	w := l.wrapper("b."+f.Name, append([]ir.Type{ir.Ptr}, f.Params[nrecv:]...), f.Results, f.Pos, func(w *ir.Func) {
 		ps := l.enter(w, pos)
 		ctx := ps[0]
-		recv := func() *ir.Instr { return l.fn.LdM(l.b, ir.Ptr, ctx(), l.fn.Const(l.b, 8, pos), pos) }
-		if !ptrRecv {
+		var recv []func() *ir.Instr
+		switch {
+		case ptrRecv:
+			recv = []func() *ir.Instr{func() *ir.Instr { return l.fn.LdM(l.b, ir.Ptr, ctx(), l.fn.Const(l.b, 8, pos), pos) }}
+		case isAggregate(rt):
 			// A copy for each call: the method may change its receiver.
 			m := l.newMem("recv", rt, pos)
 			l.copyPlace(l.memPlace(m, rt, pos), place{base: ctx, c: 8, t: rt}, pos)
-			recv = func() *ir.Instr { return l.addr(m, pos) }
+			recv = []func() *ir.Instr{func() *ir.Instr { return l.addr(m, pos) }}
+		default:
+			// The words loaded are this call's copy (D-049).
+			recv = l.keepAll(l.loadPlace(place{base: ctx, c: 8, t: rt}, pos), pos)
 		}
-		l.forward(f, recv, ps[1:], pos)
+		l.forward(f, nil, append(recv, ps[1:]...), pos)
 	})
 	size := int64(16)
 	if !ptrRecv {
 		size = 8 + sizes.Sizeof(rt)
 	}
-	get := l.keep(r, pos)
+	get := l.keepAll(r, pos)
 	c := l.fn.Alloc(l.b, l.fn.Const(l.b, size, pos), pos)
 	cl := l.keep(c, pos)
 	l.fn.StM(l.b, cl(), l.fn.Const(l.b, 0, pos), l.fn.FuncAddr(l.b, w, pos), pos)
-	if ptrRecv {
-		l.fn.StM(l.b, cl(), l.fn.Const(l.b, 8, pos), get(), pos)
-	} else {
-		l.copyPlace(place{base: cl, c: 8, t: rt}, l.valuePlace(get(), rt, pos), pos)
+	switch {
+	case ptrRecv:
+		l.fn.StM(l.b, cl(), l.fn.Const(l.b, 8, pos), get[0](), pos)
+	case isAggregate(rt):
+		l.copyPlace(place{base: cl, c: 8, t: rt}, l.valuePlace(get[0](), rt, pos), pos)
+	default:
+		var ws []*ir.Instr
+		for _, g := range get {
+			ws = append(ws, g())
+		}
+		l.storePlace(place{base: cl, c: 8, t: rt}, ws, pos)
 	}
 	return cl()
 }
@@ -208,22 +222,40 @@ func (l *lowerer) methodExpr(e *ast.SelectorExpr, sel *types.Selection) *ir.Inst
 	if xPtr {
 		kind = "p."
 	}
-	params := append([]ir.Type{ir.Ptr, ir.Ptr}, f.Params[1:]...)
+	// The operand's words, then the method's parameters after its
+	// receiver's words (D-049).
+	nx := len(l.words(e, xt))
+	nrecv := len(l.words(e, sel.Obj().Type().(*types.Signature).Recv().Type()))
+	params := append(append([]ir.Type{ir.Ptr}, l.words(e, xt)...), f.Params[nrecv:]...)
 	w := l.wrapper(kind+named.Obj().Name()+"."+sel.Obj().Name(), params, f.Results, f.Pos, func(w *ir.Func) {
 		ps := l.enter(w, pos)
 		x := ps[1]
 		var deref, addr func() place
 		if xPtr {
 			deref = func() place { return l.through(x(), n, pos) }
-		} else {
+		} else if isAggregate(n) {
 			// The caller's copy of the operand, this call's own.
 			addr = func() place { return l.valuePlace(x(), n, pos) }
 		}
-		r := l.recvOf(e, sel, xPtr, func() []*ir.Instr { return []*ir.Instr{x()} }, deref, addr, pos)
-		get := l.keep(l.scalar(e, r), pos)
-		l.forward(f, get, ps[2:], pos)
+		r := l.recvOf(e, sel, xPtr, func() []*ir.Instr {
+			var ws []*ir.Instr
+			for _, p := range ps[1 : 1+nx] {
+				ws = append(ws, p())
+			}
+			return ws
+		}, deref, addr, pos)
+		l.forward(f, nil, append(l.keepAll(r, pos), ps[1+nx:]...), pos)
 	})
 	return l.closure(w, pos)
+}
+
+// keepAll is keep for each word of a value.
+func (l *lowerer) keepAll(ws []*ir.Instr, pos ir.Pos) []func() *ir.Instr {
+	var get []func() *ir.Instr
+	for _, w := range ws {
+		get = append(get, l.keep(w, pos))
+	}
+	return get
 }
 
 // valueCall lowers a call of a func value: the function value, then the

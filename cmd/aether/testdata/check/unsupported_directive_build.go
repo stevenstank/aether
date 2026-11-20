@@ -1,7 +1,8 @@
 // aether:expect unsupported directive
-
-//go:build linux
+// aether:gc invalid
 
 package main
+
+//go:build linux
 
 func main() {}

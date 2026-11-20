@@ -3,7 +3,7 @@
 
 package main
 
-//go:noinline
+//go:nosplit
 func main() {
 	var x int = "s"
 	println(x)

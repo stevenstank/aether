@@ -1155,6 +1155,27 @@ the program's memory use does (V-5). No finalizers, no `runtime.GC`, and
 no way to tune it, except `AETHER_GCSTRESS=1` in the environment, for
 tests, which makes collections frequent and overwrites freed objects.
 
+## Defined types and the blank identifier (Phase 11 increment 11.2)
+
+D-049. These supersede the rejections that earlier sections list for them.
+- **Defined types.** A type declaration, at package level or local, may
+  define a type of any supported underlying type: an integer, float,
+  `bool`, or `string` type, and slice, map, pointer, func, and channel
+  types, as well as arrays, structs, and interfaces. Methods may be
+  declared on any of them. Conversions, constants, operators, `println`,
+  comparisons, map keys, interfaces, type switches, method values, and
+  method expressions follow the underlying type. A panic with a value of a
+  defined basic type writes gc's `main.T(v)`, a string as `main.T("s")`.
+- **The blank identifier** may be declared in `var` and `const`
+  declarations, at package level and local, and be a target of `:=` and
+  `=`, a `select` receive, and a `range` assignment. Each value is
+  evaluated, in order, and discarded. A function, method, or type named `_`
+  stays `blank-identifier`.
+- Still `unsupported`: type aliases and generic type declarations
+  (`package-level-declaration`, `local-type-declaration`), and a method
+  expression of a type that is neither defined nor an interface, as
+  `struct{ T }.m` (`selector`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1195,6 +1216,9 @@ tests, which makes collections frequent and overwrites freed objects.
 | Goroutines and channels: `go`, channel types, `make`, send, receive, comma-ok, `close`, `len`, `cap`, comparison, `for range`, nil channels, deadlock detection, `select` | Go statements, Channel types, Send statements, Receive operator, Close, For statements with range clause, Select statements | Phase 10 / 10.2, 10.3 | Supported (native), with divergences V-2, V-3, V-5, and V-10 | `s6_g01_channels` to `s6_g09_select_deadlock`; generated goroutine and channel programs; `TestChanPrograms`, `TestScheduleOrder`, `TestSelectChoice`, `TestGoNilFuncArgs`, `TestGCMemoryBound`, `TestPanicPrefix`, `TestGoroutineGC`, `TestGCStress`; gate tests |
 | Garbage collection of the heap: unreachable objects freed and their memory reused, with a bound on memory use | Memory model (allocation), Run-time panics | Phase 9 | Supported (native), with divergence V-5 | `TestGCStress` (every corpus program, generated allocation programs, and every generator, under stress), `TestGCMemoryBound` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
+| Directives: `//go:build` and `// +build` before the package clause (ignored for files named on the command line, as by `go build file.go`); `//go:noinline`, `//go:norace`, `//go:nocheckptr`, `//go:registerparams` on their own line before a function with a body (ignored) | Program execution; gc's directives | Phase 11 / 11.1 | Supported (native) | `s7_r02_directives`; `TestRejectedFileLevel`; `TestGorootRun` |
+| Defined types of every supported underlying type, with methods, conversions, and interfaces | Type definitions, Method declarations, Conversions | Phase 11 / 11.2 | Supported (native) | `s7_t01_defined_types`, `s7_t02_local_types`; gate tests; `TestGorootRun` |
+| The blank identifier in declarations and assignments | Blank identifier, Assignment statements | Phase 11 / 11.2 | Supported (native) | `s7_b01_blank` to `s7_b03_blank_declarations`; gate tests; `TestGorootRun` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

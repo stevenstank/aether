@@ -155,7 +155,8 @@ func (l *lowerer) ifaceMethod(d *tdesc, sel *types.Selection, pos ir.Pos) *ir.Fu
 	f, _ := l.method(nil, sel)
 	t := d.t
 	name := fmt.Sprintf("i%d.%s", d.id, sel.Obj().Name())
-	return l.wrapper(name, append([]ir.Type{ir.Ptr, ir.Ptr}, f.Params[1:]...), f.Results, pos, func(w *ir.Func) {
+	nrecv := len(l.words(nil, sel.Obj().Type().(*types.Signature).Recv().Type()))
+	return l.wrapper(name, append([]ir.Type{ir.Ptr, ir.Ptr}, f.Params[nrecv:]...), f.Results, pos, func(w *ir.Func) {
 		ps := l.enter(w, pos)
 		data := ps[1]
 		var r []*ir.Instr
@@ -166,10 +167,15 @@ func (l *lowerer) ifaceMethod(d *tdesc, sel *types.Selection, pos ir.Pos) *ir.Fu
 		} else {
 			m := l.newMem("recv", t, pos)
 			l.copyPlace(l.memPlace(m, t, pos), l.valuePlace(data(), t, pos), pos)
-			r = l.recvOf(nil, sel, false, func() []*ir.Instr { return []*ir.Instr{l.addr(m, pos)} },
-				nil, func() place { return l.memPlace(m, t, pos) }, pos)
+			// An array or struct is passed as its Ptr; a value of any other
+			// type, of a defined type (D-049), as its words.
+			value := func() []*ir.Instr { return []*ir.Instr{l.addr(m, pos)} }
+			if !isAggregate(t) {
+				value = func() []*ir.Instr { return l.loadPlace(l.memPlace(m, t, pos), pos) }
+			}
+			r = l.recvOf(nil, sel, false, value, nil, func() place { return l.memPlace(m, t, pos) }, pos)
 		}
-		l.forward(f, l.keep(l.scalar(nil, r), pos), ps[2:], pos)
+		l.forward(f, nil, append(l.keepAll(r, pos), ps[2:]...), pos)
 	})
 }
 

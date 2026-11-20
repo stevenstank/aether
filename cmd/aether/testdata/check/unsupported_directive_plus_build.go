@@ -1,7 +1,7 @@
 // aether:expect unsupported directive
 
-// +build linux
-
 package main
+
+// +build linux
 
 func main() {}

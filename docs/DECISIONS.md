@@ -74,6 +74,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-043 | Defer, panic, and recover (Phase 8 increment 8.6) | Accepted (2026-11-19, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-044 | Named results (Phase 8 increment 8.7) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-048 | Goroutines, channels, and the scheduler (Phase 10) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending; increment 10.1 implemented) |
+| D-049 | Packages, the standard library, and conformance (Phase 11) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
 
 ## Review log
 
@@ -3944,6 +3945,225 @@ roots and settles D-011's "Goroutines (Phase 10)" trigger and D-009's
   removes its other waiters from their queues, scanning each queue.
 - `select {}` and a select whose channels are all nil park with nothing
   queued, so only a deadlock ends them.
+
+---
+
+## D-049: Packages, the standard library, and conformance (Phase 11)
+
+**Status:** Accepted (2026-11-20). The design-first note for Phase 11,
+written before any code; the owner's review is pending. It settles D-002's
+"Phase 11 importer" trigger and amends D-003's gate contract for imported
+packages.
+
+**Context.**
+- Aether compiles one file of `package main` with no imports. The gate
+  rejects every import, every directive, and more than one file (D-003).
+- Measured on 2026-11-20 with go1.26.1's `/usr/local/go/test`:
+  - 1,010 files have a line that is exactly `// run`. 509 of them have no
+    import.
+  - Their imports, by number of files: `fmt` 250, `runtime` 116, `os` 79,
+    `reflect` 70, `unsafe` 60, `strings` 47, `math` 31, `os/exec` 24,
+    `log` 23, `time` 22, `bytes` 22, `strconv` 17, `sync` 14,
+    `sync/atomic` 11, `errors` 11.
+  - Today's `aether build` on all 1,010, with testdir's rule (below): 207
+    pass, 801 are `unsupported`, 2 are `internal` (both bugs), and none
+    builds and then fails.
+  - Directives: `//go:noinline` stops 156 files and `//go:build` 67. With
+    the harmless function directives and `//go:build` blanked out, 55 more
+    files pass the gate.
+  - Among the files with no import, the features stopping the most files
+    are the blank identifier (101), defined types whose underlying type is
+    not an array, struct, or interface (73), range over anything but maps
+    and channels (34), conversions between defined types (34), labels (11),
+    local type declarations (10), `init` functions (8), and `goto` (6). Every
+    standard-library package uses these.
+- gc's directives (go1.26.1, measured):
+  - A known directive that does not precede a declaration it applies to
+    is an error, `misplaced compiler directive`. Examples are
+    `//go:noinline` before a `var`, inside a function body, or after
+    `/* c */` on its line; `//go:registerparams` before a `var`; and
+    `//go:nosplit` before a `type`.
+  - An unknown `//go:foobar` is ignored anywhere.
+  - Blank lines and comments between a directive and its `func` are
+    allowed.
+  - `go build file.go` ignores `//go:build windows` in a named file.
+  - A body-less function is `missing function body` unless the package has
+    assembly. `//go:linkname` needs `import "unsafe"`.
+- testdir (`cmd/internal/testdir`) runs a `// run` test with `go run`. The
+  test passes when the exit status is 0 and stdout and stderr together equal
+  the file's `.out` file, or are empty when there is none. A test whose
+  `//go:build` line excludes the target is skipped.
+- D-002 forbids `go/importer` and `go/build`. `go/build/constraint` only
+  parses and evaluates expressions; it starts no process.
+
+**Decision.**
+- **Conformance harness.** `TestGorootRun` builds and runs every GOROOT
+  test whose directive line is exactly `// run`, with testdir's rule. It
+  writes one line per test to a reviewed golden file,
+  `cmd/aether/testdata/goroot/run.golden`, and the published pass rate
+  comes from it. The classes are:
+  - `skip`: the build constraints exclude linux/amd64, as testdir does;
+  - `pass`;
+  - `unsupported` with the feature name of the first diagnostic;
+  - `bug`: `invalid`, `internal`, a wrong output or exit status, or a run
+    longer than its time limit.
+
+  Exit status 5, a missing toolchain, fails the test instead of being
+  recorded. The GOROOT tree is the one `go env GOROOT` names; the
+  toolchain is used here only as a test-time locator (D-014).
+- **Directives.**
+  - `//go:noinline`, `//go:norace`, `//go:nocheckptr`, and
+    `//go:registerparams` are accepted and ignored when they start a line
+    between the previous top-level declaration and a top-level function
+    declaration with a body. They change no behavior Aether reproduces.
+  - `//go:build` and `// +build` lines before the package clause are
+    accepted. Files named on the command line ignore them, as `go build
+    file.go` does; the loader evaluates them for package directories.
+  - Every other directive, and these in any other place, stays
+    `unsupported`. gc rejects a misplaced one as invalid, so this keeps the
+    classification conservative.
+  - `//go:nosplit` stays `unsupported`, because gc's linker rejects
+    nosplit frames that are too large.
+- **Packages and the loader** (the importer D-002 requires).
+  - A new loader in `internal/frontend` type-checks a program as a graph of
+    packages. Each package is checked by `go/types` with the loader as its
+    `types.Importer`, after all the packages it imports.
+  - The command line names the `.go` files of `package main`, in one
+    directory.
+  - Import paths resolve to directories:
+    - a path whose first element has no dot is a standard-library path, in
+      `$GOROOT/src` with Aether's overlay (below);
+    - a path inside the main module goes to the module's directory. The
+      module is the nearest `go.mod` above the files, read for its
+      `module` line only.
+
+    Anything else, cgo, and an import of `main` are `unsupported`. An
+    import cycle is `invalid`, as gc reports it.
+  - Files are selected as the go command selects them:
+    - `.go` files, but not `_test.go` files or names beginning with `_` or
+      `.`;
+    - `_GOOS`, `_GOARCH`, and `_GOOS_GOARCH` suffixes, with go1.26's lists;
+    - `//go:build` evaluated by `go/build/constraint`. The tags are
+      `linux`, `unix`, `amd64`, `purego`, and `go1.1` to `go1.26`. `gc`,
+      `gccgo`, and `cgo` are not set, because Aether is neither compiler.
+  - Packages are initialized in the specification's order: repeatedly the
+    first package, sorted by import path, whose imports are all
+    initialized. `main` comes last.
+  - IR symbols of a package other than `main` are qualified by its import
+    path, as gc's symbols are. `main`'s keep their names.
+  - **Diagnostics** in GOROOT files are printed as `$GOROOT/src/…` and in
+    overlay files as `$AETHER/…`, so output does not depend on absolute
+    paths. Type errors in a module package are `invalid`. Type errors in a
+    standard-library package are `unsupported` (`stdlib-package`): they
+    come from files written for gc or gccgo.
+- **GOROOT.** The source is `$GOROOT/src`, from the `GOROOT` environment
+  variable, or else the GOROOT that built Aether. `$GOROOT/VERSION` must
+  start with `go1.26`, the version Aether type-checks against (D-015) and
+  its overlays are written for. A missing or mismatched tree is a usage
+  error (exit 2), like an unreadable source file. Only programs with
+  imports read it.
+- **Overlays.** Aether ships Go source, embedded in the binary, for
+  standard-library packages that depend on gc's runtime, assembly, or
+  `//go:linkname`.
+  - A *replaced* package (for example `runtime`, `sync`, `sync/atomic`,
+    and `os`) is only Aether's files.
+  - A *patched* package keeps GOROOT's files. Overlay files of the same
+    name replace them, and a list in the loader excludes others.
+  - Overlay files may declare body-less *intrinsic* functions. Lowering
+    maps each one, by package path and name, to IR. A body-less function
+    anywhere else stays `unsupported`. Overlays are written in the
+    supported subset and compiled like any other package.
+- **Reachability (amends D-003).** The gate and lowering see all of
+  `main`, as today. In an imported package they see only what `main` can
+  reach:
+  - `init` functions, and package variables whose initializers call a
+    function, are roots;
+  - a declaration is reachable when reachable code names it;
+  - every method of a type is reachable when a reachable conversion puts
+    that type, or a pointer to it, into an interface.
+
+  An unsupported construct in unreachable standard-library code is
+  therefore not reported. gc compiles it, but no program can observe it.
+- **Generics across packages.** An instance is made in the generic
+  declaration's package (D-045), which is type-checked again. Until
+  increment 11.7 the gate rejects an instance of another package's generic
+  code.
+
+**Increments.**
+1. **11.1** The conformance harness and its golden baseline; directives;
+   the two `internal` bugs it found.
+2. **11.2** Defined types of every supported underlying type, with
+   conversions and methods, and the blank identifier.
+3. **11.3** `for range` over integers, arrays, pointers to arrays, slices,
+   and strings; labels, labeled `break` and `continue`, `goto`; `init`
+   functions; local type declarations.
+4. **11.4** Several files of `package main`; the loader with packages of
+   the main module: build constraints, cycles, initialization order,
+   qualified symbols, the gate on every package. Differential tests of
+   programs made of several packages.
+5. **11.5** The standard library from GOROOT source: the GOROOT check,
+   overlays, intrinsics, and reachability. First `unicode/utf8`,
+   `unicode`, `math/bits`, `math`, and `strconv`.
+6. **11.6** Overlays of `runtime` (`GC`, `Gosched`, `NumGoroutine`,
+   `GOOS`, `GOARCH`), `os` (`Exit`, `Args`, `Stdout`, `Stderr`), `sync`
+   (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), and `sync/atomic`, written
+   with channels and plain memory operations, which are atomic under M:1
+   (D-048).
+7. **11.7** `unsafe`, and generics across packages, for `errors`,
+   `strings`, `bytes`, `sort`, `slices`, and `maps`.
+8. **11.8** A subset of `reflect` over Aether's type descriptors (D-041),
+   enough for `fmt` compiled from GOROOT source.
+9. **Phase validation:** the published pass rate, with every failure
+   classified.
+
+**Invariants.**
+1. No package is ever compiled or type-checked by gc's toolchain. The loader
+   runs no process, and imports neither `go/importer` nor `go/build`.
+2. The program's output does not depend on GOROOT's absolute path or the
+   working directory.
+3. An imported package is lowered only after the gate has accepted
+   everything reachable in it.
+4. Overlays are ordinary Go in the subset. Only intrinsics, by name, reach
+   past the language.
+
+**Alternatives considered.**
+- **gc's export data** (`go/importer`, or reading `$GOROOT/pkg`). This
+  needs the go command or gc-built archives and gives types without bodies,
+  and Aether needs bodies to compile them. D-002 rules it out.
+- **A copy of the standard library in the repository.** It needs the BSD
+  license handled (`TESTING.md`) and goes stale with each Go release.
+  Reading GOROOT keeps one source of truth, at the price of the version
+  check.
+- **Gating whole imported packages.** Nearly every package has one
+  construct outside the subset (`unsafe`, assembly, `linkname`), so almost
+  nothing would compile.
+- **Setting the `gc` build tag.** It selects files that need gc's
+  assembly. Overlays name what Aether replaces instead.
+- **Aether-written `fmt` without `reflect`.** It would be a second `fmt`
+  whose divergences from gc's would be Aether's to find. Compiling gc's
+  `fmt` from source puts the work into a smaller, testable `reflect`.
+
+**Consequences.**
+- A program's support depends on the GOROOT the compiler reads. The
+  version check bounds that to go1.26.x.
+- Phase 11's pass rate counts only exact `// run` files. `rundir`,
+  `runoutput`, and `// run` with arguments are not counted.
+- Libraries outside the main module, vendoring, and `replace` lines stay
+  `unsupported`.
+
+**Implementation notes (increments 11.1 and 11.2, 2026-11-20).**
+- The harness found two `internal` errors before any Phase 11 code: a
+  `switch` on a slice tag (`case nil`) and `&[]int{12}`. Both were
+  lowering gaps behind the gate.
+- Before 11.2, only arrays and structs had methods, so every receiver was
+  one word: the Ptr of an aggregate, or a pointer. Interface method
+  wrappers, bound method values, and method expressions assumed that. They
+  now take and pass the receiver's words: a `string` receiver is two words
+  and a slice three.
+- A method expression of an unnamed type (`struct{ T }.m2`,
+  `test/method7.go`) became reachable once `type T int` was accepted.
+  Lowering names wrappers after the defined type, so the gate rejects it
+  (`selector`).
 
 ---
 

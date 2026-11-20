@@ -20,8 +20,8 @@
 //
 //   - Files and Precheck, before type checking, reject file-level constructs:
 //     more than one file, a package other than main, imports, directive
-//     comments, and an empty result list on main or init (which go/types
-//     would wrongly report as an error; E12).
+//     comments other than those D-049 accepts, and an empty result list on
+//     main or init (which go/types would wrongly report as an error; E12).
 //   - Check, after successful type checking, walks every declaration,
 //     statement, and expression of every function using types.Info.
 package gate
@@ -111,7 +111,7 @@ func Precheck(fset *token.FileSet, f *ast.File) []diag.Diagnostic {
 	}
 	for _, g := range f.Comments {
 		for _, c := range g.List {
-			if name, ok := directive(c.Text); ok {
+			if name, ok := directive(c.Text); ok && !allowedDirective(fset, f, c, name) {
 				ds = append(ds, unsupported(pos(c.Pos()), FeatDirective, "directive "+name))
 			}
 		}
@@ -129,6 +129,36 @@ func Precheck(fset *token.FileSet, f *ast.File) []diag.Diagnostic {
 		}
 	}
 	return ds
+}
+
+// funcDirectives are the directives that change nothing Aether reproduces,
+// accepted where gc applies them: on a line of their own before a function
+// declaration with a body (D-049).
+var funcDirectives = map[string]bool{
+	"//go:noinline": true, "//go:norace": true, "//go:nocheckptr": true, "//go:registerparams": true,
+}
+
+// allowedDirective reports whether the directive c, named name, is one D-049
+// accepts: a build constraint before the package clause, which a file named
+// on the command line ignores as "go build file.go" does, or one of
+// funcDirectives starting a line between the previous top-level declaration
+// and a function declaration with a body.
+func allowedDirective(fset *token.FileSet, f *ast.File, c *ast.Comment, name string) bool {
+	if name == "//go:build" || name == "// +build" {
+		return c.Pos() < f.Package
+	}
+	if !funcDirectives[name] || fset.PositionFor(c.Pos(), false).Column != 1 {
+		return false
+	}
+	prev := f.Name.End()
+	for _, d := range f.Decls {
+		if d.Pos() > c.Pos() {
+			fd, ok := d.(*ast.FuncDecl)
+			return ok && fd.Body != nil && c.Pos() > prev
+		}
+		prev = d.End()
+	}
+	return false
 }
 
 // directive reports whether a comment is one of the directive forms S1
@@ -695,10 +725,8 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 	// problem several times.
 	explained := len(c.ds) > mark || !typeOK
 	for _, name := range spec.Names {
-		if name.Name == "_" {
-			c.reject(name, FeatBlank, "the blank identifier")
-			continue
-		}
+		// A blank name declares a variable of its type with no storage
+		// (D-049): its value is evaluated and discarded.
 		obj := c.info.Defs[name]
 		if obj == nil {
 			c.internal(name, "no object for declared name %s", name.Name)
@@ -823,12 +851,13 @@ func (c *checker) sized(e ast.Expr) bool {
 	return true
 }
 
-// typeDecl checks a type declaration: only a defined array or struct type,
-// not generic and not an alias, is allowed. feature names a rejected one.
+// typeDecl checks a type declaration: a defined type of any supported
+// underlying type, not generic and not an alias, is allowed (D-049).
+// feature names a rejected one.
 func (c *checker) typeDecl(d *ast.GenDecl, feature string) {
 	for _, spec := range d.Specs {
 		spec := spec.(*ast.TypeSpec)
-		tn, ok := c.info.Defs[spec.Name].(*types.TypeName)
+		_, ok := c.info.Defs[spec.Name].(*types.TypeName)
 		switch {
 		case spec.Name.Name == "_":
 			c.reject(spec.Name, FeatBlank, "type named _")
@@ -842,9 +871,8 @@ func (c *checker) typeDecl(d *ast.GenDecl, feature string) {
 			c.reject(spec, feature, "type alias "+spec.Name.Name)
 		case spec.TypeParams != nil:
 			c.reject(spec, feature, "generic type "+spec.Name.Name)
-		case !isAggregate(tn.Type()) && !isInterface(tn.Type()):
-			c.reject(spec, feature, fmt.Sprintf("type %s of underlying type %s (only arrays, structs, and interfaces)", spec.Name.Name, tn.Type().Underlying()))
 		default:
+			// Any supported underlying type (D-049).
 			c.typeExpr(spec.Type)
 		}
 	}
@@ -872,7 +900,8 @@ func (c *checker) assign(s *ast.AssignStmt) {
 				continue
 			}
 			if id.Name == "_" {
-				c.reject(id, FeatBlank, "the blank identifier")
+				// go/types declares it, of the value's type, which c.expr
+				// has checked (D-049).
 				continue
 			}
 			// A new variable is in Defs. A redeclared one is in Uses and
@@ -938,8 +967,7 @@ func (c *checker) target(e ast.Expr) {
 		return
 	}
 	if id.Name == "_" {
-		c.reject(id, FeatBlank, "the blank identifier")
-		return
+		return // the value, checked by the caller, is discarded (D-049)
 	}
 	if v, ok := c.info.Uses[id].(*types.Var); ok && !c.capture(id, v) {
 		return
@@ -1318,7 +1346,16 @@ func (c *checker) expr(e ast.Expr) {
 			c.methodValue(e, sel)
 			return
 		case sel != nil && sel.Kind() == types.MethodExpr:
-			// A method expression T.M or (*T).M (D-039).
+			// A method expression T.M or (*T).M (D-039), of an interface
+			// or a defined type.
+			base := sel.Recv()
+			if p, ok := base.Underlying().(*types.Pointer); ok && !isInterface(base) {
+				base = p.Elem()
+			}
+			if _, ok := types.Unalias(base).(*types.Named); !ok && !isInterface(base) {
+				c.reject(e, FeatSelector, "method expression of type "+types.ExprString(e.X))
+				return
+			}
 			if c.typeExpr(e.X) {
 				c.typed(e)
 			}
@@ -1503,7 +1540,7 @@ func unaryFeature(op token.Token) string {
 // string: a predeclared type of the subset. The complex types are not
 // supported.
 func isScalar(t types.Type) bool {
-	b, ok := types.Unalias(t).(*types.Basic)
+	b, ok := t.Underlying().(*types.Basic)
 	return ok && (b.Kind() == types.Bool || b.Kind() >= types.Int && b.Kind() <= types.Uintptr ||
 		b.Kind() == types.Float32 || b.Kind() == types.Float64 || b.Kind() == types.String)
 }
@@ -1687,7 +1724,7 @@ func isInteger(t types.Type) bool {
 
 // isString reports whether t is string or untyped string.
 func isString(t types.Type) bool {
-	b, ok := t.(*types.Basic)
+	b, ok := t.Underlying().(*types.Basic)
 	return ok && (b.Kind() == types.String || b.Kind() == types.UntypedString)
 }
 

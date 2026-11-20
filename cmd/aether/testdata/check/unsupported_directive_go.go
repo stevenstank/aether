@@ -2,5 +2,5 @@
 
 package main
 
-//go:noinline
+//go:nosplit
 func main() {}

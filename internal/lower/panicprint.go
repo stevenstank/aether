@@ -150,22 +150,31 @@ func (l *lowerer) printRuntime(k int, rec func() *ir.Instr, pos ir.Pos) {
 // printValue writes the panic value of rec, of dynamic type t, as gc's
 // printpanicval: a value of a basic type as print writes it, a string with
 // a tab after each newline, and of any other type its type's name and its
-// data word in hex. The subset has no named basic types, which gc writes
-// with their names.
+// data word in hex. A value of a defined basic type is written as its
+// type's name and the value in parentheses, a string in quotes (gc's
+// printanycustomtype).
 func (l *lowerer) printValue(t types.Type, rec func() *ir.Instr, pos ir.Pos) {
 	t = types.Unalias(t)
-	b, ok := t.(*types.Basic)
+	b, ok := t.Underlying().(*types.Basic)
 	if !ok {
 		l.printStr("("+gcName(t)+") ", pos)
 		l.fn.Call(l.b, l.ps.hex, []*ir.Instr{l.recField(rec, ir.I64, recData, pos)}, pos)
 		return
 	}
-	w := l.loadPlace(l.valuePlace(l.recField(rec, ir.Ptr, recData, pos), t, pos), pos)
-	if b.Info()&types.IsString != 0 {
-		l.fn.Call(l.b, l.ps.indented, w, pos)
-		return
+	_, named := t.(*types.Named)
+	str := b.Info()&types.IsString != 0
+	if named {
+		l.printStr(gcName(t)+map[bool]string{false: "(", true: `("`}[str], pos)
 	}
-	l.fn.Print(l.b, w, pos)
+	w := l.loadPlace(l.valuePlace(l.recField(rec, ir.Ptr, recData, pos), t, pos), pos)
+	if str {
+		l.fn.Call(l.b, l.ps.indented, w, pos)
+	} else {
+		l.fn.Print(l.b, w, pos)
+	}
+	if named {
+		l.printStr(map[bool]string{false: ")", true: `")`}[str], pos)
+	}
 }
 
 // buildIndented builds .printindented(p, n), which writes the string with

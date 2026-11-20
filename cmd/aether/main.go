@@ -29,7 +29,8 @@ Supported subset (S2):
   bool, every integer type, float32, float64, strings with len, indexing,
   slicing, +, comparison, and []byte, []rune, and integer conversions,
   rune literals, arrays and structs of them, pointers, &, and new, and
-  slices with make, append, and copy; methods of array and struct types;
+  slices with make, append, and copy; defined types of all of these, with
+  methods; methods of array and struct types;
   func values of functions and methods, and closures; interfaces, type
   assertions, and type switches; maps with make, literals, indexing,
   delete, len, clear, and range; defer, panic, and recover; goroutines

@@ -1,0 +1,1009 @@
+235.go pass
+abi/convF_criteria.go unsupported import
+abi/convT64_criteria.go unsupported import
+abi/defer_aggregate.go pass
+abi/defer_recover_results.go pass
+abi/double_nested_addressed_struct.go unsupported import
+abi/double_nested_struct.go unsupported import
+abi/f_ret_z_not.go unsupported import
+abi/fibish.go unsupported import
+abi/fibish_closure.go unsupported import
+abi/fuzz_trailing_zero_field.go unsupported composite-literal
+abi/idata.go unsupported import
+abi/leaf.go unsupported import
+abi/leaf2.go unsupported import
+abi/many_int_input.go unsupported import
+abi/many_intstar_input.go unsupported import
+abi/map.go unsupported import
+abi/method_wrapper.go pass
+abi/more_intstar_input.go pass
+abi/named_results.go unsupported import
+abi/named_return_stuff.go unsupported import
+abi/open_defer_1.go pass
+abi/part_live.go unsupported import
+abi/part_live_2.go unsupported import
+abi/reg_not_ssa.go pass
+abi/result_regalloc.go pass
+abi/return_stuff.go unsupported import
+abi/s_sif_sif.go unsupported import
+abi/spills3.go unsupported import
+abi/spills4.go unsupported import
+abi/store_reg_args.go pass
+abi/struct_3_string_input.go unsupported import
+abi/struct_lower_1.go unsupported import
+abi/too_big_to_ssa.go unsupported import
+abi/uglyfib.go unsupported import
+abi/wrapdefer_largetmp.go pass
+abi/zombie_struct_select.go pass
+alias1.go pass
+align.go pass
+append.go unsupported import
+armimm.go unsupported import
+atomicload.go pass
+bigalg.go unsupported println-argument-type
+bigmap.go pass
+blank.go unsupported import
+chan/doubleselect.go unsupported import
+chan/fifo.go unsupported import
+chan/goroutines.go unsupported import
+chan/nonblock.go unsupported import
+chan/powser1.go unsupported import
+chan/powser2.go unsupported import
+chan/select.go unsupported label
+chan/select2.go unsupported import
+chan/select3.go unsupported import
+chan/select4.go pass
+chan/select6.go pass
+chan/select7.go unsupported import
+chan/select8.go pass
+chan/sendstmt.go pass
+chan/sieve1.go pass
+chan/sieve2.go unsupported import
+chan/zerosize.go pass
+chancap.go unsupported import
+chanlinear.go unsupported import
+char_lit.go unsupported import
+clear.go unsupported import
+closedchan.go unsupported import
+closure.go unsupported import
+closure1.go pass
+closure2.go unsupported for-range
+closure4.go pass
+closure7.go pass
+cmp.go unsupported import
+complit.go pass
+compos.go pass
+const.go unsupported import
+const3.go unsupported import
+const4.go pass
+const7.go unsupported import
+const8.go unsupported predeclared-identifier
+convT2X.go unsupported non-int-type
+convert.go unsupported import
+convert4.go unsupported for-range
+copy.go unsupported import
+ddd.go unsupported non-int-type
+decl.go pass
+defer.go unsupported import
+deferfin.go unsupported import
+defernil.go pass
+deferprint.go unsupported println-argument-type
+devirtualization_nil_panics.go unsupported import
+divide.go unsupported import
+divmod.go pass
+dwarf/linedirectives.go unsupported directive
+env.go unsupported import
+escape.go unsupported for-range
+escape3.go pass
+finprofiled.go unsupported import
+fixedbugs/bug000.go pass
+fixedbugs/bug002.go pass
+fixedbugs/bug003.go pass
+fixedbugs/bug004.go pass
+fixedbugs/bug005.go unsupported label
+fixedbugs/bug006.go unsupported import
+fixedbugs/bug007.go pass
+fixedbugs/bug008.go pass
+fixedbugs/bug009.go pass
+fixedbugs/bug010.go pass
+fixedbugs/bug011.go pass
+fixedbugs/bug012.go pass
+fixedbugs/bug013.go pass
+fixedbugs/bug017.go pass
+fixedbugs/bug021.go pass
+fixedbugs/bug023.go pass
+fixedbugs/bug024.go pass
+fixedbugs/bug026.go pass
+fixedbugs/bug027.go unsupported import
+fixedbugs/bug028.go pass
+fixedbugs/bug031.go pass
+fixedbugs/bug045.go pass
+fixedbugs/bug047.go pass
+fixedbugs/bug048.go pass
+fixedbugs/bug052.go pass
+fixedbugs/bug053.go pass
+fixedbugs/bug054.go pass
+fixedbugs/bug055.go pass
+fixedbugs/bug056.go pass
+fixedbugs/bug058.go pass
+fixedbugs/bug059.go unsupported import
+fixedbugs/bug060.go unsupported import
+fixedbugs/bug061.go pass
+fixedbugs/bug065.go pass
+fixedbugs/bug067.go pass
+fixedbugs/bug070.go unsupported import
+fixedbugs/bug075.go pass
+fixedbugs/bug078.go pass
+fixedbugs/bug082.go pass
+fixedbugs/bug084.go pass
+fixedbugs/bug092.go pass
+fixedbugs/bug093.go pass
+fixedbugs/bug097.go pass
+fixedbugs/bug099.go pass
+fixedbugs/bug101.go pass
+fixedbugs/bug102.go pass
+fixedbugs/bug111.go pass
+fixedbugs/bug113.go pass
+fixedbugs/bug114.go pass
+fixedbugs/bug116.go pass
+fixedbugs/bug119.go pass
+fixedbugs/bug120.go unsupported import
+fixedbugs/bug128.go pass
+fixedbugs/bug130.go unsupported import
+fixedbugs/bug141.go unsupported import
+fixedbugs/bug142.go pass
+fixedbugs/bug147.go unsupported import
+fixedbugs/bug148.go pass
+fixedbugs/bug1515.go pass
+fixedbugs/bug152.go unsupported for-range
+fixedbugs/bug154.go unsupported import
+fixedbugs/bug159.go unsupported import
+fixedbugs/bug168.go pass
+fixedbugs/bug177.go unsupported import
+fixedbugs/bug178.go unsupported label
+fixedbugs/bug180.go pass
+fixedbugs/bug184.go unsupported import
+fixedbugs/bug185.go pass
+fixedbugs/bug187.go unsupported import
+fixedbugs/bug194.go pass
+fixedbugs/bug19403.go pass
+fixedbugs/bug196.go pass
+fixedbugs/bug199.go pass
+fixedbugs/bug201.go pass
+fixedbugs/bug202.go pass
+fixedbugs/bug203.go unsupported init-function
+fixedbugs/bug204.go unsupported for-range
+fixedbugs/bug206.go unsupported import
+fixedbugs/bug207.go unsupported import
+fixedbugs/bug221.go pass
+fixedbugs/bug225.go pass
+fixedbugs/bug227.go pass
+fixedbugs/bug230.go pass
+fixedbugs/bug234.go pass
+fixedbugs/bug236.go pass
+fixedbugs/bug237.go unsupported import
+fixedbugs/bug242.go unsupported for-range
+fixedbugs/bug243.go unsupported import
+fixedbugs/bug244.go pass
+fixedbugs/bug246.go unsupported import
+fixedbugs/bug247.go pass
+fixedbugs/bug253.go pass
+fixedbugs/bug254.go pass
+fixedbugs/bug257.go unsupported import
+fixedbugs/bug258.go unsupported import
+fixedbugs/bug259.go unsupported import
+fixedbugs/bug260.go unsupported import
+fixedbugs/bug261.go pass
+fixedbugs/bug262.go unsupported import
+fixedbugs/bug263.go pass
+fixedbugs/bug264.go pass
+fixedbugs/bug265.go unsupported import
+fixedbugs/bug266.go pass
+fixedbugs/bug269.go pass
+fixedbugs/bug271.go unsupported import
+fixedbugs/bug272.go pass
+fixedbugs/bug273.go unsupported import
+fixedbugs/bug276.go pass
+fixedbugs/bug279.go unsupported import
+fixedbugs/bug281.go pass
+fixedbugs/bug285.go pass
+fixedbugs/bug286.go pass
+fixedbugs/bug290.go pass
+fixedbugs/bug291.go pass
+fixedbugs/bug292.go unsupported import
+fixedbugs/bug293.go pass
+fixedbugs/bug294.go pass
+fixedbugs/bug295.go unsupported import
+fixedbugs/bug296.go unsupported for-range
+fixedbugs/bug303.go unsupported import
+fixedbugs/bug311.go pass
+fixedbugs/bug312.go unsupported println-argument-type
+fixedbugs/bug314.go pass
+fixedbugs/bug317.go pass
+fixedbugs/bug320.go pass
+fixedbugs/bug321.go unsupported import
+fixedbugs/bug327.go pass
+fixedbugs/bug328.go unsupported import
+fixedbugs/bug329.go unsupported non-int-type
+fixedbugs/bug331.go unsupported import
+fixedbugs/bug333.go pass
+fixedbugs/bug336.go pass
+fixedbugs/bug339.go unsupported import
+fixedbugs/bug341.go pass
+fixedbugs/bug343.go unsupported non-int-type
+fixedbugs/bug346.go unsupported import
+fixedbugs/bug347.go unsupported import
+fixedbugs/bug348.go unsupported import
+fixedbugs/bug352.go pass
+fixedbugs/bug355.go pass
+fixedbugs/bug356.go pass
+fixedbugs/bug364.go unsupported import
+fixedbugs/bug366.go pass
+fixedbugs/bug368.go pass
+fixedbugs/bug369.go unsupported import
+fixedbugs/bug370.go unsupported import
+fixedbugs/bug372.go pass
+fixedbugs/bug375.go unsupported non-int-type
+fixedbugs/bug378.go pass
+fixedbugs/bug401.go unsupported non-int-type
+fixedbugs/bug402.go unsupported import
+fixedbugs/bug405.go pass
+fixedbugs/bug406.go unsupported for-range
+fixedbugs/bug409.go pass
+fixedbugs/bug423.go pass
+fixedbugs/bug428.go pass
+fixedbugs/bug433.go pass
+fixedbugs/bug434.go unsupported import
+fixedbugs/bug436.go pass
+fixedbugs/bug440_32.go pass
+fixedbugs/bug440_64.go pass
+fixedbugs/bug441.go pass
+fixedbugs/bug442.go pass
+fixedbugs/bug444.go unsupported import
+fixedbugs/bug446.go pass
+fixedbugs/bug450.go pass
+fixedbugs/bug452.go pass
+fixedbugs/bug453.go pass
+fixedbugs/bug454.go unsupported for-range
+fixedbugs/bug455.go pass
+fixedbugs/bug456.go pass
+fixedbugs/bug457.go pass
+fixedbugs/bug461.go unsupported import
+fixedbugs/bug470.go unsupported import
+fixedbugs/bug473.go unsupported non-int-type
+fixedbugs/bug474.go unsupported import
+fixedbugs/bug483.go unsupported import
+fixedbugs/bug484.go unsupported import
+fixedbugs/bug485.go pass
+fixedbugs/bug491.go unsupported builtin
+fixedbugs/bug494.go pass
+fixedbugs/bug497.go pass
+fixedbugs/bug498.go pass
+fixedbugs/bug499.go pass
+fixedbugs/bug500.go unsupported import
+fixedbugs/bug501.go pass
+fixedbugs/bug512.go unsupported import
+fixedbugs/bug514.go unsupported import
+fixedbugs/bug517.go unsupported import
+fixedbugs/gcc61258.go pass
+fixedbugs/gcc65755.go unsupported import
+fixedbugs/issue10135.go unsupported for-range
+fixedbugs/issue10253.go pass
+fixedbugs/issue10320.go pass
+fixedbugs/issue10332.go unsupported import
+fixedbugs/issue10353.go pass
+fixedbugs/issue10486.go unsupported import
+fixedbugs/issue10607.go unsupported import
+fixedbugs/issue10925.go unsupported import
+fixedbugs/issue11256.go unsupported import
+fixedbugs/issue11286.go unsupported import
+fixedbugs/issue11326b.go pass
+fixedbugs/issue11369.go pass
+fixedbugs/issue11771.go unsupported import
+fixedbugs/issue11945.go unsupported import
+fixedbugs/issue11987.go unsupported import
+fixedbugs/issue12108.go pass
+fixedbugs/issue12133.go unsupported import
+fixedbugs/issue12226.go unsupported import
+fixedbugs/issue12411.go pass
+fixedbugs/issue12577.go unsupported import
+fixedbugs/issue12621.go unsupported import
+fixedbugs/issue1304.go pass
+fixedbugs/issue13160.go unsupported import
+fixedbugs/issue13162.go unsupported import
+fixedbugs/issue13169.go pass
+fixedbugs/issue13171.go unsupported import
+fixedbugs/issue13268.go unsupported import
+fixedbugs/issue13684.go unsupported goto
+fixedbugs/issue14553.go unsupported import
+fixedbugs/issue14591.go unsupported import
+fixedbugs/issue14636.go unsupported import
+fixedbugs/issue14646.go unsupported import
+fixedbugs/issue14651.go unsupported import
+fixedbugs/issue14725.go unsupported import
+fixedbugs/issue15002.go unsupported import
+fixedbugs/issue15039.go pass
+fixedbugs/issue15042.go pass
+fixedbugs/issue15175.go unsupported import
+fixedbugs/issue15252.go pass
+fixedbugs/issue15277.go unsupported import
+fixedbugs/issue15281.go unsupported import
+fixedbugs/issue15303.go unsupported import
+fixedbugs/issue15329.go unsupported import
+fixedbugs/issue15439.go unsupported import
+fixedbugs/issue15528.go unsupported import
+fixedbugs/issue15550.go unsupported import
+fixedbugs/issue15902.go pass
+fixedbugs/issue15975.go pass
+fixedbugs/issue15992.go unsupported import
+fixedbugs/issue16016.go unsupported import
+fixedbugs/issue16037_run.go unsupported import
+fixedbugs/issue16095.go unsupported import
+fixedbugs/issue16130.go unsupported import
+fixedbugs/issue16249.go unsupported import
+fixedbugs/issue16331.go unsupported import
+fixedbugs/issue16515.go unsupported import
+fixedbugs/issue16760.go pass
+fixedbugs/issue16870.go unsupported import
+fixedbugs/issue16948.go unsupported import
+fixedbugs/issue16985.go unsupported import
+fixedbugs/issue17039.go pass
+fixedbugs/issue17381.go unsupported import
+fixedbugs/issue17640.go unsupported import
+fixedbugs/issue17752.go pass
+fixedbugs/issue18149.go unsupported import
+fixedbugs/issue18410.go pass
+fixedbugs/issue18595.go pass
+fixedbugs/issue18636.go unsupported import
+fixedbugs/issue18661.go unsupported import
+fixedbugs/issue18725.go unsupported import
+fixedbugs/issue18808.go pass
+fixedbugs/issue18906.go unsupported init-function
+fixedbugs/issue18994.go pass
+fixedbugs/issue19040.go unsupported import
+fixedbugs/issue19078.go unsupported import
+fixedbugs/issue19113.go unsupported import
+fixedbugs/issue19182.go unsupported import
+fixedbugs/issue19201.go unsupported import
+fixedbugs/issue19246.go unsupported import
+fixedbugs/issue19275.go unsupported import
+fixedbugs/issue19359.go unsupported import
+fixedbugs/issue19658.go unsupported import
+fixedbugs/issue19710.go unsupported defer
+fixedbugs/issue19799.go unsupported import
+fixedbugs/issue19911.go unsupported import
+fixedbugs/issue20029.go unsupported import
+fixedbugs/issue20530.go pass
+fixedbugs/issue20811.go pass
+fixedbugs/issue21048.go pass
+fixedbugs/issue21221.go unsupported import
+fixedbugs/issue21317.go unsupported import
+fixedbugs/issue21576.go unsupported import
+fixedbugs/issue21687.go unsupported for-range
+fixedbugs/issue21808.go unsupported import
+fixedbugs/issue21879.go unsupported import
+fixedbugs/issue21887.go unsupported import
+fixedbugs/issue21963.go unsupported import
+fixedbugs/issue22083.go unsupported import
+fixedbugs/issue22326.go unsupported non-int-type
+fixedbugs/issue22605.go unsupported import
+fixedbugs/issue22660.go unsupported import
+fixedbugs/issue22662.go unsupported import
+fixedbugs/issue22662b.go unsupported import
+fixedbugs/issue22683.go unsupported import
+fixedbugs/issue22781.go unsupported import
+fixedbugs/issue22881.go unsupported import
+fixedbugs/issue23017.go unsupported import
+fixedbugs/issue23188.go pass
+fixedbugs/issue23305.go pass
+fixedbugs/issue23489.go unsupported package-level-declaration
+fixedbugs/issue23522.go unsupported import
+fixedbugs/issue23536.go pass
+fixedbugs/issue23545.go pass
+fixedbugs/issue23546.go pass
+fixedbugs/issue23719.go pass
+fixedbugs/issue23734.go pass
+fixedbugs/issue23812.go unsupported import
+fixedbugs/issue23814.go pass
+fixedbugs/issue23837.go pass
+fixedbugs/issue24187.go skip
+fixedbugs/issue24419.go unsupported import
+fixedbugs/issue24449.go unsupported import
+fixedbugs/issue24488.go unsupported import
+fixedbugs/issue24491a.go unsupported import
+fixedbugs/issue24491b.go unsupported import
+fixedbugs/issue24503.go pass
+fixedbugs/issue24547.go unsupported import
+fixedbugs/issue24763.go pass
+fixedbugs/issue24799.go unsupported import
+fixedbugs/issue24817.go unsupported import
+fixedbugs/issue24937.go pass
+fixedbugs/issue25322.go unsupported import
+fixedbugs/issue25776.go pass
+fixedbugs/issue25897a.go unsupported import
+fixedbugs/issue25897b.go unsupported import
+fixedbugs/issue26094.go unsupported import
+fixedbugs/issue26097.go pass
+fixedbugs/issue26116.go pass
+fixedbugs/issue2615.go pass
+fixedbugs/issue26153.go pass
+fixedbugs/issue26248.go pass
+fixedbugs/issue26335.go unsupported import
+fixedbugs/issue26407.go unsupported for-range
+fixedbugs/issue26411.go unsupported import
+fixedbugs/issue26426.go pass
+fixedbugs/issue26438.go pass
+fixedbugs/issue26495.go pass
+fixedbugs/issue27201.go unsupported import
+fixedbugs/issue27278.go pass
+fixedbugs/issue27289.go pass
+fixedbugs/issue27518a.go unsupported import
+fixedbugs/issue27518b.go unsupported import
+fixedbugs/issue27695.go unsupported import
+fixedbugs/issue27695b.go unsupported import
+fixedbugs/issue27695c.go unsupported import
+fixedbugs/issue27718.go pass
+fixedbugs/issue27829.go unsupported import
+fixedbugs/issue27961.go unsupported import
+fixedbugs/issue28390.go unsupported import
+fixedbugs/issue28748.go unsupported import
+fixedbugs/issue28797.go unsupported import
+fixedbugs/issue29013a.go pass
+fixedbugs/issue29013b.go pass
+fixedbugs/issue29190.go unsupported import
+fixedbugs/issue29264.go unsupported import
+fixedbugs/issue29304.go unsupported import
+fixedbugs/issue29312.go unsupported import
+fixedbugs/issue29362.go unsupported import
+fixedbugs/issue29362b.go unsupported import
+fixedbugs/issue29402.go pass
+fixedbugs/issue29504.go unsupported import
+fixedbugs/issue29735.go unsupported import
+fixedbugs/issue29943.go pass
+fixedbugs/issue30041.go unsupported import
+fixedbugs/issue30116.go unsupported import
+fixedbugs/issue30116u.go unsupported import
+fixedbugs/issue30243.go unsupported import
+fixedbugs/issue30476.go unsupported import
+fixedbugs/issue30566a.go unsupported import
+fixedbugs/issue30566b.go unsupported import
+fixedbugs/issue30606.go unsupported import
+fixedbugs/issue30606b.go unsupported import
+fixedbugs/issue30709.go unsupported import
+fixedbugs/issue30956.go unsupported import
+fixedbugs/issue30977.go unsupported import
+fixedbugs/issue31419.go unsupported println-argument-type
+fixedbugs/issue31546.go unsupported import
+fixedbugs/issue31782.go pass
+fixedbugs/issue31987.go unsupported import
+fixedbugs/issue32175.go pass
+fixedbugs/issue32187.go unsupported import
+fixedbugs/issue32288.go unsupported for-range
+fixedbugs/issue32477.go unsupported import
+fixedbugs/issue32560.go pass
+fixedbugs/issue33062.go pass
+fixedbugs/issue33275_run.go unsupported import
+fixedbugs/issue33555.go unsupported import
+fixedbugs/issue33724.go unsupported import
+fixedbugs/issue34123.go unsupported import
+fixedbugs/issue34395.go unsupported composite-literal
+fixedbugs/issue35576.go pass
+fixedbugs/issue36437.go unsupported import
+fixedbugs/issue37716.go unsupported import
+fixedbugs/issue37753.go pass
+fixedbugs/issue37975.go unsupported import
+fixedbugs/issue38093.go skip
+fixedbugs/issue38496.go pass
+fixedbugs/issue39505b.go unsupported for-range
+fixedbugs/issue39541.go unsupported import
+fixedbugs/issue39651.go pass
+fixedbugs/issue40152.go unsupported non-int-type
+fixedbugs/issue40367.go unsupported for-range
+fixedbugs/issue40629.go unsupported import
+fixedbugs/issue4066.go pass
+fixedbugs/issue4085b.go unsupported import
+fixedbugs/issue40954.go unsupported import
+fixedbugs/issue41239.go unsupported import
+fixedbugs/issue4167.go unsupported for-range
+fixedbugs/issue41780.go pass
+fixedbugs/issue41872.go pass
+fixedbugs/issue42032.go unsupported import
+fixedbugs/issue42076.go unsupported import
+fixedbugs/issue42703.go pass
+fixedbugs/issue42876.go pass
+fixedbugs/issue43111.go pass
+fixedbugs/issue4313.go pass
+fixedbugs/issue4316.go pass
+fixedbugs/issue43292.go pass
+fixedbugs/issue43444.go unsupported non-int-type
+fixedbugs/issue43480.go pass
+fixedbugs/issue4353.go pass
+fixedbugs/issue43570.go unsupported import
+fixedbugs/issue43619.go unsupported import
+fixedbugs/issue43835.go pass
+fixedbugs/issue43908.go unsupported import
+fixedbugs/issue43942.go unsupported import
+fixedbugs/issue4396a.go pass
+fixedbugs/issue4396b.go pass
+fixedbugs/issue4448.go unsupported init-function
+fixedbugs/issue44823.go unsupported import
+fixedbugs/issue44830.go unsupported import
+fixedbugs/issue4495.go pass
+fixedbugs/issue45045.go unsupported import
+fixedbugs/issue45175.go pass
+fixedbugs/issue4518.go pass
+fixedbugs/issue45242.go unsupported import
+fixedbugs/issue4562.go unsupported import
+fixedbugs/issue4585.go unsupported import
+fixedbugs/issue45851.go unsupported import
+fixedbugs/issue4618.go unsupported import
+fixedbugs/issue4620.go unsupported import
+fixedbugs/issue46304.go unsupported for-range
+fixedbugs/issue4667.go unsupported import
+fixedbugs/issue46725.go unsupported import
+fixedbugs/issue46903.go unsupported import
+fixedbugs/issue4748.go unsupported goto
+fixedbugs/issue4752.go pass
+fixedbugs/issue47771.go pass
+fixedbugs/issue4785.go pass
+fixedbugs/issue48289.go unsupported import
+fixedbugs/issue48357.go unsupported import
+fixedbugs/issue48473.go unsupported import
+fixedbugs/issue48476.go unsupported import
+fixedbugs/issue48536.go unsupported import
+fixedbugs/issue48898.go unsupported blank-identifier
+fixedbugs/issue49100.go unsupported label
+fixedbugs/issue49100b.go unsupported label
+fixedbugs/issue49110.go unsupported import
+fixedbugs/issue49145.go unsupported label
+fixedbugs/issue49512.go unsupported for-range
+fixedbugs/issue49665.go unsupported import
+fixedbugs/issue50190.go unsupported package-level-declaration
+fixedbugs/issue5056.go pass
+fixedbugs/issue50671.go pass
+fixedbugs/issue50672.go pass
+fixedbugs/issue50854.go pass
+fixedbugs/issue51101.go pass
+fixedbugs/issue51401.go unsupported import
+fixedbugs/issue51733.go unsupported import
+fixedbugs/issue51913.go pass
+fixedbugs/issue52072.go pass
+fixedbugs/issue52127.go unsupported import
+fixedbugs/issue52438.go unsupported predeclared-identifier
+fixedbugs/issue5244.go pass
+fixedbugs/issue52612.go unsupported import
+fixedbugs/issue52788.go unsupported import
+fixedbugs/issue52788a.go unsupported import
+fixedbugs/issue52953.go pass
+fixedbugs/issue53137.go unsupported import
+fixedbugs/issue53309.go pass
+fixedbugs/issue53600.go unsupported import
+fixedbugs/issue53619.go pass
+fixedbugs/issue53635.go pass
+fixedbugs/issue53653.go unsupported import
+fixedbugs/issue53702.go unsupported for-range
+fixedbugs/issue5373.go unsupported import
+fixedbugs/issue54220.go unsupported import
+fixedbugs/issue54343.go unsupported import
+fixedbugs/issue54348.go pass
+fixedbugs/issue54467.go unsupported import
+fixedbugs/issue54542.go unsupported import
+fixedbugs/issue54632.go pass
+fixedbugs/issue5493.go unsupported import
+fixedbugs/issue54959.go pass
+fixedbugs/issue55122.go pass
+fixedbugs/issue55122b.go pass
+fixedbugs/issue5515.go pass
+fixedbugs/issue5607.go pass
+fixedbugs/issue56990.go unsupported import
+fixedbugs/issue5704.go pass
+fixedbugs/issue57184.go unsupported import
+fixedbugs/issue57309.go pass
+fixedbugs/issue5753.go pass
+fixedbugs/issue57823.go unsupported import
+fixedbugs/issue5793.go unsupported builtin
+fixedbugs/issue5809.go unsupported import
+fixedbugs/issue5820.go pass
+fixedbugs/issue58300.go unsupported import
+fixedbugs/issue58300b.go unsupported import
+fixedbugs/issue5856.go unsupported import
+fixedbugs/issue58671.go unsupported non-int-type
+fixedbugs/issue59293.go unsupported import
+fixedbugs/issue59338.go pass
+fixedbugs/issue59367.go pass
+fixedbugs/issue59404part2.go pass
+fixedbugs/issue59411.go unsupported import
+fixedbugs/issue59572.go unsupported for-range
+fixedbugs/issue5963.go unsupported import
+fixedbugs/issue59680.go unsupported import
+fixedbugs/issue6055.go unsupported import
+fixedbugs/issue60601.go unsupported import
+fixedbugs/issue62203.go unsupported import
+fixedbugs/issue62360.go unsupported import
+fixedbugs/issue6269.go pass
+fixedbugs/issue63657.go pass
+fixedbugs/issue64565.go unsupported for-range
+fixedbugs/issue64715.go pass
+fixedbugs/issue65417.go unsupported import
+fixedbugs/issue65962.go unsupported generic-instance
+fixedbugs/issue66066.go unsupported import
+fixedbugs/issue66066b.go pass
+fixedbugs/issue66261.go pass
+fixedbugs/issue66575.go pass
+fixedbugs/issue66585.go pass
+fixedbugs/issue67160.go pass
+fixedbugs/issue67190.go pass
+fixedbugs/issue67255.go unsupported for-range
+fixedbugs/issue68227.go unsupported import
+fixedbugs/issue68322.go unsupported import
+fixedbugs/issue6866.go unsupported predeclared-identifier
+fixedbugs/issue68809.go pass
+fixedbugs/issue68816.go pass
+fixedbugs/issue6899.go unsupported import
+fixedbugs/issue6902.go unsupported import
+fixedbugs/issue69434.go unsupported import
+fixedbugs/issue69507.go unsupported for-range
+fixedbugs/issue70156.go unsupported import
+fixedbugs/issue70189.go pass
+fixedbugs/issue7044.go unsupported import
+fixedbugs/issue70481.go pass
+fixedbugs/issue7050.go unsupported import
+fixedbugs/issue7083.go unsupported import
+fixedbugs/issue71675.go unsupported for-range
+fixedbugs/issue71759.go pass
+fixedbugs/issue71857.go unsupported import
+fixedbugs/issue71932.go unsupported import
+fixedbugs/issue72063.go unsupported import
+fixedbugs/issue72844.go unsupported for-range
+fixedbugs/issue72860.go pass
+fixedbugs/issue73476.go unsupported for-range
+fixedbugs/issue73748a.go unsupported import
+fixedbugs/issue73748b.go unsupported import
+fixedbugs/issue73888.go pass
+fixedbugs/issue73888b.go pass
+fixedbugs/issue73916.go pass
+fixedbugs/issue73916b.go pass
+fixedbugs/issue73917.go pass
+fixedbugs/issue73920.go pass
+fixedbugs/issue7419.go unsupported import
+fixedbugs/issue74379.go unsupported import
+fixedbugs/issue74379b.go unsupported import
+fixedbugs/issue74379c.go unsupported import
+fixedbugs/issue74935.go unsupported import
+fixedbugs/issue75327.go unsupported import
+fixedbugs/issue7550.go pass
+fixedbugs/issue75569.go unsupported label
+fixedbugs/issue76008.go unsupported import
+fixedbugs/issue76709.go unsupported import
+fixedbugs/issue7690.go unsupported import
+fixedbugs/issue7740.go unsupported import
+fixedbugs/issue77613.go unsupported import
+fixedbugs/issue77779.go unsupported import
+fixedbugs/issue7863.go unsupported import
+fixedbugs/issue7944.go unsupported import
+fixedbugs/issue7995.go unsupported import
+fixedbugs/issue8004.go unsupported import
+fixedbugs/issue8011.go pass
+fixedbugs/issue8036.go unsupported import
+fixedbugs/issue8039.go unsupported defer
+fixedbugs/issue8047.go pass
+fixedbugs/issue8047b.go pass
+fixedbugs/issue8048.go unsupported import
+fixedbugs/issue8132.go unsupported import
+fixedbugs/issue8139.go unsupported import
+fixedbugs/issue8155.go unsupported import
+fixedbugs/issue8158.go unsupported import
+fixedbugs/issue8325.go unsupported for-range
+fixedbugs/issue8336.go pass
+fixedbugs/issue8347.go pass
+fixedbugs/issue8606.go unsupported import
+fixedbugs/issue8606b.go unsupported import
+fixedbugs/issue8613.go pass
+fixedbugs/issue8620.go pass
+fixedbugs/issue8947.go unsupported non-int-type
+fixedbugs/issue8961.go pass
+fixedbugs/issue9006.go unsupported non-int-type
+fixedbugs/issue9110.go unsupported import
+fixedbugs/issue9321.go unsupported import
+fixedbugs/issue9355.go unsupported import
+fixedbugs/issue9604.go pass
+fixedbugs/issue9691.go unsupported for-range
+fixedbugs/issue9738.go pass
+fixedbugs/issue9862_run.go unsupported import
+float_lit.go pass
+float_lit2.go unsupported import
+floatcmp.go unsupported import
+for.go unsupported for-range
+func.go pass
+func5.go pass
+func6.go pass
+func7.go pass
+func8.go pass
+gc.go unsupported import
+gc1.go pass
+gc2.go unsupported import
+gcgort.go unsupported import
+gcstring.go unsupported import
+goprint.go unsupported import
+heapsampling.go unsupported import
+helloworld.go pass
+if.go pass
+indirect.go pass
+init1.go unsupported import
+initcomma.go pass
+initialize.go unsupported import
+inline_literal.go unsupported import
+int_lit.go unsupported import
+intcvt.go pass
+interface/bigdata.go pass
+interface/convert.go pass
+interface/convert1.go pass
+interface/convert2.go pass
+interface/embed.go unsupported import
+interface/fail.go unsupported blank-identifier
+interface/fake.go unsupported import
+interface/noeq.go pass
+interface/receiver.go unsupported println-argument-type
+interface/returntype.go pass
+interface/struct.go unsupported import
+iota.go unsupported predeclared-identifier
+ken/array.go pass
+ken/chan.go unsupported import
+ken/chan1.go unsupported import
+ken/complit.go pass
+ken/convert.go unsupported predeclared-identifier
+ken/cplx0.go unsupported imaginary-literal
+ken/cplx1.go unsupported imaginary-literal
+ken/cplx2.go unsupported imaginary-literal
+ken/cplx3.go unsupported import
+ken/cplx4.go unsupported import
+ken/cplx5.go unsupported non-int-type
+ken/divconst.go unsupported import
+ken/divmod.go pass
+ken/embed.go unsupported println-argument-type
+ken/for.go pass
+ken/interbasic.go pass
+ken/interfun.go pass
+ken/intervar.go pass
+ken/label.go unsupported goto
+ken/litfun.go pass
+ken/mfunc.go pass
+ken/modconst.go unsupported import
+ken/ptrfun.go pass
+ken/ptrvar.go pass
+ken/range.go unsupported init-function
+ken/rob1.go pass
+ken/rob2.go unsupported import
+ken/robfor.go pass
+ken/robfunc.go pass
+ken/shift.go unsupported init-function
+ken/simparray.go pass
+ken/simpbool.go pass
+ken/simpconv.go pass
+ken/simpfun.go pass
+ken/simpswitch.go pass
+ken/simpvar.go pass
+ken/slicearray.go unsupported init-function
+ken/sliceslice.go unsupported init-function
+ken/string.go pass
+ken/strvar.go pass
+linkmain_run.go unsupported import
+linkobj.go unsupported import
+linkx_run.go unsupported import
+literal.go pass
+literal2.go unsupported import
+makeslice.go unsupported import
+mallocfin.go unsupported import
+map.go unsupported import
+mapclear.go unsupported import
+maplinear.go unsupported import
+method.go unsupported non-int-type
+method3.go pass
+method5.go pass
+method7.go unsupported selector
+named.go pass
+newexpr.go unsupported builtin
+nil.go unsupported import
+nilptr.go unsupported import
+nilptr2.go unsupported for-range
+nilptr_aix.go skip
+noinit.go unsupported import
+nosplit.go unsupported import
+peano.go unsupported import
+print.go unsupported println-argument-type
+printbig.go pass
+range.go unsupported for-range
+range3.go unsupported for-range
+range4.go unsupported for-range
+recover.go unsupported import
+recover1.go unsupported import
+recover2.go unsupported import
+recover3.go unsupported import
+recover4.go unsupported import
+reflectmethod1.go unsupported import
+reflectmethod2.go unsupported import
+reflectmethod3.go unsupported import
+reflectmethod4.go unsupported import
+reflectmethod5.go unsupported import
+reflectmethod6.go unsupported import
+reflectmethod7.go unsupported import
+rename.go unsupported import
+reorder.go unsupported import
+reorder2.go pass
+shift3.go unsupported import
+sigchld.go unsupported import
+simassign.go pass
+sizeof.go unsupported import
+slicecap.go unsupported import
+stack.go pass
+stackobj.go unsupported import
+stackobj2.go unsupported import
+stackobj3.go unsupported import
+strcopy.go unsupported import
+string_lit.go unsupported import
+stringrange.go unsupported import
+struct0.go pass
+switch.go unsupported import
+tinyfin.go unsupported import
+turing.go pass
+typeparam/absdiff.go unsupported generic-uninstantiated
+typeparam/absdiff2.go unsupported import
+typeparam/absdiff3.go unsupported import
+typeparam/adder.go unsupported import
+typeparam/append.go unsupported generic-instance
+typeparam/boundmethod.go unsupported import
+typeparam/chans.go unsupported import
+typeparam/combine.go unsupported import
+typeparam/cons.go unsupported import
+typeparam/devirtualize1.go pass
+typeparam/devirtualize2.go pass
+typeparam/dictionaryCapture.go unsupported import
+typeparam/dottype.go unsupported generic-instance
+typeparam/double.go unsupported import
+typeparam/eface.go pass
+typeparam/equal.go unsupported generic-instance
+typeparam/fact.go unsupported import
+typeparam/genembed.go unsupported import
+typeparam/genembed2.go unsupported import
+typeparam/graph.go unsupported import
+typeparam/ifaceconv.go unsupported import
+typeparam/index.go unsupported import
+typeparam/index2.go unsupported import
+typeparam/interfacearg.go pass
+typeparam/issue23536.go pass
+typeparam/issue376214.go pass
+typeparam/issue42758.go unsupported non-int-type
+typeparam/issue44688.go unsupported generic-instance
+typeparam/issue45722.go unsupported import
+typeparam/issue45817.go unsupported import
+typeparam/issue46472.go pass
+typeparam/issue46591.go unsupported generic-instance
+typeparam/issue47258.go unsupported import
+typeparam/issue47272.go unsupported import
+typeparam/issue47514.go pass
+typeparam/issue47514b.go pass
+typeparam/issue47676.go unsupported for-range
+typeparam/issue47684.go pass
+typeparam/issue47684b.go pass
+typeparam/issue47684c.go pass
+typeparam/issue47708.go pass
+typeparam/issue47713.go unsupported import
+typeparam/issue47716.go unsupported import
+typeparam/issue47723.go pass
+typeparam/issue47740.go unsupported import
+typeparam/issue47740b.go unsupported import
+typeparam/issue47775b.go pass
+typeparam/issue47877.go pass
+typeparam/issue47901.go pass
+typeparam/issue47925.go pass
+typeparam/issue47925b.go pass
+typeparam/issue47925c.go pass
+typeparam/issue47925d.go pass
+typeparam/issue48013.go unsupported import
+typeparam/issue48016.go unsupported import
+typeparam/issue48030.go pass
+typeparam/issue48042.go unsupported import
+typeparam/issue48047.go pass
+typeparam/issue48049.go pass
+typeparam/issue48137.go unsupported generic-instance
+typeparam/issue48225.go unsupported import
+typeparam/issue48253.go unsupported import
+typeparam/issue48276a.go unsupported import
+typeparam/issue48276b.go pass
+typeparam/issue48317.go unsupported import
+typeparam/issue48318.go unsupported import
+typeparam/issue48344.go pass
+typeparam/issue48424.go unsupported generic-uninstantiated
+typeparam/issue48453.go pass
+typeparam/issue48598.go pass
+typeparam/issue48602.go pass
+typeparam/issue48617.go pass
+typeparam/issue48645a.go unsupported import
+typeparam/issue48645b.go pass
+typeparam/issue48838.go pass
+typeparam/issue49049.go pass
+typeparam/issue49295.go unsupported import
+typeparam/issue49309.go pass
+typeparam/issue49421.go pass
+typeparam/issue49547.go unsupported import
+typeparam/issue49659b.go pass
+typeparam/issue50002.go unsupported import
+typeparam/issue50109.go unsupported import
+typeparam/issue50109b.go pass
+typeparam/issue50193.go unsupported import
+typeparam/issue50264.go pass
+typeparam/issue50417.go pass
+typeparam/issue50417b.go pass
+typeparam/issue50419.go unsupported import
+typeparam/issue50642.go unsupported import
+typeparam/issue50690a.go unsupported import
+typeparam/issue50690b.go unsupported import
+typeparam/issue50690c.go unsupported import
+typeparam/issue50833.go pass
+typeparam/issue51236.go unsupported generic-uninstantiated
+typeparam/issue51303.go unsupported import
+typeparam/issue51521.go unsupported import
+typeparam/issue51522a.go pass
+typeparam/issue51522b.go unsupported non-int-type
+typeparam/issue51700.go unsupported generic-instance
+typeparam/issue52026.go pass
+typeparam/issue52228.go unsupported generic-instance
+typeparam/issue53087.go unsupported import
+typeparam/issue53419.go pass
+typeparam/issue53477.go unsupported non-int-type
+typeparam/issue54135.go pass
+typeparam/issue54225.go pass
+typeparam/issue54456.go unsupported import
+typeparam/issue54535.go pass
+typeparam/issue54537.go pass
+typeparam/issue58513.go unsupported import
+typeparam/list.go unsupported import
+typeparam/list2.go unsupported import
+typeparam/lockable.go unsupported import
+typeparam/map.go unsupported import
+typeparam/maps.go unsupported import
+typeparam/mdempsky/13.go unsupported non-int-type
+typeparam/mdempsky/14.go unsupported package-level-declaration
+typeparam/mdempsky/16.go unsupported import
+typeparam/mdempsky/17.go unsupported import
+typeparam/mdempsky/18.go unsupported import
+typeparam/mdempsky/19.go pass
+typeparam/mdempsky/20.go unsupported non-int-type
+typeparam/mdempsky/21.go pass
+typeparam/metrics.go unsupported import
+typeparam/min.go unsupported import
+typeparam/nested.go unsupported import
+typeparam/ordered.go unsupported import
+typeparam/orderedmap.go unsupported import
+typeparam/pair.go unsupported import
+typeparam/sets.go unsupported import
+typeparam/settable.go unsupported import
+typeparam/shape1.go pass
+typeparam/slices.go unsupported import
+typeparam/smallest.go unsupported import
+typeparam/stringable.go unsupported import
+typeparam/stringer.go unsupported import
+typeparam/struct.go unsupported import
+typeparam/subdict.go unsupported import
+typeparam/sum.go unsupported import
+typeparam/typeswitch1.go unsupported generic-instance
+typeparam/typeswitch2.go unsupported import
+typeparam/typeswitch3.go unsupported generic-instance
+typeparam/typeswitch4.go unsupported generic-instance
+typeparam/typeswitch5.go pass
+typeparam/typeswitch6.go pass
+typeparam/typeswitch7.go pass
+typeparam/value.go unsupported import
+typeswitch.go unsupported import
+typeswitch1.go unsupported import
+uintptrescapes3.go unsupported import
+unsafe_slice_data.go unsupported import
+unsafe_string.go unsupported import
+unsafe_string_data.go unsupported import
+unsafebuiltins.go unsupported import
+utf.go unsupported import
+varinit.go pass
+winbatch.go unsupported import
+zerodivide.go unsupported import
+zerosize.go unsupported println-argument-type
+# 1008 tests, 3 skipped, 1005 run: 395 pass (39.3%), 610 unsupported, 0 bug

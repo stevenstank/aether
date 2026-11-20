@@ -966,6 +966,21 @@ Tests that build with gc or scan the GOROOT corpus are skipped under
 tests there may be "applicable to gccgo and other Go tool chains". Phase 0
 counted 141 top-level files containing a `// run` line.
 - From Phase 1 the corpus is used for gate-classification sweeps.
-- From Phase 11 it is used for pass-rate reporting.
+- From Phase 11 it is used for pass-rate reporting. `TestGorootRun`
+  (`cmd/aether/goroot_test.go`, D-049) builds every test of testdir's
+  directories whose recipe is exactly `// run`, skips those whose build
+  constraints exclude linux/amd64, and runs the rest in `GOROOT/test`. A
+  test passes on exit status 0 with stdout and stderr together equal to its
+  `.out` file, or empty without one: testdir's rule. Every other test is
+  `unsupported FEATURE` (rejected by Aether) or `bug KIND` (`invalid`,
+  `internal`, `output`, `exit N`, `signal`, `timeout`). The reviewed golden
+  `cmd/aether/testdata/goroot/run.golden` lists each test's class and ends
+  with the counts, which are the published pass rate. A changed class fails
+  the test until the golden is regenerated with `-update` and reviewed.
+  - Baseline (2026-11-20, increment 11.1, go1.26.1): 1,008 tests, 3
+    skipped, 265 pass (26.4 %), 740 `unsupported`, 0 bugs. Before 11.1, a
+    script applying the same rule passed 207 and found 2 `internal` bugs.
+  - After increment 11.2 (2026-11-20): 395 pass (39.3 %), 610
+    `unsupported`, 0 bugs.
 - It is read in place from GOROOT, not copied into the repository. Copying would
   require handling the BSD license.
