@@ -92,7 +92,7 @@ const symPanicIndex = "aether.panicindex"
 // helper interface: their args in %rdi, %rsi, and %rdx, their value in
 // %rax.
 var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
-	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc"}
+	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread"}
 
 // strSym is the local symbol of the program's string i, in .rodata.
 func strSym(i int) string { return fmt.Sprintf(".Lstr.%d", i) }

@@ -230,6 +230,80 @@ func TestStdPrograms(t *testing.T) {
 	}
 }
 
+// TestStdin checks a program reading its standard input with fmt and
+// os.Stdin against gc, in the interpreter and natively, with and without
+// -O0 (increment 11.8).
+func TestStdin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds with gc")
+	}
+	gobin, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go command not found")
+	}
+	for _, tool := range []string{"as", "ld"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	src := []byte(`package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	var a, b int
+	var s string
+	n, err := fmt.Scan(&a, &b)
+	fmt.Println(n, err, a+b)
+	n, err = fmt.Scanln(&s)
+	fmt.Println(n, err, s)
+	var f float64
+	n, err = fmt.Scanf("%g\n", &f)
+	fmt.Println(n, err, f)
+	buf := make([]byte, 4)
+	m, err := os.Stdin.Read(buf)
+	fmt.Println(m, err, string(buf[:m]))
+	m, err = os.Stdin.Read(nil)
+	fmt.Println(m, err)
+	n, err = fmt.Scan(&a)
+	fmt.Println(n, err)
+	var nf *os.File
+	_, err = nf.Read(buf)
+	fmt.Println(err)
+}
+`)
+	const input = "3 4\nword\n2.5\nrest"
+	bin := gcBuild(t, gobin, map[string][]byte{"stdin": src})
+	want := runExeIn(t, filepath.Join(bin, "stdin"), nil, strings.NewReader(input))
+	if want.exit != 0 || !strings.Contains(want.stdout, "4 <nil> rest") {
+		t.Fatalf("gc: %+v", want)
+	}
+	f := filepath.Join(t.TempDir(), "stdin.go")
+	if err := os.WriteFile(f, src, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	got, ds, err := interpretIn(f, src, strings.NewReader(input))
+	if len(ds) > 0 || err != nil || got != want {
+		t.Errorf("interpreter %+v %v %v, gc %+v", got, ds, err, want)
+	}
+	for _, o0 := range []bool{false, true} {
+		out := filepath.Join(t.TempDir(), "stdin")
+		args := []string{"build", "-o", out}
+		if o0 {
+			args = append(args, "-O0")
+		}
+		if stderr, code := runAether(append(args, f)...); code != 0 {
+			t.Fatalf("aether %v: exit %d\n%s", args, code, stderr)
+		}
+		if got := runExeIn(t, out, nil, strings.NewReader(input)); got != want {
+			t.Errorf("-O0 %v: aether %+v, gc %+v", o0, got, want)
+		}
+	}
+}
+
 // TestStdRejects checks how programs importing the standard library that
 // Aether does not compile are classified, and that only what main reaches
 // of an imported package is checked (D-049).
@@ -252,8 +326,6 @@ func TestStdRejects(t *testing.T) {
 			diag.Invalid, "p.go:3:43: invalid: m.locked undefined"},
 		{"still invalid", "package main\nimport \"os\"\nfunc main() { os.Exit(\"1\") }\n",
 			diag.Invalid, "p.go:3:23: invalid: cannot use \"1\""},
-		{"fmt", "package main\nimport \"fmt\"\nfunc main() { fmt.Println(1) }\n",
-			diag.Unsupported, "$GOROOT/src/fmt/scan.go:64:18: unsupported: package fmt, which does not type-check as Aether builds it (undefined: os.Stdin)"},
 		{"internal", "package main\nimport \"internal/strconv\"\nfunc main() { println(strconv.Itoa(1)) }\n",
 			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/strconv not allowed"},
 		{"not in std", "package main\nimport \"nosuch/pkg\"\nfunc main() { pkg.F() }\n",

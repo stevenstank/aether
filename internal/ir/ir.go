@@ -371,10 +371,15 @@ const (
 	SysArgLen
 	// SysGC runs a garbage collection. No args, no value.
 	SysGC
+	// SysRead reads up to args[2] (an I64) bytes into the object at
+	// args[1] (a Ptr) from the file descriptor args[0] (an I64) with one
+	// read system call (increment 11.8). Its value, an I64, is the bytes
+	// read, 0 at end of file, or the negated errno.
+	SysRead
 )
 
 // SysNames are the system calls' names, as the printer writes them.
-var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc"}
+var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",

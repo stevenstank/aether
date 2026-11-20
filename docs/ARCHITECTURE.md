@@ -675,8 +675,8 @@ so none can be read as an option.
   - `rt/slice.s`: `aether.memmove` and the slice panics of D-036 (table
     below).
   - The system calls of the IR's `sys` (D-049, increment 11.6):
-    `aether.exit`, `aether.syswrite`, `aether.argc`, `aether.argptr`, and
-    `aether.arglen` in `rt/start.s`, whose `_start` saves `argc` and
+    `aether.exit`, `aether.syswrite`, `aether.sysread` (11.8),
+    `aether.argc`, `aether.argptr`, and `aether.arglen` in `rt/start.s`, whose `_start` saves `argc` and
     `argv`, and `aether.gc` in `rt/heap.s` (table below).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
@@ -733,7 +733,7 @@ that interface is:
 | `aether.panicmakelen`, `aether.panicmakecap`, `aether.panicgrowlen` | runtime | Write `panic: runtime error: makeslice: len out of range`, `... makeslice: cap out of range`, or `... growslice: len out of range` and a newline, and exit 2 (D-036); never return. Use 16 bytes below `%rsp`, as `aether.panicdivide`. |
 | `aether.zerobase` | runtime | The address of every zero-size allocation (D-035). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
-| `aether.exit`, `aether.syswrite`, `aether.argc`, `aether.argptr`, `aether.arglen` | runtime | The system calls of `sys` (D-049, increment 11.6), under the helper interface, with their arguments in `%rdi`, `%rsi`, `%rdx` and their value in `%rax`: `exit_group(%rdi)`, never returning; one `write(%rdi, %rsi, %rdx)`, returning the bytes written or the negated errno; the number of arguments; the address and length of argument `%rdi`, which must be below that number. They use no stack. |
+| `aether.exit`, `aether.syswrite`, `aether.sysread`, `aether.argc`, `aether.argptr`, `aether.arglen` | runtime | The system calls of `sys` (D-049, increments 11.6 and 11.8), under the helper interface, with their arguments in `%rdi`, `%rsi`, `%rdx` and their value in `%rax`: `exit_group(%rdi)`, never returning; one `write(%rdi, %rsi, %rdx)`, returning the bytes written or the negated errno; one `read(%rdi, %rsi, %rdx)`, returning the bytes read, 0 at end of file, or the negated errno; the number of arguments; the address and length of argument `%rdi`, which must be below that number. They use no stack. |
 | `aether.gc` | runtime | Runs a collection unless nothing was ever allocated (`sys gc`, for `runtime.GC`), under the helper interface and `aether.alloc`'s stack bound. |
 
 Rules:

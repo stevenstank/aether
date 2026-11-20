@@ -706,7 +706,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		switch in.Index {
 		case SysExit:
 			args = []Type{I64}
-		case SysWrite:
+		case SysWrite, SysRead:
 			want, args = I64, []Type{I64, Ptr, I64}
 		case SysArgc:
 			want = I64

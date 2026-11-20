@@ -27,12 +27,17 @@ type result struct {
 // interpret compiles src and runs its IR with the interpreter: the test-only
 // equivalent of an "aether run-ir" command.
 func interpret(name string, src []byte) (result, []diag.Diagnostic, error) {
+	return interpretIn(name, src, nil)
+}
+
+// interpretIn is interpret with stdin as the standard input.
+func interpretIn(name string, src []byte, stdin io.Reader) (result, []diag.Diagnostic, error) {
 	prog, ds := compile([]source{{name, src}})
 	if len(ds) > 0 {
 		return result{}, ds, nil
 	}
 	var stdout, stderr bytes.Buffer
-	code, err := interp.RunOptions(prog, &stderr, interp.Options{Stdout: &stdout, Steps: interpSteps})
+	code, err := interp.RunOptions(prog, &stderr, interp.Options{Stdin: stdin, Stdout: &stdout, Steps: interpSteps})
 	return result{stdout: stdout.String(), stderr: stderr.String(), exit: code}, nil, err
 }
 

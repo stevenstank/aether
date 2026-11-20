@@ -29,8 +29,8 @@ Supported subset (S2):
   the files of package main, in one directory, the packages of its
   module that it imports, unicode/utf8, unicode, math/bits, math, and
   strconv from GOROOT (go1.26), part of runtime, os, sync, and
-  sync/atomic, cmp, slices, sort, maps, errors, strings, bytes, and
-  unsafe, with generic code instantiated across packages; functions with
+  sync/atomic, cmp, slices, sort, maps, errors, strings, bytes,
+  unsafe, and fmt, with generic code instantiated across packages; functions with
   multiple results and
   variadic functions;
   bool, every integer type, float32, float64, strings with len, indexing,
@@ -46,7 +46,7 @@ Supported subset (S2):
   strings, switch, labels, and goto; package-level var and const; init
   functions; iota, min and max of integers, fallthrough; complex
   numbers without arithmetic; reflect in part; print and println. Not
-  supported: complex arithmetic, range over functions, fmt.
+  supported: complex arithmetic, range over functions.
   See docs/SEMANTICS.md.
 
 Build flags:

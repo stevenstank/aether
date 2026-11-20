@@ -4358,6 +4358,29 @@ packages.
 - Every method of a reached type is reached, so `Value`'s `Set` methods,
   which only `fmt`'s scanning calls, have bodies too.
 
+**Implementation notes (increment 11.8, second part, 2026-11-21).**
+- `fmt` is compiled from GOROOT unchanged. It needs `os.Stdin`, and
+  `*os.File` must be an `io.Reader` for `Fscan(os.Stdin, ...)`; since every
+  method of a reached type is reached, `Read` cannot be left without a
+  body. **The IR's `sys` gains the kind `read`** (an IR contract and
+  runtime interface change, recorded here as `write` was in 11.6): one
+  read system call into an object, whose value is the bytes read, 0 at
+  end of file, or the negated errno; the runtime helper
+  `aether.sysread`; the intrinsic `os.read`. `File.Read` is gc's
+  `internal/poll` behaviour in Go. The interpreter reads `Options.Stdin`
+  (nil is empty) for descriptor 0, and fails a read into a read-only
+  object. Alternative: an `os.Stdin` of another type than `*File`, which
+  would differ from gc's in what a program can do with it.
+- `internal/fmtsort` calls `slices.SortStableFunc` with its own type
+  `SortedMap`, an instance `slices` cannot make (11.7). Its `sort.go` is
+  replaced by gc's file sorting the indices of the pairs instead, an
+  instance of `[]int`, then permuting them; the sort is stable, so the
+  order is gc's. Lifting 11.7's restriction is not needed for this and
+  stays open.
+- `reflect.MakeSlice`, which scanning into a `[]byte` reaches, is written
+  in Go: an array in words the collector scans, as `Interface`'s copies,
+  with gc's panics for its arguments.
+
 ---
 
 ## Phase 0 research notes

@@ -942,6 +942,39 @@ func TestSym(t *testing.T) {
 	}
 }
 
+// TestSysReadNative checks SysRead natively against the interpreter
+// (increment 11.8): the standard input, read once, then at its end, and a
+// closed descriptor.
+func TestSysReadNative(t *testing.T) {
+	p := &ir.Program{}
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	o := f.Alloc(b, f.Const(b, 8, p1), p1)
+	for _, fd := range []int64{0, 0, 0, 3} {
+		n := f.Sys(b, ir.SysRead, ir.I64, p1, f.Const(b, fd, p1), o, f.Const(b, 8, p1))
+		f.Println(b, []*ir.Instr{n, f.LoadB(b, o, f.Const(b, 0, p1), p1), f.LoadB(b, o, f.Const(b, 2, p1), p1)}, p1)
+	}
+	f.Ret(b, p1)
+	var want bytes.Buffer
+	if code, err := interp.RunOptions(p, &want, interp.Options{Stdin: strings.NewReader("hey")}); err != nil || code != 0 {
+		t.Fatalf("interpreter: exit %d, %v, %q", code, err, want.String())
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := command(t, link(t, t.TempDir(), withRuntime(asm)))
+	var stdout, stderr bytes.Buffer
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = strings.NewReader("hey"), &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		cmd.checkTimeout(t, err)
+		t.Fatal(err)
+	}
+	if stdout.Len() != 0 || stderr.String() != want.String() {
+		t.Errorf("native: stdout %q, stderr %q; interpreter %q", stdout.String(), stderr.String(), want.String())
+	}
+}
+
 // TestSysNative checks the system calls natively against the interpreter
 // (D-049, increment 11.6): a write to stderr and to a closed descriptor,
 // the argument count, a collection before anything was allocated and

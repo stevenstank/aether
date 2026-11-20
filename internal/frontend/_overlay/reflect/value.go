@@ -501,4 +501,34 @@ func (v Value) SetString(x string) {
 
 // MakeSlice creates a new zero-initialized slice value for the specified
 // slice type, length, and capacity.
-func MakeSlice(typ Type, len, cap int) Value
+func MakeSlice(typ Type, len, cap int) Value {
+	if typ.Kind() != Slice {
+		panic("reflect.MakeSlice of non-slice type")
+	}
+	if len < 0 {
+		panic("reflect.MakeSlice: negative len")
+	}
+	if cap < 0 {
+		panic("reflect.MakeSlice: negative cap")
+	}
+	if len > cap {
+		panic("reflect.MakeSlice: len > cap")
+	}
+	t := typ.(*rtype)
+	// The array, in words the collector scans, as Interface's copies.
+	// Its size must not overflow (Aether's message: gc's runtime reports
+	// the allocation's size out of range).
+	es := t.elem.size
+	if es != 0 && uintptr(cap) > (1<<47)/es {
+		panic("reflect.MakeSlice: len out of range")
+	}
+	words := make([]unsafe.Pointer, (es*uintptr(cap)+7)/8+1)
+	h := &sliceHeader{unsafe.Pointer(&words[0]), len, cap}
+	return Value{typ: t, ptr: unsafe.Pointer(h)}
+}
+
+// sliceHeader is a slice's words.
+type sliceHeader struct {
+	data     unsafe.Pointer
+	len, cap int
+}

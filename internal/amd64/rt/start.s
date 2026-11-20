@@ -267,6 +267,9 @@ aether.panicmsg:
 #   - aether.syswrite makes one write system call of %rdx bytes at %rsi to
 #     file descriptor %rdi and returns its result, the bytes written or the
 #     negated errno;
+#   - aether.sysread makes one read system call of at most %rdx bytes into
+#     %rsi from file descriptor %rdi and returns its result, the bytes read
+#     (0 at end of file) or the negated errno;
 #   - aether.argc returns the number of the program's arguments, from
 #     _start's argc;
 #   - aether.argptr and aether.arglen return the address and length of
@@ -288,6 +291,14 @@ aether.syswrite:
 	syscall				# clobbers %rcx and %r11
 	ret
 	.size	aether.syswrite, .-aether.syswrite
+
+	.globl	aether.sysread
+	.type	aether.sysread, @function
+aether.sysread:
+	xorl	%eax, %eax		# read
+	syscall				# clobbers %rcx and %r11
+	ret
+	.size	aether.sysread, .-aether.sysread
 
 	.globl	aether.argc
 	.type	aether.argc, @function

@@ -1288,8 +1288,11 @@ internals). They declare part of gc's API, with gc's behavior:
   returns at once if there is none; `NumGoroutine`, the goroutines that
   exist, from their `go` statements until their functions return.
 - **`os`:** `Args`; `Exit`, which ends the program with its status
-  modulo 256 and runs no deferred call; `Stdout` and `Stderr`, of type
-  `*File`, with `Write`, `WriteString`, and `Name`. A write is retried
+  modulo 256 and runs no deferred call; `Stdin` (11.8), `Stdout`, and
+  `Stderr`, of type `*File`, with `Read` (11.8), `Write`, `WriteString`,
+  and `Name`. A read is one system call, retried after `EINTR`, of at
+  most 1 GiB, as gc's: an empty buffer reads nothing and returns no
+  error, and 0 bytes read is `io.EOF`. A write is retried
   after `EINTR` and continued after a short one, as gc's; its error is a
   `*PathError` with gc's message (`write /dev/stdout: bad file
   descriptor`), and a write to a nil `*File` returns `ErrInvalid`
@@ -1413,10 +1416,32 @@ uses from every print, so these come first.
     `SetBool`, `SetInt`, `SetUint`, `SetFloat`, `SetComplex`,
     `SetString`, and `Set` of a value of the same type, or of any value
     to an empty interface; any other `Set` panics, with a message of
-    Aether's.
+    Aether's. `MakeSlice` (second part), whose panics for a negative or
+    inconsistent length and capacity are gc's.
   - Its panics for misuse are gc's in kind (`*reflect.ValueError`), with
     messages that may differ. The rest of gc's `reflect` is not declared
     (`stdlib-package`).
+
+## fmt (Phase 11 increment 11.8, second part)
+
+D-049. `fmt` is compiled from GOROOT, as gc's, with Aether's `reflect`
+and `os`; the rest of the subset applies to what it reaches.
+- All of `fmt` is compiled as gc's source. Tested against gc: `Println`,
+  `Printf`, `Sprintf`, `Sprint`, `Sprintln`, `Fprintln`, `Fprintf`, and
+  `Errorf` with `%w`; integer, string, float, boolean, pointer, and
+  complex verbs with widths, precisions, and flags; `%v`, `%+v`, `%#v`,
+  and `%T` of structs, slices, arrays, maps (in gc's sorted key order),
+  nil values, and `String` and `Error` methods; bad verbs and missing
+  arguments; `Sscan` into a `[]byte`, an `int`, and a `complex128`,
+  `Sscanf`, and `Scan` and `Scanln` from the standard input.
+- `internal/fmtsort`, which sorts maps for printing, is gc's file with
+  one change (`$AETHER/internal/fmtsort/sort.go`): it sorts the indices of
+  the map's pairs, since `slices` cannot name `fmtsort`'s own type to
+  instantiate `SortStableFunc` with it (D-049, 11.7). The sort is
+  stable, so the order is gc's.
+- What `fmt` reaches of `reflect` beyond the first part is `MakeSlice`,
+  for scanning into a `[]byte`. A program whose printing or scanning
+  reaches what Aether's `reflect` does not declare is `unsupported`.
 
 ## Support matrix
 
@@ -1465,10 +1490,11 @@ uses from every print, so these come first.
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
 | `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
 | `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`; gate tests |
-| `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysOps` |
+| `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdin`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysRead`, `TestSysReadNative`, `TestSysOps` |
 | Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |
 | `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer`, `Add`, `String`, `StringData`, `Slice`, `SliceData`); `strings`, `bytes`, `sync.Pool` | Package unsafe; the packages' documentation | Phase 11 / 11.7 | Supported (native) | `TestStdPrograms` (`strings`, `unsafe`, `unsafepanic`); `TestStdRejects` |
 | Complex numbers as values (no arithmetic); `reflect` in part | Numeric types, Manipulating complex numbers, Package reflect | Phase 11 / 11.8 | Supported (native) | `s7_c01_complex`, `unsupported_complex_arithmetic`; `TestStdPrograms` (`reflect`); gate tests |
+| `fmt`, with `internal/fmtsort` | Package fmt | Phase 11 / 11.8 | Supported (native) | `TestStdPrograms` (`fmt`, against gc, natively and in the interpreter); `TestStdin` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

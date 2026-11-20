@@ -1224,7 +1224,17 @@ repeated in each phase below:
     It found and fixed two differences from gc, the address of an empty
     slice expression and assertion messages between types of the same
     name. `TestGorootRun`: 548 of 1,005 pass, 0 bugs.
-  - **11.8** A `reflect` subset and `fmt` from source.
+  - **11.8** A `reflect` subset and `fmt` from source, in two parts.
+    *First part done 2026-11-20, owner review pending:* complex numbers as
+    values without arithmetic; `reflect` as Aether's package over full
+    type descriptors; blank struct fields left zero, as gc's. Tests:
+    `s7_c01_complex`, `unsupported_complex_arithmetic`, `TestStdPrograms`
+    (`reflect`), gate tests. *Second part done 2026-11-21, owner review
+    pending:* `fmt` from GOROOT; `os.Stdin` and `File.Read` over a new
+    `sys` kind, `read`; `internal/fmtsort` sorting indices;
+    `reflect.MakeSlice`. Tests: `TestStdPrograms` (`fmt`), `TestStdin`, `TestSysRead`,
+    `TestSysReadNative`, `TestSysOps`. `TestGorootRun` not yet rerun for
+    11.8.
 
 ---
 

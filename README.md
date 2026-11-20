@@ -143,7 +143,7 @@ potentially long-term dependencies. The exact ownership boundaries are in
   11.6), and generic code of other packages, `cmp`, `slices`, `sort`,
   `maps`, and `errors` (increment 11.7, first part), and complex numbers
   without arithmetic and part of `reflect` (increment 11.8, first part),
-  are supported: no complex arithmetic; no range over functions; no type
+  and `fmt` (increment 11.8, second part), are supported: no complex arithmetic; no range over functions; no type
   aliases. Panics print no
   traceback.
 - `//go:build` lines and the directives `//go:noinline`, `//go:norace`,
@@ -159,13 +159,13 @@ potentially long-term dependencies. The exact ownership boundaries are in
   and their callers), and `strconv`, compiled from `$GOROOT/src`, which
   must be go1.26 (increment 11.5), and Aether's own `runtime` (`GOOS`,
   `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`,
-  `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`,
+  `Stdin`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`,
   `Pool`),
   and `sync/atomic` (increment 11.6), and `cmp`, `slices`, `sort`,
   `maps`, and `errors` (increment 11.7), with another package's generic
   code instantiated with types that package can name, and `unsafe`,
-  `strings`, and `bytes` (increment 11.7). Packages that need reflection
-  (`fmt`, ...) are not yet accepted.
+  `strings`, and `bytes` (increment 11.7), and Aether's own part of
+  `reflect` with `fmt` from GOROOT (increment 11.8).
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).
 - The optimization passes are constant folding and dead code elimination. By default, values are kept

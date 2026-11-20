@@ -128,6 +128,12 @@ func runExe(t *testing.T, path string) result {
 // runExeEnv is runExe with env added to the environment.
 func runExeEnv(t *testing.T, path string, env []string) result {
 	t.Helper()
+	return runExeIn(t, path, env, nil)
+}
+
+// runExeIn is runExeEnv with stdin as the standard input, if not nil.
+func runExeIn(t *testing.T, path string, env []string, stdin io.Reader) result {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
@@ -138,7 +144,7 @@ func runExeEnv(t *testing.T, path string, env []string) result {
 			cmd.Env = append(os.Environ(), env...)
 		}
 		cmd.WaitDelay = waitDelay
-		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, &stdout, &stderr
 		err := cmd.Start()
 		if err == nil {
 			break

@@ -70,7 +70,7 @@ func TestGoroutineOps(t *testing.T) {
 }
 
 // TestSysOps checks that the verifier accepts the system calls (D-049,
-// increment 11.6), prints them, and rejects their misuse.
+// increment 11.6, and read, 11.8), prints them, and rejects their misuse.
 func TestSysOps(t *testing.T) {
 	build := func() *Program {
 		p := &Program{}
@@ -78,9 +78,11 @@ func TestSysOps(t *testing.T) {
 		f := p.NewFunc("main", "p.go", pos)
 		b := f.Entry()
 		n := f.Sys(b, SysArgc, I64, pos)
-		f.Sys(b, SysWrite, I64, pos, f.Const(b, 2, pos), f.Sys(b, SysArgPtr, Ptr, pos, n), f.Sys(b, SysArgLen, I64, pos, n))
+		ptr := f.Sys(b, SysArgPtr, Ptr, pos, n)
+		f.Sys(b, SysWrite, I64, pos, f.Const(b, 2, pos), ptr, f.Sys(b, SysArgLen, I64, pos, n))
 		f.Sys(b, SysGC, NoType, pos)
 		f.Sys(b, SysExit, NoType, pos, n)
+		f.Sys(b, SysRead, I64, pos, n, ptr, n)
 		f.Ret(b, pos)
 		return p
 	}
@@ -89,7 +91,7 @@ func TestSysOps(t *testing.T) {
 		t.Fatalf("rejected: %v", errs)
 	}
 	text := p.String()
-	for _, want := range []string{"v0 = sys argc @", "v4 = sys write, v1, v2, v3 @", "sys gc @", "sys exit, v0 @"} {
+	for _, want := range []string{"v0 = sys argc @", "v4 = sys write, v2, v1, v3 @", "sys gc @", "sys exit, v0 @", "v5 = sys read, v0, v1, v0 @"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("printed IR lacks %q:\n%s", want, text)
 		}
@@ -99,9 +101,10 @@ func TestSysOps(t *testing.T) {
 		break_ func(in []*Instr)
 		want   string
 	}{
-		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 6"},
+		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 7"},
+		{"read into a non-ptr", func(in []*Instr) { in[7].Args[1] = in[0] }, "operand v0 has type i64, want ptr"},
 		{"argc of a ptr", func(in []*Instr) { in[0].Type = Ptr }, "has type ptr, want i64"},
-		{"write of a non-ptr", func(in []*Instr) { in[4].Args[1] = in[1] }, "operand v1 has type i64, want ptr"},
+		{"write of a non-ptr", func(in []*Instr) { in[4].Args[1] = in[2] }, "operand v2 has type i64, want ptr"},
 		{"exit with no status", func(in []*Instr) { in[6].Args = nil }, "has 0 operands, want 1"},
 	}
 	for _, tt := range tests {

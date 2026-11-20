@@ -420,6 +420,45 @@ func TestIndirectCalls(t *testing.T) {
 	}
 }
 
+// readProgram reads from fd 0 into an object of 8 bytes three times, and
+// from the closed fd 3, printing each result and the first two bytes read
+// (increment 11.8).
+func readProgram() *ir.Program {
+	p := &ir.Program{}
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	o := f.Alloc(b, f.Const(b, 8, p1), p1)
+	for _, fd := range []int64{0, 0, 0, 3} {
+		n := f.Sys(b, ir.SysRead, ir.I64, p1, f.Const(b, fd, p1), o, f.Const(b, 8, p1))
+		f.Println(b, []*ir.Instr{n, f.LoadB(b, o, f.Const(b, 0, p1), p1), f.LoadB(b, o, f.Const(b, 1, p1), p1)}, p1)
+	}
+	f.Ret(b, p1)
+	return p
+}
+
+// TestSysRead checks SysRead: the run's stdin, read once, then at its end,
+// a closed descriptor, no stdin, and a read into a read-only object.
+func TestSysRead(t *testing.T) {
+	var stderr bytes.Buffer
+	code, err := RunOptions(readProgram(), &stderr, Options{Stdin: strings.NewReader("hey")})
+	if want := "3 104 101\n0 104 101\n0 104 101\n-9 104 101\n"; err != nil || code != 0 || stderr.String() != want {
+		t.Errorf("exit %d, %v, stderr %q; want %q", code, err, stderr.String(), want)
+	}
+	stderr.Reset()
+	if code, err := Run(readProgram(), &stderr); err != nil || code != 0 || stderr.String() != "0 0 0\n0 0 0\n0 0 0\n-9 0 0\n" {
+		t.Errorf("no stdin: exit %d, %v, stderr %q", code, err, stderr.String())
+	}
+	p := &ir.Program{}
+	s := p.Intern("const")
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	f.Sys(b, ir.SysRead, ir.I64, p1, f.Const(b, 0, p1), f.Str(b, s, p1), f.Const(b, 5, p1))
+	f.Ret(b, p1)
+	if _, err := RunOptions(p, io.Discard, Options{Stdin: strings.NewReader("x")}); err == nil || !strings.Contains(err.Error(), "read-only") {
+		t.Errorf("read into a string's bytes: err = %v", err)
+	}
+}
+
 // TestSys checks the system calls (D-049, increment 11.6): writes to the
 // run's stdout and stderr and to a closed descriptor, the arguments, and an
 // exit in Init, which ends the run before main with its status modulo 256.

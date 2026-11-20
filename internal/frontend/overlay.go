@@ -62,7 +62,7 @@ var Intrinsics = map[string]bool{
 	"internal/strconv.float32bits": true, "internal/strconv.float32frombits": true,
 	"internal/strconv.float64bits": true, "internal/strconv.float64frombits": true,
 	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
-	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "sync.fatal": true,
+	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "os.read": true, "sync.fatal": true,
 	"errors.isComparable": true,
 }
 

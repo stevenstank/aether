@@ -89,6 +89,9 @@ type Options struct {
 	// Stdout receives the program's writes to file descriptor 1; nil
 	// discards them. Errors writing to it are ignored.
 	Stdout io.Writer
+	// Stdin is read by the program's reads of file descriptor 0; nil is
+	// empty (increment 11.8).
+	Stdin io.Reader
 	// Args are the program's arguments, its name first; nil is one
 	// argument, "a.out".
 	Args []string
@@ -104,7 +107,7 @@ func RunOptions(prog *ir.Program, stderr io.Writer, opts Options) (int, error) {
 	globals := make([]int64, len(prog.Globals))
 	gs := &goroutines{stacks: make([][]frame, 1), live: []bool{true}}
 	mem := newMemory(prog)
-	sys := &process{stdout: opts.Stdout, stderr: stderr, args: opts.Args}
+	sys := &process{stdin: opts.Stdin, stdout: opts.Stdout, stderr: stderr, args: opts.Args}
 	if sys.stdout == nil {
 		sys.stdout = io.Discard
 	}
@@ -127,6 +130,7 @@ func RunOptions(prog *ir.Program, stderr io.Writer, opts Options) (int, error) {
 
 // process is a run's process: its output files and arguments.
 type process struct {
+	stdin          io.Reader
 	stdout, stderr io.Writer
 	args           []string
 	argPtrs        []int64 // each argument's read-only object, once made
@@ -145,6 +149,23 @@ func (p *process) write(fd int64, b []byte) int64 {
 		return -9
 	}
 	return int64(len(b))
+}
+
+// read is SysRead: fd 0 is the run's stdin, read once, and every other
+// descriptor is closed (EBADF), as for write. Errors reading stdin are
+// EIO.
+func (p *process) read(fd int64, b []byte) int64 {
+	if fd != 0 {
+		return -9
+	}
+	if p.stdin == nil || len(b) == 0 {
+		return 0
+	}
+	n, err := p.stdin.Read(b)
+	if n == 0 && err != nil && err != io.EOF {
+		return -5
+	}
+	return int64(n)
 }
 
 // arg returns the Ptr of argument i, a read-only object made on first use.
@@ -474,6 +495,12 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 					return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
 				}
 				fr.values[in.ID] = sys.write(arg(0), b)
+			case ir.SysRead:
+				b, err := mem.writable(arg(1), arg(2))
+				if err != nil {
+					return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+				}
+				fr.values[in.ID] = sys.read(arg(0), b)
 			case ir.SysArgc:
 				fr.values[in.ID] = int64(len(sys.args))
 			case ir.SysArgPtr, ir.SysArgLen:

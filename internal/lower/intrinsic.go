@@ -90,11 +90,15 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 	case "os.arg":
 		i := l.fn.Param(b, 0, pos)
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysArgPtr, ir.Ptr, pos, i), l.fn.Sys(b, ir.SysArgLen, ir.I64, pos, i))
-	case "os.write":
-		// write(fd int, b []byte) int: the slice's words are its
-		// address, length, and capacity.
+	case "os.write", "os.read":
+		// write(fd int, b []byte) int, and read: the slice's words are
+		// its address, length, and capacity.
 		fdv, p, n := l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos), l.fn.Param(b, 2, pos)
-		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysWrite, ir.I64, pos, fdv, p, n))
+		kind := ir.SysWrite
+		if obj.Name() == "read" {
+			kind = ir.SysRead
+		}
+		l.fn.Ret(b, pos, l.fn.Sys(b, kind, ir.I64, pos, fdv, p, n))
 	case "errors.isComparable":
 		// Whether the dynamic type's descriptor has an equality function
 		// (iface.go).

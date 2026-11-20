@@ -1,9 +1,13 @@
 // Package os is Aether's replacement of gc's os package (D-049, increment
-// 11.6): the program's arguments, its exit, and writes to its standard
-// output and standard error. The functions without a body are intrinsics.
+// 11.6): the program's arguments, its exit, reads of its standard input
+// (11.8), and writes to its standard output and standard error. The
+// functions without a body are intrinsics.
 package os
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
 
 // Args are the program's arguments, its name first.
 var Args []string
@@ -31,15 +35,53 @@ type File struct {
 	name string
 }
 
-// Stdout and Stderr are the files of the standard output and standard
-// error.
+// Stdin, Stdout, and Stderr are the files of the standard input, standard
+// output, and standard error.
 var (
+	Stdin  = &File{0, "/dev/stdin"}
 	Stdout = &File{1, "/dev/stdout"}
 	Stderr = &File{2, "/dev/stderr"}
 )
 
 // Name returns the name of the file.
 func (f *File) Name() string { return f.name }
+
+// Read reads up to len(b) bytes from the file into b, with one read
+// system call. At end of file, it returns 0 and io.EOF.
+func (f *File) Read(b []byte) (n int, err error) {
+	if f == nil {
+		return 0, ErrInvalid
+	}
+	// As gc's internal/poll.(*FD).Read: no system call for an empty b, at
+	// most maxRW bytes, retried after EINTR, and 0 bytes read without an
+	// error the end of the file.
+	if len(b) == 0 {
+		return 0, nil
+	}
+	if len(b) > maxRW {
+		b = b[:maxRW]
+	}
+	for {
+		m := read(f.fd, b)
+		if m == -eintr {
+			continue
+		}
+		if m < 0 {
+			return 0, &PathError{Op: "read", Path: f.name, Err: errno(-m)}
+		}
+		if m == 0 {
+			return 0, io.EOF
+		}
+		return m, nil
+	}
+}
+
+// maxRW is the most bytes gc reads at once (internal/poll).
+const maxRW = 1 << 30
+
+// read makes one read system call and returns its result: the bytes
+// read, or the negated errno.
+func read(fd int, b []byte) int
 
 // Write writes b to the file, all of it unless an error occurs.
 func (f *File) Write(b []byte) (n int, err error) {
@@ -94,7 +136,7 @@ func (e *PathError) Unwrap() error { return e.Err }
 const eintr = 4
 
 // errno is a Linux error number, with gc's message for each error of the
-// write system call (syscall/zerrors_linux_amd64.go).
+// read and write system calls (syscall/zerrors_linux_amd64.go).
 type errno int
 
 func (e errno) Error() string {
@@ -109,6 +151,8 @@ func (e errno) Error() string {
 		return "resource temporarily unavailable"
 	case 14:
 		return "bad address"
+	case 21:
+		return "is a directory"
 	case 22:
 		return "invalid argument"
 	case 27:

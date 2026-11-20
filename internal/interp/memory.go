@@ -236,6 +236,28 @@ func (m *memory) store(t ir.Type, p, off, v int64) error {
 	return nil
 }
 
+// writable returns the n bytes at p, which a read system call fills,
+// checking that they lie in one object that is not read-only, and marks
+// them written (increment 11.8).
+func (m *memory) writable(p, n int64) ([]byte, error) {
+	if n == 0 {
+		return nil, nil
+	}
+	o, off, err := m.object(p)
+	switch {
+	case err != nil:
+		return nil, err
+	case o.readOnly:
+		return nil, fmt.Errorf("write to a read-only object")
+	case n < 0 || n > int64(len(o.data))-off:
+		return nil, fmt.Errorf("%d bytes at offset %d of an object of %d bytes", n, off, len(o.data))
+	}
+	for i := off; i < off+n; i++ {
+		o.written[i] = true
+	}
+	return o.data[off : off+n], nil
+}
+
 // bytes returns the n bytes at p, a string's (D-033, D-037), checking that
 // they lie in one object and were written. A string of length 0 has no
 // bytes, whatever its Ptr.
