@@ -1167,7 +1167,12 @@ repeated in each phase below:
     `TestGorootRun`: 395 of 1,005 pass, 0 bugs. Tests: `s7_t01`, `s7_t02`,
     `s7_b01` to `s7_b03`, gate tests.
   - **11.3** `for range` over integers, arrays, slices, and strings;
-    labels and `goto`; `init` functions; local types.
+    labels and `goto`; `init` functions; local types. *Done 2026-11-20,
+    owner review pending:* `lower/rangeloop.go`; labels as statement
+    targets and goto blocks; `init.N` functions called at the end of
+    Init. Local types of every kind came with 11.2. `TestGorootRun`: 439
+    of 1,005 pass, 0 bugs. Tests: `s7_g01` to `s7_g04`, gate and
+    lowering tests.
   - **11.4** Several files of `package main`; packages of the main module.
   - **11.5** The standard library from GOROOT source: overlays,
     intrinsics, reachability.

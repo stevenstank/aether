@@ -177,7 +177,7 @@ func (l *lowerer) typeSwitch(s *ast.TypeSwitchStmt) {
 	}
 	l.fn.Jump(l.b, dfltBody, pos)
 	_ = dflt
-	sw := &target{exit: exit}
+	sw := &target{exit: exit, stmt: s}
 	l.targets = append(l.targets, sw)
 	done := dflt != nil
 	for i, c := range s.Body.List {

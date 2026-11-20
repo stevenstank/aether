@@ -1,0 +1,130 @@
+func sum[int](ptr, i64, i64) i64 @testdata/check/s7_g04_generic_range.go:7:6
+  slot s0 xs ptr @7:27
+  slot s1 xs i64 @7:27
+  slot s2 xs i64 @7:27
+  slot s3 s i64 @8:6
+  slot s4 tmp ptr @9:2
+  slot s5 tmp i64 @9:2
+  slot s6 range.i i64 @9:2
+  slot s7 x i64 @9:9
+b0:
+  v0 = param 0 @7:27
+  store s0, v0 @7:27
+  v1 = param 1 @7:27
+  store s1, v1 @7:27
+  v2 = param 2 @7:27
+  store s2, v2 @7:27
+  v3 = const 0 @8:6
+  store s3, v3 @8:6
+  v4 = load s0 @9:20
+  v5 = load s1 @9:20
+  v6 = load s2 @9:20
+  store s4, v4 @9:2
+  store s5, v5 @9:2
+  v7 = const 0 @9:2
+  store s6, v7 @9:2
+  jump b1 @9:2
+b1:
+  v8 = load s6 @9:2
+  v9 = load s5 @9:2
+  v10 = lt v8, v9 @9:2
+  branch v10, b2, b4 @9:2
+b2:
+  v11 = load s4 @9:2
+  v12 = load s6 @9:2
+  v13 = const 8 @9:2
+  v14 = mul v12, v13 @9:2
+  v15 = ldm i64, v11, v14 @9:2
+  store s7, v15 @9:9
+  v16 = load s3 @10:3
+  v17 = load s7 @10:8
+  v18 = add v16, v17 @10:5
+  store s3, v18 @10:3
+  jump b3 @11:2
+b3:
+  v19 = load s6 @9:2
+  v20 = const 1 @9:2
+  v21 = add v19, v20 @9:2
+  store s6, v21 @9:2
+  jump b1 @9:2
+b4:
+  v22 = load s3 @12:9
+  ret v22 @12:2
+
+func sum[float64](ptr, i64, i64) f64 @testdata/check/s7_g04_generic_range.go:7:6
+  slot s0 xs ptr @7:27
+  slot s1 xs i64 @7:27
+  slot s2 xs i64 @7:27
+  slot s3 s f64 @8:6
+  slot s4 tmp ptr @9:2
+  slot s5 tmp i64 @9:2
+  slot s6 range.i i64 @9:2
+  slot s7 x f64 @9:9
+b0:
+  v0 = param 0 @7:27
+  store s0, v0 @7:27
+  v1 = param 1 @7:27
+  store s1, v1 @7:27
+  v2 = param 2 @7:27
+  store s2, v2 @7:27
+  v3 = const f64 0 @8:6
+  store s3, v3 @8:6
+  v4 = load s0 @9:20
+  v5 = load s1 @9:20
+  v6 = load s2 @9:20
+  store s4, v4 @9:2
+  store s5, v5 @9:2
+  v7 = const 0 @9:2
+  store s6, v7 @9:2
+  jump b1 @9:2
+b1:
+  v8 = load s6 @9:2
+  v9 = load s5 @9:2
+  v10 = lt v8, v9 @9:2
+  branch v10, b2, b4 @9:2
+b2:
+  v11 = load s4 @9:2
+  v12 = load s6 @9:2
+  v13 = const 8 @9:2
+  v14 = mul v12, v13 @9:2
+  v15 = ldm f64, v11, v14 @9:2
+  store s7, v15 @9:9
+  v16 = load s3 @10:3
+  v17 = load s7 @10:8
+  v18 = fadd v16, v17 @10:5
+  store s3, v18 @10:3
+  jump b3 @11:2
+b3:
+  v19 = load s6 @9:2
+  v20 = const 1 @9:2
+  v21 = add v19, v20 @9:2
+  store s6, v21 @9:2
+  jump b1 @9:2
+b4:
+  v22 = load s3 @12:9
+  ret v22 @12:2
+
+func main @testdata/check/s7_g04_generic_range.go:15:6
+  slot s0 tmp ptr @16:14
+  slot s1 tmp ptr @16:29
+b0:
+  v0 = const 8 @16:14
+  v1 = alloc noscan, v0 @16:14
+  store s0, v1 @16:14
+  v2 = const 1 @16:20
+  v3 = const 0 @16:20
+  stm v1, v3, v2 @16:20
+  v4 = const 1 @16:14
+  v5 = const 1 @16:14
+  v6 = call sum[int], v1, v4, v5 @16:10
+  v7 = const 8 @16:29
+  v8 = alloc noscan, v7 @16:29
+  store s1, v8 @16:29
+  v9 = const f64 2 @16:39
+  v10 = const 0 @16:39
+  stm v8, v10, v9 @16:39
+  v11 = const 1 @16:29
+  v12 = const 1 @16:29
+  v13 = call sum[float64], v8, v11, v12 @16:25
+  println v6, v13 @16:2
+  ret @17:1

@@ -127,6 +127,14 @@ type bailout diag.Diagnostic
 // words. An array or struct value is one word, the Ptr of a temporary
 // holding it, and its variables are memory objects (aggregate.go, D-034).
 type lowerer struct {
+	// labeled maps each label to the statement it labels, and
+	// labelBlocks each to the block a goto jumps to (D-049). Labels are
+	// distinct objects in every function, so the maps are never reset.
+	labeled     map[*types.Label]ast.Stmt
+	labelBlocks map[*types.Label]*ir.Block
+	// inits are the package's init functions, in source order (D-049).
+	inits []*ir.Func
+
 	pkg     *frontend.Package
 	prog    *ir.Program
 	fn      *ir.Func
@@ -188,7 +196,8 @@ type lowerer struct {
 // condition). A switch has no next.
 type target struct {
 	next, exit *ir.Block
-	broken     bool // a break targets exit
+	broken     bool     // a break targets exit
+	stmt       ast.Stmt // the statement, which a label may name (D-049)
 }
 
 func (l *lowerer) fail(n ast.Node, format string, args ...any) {
@@ -221,7 +230,16 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 		l.fail(fd, "unexpected signature for %s", fd.Name.Name)
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
-	f := prog.NewFunc(l.funcName(fd, obj), file, l.pos(fd.Name, fd.Name.Pos()))
+	name := l.funcName(fd, obj)
+	if fd.Recv == nil && fd.Name.Name == "init" {
+		// init functions, which nothing can name, are init.0, init.1,
+		// and so on, in source order, as gc names them (D-049).
+		name = fmt.Sprintf("init.%d", len(l.inits))
+	}
+	f := prog.NewFunc(name, file, l.pos(fd.Name, fd.Name.Pos()))
+	if fd.Recv == nil && fd.Name.Name == "init" {
+		l.inits = append(l.inits, f)
+	}
 	if r := sig.Recv(); r != nil {
 		f.Params = append(f.Params, l.words(fd, r.Type())...)
 	}
@@ -293,10 +311,11 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 // Init, in types.Info.InitOrder (spec §Package initialization): each
 // evaluates its expression, which may call functions, then stores the
 // value, or each result of a call, in its variables. A variable without an
-// initializer keeps its zero value. Init is at the package clause.
+// initializer keeps its zero value. Then it calls the init functions, in
+// source order (D-049). Init is at the package clause.
 func (l *lowerer) init(prog *ir.Program) {
 	order := l.pkg.Info.InitOrder
-	if len(order) == 0 {
+	if len(order) == 0 && len(l.inits) == 0 {
 		return
 	}
 	f := l.pkg.Files[0]
@@ -321,6 +340,9 @@ func (l *lowerer) init(prog *ir.Program) {
 			}
 			l.store(gv, vals[i], l.pos(init.Rhs, v.Pos()))
 		}
+	}
+	for _, f := range l.inits {
+		l.fn.Call(l.b, f, nil, f.Pos)
 	}
 	l.fn.Ret(l.b, l.fn.Pos)
 	prune(l.fn)
@@ -459,8 +481,8 @@ func prune(f *ir.Func) {
 // return is unreachable and is not lowered (D-023 invariant 1).
 func (l *lowerer) stmts(list []ast.Stmt) {
 	for _, s := range list {
-		if l.done {
-			return
+		if _, labeled := s.(*ast.LabeledStmt); l.done && !labeled {
+			continue // unreachable, unless a goto reaches a later label
 		}
 		l.stmt(s)
 	}
@@ -534,22 +556,37 @@ func (l *lowerer) stmt(s ast.Stmt) {
 			return
 		}
 		if !isMap(l.pkg.Info.Types[s.X].Type) {
-			l.fail(s, "unexpected statement %T", s)
+			l.rangeStmt(s) // D-049
+			return
 		}
 		l.mapRange(s) // D-042
 	case *ast.SwitchStmt:
 		l.switchStmt(s)
 	case *ast.TypeSwitchStmt:
 		l.typeSwitch(s) // D-041
+	case *ast.LabeledStmt:
+		l.labeledStmt(s) // D-049
 	case *ast.BranchStmt:
-		if s.Label != nil || s.Tok != token.BREAK && s.Tok != token.CONTINUE {
+		if s.Tok == token.GOTO {
+			l.fn.Jump(l.b, l.labelBlock(l.pkg.Info.Uses[s.Label].(*types.Label)), l.pos(s, s.Pos()))
+			l.done = true
+			return
+		}
+		if s.Tok != token.BREAK && s.Tok != token.CONTINUE {
 			l.fail(s, "unexpected %s statement", s.Tok)
 		}
 		// break leaves the innermost for, switch, or select, continue the
-		// innermost for.
+		// innermost for; with a label, the statement it names (D-049).
+		var named ast.Stmt
+		if s.Label != nil {
+			named = l.labeled[l.pkg.Info.Uses[s.Label].(*types.Label)]
+		}
 		var dest *ir.Block
 		for i := len(l.targets) - 1; i >= 0 && dest == nil; i-- {
 			t := l.targets[i]
+			if named != nil && t.stmt != named {
+				continue
+			}
 			if s.Tok == token.BREAK {
 				dest, t.broken = t.exit, true
 			} else {
@@ -569,6 +606,37 @@ func (l *lowerer) stmt(s ast.Stmt) {
 	default:
 		l.fail(s, "unexpected statement %T", s)
 	}
+}
+
+// labeledStmt lowers "L: s": a block of its own, which a goto jumps to,
+// reached from the code before it; then s, which break and continue name
+// by L (D-049).
+func (l *lowerer) labeledStmt(s *ast.LabeledStmt) {
+	lab := l.pkg.Info.Defs[s.Label].(*types.Label)
+	b := l.labelBlock(lab)
+	if !l.done {
+		l.fn.Jump(l.b, b, l.pos(s, s.Pos()))
+	}
+	l.b, l.done = b, false
+	if l.labeled == nil {
+		l.labeled = map[*types.Label]ast.Stmt{}
+	}
+	l.labeled[lab] = s.Stmt
+	l.stmt(s.Stmt)
+}
+
+// labelBlock returns the block of the label lab, made on first use: a
+// goto may precede its label.
+func (l *lowerer) labelBlock(lab *types.Label) *ir.Block {
+	if l.labelBlocks == nil {
+		l.labelBlocks = map[*types.Label]*ir.Block{}
+	}
+	b := l.labelBlocks[lab]
+	if b == nil {
+		b = l.fn.NewBlock()
+		l.labelBlocks[lab] = b
+	}
+	return b
 }
 
 // ifStmt lowers "if init; cond { … } else …". The branch is at the if
@@ -627,7 +695,7 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 	} else {
 		l.fn.Jump(l.b, body, pos)
 	}
-	lp := &target{next: next, exit: exit}
+	lp := &target{next: next, exit: exit, stmt: s}
 	l.targets = append(l.targets, lp)
 	l.b, l.done = body, false
 	l.stmts(s.Body.List)
@@ -717,7 +785,7 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 		}
 	}
 	l.fn.Jump(l.b, dfltBody, l.pos(s, s.Switch))
-	sw := &target{exit: exit}
+	sw := &target{exit: exit, stmt: s}
 	l.targets = append(l.targets, sw)
 	done := dflt != nil
 	for i, c := range s.Body.List {

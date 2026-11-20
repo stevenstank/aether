@@ -782,7 +782,7 @@ func (l *lowerer) mapRange(s *ast.RangeStmt) {
 	for k, x := range targets {
 		l.store(vs[k], vals[k](), l.pos(x, x.Pos()))
 	}
-	lp := &target{next: head, exit: exit}
+	lp := &target{next: head, exit: exit, stmt: s}
 	l.targets = append(l.targets, lp)
 	l.stmts(s.Body.List)
 	if !l.done {

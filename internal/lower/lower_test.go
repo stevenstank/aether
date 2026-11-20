@@ -211,7 +211,7 @@ func TestLowerInit(t *testing.T) {
 // an internal error at the offending construct instead of emitting IR.
 func TestLowerUnexpected(t *testing.T) {
 	tests := []struct{ name, src, want string }{
-		{"statement", "func main() { x := 1; for range x { }; println(x) }", "p.go:2:23: internal: lowering: unexpected statement *ast.RangeStmt"},
+		{"statement", "func main() { x := 1; switch { case x > 0: fallthrough; default: }; println(x) }", "p.go:2:44: internal: lowering: unexpected fallthrough statement"},
 		{"fallthrough", "func main() { switch { case true: fallthrough; default: } }", "p.go:2:35: internal: lowering: unexpected fallthrough statement"},
 		{"slice to array", "func main() { s := []int{1, 2}; a := [2]int(s); println(a[0]) }", "p.go:2:45: internal: lowering: s is not an array or struct variable"},
 		{"type", "func main() { var c complex128; println(real(c)) }", "p.go:2:19: internal: lowering: unexpected type complex128"},

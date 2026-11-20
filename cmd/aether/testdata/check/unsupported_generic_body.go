@@ -1,18 +1,19 @@
-// aether:expect unsupported for-range
+// aether:expect unsupported fallthrough
 
 package main
 
 // The copies of generic code are checked against the subset; a
 // rejection is reported once, at the generic code's position.
-
-func sum[T int | float64](xs []T) T {
-	var s T
-	for _, x := range xs {
-		s += x
+func pick[T int | float64](x T) T {
+	switch {
+	case x > 0:
+		fallthrough
+	default:
+		x++
 	}
-	return s
+	return x
 }
 
 func main() {
-	println(sum([]int{1}), sum([]float64{2}))
+	println(pick(1), pick(2.5))
 }

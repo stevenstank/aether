@@ -982,5 +982,7 @@ counted 141 top-level files containing a `// run` line.
     script applying the same rule passed 207 and found 2 `internal` bugs.
   - After increment 11.2 (2026-11-20): 395 pass (39.3 %), 610
     `unsupported`, 0 bugs.
+  - After increment 11.3 (2026-11-20): 439 pass (43.7 %), 566
+    `unsupported` (494 of them for an import), 0 bugs.
 - It is read in place from GOROOT, not copied into the repository. Copying would
   require handling the BSD license.

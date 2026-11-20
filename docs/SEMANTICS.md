@@ -437,9 +437,9 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Area | Feature names |
 |---|---|
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
-| Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `function-without-body` |
+| Top-level declarations | `package-level-declaration`, `function-declaration`, `function-without-body` |
 | Generics (D-045) | `generic-instance`, `generic-uninstantiated` |
-| Statements | `for-range`, `go`, `defer`, `goto`, `fallthrough`, `label`, `statement` |
+| Statements | `for-range`, `go`, `defer`, `fallthrough`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
@@ -1176,6 +1176,29 @@ D-049. These supersede the rejections that earlier sections list for them.
   expression of a type that is neither defined nor an interface, as
   `struct{ T }.m` (`selector`).
 
+## Range, labels, `goto`, and `init` (Phase 11 increment 11.3)
+
+D-049. These supersede the rejections earlier sections list for them.
+- **`for range`** over an integer, an array, a pointer to an array, a
+  slice, and a string, as the specification defines it:
+  - the range expression is evaluated once;
+  - an array or a pointer to one without a value variable is not
+    evaluated when its length is constant (no non-constant call or
+    receive in it);
+  - an array value is ranged over as a copy, while a slice's or a
+    pointer's elements are read in each iteration;
+  - a string gives byte offsets and runes, with U+FFFD for each byte of
+    invalid UTF-8;
+  - the variables `:=` declares are new in each iteration (Go 1.22);
+  - the `=` form assigns as an assignment does.
+- **Labels**, labeled `break` and `continue` of `for`, `range`, `switch`,
+  type switch, and `select` statements, and `goto`, forward and backward.
+- **`init` functions**, any number, run after every package variable is
+  initialized, in source order, before `main`.
+- Still `unsupported`: `fallthrough` and range over functions
+  (`for-range`). The feature names `label`, `goto`, and `init-function`
+  are no longer reported and were removed.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1219,6 +1242,7 @@ D-049. These supersede the rejections that earlier sections list for them.
 | Directives: `//go:build` and `// +build` before the package clause (ignored for files named on the command line, as by `go build file.go`); `//go:noinline`, `//go:norace`, `//go:nocheckptr`, `//go:registerparams` on their own line before a function with a body (ignored) | Program execution; gc's directives | Phase 11 / 11.1 | Supported (native) | `s7_r02_directives`; `TestRejectedFileLevel`; `TestGorootRun` |
 | Defined types of every supported underlying type, with methods, conversions, and interfaces | Type definitions, Method declarations, Conversions | Phase 11 / 11.2 | Supported (native) | `s7_t01_defined_types`, `s7_t02_local_types`; gate tests; `TestGorootRun` |
 | The blank identifier in declarations and assignments | Blank identifier, Assignment statements | Phase 11 / 11.2 | Supported (native) | `s7_b01_blank` to `s7_b03_blank_declarations`; gate tests; `TestGorootRun` |
+| `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

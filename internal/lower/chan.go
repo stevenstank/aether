@@ -835,7 +835,7 @@ func (l *lowerer) chanRange(s *ast.RangeStmt) {
 			l.store(v, get(), xpos)
 		}
 	}
-	lp := &target{next: head, exit: exit}
+	lp := &target{next: head, exit: exit, stmt: s}
 	l.targets = append(l.targets, lp)
 	l.stmts(s.Body.List)
 	if !l.done {
@@ -929,7 +929,7 @@ func (l *lowerer) selectStmt(s *ast.SelectStmt) {
 			l.fn.Panic(l.b, ir.PanicFatal, pos, l.strWords("aether: select resumed without a case", pos)...)
 		}
 	}
-	sw := &target{exit: exit}
+	sw := &target{exit: exit, stmt: s}
 	l.targets = append(l.targets, sw)
 	done := true
 	body := func(b *ir.Block, cc *ast.CommClause, assign func()) {

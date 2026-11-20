@@ -35,9 +35,10 @@ Supported subset (S2):
   assertions, and type switches; maps with make, literals, indexing,
   delete, len, clear, and range; defer, panic, and recover; goroutines
   and channels with go, send, receive, close, len, cap, range, and
-  select; if, for, and switch; package-level var and const; print and
-  println. Not supported: complex numbers, range over anything but maps
-  and channels.
+  select; if, for, for range over integers, arrays, slices, and
+  strings, switch, labels, and goto; package-level var and const; init
+  functions; print and println. Not supported: complex numbers,
+  fallthrough, range over functions.
   See docs/SEMANTICS.md.
 
 Build flags:

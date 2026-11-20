@@ -47,7 +47,6 @@ const (
 	FeatCgo           = "cgo"
 	FeatDirective     = "directive"
 	FeatPackageDecl   = "package-level-declaration"
-	FeatInitFunc      = "init-function"
 	FeatFuncDecl      = "function-declaration"
 	FeatLocalType     = "local-type-declaration"
 	FeatConstImplicit = "const-implicit-value"
@@ -225,7 +224,7 @@ var featureNames = map[string]bool{}
 func init() {
 	for _, f := range []string{
 		FeatMultipleFiles, FeatPackageName, FeatImport, FeatCgo, FeatDirective,
-		FeatPackageDecl, FeatInitFunc, FeatFuncDecl, FeatLocalType,
+		FeatPackageDecl, FeatFuncDecl, FeatLocalType,
 		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
@@ -235,8 +234,8 @@ func init() {
 		FeatLoopVarAddr, FeatGenericInstance, FeatGenericUnused,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "go",
-		"defer", "label",
-		token.GOTO.String(), token.FALLTHROUGH.String(),
+		"defer",
+		token.FALLTHROUGH.String(),
 	} {
 		featureNames[f] = true
 	}
@@ -303,7 +302,7 @@ func (c *checker) topDecl(d ast.Decl) {
 		case d.Recv != nil:
 			c.method(d)
 		case d.Name.Name == "init":
-			c.reject(d, FeatInitFunc, "init function")
+			c.funcDecl(d) // D-049
 		case d.Name.Name == "_":
 			// Several functions may be named _, and none can be called.
 			c.reject(d.Name, FeatBlank, "function named _")
@@ -391,7 +390,8 @@ const maxFrameObjects = 1 << 29
 // place, but a literal or call selected from or indexed is not, a literal whose address is taken is on the heap, and the operand of
 // a constant len is not evaluated. A send, a receive, and a range over a
 // channel each have an object for the element, of any type, and a select
-// an array of its cases (D-048). Each object may need up to 8 more bytes
+// an array of its cases (D-048); a range over an array value with a value
+// variable has its copy (D-049). Each object may need up to 8 more bytes
 // for its alignment.
 func (c *checker) frameBytes(n ast.Node) int64 {
 	var total int64
@@ -412,6 +412,11 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			elem(n.Chan)
 		case *ast.RangeStmt:
 			elem(n.X)
+			// A range over an array value with a value variable copies
+			// the array (D-049).
+			if v := n.Value; v != nil && !isIdent(v, "_") && isAggregate(c.info.Types[n.X].Type) {
+				add(c.info.Types[n.X].Type)
+			}
 		case *ast.SelectStmt:
 			total += int64(len(n.Body.List))*32 + 8
 		case *ast.SelectorExpr:
@@ -622,11 +627,14 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.mapRange(s) // a channel's elements, as a map's keys (D-048)
 			return
 		}
-		if !c.isMap(s.X) {
+		if !c.isMap(s.X) && !c.rangeable(s.X) {
 			c.reject(s, "for-range", "for-range statement")
 			return
 		}
-		c.mapRange(s) // D-042
+		// A map's keys and elements (D-042), or an integer's, an array's,
+		// a slice's, or a string's indices and elements (D-049), checked
+		// alike.
+		c.mapRange(s)
 	case *ast.SwitchStmt:
 		// go/types has checked that each case value is comparable with the
 		// tag, and converted untyped constants to the tag's type.
@@ -667,17 +675,14 @@ func (c *checker) stmt(s ast.Stmt) {
 			}
 		}
 	case *ast.BranchStmt:
-		switch {
-		case s.Tok == token.GOTO || s.Tok == token.FALLTHROUGH:
+		if s.Tok == token.FALLTHROUGH {
 			c.reject(s, s.Tok.String(), s.Tok.String()+" statement")
-		case s.Label != nil:
-			c.reject(s, "label", "labeled "+s.Tok.String())
 		}
-		// An unlabeled break or continue: every enclosing statement that
-		// could be its target other than for, switch, and select is
-		// rejected.
+		// break and continue, labeled or not, and goto (D-049): go/types
+		// has checked that each label exists and that a goto jumps
+		// neither into a block nor over a variable declaration.
 	case *ast.LabeledStmt:
-		c.reject(s, "label", "labeled statement")
+		c.stmt(s.Stmt) // D-049
 	case *ast.SendStmt:
 		// go/types has checked that the value is assignable to the
 		// element type (D-048).
@@ -1728,6 +1733,23 @@ func isString(t types.Type) bool {
 	return ok && (b.Kind() == types.String || b.Kind() == types.UntypedString)
 }
 
+// rangeable reports whether a range over x is one D-049 allows: over an
+// integer, an array, a pointer to an array, a slice, or a string.
+func (c *checker) rangeable(x ast.Expr) bool {
+	t := c.info.Types[x].Type
+	if p, ok := t.Underlying().(*types.Pointer); ok {
+		_, isArray := p.Elem().Underlying().(*types.Array)
+		return isArray
+	}
+	switch u := t.Underlying().(type) {
+	case *types.Array, *types.Slice:
+		return true
+	case *types.Basic:
+		return u.Info()&(types.IsInteger|types.IsString) != 0
+	}
+	return false
+}
+
 // isString reports whether the expression e has a string type.
 func (c *checker) isString(e ast.Expr) bool {
 	tv, ok := c.info.Types[e]
@@ -1742,4 +1764,10 @@ func (c *checker) supportedOrUntyped(t types.Type) bool {
 	return c.supported(t) || types.Identical(t, types.Typ[types.UntypedNil]) || types.Identical(t, types.Typ[types.UntypedInt]) ||
 		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||
 		types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.UntypedString])
+}
+
+// isIdent reports whether e is the identifier name.
+func isIdent(e ast.Expr, name string) bool {
+	id, ok := e.(*ast.Ident)
+	return ok && id.Name == name
 }
