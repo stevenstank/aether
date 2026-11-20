@@ -55,7 +55,7 @@ func DCE(f *ir.Func) (bool, error) {
 // hasEffect reports whether in does more than compute its value.
 func hasEffect(in *ir.Instr) bool {
 	switch in.Op {
-	case ir.Call, ir.CallInd, ir.Println, ir.Print, ir.GStore, ir.StM, ir.Alloc, ir.Move, ir.Param, ir.GoNew, ir.GoSwitch:
+	case ir.Call, ir.CallInd, ir.Println, ir.Print, ir.GStore, ir.StM, ir.Alloc, ir.Move, ir.Param, ir.GoNew, ir.GoSwitch, ir.Sys:
 		return true
 	}
 	return in.Op.IsTerminator()

@@ -3,6 +3,9 @@ package lower
 import (
 	"go/ast"
 	"go/types"
+
+	"github.com/stevenstank/aether/internal/frontend"
+	"github.com/stevenstank/aether/internal/ir"
 )
 
 // intrinsicKey returns the key of fd in frontend.Intrinsics: its package
@@ -13,6 +16,34 @@ func intrinsicKey(info *types.Info, fd *ast.FuncDecl) string {
 		return ""
 	}
 	return obj.Pkg().Path() + "." + obj.Name()
+}
+
+// reached reports whether the program, pruned to what main reaches,
+// declares the intrinsic key.
+func reached(pkg *frontend.Package, key string) bool {
+	for _, f := range pkg.Files {
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Body == nil && intrinsicKey(pkg.Info, fd) == key {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// yield puts the running goroutine at the run queue's tail, after the
+// others, and runs the next, unless there is no other to run.
+func (l *lowerer) yield(pos ir.Pos) {
+	sc, m := l.sched(), mb{l, pos}
+	other := m.when(m.cmp(ir.Eq, l.fn.GLoad(l.b, sc.runnext, pos), m.nilPtr()))
+	queued := m.when(m.cmp(ir.Eq, l.fn.GLoad(l.b, sc.runqHead, pos), m.nilPtr()))
+	done := l.fn.NewBlock()
+	m.join(done)
+	l.b = queued
+	m.join(other)
+	l.runqPut(m.v("g", l.fn.Call(l.b, sc.getg, nil, pos)), pos)
+	l.fn.Call(l.b, sc.park, nil, pos)
+	m.join(done)
 }
 
 // intrinsic generates the body of fd, a function an overlay file declares
@@ -37,6 +68,35 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 		a, zero := l.fn.Addr(b, m, pos), l.fn.Const(b, 0, pos)
 		l.fn.StM(b, a, zero, x, pos)
 		l.fn.Ret(b, pos, l.fn.LdM(b, l.fn.Results[0], a, zero, pos))
+	case "runtime.GC", "runtime.Gosched":
+		// GC collects, then, as gc's blocks its caller while it runs,
+		// yields as Gosched does.
+		l.b = b
+		if obj.Name() == "GC" {
+			l.fn.Sys(l.b, ir.SysGC, ir.NoType, pos)
+		}
+		l.yield(pos)
+		l.fn.Ret(l.b, pos)
+	case "runtime.NumGoroutine":
+		// Main and the goroutines its scheduler counts (sched.ngo).
+		l.b = b
+		sc := l.sched()
+		l.fn.Ret(l.b, pos, l.fn.Binary(l.b, ir.Add, l.fn.GLoad(l.b, sc.ngo, pos), l.fn.Const(l.b, 1, pos), pos))
+	case "os.Exit":
+		l.fn.Sys(b, ir.SysExit, ir.NoType, pos, l.fn.Param(b, 0, pos))
+		l.fn.Ret(b, pos)
+	case "os.argc":
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysArgc, ir.I64, pos))
+	case "os.arg":
+		i := l.fn.Param(b, 0, pos)
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysArgPtr, ir.Ptr, pos, i), l.fn.Sys(b, ir.SysArgLen, ir.I64, pos, i))
+	case "os.write":
+		// write(fd int, b []byte) int: the slice's words are its
+		// address, length, and capacity.
+		fdv, p, n := l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos), l.fn.Param(b, 2, pos)
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysWrite, ir.I64, pos, fdv, p, n))
+	case "sync.fatal":
+		l.fn.Panic(b, ir.PanicFatal, pos, l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos))
 	default:
 		l.fail(fd, "unknown intrinsic %s", obj.Name())
 	}

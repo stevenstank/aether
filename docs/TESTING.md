@@ -991,6 +991,11 @@ counted 141 top-level files containing a `// run` line.
     `unsupported` (376 for an import, almost all of `runtime` through
     `fmt` or `os`; 59 for a `//go:linkname` variable, mostly in `reflect`;
     50 for generic code of another package, mostly `sync`), 0 bugs.
+  - After increment 11.6 (2026-11-20): 516 pass (51.3 %; 49 more, none
+    lost), 489 `unsupported` (334 `stdlib-package`, almost all a standard-library
+    package that needs more of `runtime`, `sync`, or `sync/atomic` than
+    Aether's: `runtime.Caller` in `internal/reflectlite`, `sync.Pool` in
+    `io`, `runtime.Goexit` in `iter`), 0 bugs.
 - **Programs of several packages** (D-049, increment 11.4).
   `TestPackagePrograms` builds each program under
   `cmd/aether/testdata/packages/cmd`, in the module
@@ -1004,5 +1009,10 @@ counted 141 top-level files containing a `// run` line.
   compiled from GOROOT, with gc and with Aether (default and `-O0`), and
   compares them. `TestStdRejects` covers assembly, `runtime`, `internal`,
   `unsafe`, and unreached code; `TestGOROOTVersion` the GOROOT check.
+  Since increment 11.6 the programs also use `runtime`, `os`, `sync`, and
+  `sync/atomic`; each also runs in the interpreter, and a program ending
+  in a fatal error (`syncfatal`, `syncdeadlock`) is compared by the panic
+  rule. `TestStdoutErrors` runs a program with its standard output closed
+  and on `/dev/full` under gc and Aether.
 - It is read in place from GOROOT, not copied into the repository. Copying would
   require handling the BSD license.

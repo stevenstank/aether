@@ -96,6 +96,7 @@ const maxChanBytes = 1<<48 - 96
 // first use.
 type sched struct {
 	curg, runnext, runqHead, runqTail *ir.Global
+	ngo                               *ir.Global // the goroutines besides main, if counted
 	getg, ready, next, newproc, entry *ir.Func
 	park                              *ir.Func
 	fns                               map[string]*ir.Func
@@ -118,6 +119,9 @@ func (l *lowerer) sched() *sched {
 	sc.runnext = l.prog.NewGlobal(".runnext", ir.Ptr, file, pos)
 	sc.runqHead = l.prog.NewGlobal(".runqhead", ir.Ptr, file, pos)
 	sc.runqTail = l.prog.NewGlobal(".runqtail", ir.Ptr, file, pos)
+	if l.countG {
+		sc.ngo = l.prog.NewGlobal(".ngo", ir.I64, file, pos)
+	}
 	sc.getg = l.genFunc("getg", nil, []ir.Type{ir.Ptr}, func(_ []func() *ir.Instr, pos ir.Pos) {
 		m := mb{l, pos}
 		g := m.v("g", l.fn.GLoad(l.b, sc.curg, pos))
@@ -134,16 +138,7 @@ func (l *lowerer) sched() *sched {
 		some := m.when(m.cmp(ir.Eq, old.get(), m.nilPtr()))
 		l.fn.Ret(l.b, pos)
 		l.b = some
-		m.st(old.get(), gLink, m.nilPtr())
-		tail := m.v("tail", l.fn.GLoad(l.b, sc.runqTail, pos))
-		after := m.when(m.cmp(ir.Eq, tail.get(), m.nilPtr()))
-		l.fn.GStore(l.b, sc.runqHead, old.get(), pos)
-		join := l.fn.NewBlock()
-		m.join(join)
-		l.b = after
-		m.st(tail.get(), gLink, old.get())
-		m.join(join)
-		l.fn.GStore(l.b, sc.runqTail, old.get(), pos)
+		l.runqPut(old, pos)
 		l.fn.Ret(l.b, pos)
 	})
 	sc.next = l.genFunc("nextg", nil, []ir.Type{ir.Ptr}, func(_ []func() *ir.Instr, pos ir.Pos) {
@@ -180,6 +175,9 @@ func (l *lowerer) sched() *sched {
 		m.st(g.get(), gRec, m.nilPtr())
 		code := m.ld(ir.Ptr, rec.get(), 8)
 		l.fn.CallInd(l.b, &ir.Sig{Params: []ir.Type{ir.Ptr}}, code, []*ir.Instr{rec.get()}, pos)
+		if sc.ngo != nil {
+			l.fn.GStore(l.b, sc.ngo, m.bin(ir.Sub, l.fn.GLoad(l.b, sc.ngo, pos), m.c(1)), pos)
+		}
 		// A panic leaving the record ends the program (unwind.go exit).
 		n := m.v("n", l.fn.Call(l.b, sc.next, nil, pos))
 		l.fn.GStore(l.b, sc.curg, n.get(), pos)
@@ -190,6 +188,9 @@ func (l *lowerer) sched() *sched {
 		g := m.v("g", l.fn.Alloc(l.b, m.c(gSize), pos))
 		m.st(g.get(), gRec, p[0]())
 		m.st(g.get(), gHandle, l.fn.GoNew(l.b, sc.entry, pos))
+		if sc.ngo != nil {
+			l.fn.GStore(l.b, sc.ngo, m.bin(ir.Add, l.fn.GLoad(l.b, sc.ngo, pos), m.c(1)), pos)
+		}
 		l.fn.Call(l.b, sc.ready, []*ir.Instr{g.get()}, pos)
 		l.fn.Ret(l.b, pos)
 	})
@@ -218,6 +219,21 @@ func (l *lowerer) sched() *sched {
 		l.fn.Ret(l.b, pos)
 	})
 	return sc
+}
+
+// runqPut appends the G g to the tail of the run queue.
+func (l *lowerer) runqPut(g mvar, pos ir.Pos) {
+	m, sc := mb{l, pos}, l.sch
+	m.st(g.get(), gLink, m.nilPtr())
+	tail := m.v("tail", l.fn.GLoad(l.b, sc.runqTail, pos))
+	after := m.when(m.cmp(ir.Eq, tail.get(), m.nilPtr()))
+	l.fn.GStore(l.b, sc.runqHead, g.get(), pos)
+	join := l.fn.NewBlock()
+	m.join(join)
+	l.b = after
+	m.st(tail.get(), gLink, g.get())
+	m.join(join)
+	l.fn.GStore(l.b, sc.runqTail, g.get(), pos)
 }
 
 // chanFunc returns the generated channel function name, creating it on

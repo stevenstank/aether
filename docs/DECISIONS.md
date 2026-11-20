@@ -4219,6 +4219,43 @@ packages.
   built after every argument is evaluated; variadic methods, func values,
   and `go`/`defer` of variadic calls stay `unsupported`.
 
+**Implementation notes (increment 11.6, 2026-11-20).**
+- `runtime`, `os`, `sync`, and `sync/atomic` are replaced packages, as
+  planned: Aether's overlay files only. They are written in the subset;
+  `sync` waits on channels, and `sync/atomic` uses plain loads and stores,
+  which are atomic because goroutines switch only when one blocks or
+  yields (D-048).
+- **The IR gains one operation, `sys`** (an IR contract and runtime
+  interface change, recorded here as part of D-049's intrinsics). Its kind
+  is one of a closed set of system calls: `exit`, `write`, `argc`,
+  `argptr`, `arglen`, and `gc`. They are the runtime helpers
+  `aether.exit`, `aether.syswrite`, `aether.argc`, `aether.argptr`,
+  `aether.arglen` (`rt/start.s`), and `aether.gc` (`rt/heap.s`), under the
+  helper interface. The interpreter implements them on its own stdout,
+  stderr, and argument list (`interp.Options`). Alternatives: an operation
+  per call (six operations for one kind of effect), or a generic call of a
+  named runtime symbol (an open-ended contract the verifier could not
+  type).
+- The intrinsics are `runtime.GC`, `Gosched`, and `NumGoroutine`; `os.Exit`,
+  `os.write`, `os.argc`, and `os.arg`; and `sync.fatal` (gc's fatal error,
+  the IR's `PanicFatal`). `Gosched` and the yield after `GC` are generated
+  IR over the scheduler of D-048: the running goroutine goes to the run
+  queue's tail and parks. `NumGoroutine` reads a count that the scheduler
+  keeps only when the program reaches `NumGoroutine`, so other programs'
+  IR is unchanged.
+- `runtime.GC` yields after collecting. gc's blocks its caller during the
+  collection, so other goroutines run; without the yield,
+  `test/fixedbugs/issue30977.go`, whose goroutine calls `runtime.GC` in a
+  loop, never let main run again.
+- `_start` opens `/dev/null` on a closed file descriptor 0, 1, or 2, as
+  gc's runtime does (`checkfds`): with `os.Stdout`, a write to a closed
+  standard output became observable.
+- A name that gc's package declares and the replacement does not (for
+  example `runtime.Caller`, `sync.Map`) would make a valid program fail to
+  type-check. The loader reports it as `unsupported` (`stdlib-package`),
+  not `invalid`. A standard-library package that names one is already
+  `stdlib-package`.
+
 ---
 
 ## Phase 0 research notes

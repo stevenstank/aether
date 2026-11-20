@@ -131,6 +131,12 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     package's. Body-less overlay functions listed in
     `frontend.Intrinsics` get their bodies from lowering
     (`internal/lower/intrinsic.go`).
+    Since increment 11.6 the packages `runtime`, `os`, `sync`, and
+    `sync/atomic` are Aether's own overlay files, which replace gc's
+    entirely. When a package of the main module does not type-check
+    because it names something such a replacement lacks (for example
+    `runtime.Caller`), the loader reports that as `unsupported`
+    (`stdlib-package`), not `invalid`.
   - A typed walk after type checking. It visits **every** expression, including
     sub-expressions of constant expressions, because S1's literal and
     operator restrictions apply to constant expressions too (`SEMANTICS.md`
@@ -247,7 +253,12 @@ func values (D-039). `gonew` makes a suspended goroutine that will run a
 function with no parameters and no results, and returns its handle;
 `goswitch` resumes the goroutine with a given handle (0 is the main one), and
 the terminator `goexit` ends the running goroutine and resumes another
-(D-048, Phase 10 increment 10.1).
+(D-048, Phase 10 increment 10.1). `sys` makes one of a closed set of
+system calls of the runtime, named by its kind: `exit`, `write` (one write
+system call, whose value is the bytes written or the negated errno),
+`argc`, `argptr` and `arglen` (the program's arguments), and `gc` (a
+collection), for the bodies of the standard-library overlays' intrinsics
+(D-049, increment 11.6).
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|
@@ -364,7 +375,7 @@ and value numbering never depend on map iteration order.
   nothing.
 - **Implemented: dead code elimination** (`opt.DCE`), after folding. It keeps
   the instructions with an effect (terminators, `call`, `callind`, `println`, `print`,
-  `gstore`, `stm`, `alloc`, `move`, `gonew`, `goswitch`, and `param`) and their operands, transitively, and removes the
+  `gstore`, `stm`, `alloc`, `move`, `gonew`, `goswitch`, `sys`, and `param`) and their operands, transitively, and removes the
   rest, dead phi cycles included. `div` and `rem` cannot trap (lowering's zero
   check is a branch of its own), and a dead `gload` is not reordered but gone.
 - Copy propagation has nothing to do after promotion: the IR has no copy
@@ -650,6 +661,10 @@ so none can be read as an option.
     of the running goroutine.
   - `rt/slice.s`: `aether.memmove` and the slice panics of D-036 (table
     below).
+  - The system calls of the IR's `sys` (D-049, increment 11.6):
+    `aether.exit`, `aether.syswrite`, `aether.argc`, `aether.argptr`, and
+    `aether.arglen` in `rt/start.s`, whose `_start` saves `argc` and
+    `argv`, and `aether.gc` in `rt/heap.s` (table below).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
       (`aether.write`) that continues short writes, retries `EINTR`, and
@@ -705,6 +720,8 @@ that interface is:
 | `aether.panicmakelen`, `aether.panicmakecap`, `aether.panicgrowlen` | runtime | Write `panic: runtime error: makeslice: len out of range`, `... makeslice: cap out of range`, or `... growslice: len out of range` and a newline, and exit 2 (D-036); never return. Use 16 bytes below `%rsp`, as `aether.panicdivide`. |
 | `aether.zerobase` | runtime | The address of every zero-size allocation (D-035). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
+| `aether.exit`, `aether.syswrite`, `aether.argc`, `aether.argptr`, `aether.arglen` | runtime | The system calls of `sys` (D-049, increment 11.6), under the helper interface, with their arguments in `%rdi`, `%rsi`, `%rdx` and their value in `%rax`: `exit_group(%rdi)`, never returning; one `write(%rdi, %rsi, %rdx)`, returning the bytes written or the negated errno; the number of arguments; the address and length of argument `%rdi`, which must be below that number. They use no stack. |
+| `aether.gc` | runtime | Runs a collection unless nothing was ever allocated (`sys gc`, for `runtime.GC`), under the helper interface and `aether.alloc`'s stack bound. |
 
 Rules:
 - The compiler may only call runtime symbols listed in this table (later, in a

@@ -271,6 +271,17 @@ aether.alloc:
 	ret
 	.size	.Lpages, .-.Lpages
 
+# aether.gc collects, unless nothing was ever allocated (ir.SysGC, for
+# runtime.GC: D-049, increment 11.6). It follows the helper interface.
+	.globl	aether.gc
+	.type	aether.gc, @function
+aether.gc:
+	cmpq	$0, .Lbase(%rip)
+	je	1f
+	call	.Lgc
+1:	ret
+	.size	aether.gc, .-aether.gc
+
 # .Lgc collects. It preserves %rdi and the callee-saved registers. While it
 # runs, %r15 is the heap's base, %rbx the page table, %rbp the bytes of the
 # pages below .Lhigh, and %r14 the top of the mark stack.

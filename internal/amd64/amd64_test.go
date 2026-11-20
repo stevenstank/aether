@@ -941,3 +941,39 @@ func TestSym(t *testing.T) {
 		}
 	}
 }
+
+// TestSysNative checks the system calls natively against the interpreter
+// (D-049, increment 11.6): a write to stderr and to a closed descriptor,
+// the argument count, a collection before anything was allocated and
+// after, and an exit whose status is taken modulo 256.
+func TestSysNative(t *testing.T) {
+	p := &ir.Program{}
+	hello := p.Intern("hello")
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	f.Sys(b, ir.SysGC, ir.NoType, p1)
+	s := f.Str(b, hello, p1)
+	for _, fd := range []int64{2, 3} {
+		f.Println(b, []*ir.Instr{f.Sys(b, ir.SysWrite, ir.I64, p1, f.Const(b, fd, p1), s, f.Const(b, 5, p1))}, p1)
+	}
+	o := f.Alloc(b, f.Const(b, 16, p1), p1)
+	f.StM(b, o, f.Const(b, 8, p1), f.Const(b, 7, p1), p1)
+	f.Sys(b, ir.SysGC, ir.NoType, p1)
+	f.Println(b, []*ir.Instr{f.Sys(b, ir.SysArgc, ir.I64, p1), f.LdM(b, ir.I64, o, f.Const(b, 8, p1), p1)}, p1)
+	f.Sys(b, ir.SysExit, ir.NoType, p1, f.Const(b, 300, p1))
+	f.Println(b, nil, p1) // not reached
+	f.Ret(b, p1)
+	var want bytes.Buffer
+	wantCode, err := interp.Run(p, &want)
+	if err != nil || wantCode != 44 || want.String() != "hello5\n-9\n1 7\n" {
+		t.Fatalf("interpreter: exit %d, %v, %q", wantCode, err, want.String())
+	}
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil)
+	if code != wantCode || got != want.String() {
+		t.Errorf("native: exit %d, %q; interpreter: exit %d, %q", code, got, wantCode, want.String())
+	}
+}

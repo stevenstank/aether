@@ -173,6 +173,12 @@ func (in *Instr) String() string {
 		} else {
 			ops = append(ops, "?")
 		}
+	case Sys:
+		if in.Index >= 0 && in.Index < len(SysNames) {
+			ops = append(ops, SysNames[in.Index])
+		} else {
+			ops = append(ops, "?")
+		}
 	case Alloc:
 		if in.Const == 1 {
 			ops = append(ops, "noscan")

@@ -346,7 +346,34 @@ const (
 	// Preconditions: the running goroutine is not the main one, and
 	// args[0] is the handle of another live goroutine.
 	GoExit
+	// Sys is the system call Index, one of the Sys constants (D-049,
+	// increment 11.6), made by the runtime. It is an effect, a call of the
+	// runtime.
+	Sys
 )
+
+// The system calls of Sys, with their args and value.
+const (
+	// SysExit ends the program with the exit status args[0], an I64,
+	// modulo 256, as exit_group does; nothing else runs. No value.
+	SysExit = iota
+	// SysWrite writes args[2] (an I64) bytes at args[1] (a Ptr) to the
+	// file descriptor args[0] (an I64) with one write system call. Its
+	// value, an I64, is the bytes written, or the negated errno.
+	SysWrite
+	// SysArgc is the number of the program's arguments, its name
+	// included: an I64. No args.
+	SysArgc
+	// SysArgPtr and SysArgLen are the address (a Ptr) and length (an
+	// I64) of argument args[0], an I64 in [0, SysArgc).
+	SysArgPtr
+	SysArgLen
+	// SysGC runs a garbage collection. No args, no value.
+	SysGC
+)
+
+// SysNames are the system calls' names, as the printer writes them.
+var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",
@@ -361,7 +388,7 @@ var opNames = [...]string{
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
 	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd", Move: "move",
 	FuncAddr: "funcaddr", CallInd: "callind",
-	GoNew: "gonew", GoSwitch: "goswitch", GoExit: "goexit",
+	GoNew: "gonew", GoSwitch: "goswitch", GoExit: "goexit", Sys: "sys",
 }
 
 func (op Op) String() string {
@@ -893,6 +920,12 @@ func (f *Func) GoSwitch(b *Block, h *Instr, pos Pos) *Instr {
 // GoExit appends the end of the running goroutine and a switch to h.
 func (f *Func) GoExit(b *Block, h *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: GoExit, Args: []*Instr{h}, Pos: pos})
+}
+
+// Sys appends the system call kind, of type t (NoType for none), with
+// args.
+func (f *Func) Sys(b *Block, kind int, t Type, pos Pos, args ...*Instr) *Instr {
+	return f.add(b, &Instr{Op: Sys, Type: t, Index: kind, Args: args, Pos: pos})
 }
 
 // CallInd appends a call, of signature sig, of the code at the address

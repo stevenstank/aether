@@ -27,8 +27,9 @@ Commands:
 
 Supported subset (S2):
   the files of package main, in one directory, the packages of its
-  module that it imports, and unicode/utf8, unicode, math/bits, math, and
-  strconv from GOROOT (go1.26); functions with multiple results and
+  module that it imports, unicode/utf8, unicode, math/bits, math, and
+  strconv from GOROOT (go1.26), and part of runtime, os, sync, and
+  sync/atomic; functions with multiple results and
   variadic functions;
   bool, every integer type, float32, float64, strings with len, indexing,
   slicing, +, comparison, and []byte, []rune, and integer conversions,

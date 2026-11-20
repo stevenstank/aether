@@ -2,8 +2,8 @@
 
 package main
 
-import "runtime"
+import "example.com/lib"
 
 func main() {
-	runtime.GC()
+	lib.F()
 }

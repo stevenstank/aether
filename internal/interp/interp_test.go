@@ -419,3 +419,46 @@ func TestIndirectCalls(t *testing.T) {
 		t.Errorf("not code: err = %v", err)
 	}
 }
+
+// TestSys checks the system calls (D-049, increment 11.6): writes to the
+// run's stdout and stderr and to a closed descriptor, the arguments, and an
+// exit in Init, which ends the run before main with its status modulo 256.
+func TestSys(t *testing.T) {
+	p := &ir.Program{}
+	hello := p.Intern("hello")
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	{
+		s := f.Str(b, hello, p1)
+		for _, fd := range []int64{1, 2, 3} {
+			n := f.Sys(b, ir.SysWrite, ir.I64, p1, f.Const(b, fd, p1), s, f.Const(b, 5, p1))
+			f.Println(b, []*ir.Instr{n}, p1)
+		}
+		f.Sys(b, ir.SysGC, ir.NoType, p1)
+		i := f.Const(b, 1, p1)
+		f.Println(b, []*ir.Instr{f.Sys(b, ir.SysArgc, ir.I64, p1), f.Sys(b, ir.SysArgLen, ir.I64, p1, i),
+			f.LoadB(b, f.Sys(b, ir.SysArgPtr, ir.Ptr, p1, i), f.Const(b, 1, p1), p1)}, p1)
+		f.Sys(b, ir.SysExit, ir.NoType, p1, f.Const(b, 300, p1))
+		f.Println(b, nil, p1) // not reached
+		f.Ret(b, p1)
+	}
+	var stdout, stderr bytes.Buffer
+	code, err := RunOptions(p, &stderr, Options{Stdout: &stdout, Args: []string{"prog", "xyz"}})
+	if want := "5\nhello5\n-9\n2 3 121\n"; err != nil || code != 44 || stdout.String() != "hello" || stderr.String() != want {
+		t.Errorf("exit %d, %v, stdout %q, stderr %q; want exit 44, \"hello\", %q", code, err, stdout.String(), stderr.String(), want)
+	}
+	// Without options, stdout is discarded and there is one argument.
+	stderr.Reset()
+	if code, err := Run(p, &stderr); err == nil || code != 0 || !strings.Contains(err.Error(), "argument 1 of 1") {
+		t.Errorf("exit %d, %v; want an error for argument 1 of 1", code, err)
+	}
+
+	p.Init = p.NewFunc("init", "p.go", p1)
+	ib := p.Init.Entry()
+	p.Init.Sys(ib, ir.SysExit, ir.NoType, p1, p.Init.Const(ib, 0, p1))
+	p.Init.Ret(ib, p1)
+	stderr.Reset()
+	if code, err := Run(p, &stderr); err != nil || code != 0 || stderr.Len() != 0 {
+		t.Errorf("exit in Init: exit %d, %v, stderr %q; want exit 0 and main not run", code, err, stderr.String())
+	}
+}

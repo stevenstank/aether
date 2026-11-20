@@ -1266,14 +1266,57 @@ D-049. These supersede the 11.4 rule that standard-library imports are
   statements, as func values, or with the results of a call; and
   expression switches on an interface value, with case values assignable
   to its type or `nil`.
-- `unsupported`: an import of `runtime` (until 11.6), so every package
-  that imports it (`fmt`, `os`, `strings`, `sort`, ...); a body-less
+- `unsupported`: an import of `runtime` (until 11.6, below), so every
+  package that imports it (`fmt`, `os`, `strings`, `sort`, ...); a body-less
   function reached outside the overlays' intrinsics; a `//go:linkname`
   making a variable another package's; `unsafe` in the main module
   (`import`); a standard-library package that does not type-check as
   Aether selects its files (`stdlib-package`). `invalid`: an import of an
   `internal` package from outside the standard library, and a path in
   neither the module nor GOROOT.
+
+## Aether's runtime, os, sync, and sync/atomic (Phase 11 increment 11.6)
+
+D-049. These packages are Aether's own Go files, embedded in the
+compiler, which replace gc's entirely (they depend on gc's runtime
+internals). They declare part of gc's API, with gc's behavior:
+- **`runtime`:** `GOOS` (`"linux"`) and `GOARCH` (`"amd64"`), typed
+  string constants as in gc; `GC`, which collects and then yields as
+  `Gosched` does (gc's blocks its caller while it collects); `Gosched`,
+  which puts the running goroutine after every other runnable one, and
+  returns at once if there is none; `NumGoroutine`, the goroutines that
+  exist, from their `go` statements until their functions return.
+- **`os`:** `Args`; `Exit`, which ends the program with its status
+  modulo 256 and runs no deferred call; `Stdout` and `Stderr`, of type
+  `*File`, with `Write`, `WriteString`, and `Name`. A write is retried
+  after `EINTR` and continued after a short one, as gc's; its error is a
+  `*PathError` with gc's message (`write /dev/stdout: bad file
+  descriptor`), and a write to a nil `*File` returns `ErrInvalid`
+  (`invalid argument`). `PathError` and the error number are `os`'s own
+  types, not `io/fs`'s and `syscall`'s.
+- **`sync`:** `Mutex` (`Lock`, `TryLock`, `Unlock`), `RWMutex` (also
+  `RLock`, `TryRLock`, `RUnlock`, `RLocker`; once a writer waits in
+  `Lock`, new readers wait until it has unlocked), `WaitGroup` (`Add`,
+  `Done`, `Wait`, with gc's panics for a negative counter and misuse),
+  `Once`, and `Locker`. Unlocking an unlocked mutex is gc's fatal error
+  (`fatal error: sync: unlock of unlocked mutex`, `... RUnlock of
+  unlocked RWMutex`, `... Unlock of unlocked RWMutex`): never recovered,
+  no deferred call. Goroutines that all wait on locks end in the deadlock
+  fatal error. Aether's `Unlock` hands the mutex to the goroutine that
+  has waited longest in `Lock`; gc's order is not specified.
+- **`sync/atomic`:** the `Swap`, `CompareAndSwap`, `Add`, `And`, `Or`,
+  `Load`, and `Store` functions of `int32`, `int64`, `uint32`, `uint64`,
+  and `uintptr`, and the types `Int32`, `Int64`, `Uint32`, `Uint64`,
+  `Uintptr`, and `Bool` with their methods. Goroutines switch only when
+  one blocks or yields (D-048), so plain memory operations are atomic.
+- `unsupported` (`stdlib-package`): a name these packages do not declare
+  (for example `runtime.Caller`, `os.Getenv`, `sync.Map`,
+  `atomic.Pointer`, `WaitGroup.Go`, `File.Close`), named by the main
+  module, which gc's packages declare; and a standard-library package
+  that uses one (for example `iter` needs `runtime.Goexit`, so `strings`
+  and `slices` stay unsupported).
+- A goroutine that never blocks or yields keeps the others from running
+  (D-048), where gc would preempt it.
 
 ## Support matrix
 
@@ -1322,6 +1365,7 @@ D-049. These supersede the 11.4 rule that standard-library imports are
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
 | `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
 | `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`; gate tests |
+| `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysOps` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

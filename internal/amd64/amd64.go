@@ -88,6 +88,12 @@ const (
 
 const symPanicIndex = "aether.panicindex"
 
+// symSys are the system calls of ir.Sys (D-049, increment 11.6), under the
+// helper interface: their args in %rdi, %rsi, and %rdx, their value in
+// %rax.
+var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
+	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc"}
+
 // strSym is the local symbol of the program's string i, in .rodata.
 func strSym(i int) string { return fmt.Sprintf(".Lstr.%d", i) }
 
@@ -702,6 +708,23 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("movq\t%%rax, %%rdi")
 		op("movq\t%%rcx, %%rsi")
 		op("call\t%s", symMemmove)
+	case ir.Sys:
+		// A call of the runtime (clobbers), its args through the scratch
+		// registers as Move's.
+		scratch := []string{"%rax", "%rcx", "%rdx"}
+		for i, a := range in.Args {
+			e.load(a, scratch[i])
+		}
+		if len(in.Args) > 0 {
+			op("movq\t%%rax, %%rdi")
+		}
+		if len(in.Args) > 1 {
+			op("movq\t%%rcx, %%rsi")
+		}
+		op("call\t%s", symSys[in.Index])
+		if in.Type != ir.NoType {
+			e.finish(in, "%rax")
+		}
 	case ir.PAdd:
 		// Through %rax, so that the result's register is written only
 		// after both operands are read.

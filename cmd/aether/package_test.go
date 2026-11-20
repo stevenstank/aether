@@ -80,8 +80,8 @@ func TestPackageRejects(t *testing.T) {
 			"--\nb/b.go:package b\nimport \"m.test/x/a\"\nfunc G() { a.F() }\n",
 			[]string{"main.go"}, diag.Invalid, "b/b.go:2:8: invalid: import cycle not allowed"},
 		{"standard library", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
-			"--\na/a.go:package a\nimport \"runtime\"\nfunc F() { runtime.GC() }\n",
-			[]string{"main.go"}, diag.Unsupported, `a/a.go:2:8: unsupported: import "runtime" is not supported in subset S1 [import]`},
+			"--\na/a.go:package a\nimport \"runtime\"\nfunc F() { runtime.Goexit() }\n",
+			[]string{"main.go"}, diag.Unsupported, `a/a.go:3:20: unsupported: runtime.Goexit, which Aether's package runtime does not have,`},
 		{"unreachable in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { println(a.F()) }\n" +
 			"--\na/a.go:package a\nvar v = g()\nfunc g() int { return 2 }\nfunc F() int { return v }\nfunc H() { println(1i) }\nvar w = 1i\n",
 			[]string{"main.go"}, 0, ""},
@@ -191,6 +191,19 @@ func TestStdPrograms(t *testing.T) {
 	for _, f := range files {
 		name := strings.TrimSuffix(filepath.Base(f), ".go")
 		t.Run(name, func(t *testing.T) {
+			// A fatal error is compared by the panic rule.
+			if q, ok, err := panicPrefix(want[name]); err != nil {
+				t.Fatalf("gc output does not fit the panic rule: %v\n%+v", err, want[name])
+			} else if ok {
+				want[name] = result{stderr: q, exit: 2}
+			}
+			got, ds, err := interpret(f, progs[name])
+			if len(ds) > 0 || err != nil {
+				t.Fatalf("not interpreted: %v %v", ds, err)
+			}
+			if got != want[name] {
+				t.Errorf("interpreter %+v, gc %+v", got, want[name])
+			}
 			for _, o0 := range []bool{false, true} {
 				out := filepath.Join(t.TempDir(), name)
 				args := []string{"build", "-o", out}
@@ -219,8 +232,19 @@ func TestStdRejects(t *testing.T) {
 	}{
 		{"assembly", "package main\nimport \"math\"\nfunc main() { println(math.Exp(1)) }\n",
 			diag.Unsupported, "$GOROOT/src/math/exp_asm.go:11:1: unsupported: function archExp without a body (implemented outside Go)"},
-		{"runtime", "package main\nimport \"os\"\nfunc main() { os.Exit(1) }\n",
-			diag.Unsupported, `unsupported: import "runtime"`},
+		// gc's runtime, os, sync, and sync/atomic have more than Aether's.
+		{"runtime name", "package main\nimport \"runtime\"\nfunc main() { runtime.Goexit() }\n",
+			diag.Unsupported, "p.go:3:23: unsupported: runtime.Goexit, which Aether's package runtime does not have, is not supported in subset S1 [stdlib-package]"},
+		{"os method", "package main\nimport \"os\"\nfunc main() { os.Stdout.Close() }\n",
+			diag.Unsupported, "p.go:3:25: unsupported: os.File.Close, which Aether's package os does not have,"},
+		{"sync type", "package main\nimport \"sync\"\nvar m sync.Map\nfunc main() {}\n",
+			diag.Unsupported, "p.go:3:12: unsupported: sync.Map, which Aether's package sync does not have,"},
+		{"unexported", "package main\nimport \"sync\"\nfunc main() { var m sync.Mutex; println(m.locked) }\n",
+			diag.Invalid, "p.go:3:43: invalid: m.locked undefined"},
+		{"still invalid", "package main\nimport \"os\"\nfunc main() { os.Exit(\"1\") }\n",
+			diag.Invalid, "p.go:3:23: invalid: cannot use \"1\""},
+		{"std package needing more runtime", "package main\nimport \"strings\"\nfunc main() { println(strings.ToUpper(\"a\")) }\n",
+			diag.Unsupported, "$GOROOT/src/iter/iter.go:324:13: unsupported: package iter, which does not type-check as Aether builds it (undefined: runtime.Goexit)"},
 		{"internal", "package main\nimport \"internal/strconv\"\nfunc main() { println(strconv.Itoa(1)) }\n",
 			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/strconv not allowed"},
 		{"not in std", "package main\nimport \"nosuch/pkg\"\nfunc main() { pkg.F() }\n",
@@ -229,10 +253,6 @@ func TestStdRejects(t *testing.T) {
 			diag.Unsupported, `p.go:2:8: unsupported: import "unsafe"`},
 		{"errors.Is", "package main\nimport \"errors\"\nfunc main() { println(errors.Is(nil, nil)) }\n",
 			diag.Unsupported, "$AETHER/errors/wrap.go:8:1: unsupported: function Is without a body"},
-		// sync/atomic imports unsafe, which has nothing to initialize: the
-		// initialization order once never ended.
-		{"imports unsafe", "package main\nimport \"sync/atomic\"\nfunc main() { var x atomic.Int32; println(x.Add(1)) }\n",
-			diag.Unsupported, "$GOROOT/src/sync/atomic/doc.go:71:1: unsupported: function SwapInt32 without a body"},
 		{"unreachable", "package main\nimport \"strconv\"\nfunc main() { println(strconv.Itoa(7)) }\n", 0, ""},
 	}
 	for _, tt := range tests {
@@ -276,5 +296,45 @@ func TestGOROOTVersion(t *testing.T) {
 	}
 	if stderr, code := runAether("check", filepath.Join(dir, "none.go")); code != 0 {
 		t.Errorf("no imports: exit %d, %q", code, stderr)
+	}
+}
+
+// TestStdoutErrors checks writes of os against gc's when the standard
+// output is closed, which gc's runtime and Aether's replace by /dev/null,
+// and when it is /dev/full, where a write fails with ENOSPC.
+func TestStdoutErrors(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds with gc")
+	}
+	gobin, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go command not found")
+	}
+	src := []byte("package main\nimport \"os\"\nfunc main() {\n\tn, err := os.Stdout.WriteString(\"lost\")\n" +
+		"\tif err != nil {\n\t\tprintln(n, err.Error())\n\t\treturn\n\t}\n\tprintln(n)\n}\n")
+	bin := gcBuild(t, gobin, map[string][]byte{"w": src})
+	dir := t.TempDir()
+	f := filepath.Join(dir, "w.go")
+	if err := os.WriteFile(f, src, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "w")
+	if stderr, code := runAether("build", "-o", out, f); code != 0 {
+		t.Fatalf("aether build: exit %d\n%s", code, stderr)
+	}
+	for redirect, want := range map[string]string{">&-": "4\n", ">/dev/full": "0 write /dev/stdout: no space left on device\n"} {
+		run := func(exe string) string {
+			b, err := exec.Command("/bin/sh", "-c", exe+" "+redirect).CombinedOutput()
+			if err != nil {
+				t.Fatalf("%s %s: %v\n%s", exe, redirect, err, b)
+			}
+			return string(b)
+		}
+		if gc := run(filepath.Join(bin, "w")); gc != want {
+			t.Fatalf("%s: gc %q, want %q", redirect, gc, want)
+		}
+		if got := run(out); got != want {
+			t.Errorf("%s: aether %q, gc %q", redirect, got, want)
+		}
 	}
 }

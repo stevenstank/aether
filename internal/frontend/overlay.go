@@ -45,12 +45,9 @@ var patches = map[string]patch{
 	"math/bits":            {use: map[string]string{"bits_errors.go": "bits_errors_bootstrap.go"}},
 	"strconv":              {use: map[string]string{"bytealg.go": "bytealg_bootstrap.go"}},
 	"internal/stringslite": {replace: true},
+	// gc's runtime, and packages that depend on its internals (11.6).
+	"runtime": {replace: true}, "os": {replace: true}, "sync": {replace: true}, "sync/atomic": {replace: true},
 }
-
-// notYet are the standard-library packages Aether does not compile from
-// GOROOT: gc's runtime, which increment 11.6 replaces. An import of one is
-// unsupported.
-var notYet = map[string]bool{"runtime": true}
 
 // Intrinsics are the functions of overlay files declared without a body
 // whose bodies lowering generates, by package path and name (D-049).
@@ -58,6 +55,8 @@ var Intrinsics = map[string]bool{
 	"math.Float32bits": true, "math.Float32frombits": true, "math.Float64bits": true, "math.Float64frombits": true,
 	"internal/strconv.float32bits": true, "internal/strconv.float32frombits": true,
 	"internal/strconv.float64bits": true, "internal/strconv.float64frombits": true,
+	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
+	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "sync.fatal": true,
 }
 
 // isStd reports whether an import path names a standard-library package:

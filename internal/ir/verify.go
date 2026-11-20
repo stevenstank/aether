@@ -702,6 +702,23 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		}
 	case GoSwitch, GoExit:
 		args = []Type{I64}
+	case Sys:
+		switch in.Index {
+		case SysExit:
+			args = []Type{I64}
+		case SysWrite:
+			want, args = I64, []Type{I64, Ptr, I64}
+		case SysArgc:
+			want = I64
+		case SysArgPtr:
+			want, args = Ptr, []Type{I64}
+		case SysArgLen:
+			want, args = I64, []Type{I64}
+		case SysGC:
+		default:
+			v.errorf(bi, i, in, "sys of unknown kind %d", in.Index)
+			want = in.Type
+		}
 	case CallInd:
 		if in.Sig == nil {
 			v.errorf(bi, i, in, "callind without a signature")
@@ -777,7 +794,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != Load && in.Op != Store && in.Slot != nil {
 		v.errorf(bi, i, in, "%s has a slot operand", in.Op)
 	}
-	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Op != Str && in.Index != 0 {
+	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Op != Str && in.Op != Sys && in.Index != 0 {
 		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
 	}
 	if in.Op != Call && in.Op != FuncAddr && in.Op != GoNew && in.Callee != nil {

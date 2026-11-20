@@ -1195,6 +1195,16 @@ repeated in each phase below:
     `TestGOROOTVersion`, `s7_l01`, `s7_l02`. `TestGorootRun`: 467 of
     1,005 pass, 0 bugs.
   - **11.6** `runtime`, `os`, `sync`, and `sync/atomic` overlays.
+    *Done 2026-11-20, owner review pending:* the four packages as
+    Aether's own overlay files; the IR's `sys` operation and its runtime
+    helpers; intrinsics for `runtime.GC`, `Gosched`, `NumGoroutine`,
+    `os.Exit`, the arguments, writes, and `sync`'s fatal error; names gc's
+    packages have and Aether's lack classified `unsupported`; `_start`
+    reopening closed standard file descriptors as gc does. Tests:
+    `TestStdPrograms` (now also in the interpreter, and with fatal
+    errors), `TestStdRejects`, `TestStdoutErrors`, `TestSys`,
+    `TestSysNative`, `TestSysOps`, `TestInitOrder`. `TestGorootRun`: 516 of
+    1,005 pass, 0 bugs.
   - **11.7** `unsafe` and generics across packages.
   - **11.8** A `reflect` subset and `fmt` from source.
 

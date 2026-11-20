@@ -25,16 +25,15 @@ type result struct {
 }
 
 // interpret compiles src and runs its IR with the interpreter: the test-only
-// equivalent of an "aether run-ir" command. The interpreter has no standard
-// output (interp.Run takes only a stderr writer), so stdout is always empty.
+// equivalent of an "aether run-ir" command.
 func interpret(name string, src []byte) (result, []diag.Diagnostic, error) {
 	prog, ds := compile([]source{{name, src}})
 	if len(ds) > 0 {
 		return result{}, ds, nil
 	}
-	var stderr bytes.Buffer
-	code, err := interp.RunSteps(prog, &stderr, interpSteps)
-	return result{stderr: stderr.String(), exit: code}, nil, err
+	var stdout, stderr bytes.Buffer
+	code, err := interp.RunOptions(prog, &stderr, interp.Options{Stdout: &stdout, Steps: interpSteps})
+	return result{stdout: stdout.String(), stderr: stderr.String(), exit: code}, nil, err
 }
 
 // interpSteps is the interpreter's step budget in tests (D-023): far more

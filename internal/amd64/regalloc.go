@@ -59,7 +59,7 @@ type valueSet map[*ir.Instr]bool
 // it cannot stay in registers.
 func clobbers(in *ir.Instr) bool {
 	switch in.Op {
-	case ir.Call, ir.CallInd, ir.Println, ir.Print, ir.Panic, ir.Alloc, ir.Move, ir.GoNew, ir.GoSwitch, ir.GoExit:
+	case ir.Call, ir.CallInd, ir.Println, ir.Print, ir.Panic, ir.Alloc, ir.Move, ir.GoNew, ir.GoSwitch, ir.GoExit, ir.Sys:
 		return true
 	}
 	return false

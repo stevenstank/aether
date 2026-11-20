@@ -4,7 +4,9 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"go/types"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -255,5 +257,21 @@ func TestFileSelection(t *testing.T) {
 		if got := modulePath([]byte(src)); got != want {
 			t.Errorf("modulePath(%q) = %q, want %q", src, got, want)
 		}
+	}
+}
+
+// TestInitOrder checks the order of package initialization, and that an
+// import of unsafe, which has nothing to initialize, does not stop it: the
+// order once never ended (11.5).
+func TestInitOrder(t *testing.T) {
+	a, b, c := types.NewPackage("a", "a"), types.NewPackage("b", "b"), types.NewPackage("c", "c")
+	a.SetImports([]*types.Package{c, types.Unsafe})
+	c.SetImports([]*types.Package{types.Unsafe})
+	var got []string
+	for _, p := range initOrder([]*Package{{Types: a}, {Types: b}, {Types: c}}) {
+		got = append(got, p.Types.Path())
+	}
+	if strings.Join(got, " ") != "b c a" {
+		t.Errorf("order %v, want [b c a]", got)
 	}
 }

@@ -68,3 +68,53 @@ func TestGoroutineOps(t *testing.T) {
 		})
 	}
 }
+
+// TestSysOps checks that the verifier accepts the system calls (D-049,
+// increment 11.6), prints them, and rejects their misuse.
+func TestSysOps(t *testing.T) {
+	build := func() *Program {
+		p := &Program{}
+		pos := Pos{1, 1}
+		f := p.NewFunc("main", "p.go", pos)
+		b := f.Entry()
+		n := f.Sys(b, SysArgc, I64, pos)
+		f.Sys(b, SysWrite, I64, pos, f.Const(b, 2, pos), f.Sys(b, SysArgPtr, Ptr, pos, n), f.Sys(b, SysArgLen, I64, pos, n))
+		f.Sys(b, SysGC, NoType, pos)
+		f.Sys(b, SysExit, NoType, pos, n)
+		f.Ret(b, pos)
+		return p
+	}
+	p := build()
+	if errs := Verify(p); len(errs) != 0 {
+		t.Fatalf("rejected: %v", errs)
+	}
+	text := p.String()
+	for _, want := range []string{"v0 = sys argc @", "v4 = sys write, v1, v2, v3 @", "sys gc @", "sys exit, v0 @"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("printed IR lacks %q:\n%s", want, text)
+		}
+	}
+	tests := []struct {
+		name   string
+		break_ func(in []*Instr)
+		want   string
+	}{
+		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 6"},
+		{"argc of a ptr", func(in []*Instr) { in[0].Type = Ptr }, "has type ptr, want i64"},
+		{"write of a non-ptr", func(in []*Instr) { in[4].Args[1] = in[1] }, "operand v1 has type i64, want ptr"},
+		{"exit with no status", func(in []*Instr) { in[6].Args = nil }, "has 0 operands, want 1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := build()
+			tt.break_(p.Funcs[0].Blocks[0].Instrs)
+			errs := Verify(p)
+			for _, err := range errs {
+				if strings.Contains(err.Error(), tt.want) {
+					return
+				}
+			}
+			t.Errorf("errors %v, want one containing %q", errs, tt.want)
+		})
+	}
+}

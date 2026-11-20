@@ -71,23 +71,28 @@ func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.D
 	if len(ds) > 0 {
 		return nil, ds, nil
 	}
-	// Spec §Package initialization: repeatedly the first package, sorted
-	// by import path, whose imports are all initialized.
-	prog := &Program{Fset: fset}
+	prog := &Program{Fset: fset, Packages: append(initOrder(ld.order), main)}
+	prune(prog)
+	return prog, nil, nil
+}
+
+// initOrder returns the packages of order, sorted by import path, in the
+// order of spec §Package initialization: repeatedly the first package
+// whose imports are all initialized.
+func initOrder(order []*Package) []*Package {
+	var out []*Package
 	done := map[*types.Package]bool{}
-	for len(prog.Packages) < len(ld.order) {
-		for _, p := range ld.order {
+	for len(out) < len(order) {
+		for _, p := range order {
 			// unsafe is go/types' own, with nothing to initialize.
 			if !done[p.Types] && !slices.ContainsFunc(p.Types.Imports(), func(q *types.Package) bool { return !done[q] && q != types.Unsafe }) {
 				done[p.Types] = true
-				prog.Packages = append(prog.Packages, p)
+				out = append(out, p)
 				break
 			}
 		}
 	}
-	prog.Packages = append(prog.Packages, main)
-	prune(prog)
-	return prog, nil, nil
+	return out
 }
 
 type loader struct {
@@ -192,6 +197,12 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 		return nil, []diag.Diagnostic{ld.stages.Reject(ds[0].Pos, FeatStdlib,
 			"package "+path+", which does not type-check as Aether builds it ("+ds[0].Message+"),")}
 	}
+	if len(ds) > 0 {
+		if d, ok := ld.missing(pkg); ok {
+			// Valid Go, but beyond what Aether's replacement declares.
+			return nil, []diag.Diagnostic{d}
+		}
+	}
 	if len(ds) == 0 && ld.stages.Prepare != nil {
 		pkg, ds = ld.stages.Prepare(pkg)
 	}
@@ -200,6 +211,46 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 	}
 	unqualify(pkg)
 	return pkg, nil
+}
+
+// missing finds a selector of pkg naming what a package Aether replaces
+// (D-049) does not declare: an exported package-level name, or an
+// exported field or method of one of its types. gc's package may have it,
+// so the program is not invalid.
+func (ld *loader) missing(pkg *Package) (diag.Diagnostic, bool) {
+	var d diag.Diagnostic
+	found := false
+	for _, f := range pkg.Files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok || found || !token.IsExported(sel.Sel.Name) {
+				return !found // gc's unexported names are not accessible either
+			}
+			var p *types.Package
+			var what string
+			if id, ok := sel.X.(*ast.Ident); ok {
+				if pn, ok := pkg.Info.Uses[id].(*types.PkgName); ok {
+					if pn.Imported().Scope().Lookup(sel.Sel.Name) != nil {
+						return true
+					}
+					p, what = pn.Imported(), pn.Imported().Path()+"."+sel.Sel.Name
+				}
+			}
+			if t := pkg.Info.TypeOf(sel.X); p == nil && t != nil && pkg.Info.Selections[sel] == nil {
+				if ptr, ok := t.(*types.Pointer); ok {
+					t = ptr.Elem()
+				}
+				if n, ok := types.Unalias(t).(*types.Named); ok && n.Obj().Pkg() != nil {
+					p, what = n.Obj().Pkg(), n.Obj().Pkg().Path()+"."+n.Obj().Name()+"."+sel.Sel.Name
+				}
+			}
+			if p != nil && patches[p.Path()].replace {
+				d, found = ld.stages.Reject(Position(ld.fset, sel.Sel.Pos()), FeatStdlib, what+", which Aether's package "+p.Path()+" does not have,"), true
+			}
+			return !found
+		})
+	}
+	return d, found
 }
 
 // importSpec loads the package that imp, of the package from, imports,
@@ -221,8 +272,6 @@ func (ld *loader) importSpec(from string, imp *ast.ImportSpec) []diag.Diagnostic
 	switch {
 	case path == "unsafe" && fromStd:
 		return nil // go/types' own package; the gate rejects what it does not support
-	case !inModule && notYet[path]:
-		return []diag.Diagnostic{ld.stages.Reject(at, FeatImport, "import "+imp.Path.Value)}
 	case !inModule && isStd(path) && path != "unsafe":
 		if !fromStd && (strings.HasPrefix(path, "internal/") || strings.Contains(path, "/internal/") || strings.HasSuffix(path, "/internal")) {
 			return []diag.Diagnostic{{Class: diag.Invalid, Pos: at, Message: "use of internal package " + path + " not allowed"}}

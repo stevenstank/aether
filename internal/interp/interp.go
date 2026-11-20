@@ -63,8 +63,9 @@ func (gs *goroutines) valid(h int64) bool {
 // Run executes the program's Init function, if it has one, and then its
 // entry function, main, with the globals starting at zero, writes the output
 // of println to stderr, and returns the program's exit status: 0 when main
-// returns, 2 after a stack overflow or a panic. Nothing is ever written to
-// standard output.
+// returns, 2 after a stack overflow or a panic, or the status of a SysExit.
+// What the program writes to standard output is discarded; RunOptions
+// keeps it.
 //
 // The program is verified first. Malformed IR is an error, and nothing is
 // executed. Errors writing to stderr are ignored, as the IR requires.
@@ -80,24 +81,85 @@ var ErrSteps = errors.New("interp: step budget exhausted")
 // lowering bug that loops fails instead of hanging. A budget of 0 means
 // none.
 func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
+	return RunOptions(prog, stderr, Options{Steps: steps})
+}
+
+// Options are what a run sees of its process (D-049, increment 11.6).
+type Options struct {
+	// Stdout receives the program's writes to file descriptor 1; nil
+	// discards them. Errors writing to it are ignored.
+	Stdout io.Writer
+	// Args are the program's arguments, its name first; nil is one
+	// argument, "a.out".
+	Args []string
+	// Steps is RunSteps's budget.
+	Steps int64
+}
+
+// RunOptions is Run with options.
+func RunOptions(prog *ir.Program, stderr io.Writer, opts Options) (int, error) {
 	if errs := ir.Verify(prog); len(errs) > 0 {
 		return 0, fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
 	}
 	globals := make([]int64, len(prog.Globals))
 	gs := &goroutines{stacks: make([][]frame, 1), live: []bool{true}}
 	mem := newMemory(prog)
+	sys := &process{stdout: opts.Stdout, stderr: stderr, args: opts.Args}
+	if sys.stdout == nil {
+		sys.stdout = io.Discard
+	}
+	if sys.args == nil {
+		sys.args = []string{"a.out"}
+	}
 	var executed int64
 	if prog.Init != nil {
-		if code, err := run(prog.Init, globals, mem, gs, stderr, steps, &executed); code != 0 || err != nil {
+		if code, err := run(prog.Init, globals, mem, gs, sys, opts.Steps, &executed); code != 0 || err != nil || sys.exited {
 			return code, err
 		}
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, globals, mem, gs, stderr, steps, &executed)
+			return run(f, globals, mem, gs, sys, opts.Steps, &executed)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
+}
+
+// process is a run's process: its output files and arguments.
+type process struct {
+	stdout, stderr io.Writer
+	args           []string
+	argPtrs        []int64 // each argument's read-only object, once made
+	exited         bool    // a SysExit ended the run
+}
+
+// write is SysWrite: fd 1 and 2 are the run's stdout and stderr, and
+// every other descriptor is closed (EBADF).
+func (p *process) write(fd int64, b []byte) int64 {
+	switch fd {
+	case 1:
+		_, _ = p.stdout.Write(b)
+	case 2:
+		_, _ = p.stderr.Write(b)
+	default:
+		return -9
+	}
+	return int64(len(b))
+}
+
+// arg returns the Ptr of argument i, a read-only object made on first use.
+func (p *process) arg(mem *memory, i int64) int64 {
+	if p.argPtrs == nil {
+		p.argPtrs = make([]int64, len(p.args))
+	}
+	if p.argPtrs[i] == 0 {
+		ptr := mem.alloc(int64(len(p.args[i])), true)
+		o := mem.objs[ptr>>offBits]
+		copy(o.data, p.args[i])
+		o.readOnly = true
+		p.argPtrs[i] = ptr
+	}
+	return p.argPtrs[i]
 }
 
 // frame is one active call.
@@ -121,7 +183,8 @@ type frame struct {
 // A Ptr is 0 (nil, and the empty string's address, D-033) or an object's
 // number and an offset in it (memory.go, D-034, D-035); a program string
 // is a read-only object (D-037).
-func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, stderr io.Writer, steps int64, executed *int64) (int, error) {
+func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *process, steps int64, executed *int64) (int, error) {
+	stderr := sys.stderr
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
@@ -400,6 +463,32 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, stderr io
 			gs.live[h] = true
 			gs.n++
 			fr.values[in.ID] = h
+		case ir.Sys:
+			switch in.Index {
+			case ir.SysExit:
+				sys.exited = true
+				return int(uint8(arg(0))), nil
+			case ir.SysWrite:
+				b, err := mem.bytes(arg(1), arg(2))
+				if err != nil {
+					return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+				}
+				fr.values[in.ID] = sys.write(arg(0), b)
+			case ir.SysArgc:
+				fr.values[in.ID] = int64(len(sys.args))
+			case ir.SysArgPtr, ir.SysArgLen:
+				i := arg(0)
+				if i < 0 || i >= int64(len(sys.args)) {
+					return 0, fmt.Errorf("interp: func %s: %s: argument %d of %d", fr.f.Name, in, i, len(sys.args))
+				}
+				if in.Index == ir.SysArgLen {
+					fr.values[in.ID] = int64(len(sys.args[i]))
+				} else {
+					fr.values[in.ID] = sys.arg(mem, i)
+				}
+			case ir.SysGC:
+				// The interpreter frees no heap object (D-035).
+			}
 		case ir.GoSwitch, ir.GoExit:
 			h := arg(0)
 			if !gs.valid(h) {

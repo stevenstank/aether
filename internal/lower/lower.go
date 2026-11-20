@@ -67,6 +67,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 		addrTaken: addressTaken(pkg.Info, pkg.Files)}
 	l.lits, l.captures = literals(pkg)
 	l.unwinds = programDefers(pkg)
+	l.countG = reached(pkg, "runtime.NumGoroutine")
 	for _, vs := range l.captures {
 		for _, v := range vs {
 			l.addrTaken[v] = true // shared with the closure (D-040)
@@ -211,6 +212,9 @@ type lowerer struct {
 	rtok    *ir.Slot    // the copy of .rframe of the function being lowered, if it calls recover (recover.go)
 
 	sch *sched // the scheduler and channel functions, once needed (chan.go)
+	// countG is whether the scheduler counts goroutines, for
+	// runtime.NumGoroutine (intrinsic.go).
+	countG bool
 
 	wantRecover bool     // the program unwinds and calls recover
 	dfr         *deferFn // the defer state of the function being lowered, if it has a defer statement
