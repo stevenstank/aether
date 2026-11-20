@@ -1,0 +1,1 @@
+testdata/check/unsupported_complex_arithmetic.go:8:15: unsupported: complex arithmetic is not supported in subset S1 [complex-arithmetic]

@@ -61,6 +61,11 @@ type tdesc struct {
 	mem  *ir.Mem
 	eq   *ir.Func // nil if t is not comparable
 	hash *ir.Func // nil unless the program hashes an interface (D-042)
+	// With package reflect (reflect.go): the descriptors of the element
+	// and key types, and a struct's field records and field types.
+	elem, key  *tdesc
+	fields     *ir.Mem
+	fieldDescs []*tdesc
 }
 
 // itabT is the itab of a type and an interface.
@@ -96,7 +101,11 @@ func (l *lowerer) desc(t types.Type) *tdesc {
 	}
 	d := &tdesc{t: t, id: len(l.descs)}
 	pos := l.fn.Pos
-	d.mem = l.prog.NewMem(fmt.Sprintf("%st%d", genPrefix, d.id), 32, 8, l.fn.File, pos)
+	size := int64(32)
+	if l.reflect {
+		size = reflectDescSize
+	}
+	d.mem = l.prog.NewMem(fmt.Sprintf("%st%d", genPrefix, d.id), size, 8, l.fn.File, pos)
 	if types.Comparable(t) {
 		d.eq = l.wrapper(fmt.Sprintf("eq%d", d.id), []ir.Type{ir.Ptr, ir.Ptr, ir.Ptr}, []ir.Type{ir.Bool}, pos, func(w *ir.Func) {
 			ps := l.enter(w, pos)
@@ -111,7 +120,23 @@ func (l *lowerer) desc(t types.Type) *tdesc {
 		})
 	}
 	l.descs = append(l.descs, d)
+	if l.reflect {
+		l.reflectDesc(d, pos)
+	}
 	return d
+}
+
+// dynDescs returns the descriptors of the types that may be dynamic types
+// of interface values: not of interface types, which reflect describes
+// too (reflect.go).
+func (l *lowerer) dynDescs() []*tdesc {
+	var ds []*tdesc
+	for _, d := range l.descs {
+		if !isIface(d.t) {
+			ds = append(ds, d)
+		}
+	}
+	return ds
 }
 
 // methodIndex returns the index of the method name in the interface t.
@@ -225,7 +250,7 @@ func (l *lowerer) findFunc(t types.Type, pos ir.Pos) *ir.Func {
 	l.finds[k] = f
 	l.late = append(l.late, func() {
 		ps := l.enter(f, pos)
-		for _, d := range slices.Clone(l.descs) {
+		for _, d := range l.dynDescs() {
 			if !types.Implements(d.t, l.ifaces[k]) {
 				continue
 			}
@@ -263,7 +288,7 @@ func (l *lowerer) missFunc(t types.Type, pos ir.Pos) *ir.Func {
 			names = append(names, m.Name())
 		}
 		slices.Sort(names)
-		for _, d := range slices.Clone(l.descs) {
+		for _, d := range l.dynDescs() {
 			ms := types.NewMethodSet(d.t)
 			for _, n := range names {
 				if sel := ms.Lookup(l.methodPkg(k, n), n); sel != nil && types.Identical(sel.Type(), l.methodType(k, n)) {

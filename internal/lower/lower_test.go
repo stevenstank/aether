@@ -213,10 +213,8 @@ func TestLowerUnexpected(t *testing.T) {
 	tests := []struct{ name, src, want string }{
 		{"statement", "func main() { for range func(func() bool) {} {} }", "p.go:2:15: internal: lowering: range over func(func() bool)"},
 		{"slice to array", "func main() { s := []int{1, 2}; a := [2]int(s); println(a[0]) }", "p.go:2:45: internal: lowering: s is not an array or struct variable"},
-		{"type", "func main() { var c complex128; println(real(c)) }", "p.go:2:19: internal: lowering: unexpected type complex128"},
 		{"variadic func value", "func main() { var f func(...int); f(1) }", "p.go:2:35: internal: lowering: call of a variadic func value"},
 		{"builtin call statement", "func main() { defer recover() }", "p.go:2:15: internal: lowering: call of builtin recover in a defer or go statement"},
-		{"complex variable", "func main() { var x complex128 = 1; println(real(x) > 0) }", "p.go:2:34: internal: lowering: unexpected type complex128"},
 		{"no body", "func main()", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 	}
 	for _, tt := range tests {

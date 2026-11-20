@@ -529,7 +529,7 @@ func (l *lowerer) descHashes() {
 	if !l.hashIfaces {
 		return
 	}
-	for _, d := range l.descs {
+	for _, d := range l.dynDescs() {
 		if d.eq == nil {
 			continue
 		}

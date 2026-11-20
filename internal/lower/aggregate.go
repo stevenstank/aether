@@ -42,7 +42,7 @@ func isAggregate(t types.Type) bool {
 	case *types.Array, *types.Struct:
 		return true
 	}
-	return false
+	return isComplex(t) // its two parts (complex.go)
 }
 
 // leaves returns the number of scalar words of a value of t, or
@@ -62,7 +62,7 @@ func leaves(t types.Type) int64 {
 		}
 		return n
 	}
-	if isString(t) {
+	if isString(t) || isComplex(t) {
 		return 2
 	}
 	if isSlice(t) {
@@ -211,6 +211,12 @@ func (l *lowerer) walkValues(t types.Type, ps []place, blank bool, pos ir.Pos, l
 			qs[i] = p.field(off, t)
 		}
 		return qs
+	}
+	if isComplex(t) {
+		pt, size := complexPart(t)
+		leaf(pt, at(0, pt))
+		leaf(pt, at(size, pt))
+		return
 	}
 	switch u := t.Underlying().(type) {
 	case *types.Struct:
@@ -500,6 +506,11 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 func (l *lowerer) aggValue(e ast.Expr) *ir.Instr {
 	pos := l.pos(e, e.Pos())
 	t := l.pkg.Info.Types[e].Type
+	if isComplex(t) {
+		if p, ok := l.complexValue(e); ok {
+			return p
+		}
+	}
 	switch e := ast.Unparen(e).(type) {
 	case *ast.CompositeLit:
 		m := l.newMem("tmp", t, pos)
@@ -558,6 +569,19 @@ func (l *lowerer) fill(p place, lit *ast.CompositeLit) {
 					l.fail(kv, "unknown field %s", types.ExprString(kv.Key))
 				}
 				elt = kv.Value
+			}
+			if fields[k].Name() == "_" {
+				// A blank field stays zero, as in gc (go.dev/issue/31546);
+				// its element, never elided in a struct literal, is still
+				// evaluated, and discarded.
+				if ft := fields[k].Type(); l.pkg.Info.Types[elt].Value == nil {
+					if isAggregate(ft) {
+						l.aggValue(elt)
+					} else {
+						l.valueFor(elt, ft)
+					}
+				}
+				continue
 			}
 			l.fillElement(p.field(offs[k], fields[k].Type()), elt)
 		}

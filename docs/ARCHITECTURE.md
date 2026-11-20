@@ -146,6 +146,10 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     each package's instances and wants and checking its copies against
     the prepared packages it imports. The gate and lowering see the
     prepared packages.
+    Since increment 11.8 `reflect` is Aether's own package, written with
+    `unsafe` over the type descriptors lowering emits; in a program with
+    `reflect` they describe their types in full
+    (`internal/lower/reflect.go`).
   - A typed walk after type checking. It visits **every** expression, including
     sub-expressions of constant expressions, because S1's literal and
     operator restrictions apply to constant expressions too (`SEMANTICS.md`

@@ -48,6 +48,7 @@ var patches = map[string]patch{
 	"internal/bytealg": {exclude: []string{"equal_native.go", "index_native.go"}, use: map[string]string{
 		"compare_native.go": "compare_generic.go", "count_native.go": "count_generic.go", "indexbyte_native.go": "indexbyte_generic.go"}},
 	"internal/abi": {replace: true}, // gc's type metadata and calling convention; NoEscape (11.7)
+	"reflect":      {replace: true}, // over Aether's type descriptors (11.8)
 	// gc's runtime, and packages that depend on its internals (11.6).
 	"runtime": {replace: true}, "os": {replace: true}, "sync": {replace: true}, "sync/atomic": {replace: true},
 	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)

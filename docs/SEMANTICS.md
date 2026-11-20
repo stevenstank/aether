@@ -442,8 +442,8 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Statements | `for-range`, `go`, `defer`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
-| Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
-| Operators | `operator-receive`, `operator-other`, `loop-variable-address` |
+| Literals and identifiers | `predeclared-identifier` |
+| Operators | `operator-receive`, `operator-other`, `complex-arithmetic`, `loop-variable-address` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `composite-literal`, `selector`, `index-expression`, `slice-expression`, `expression` |
 
@@ -701,10 +701,11 @@ type such as `var i int = 1.0`. The IR is D-032's.
   decimal that converts back to the same value (`strconv` `'g'` format with
   precision -1), with `NaN`, `+Inf`, `-Inf`, and `-0`.
 
-Still `unsupported`: complex types, imaginary literals (`imaginary-literal`),
-and the builtins `real`, `imag`, `complex`, `min`, and `max` (`builtin`). `%`,
-the bitwise operators, and shifts on floats are invalid Go. The feature name
-`float-literal` no longer exists.
+Still `unsupported`: complex types, imaginary literals, and the builtins
+`real`, `imag`, `complex`, `min`, and `max` (`builtin`), until increment 11.8
+made complex numbers values (below). `%`, the bitwise operators, and shifts
+on floats are invalid Go. The feature name `float-literal` no longer exists,
+nor, since 11.8, `imaginary-literal`.
 
 ## String constants (Phase 6 increment 6.2)
 
@@ -1382,6 +1383,41 @@ D-049.
     they differ, as gc does: `(types from different packages)` or
     `(types from different scopes)`.
 
+## Complex numbers and reflect (Phase 11 increment 11.8, first part)
+
+D-049. `fmt` names complex types and reaches all of `reflect` that it
+uses from every print, so these come first.
+- **Complex numbers are values without arithmetic.** `complex64` and
+  `complex128`, as gc lays them out (the real part, then the imaginary
+  part); constants and imaginary literals; `complex`, `real`, and `imag`;
+  conversions between complex types; `==` and `!=`, part by part as the
+  floats compare; and every place a value goes: variables, fields,
+  elements, parameters, results, map keys, and interfaces. A panic with a
+  complex value prints it as gc does, `(1.5-2i)`. `unsupported`
+  (`complex-arithmetic`): `+`, `-`, `*`, `/`, negation, and their
+  assignments and increments, unless the expression is a constant;
+  `println` of a complex number (`println-argument-type`).
+- **`reflect`** is Aether's, over Aether's type descriptors, which in a
+  program with `reflect` describe their types in full: kind, size,
+  element and key types, an array's length, a struct's fields, a map's
+  entries.
+  - `TypeOf` and `ValueOf`; `Type`'s `String`, `Kind`, `Size`, `Bits`,
+    `Elem`, `Key`, `Len`, `NumField`, `Field` (`Name`, `Type`, `Offset`,
+    `Anonymous`, and `PkgPath` empty exactly for an exported field), and
+    `Comparable`; `Kind`'s `String`.
+  - `Value`'s `IsValid`, `Kind`, `Type`, `Bool`, `Int`, `Uint`, `Float`,
+    `Complex`, `String` (`<T Value>` for other kinds), `Bytes`, `Len`,
+    `Cap`, `Index`, `NumField`, `Field`, `Elem`, `IsNil`, `Pointer`,
+    `UnsafePointer`, `CanAddr`, `CanInterface` (false through an
+    unexported field), `Interface`, `MapRange` (in insertion order), and
+    `SetBool`, `SetInt`, `SetUint`, `SetFloat`, `SetComplex`,
+    `SetString`, and `Set` of a value of the same type, or of any value
+    to an empty interface; any other `Set` panics, with a message of
+    Aether's.
+  - Its panics for misuse are gc's in kind (`*reflect.ValueError`), with
+    messages that may differ. The rest of gc's `reflect` is not declared
+    (`stdlib-package`).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1432,6 +1468,7 @@ D-049.
 | `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysOps` |
 | Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |
 | `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer`, `Add`, `String`, `StringData`, `Slice`, `SliceData`); `strings`, `bytes`, `sync.Pool` | Package unsafe; the packages' documentation | Phase 11 / 11.7 | Supported (native) | `TestStdPrograms` (`strings`, `unsafe`, `unsafepanic`); `TestStdRejects` |
+| Complex numbers as values (no arithmetic); `reflect` in part | Numeric types, Manipulating complex numbers, Package reflect | Phase 11 / 11.8 | Supported (native) | `s7_c01_complex`, `unsupported_complex_arithmetic`; `TestStdPrograms` (`reflect`); gate tests |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

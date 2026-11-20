@@ -61,7 +61,7 @@ func (l *lowerer) buildPreprint(pos ir.Pos) {
 	rec := ps[0]
 	end := l.fn.NewBlock()
 	other := l.when(l.fn.Compare(l.b, ir.Eq, l.recField(rec, ir.I64, recKind, pos), l.fn.Const(l.b, kindValue, pos), pos), pos)
-	for _, d := range append([]*tdesc(nil), l.descs...) {
+	for _, d := range l.dynDescs() {
 		sel := printMethod(d.t)
 		if sel == nil {
 			continue
@@ -108,7 +108,7 @@ func (l *lowerer) buildPrintval(pos ir.Pos) {
 		l.fn.Ret(l.b, pos)
 		l.b = no
 	}
-	for _, d := range append([]*tdesc(nil), l.descs...) {
+	for _, d := range l.dynDescs() {
 		no = l.when(l.fn.Compare(l.b, ir.Eq, l.recField(rec, ir.Ptr, recTab, pos), l.addr(d.mem, pos), pos), pos)
 		l.printValue(d.t, rec, pos)
 		l.fn.Ret(l.b, pos)
@@ -155,6 +155,10 @@ func (l *lowerer) printRuntime(k int, rec func() *ir.Instr, pos ir.Pos) {
 // printanycustomtype).
 func (l *lowerer) printValue(t types.Type, rec func() *ir.Instr, pos ir.Pos) {
 	t = types.Unalias(t)
+	if isComplex(t) {
+		l.printComplex(t, rec, pos)
+		return
+	}
 	b, ok := t.Underlying().(*types.Basic)
 	if !ok || b.Kind() == types.UnsafePointer {
 		l.printStr("("+gcName(t)+") ", pos)

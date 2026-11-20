@@ -4335,6 +4335,29 @@ packages.
   offset of 0 on any Ptr, nil included (an IR contract change, recorded
   here; native code always allowed it).
 
+**Implementation notes (increment 11.8, first part, 2026-11-20).**
+- gc's `fmt` cannot be compiled without complex numbers: `printArg`'s
+  type switch has `complex64` and `complex128` cases, and every print
+  reaches it. Complex numbers are therefore values, without arithmetic,
+  which `fmt` does not use: lowering treats one as an aggregate of its
+  two float parts, so copies, equality, map hashes, and interfaces are
+  those of aggregates. Arithmetic stays `unsupported`
+  (`complex-arithmetic`, which replaces `imaginary-literal`).
+- `reflect` is a replaced package, written in Go with `unsafe` over the
+  type descriptors. A program with `reflect` gets descriptors of 96
+  bytes instead of 32 (`internal/lower/reflect.go`), made with those of
+  their element, key, and field types; others keep the old ones, so their
+  IR does not change.
+- A `reflect.Value` holds the address of its value: of the variable or
+  element, which makes it addressable, or of a copy. `Interface` makes a
+  copy in words the collector scans and builds the interface's words.
+  `MapRange` walks a map's entry array (D-042).
+- The descriptors `reflect` adds include interface types, which are never
+  dynamic types: the functions that find itabs, the panic printer, and
+  hashing skip them (`dynDescs`).
+- Every method of a reached type is reached, so `Value`'s `Set` methods,
+  which only `fmt`'s scanning calls, have bodies too.
+
 ---
 
 ## Phase 0 research notes

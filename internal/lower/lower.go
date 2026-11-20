@@ -68,6 +68,9 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 	l.lits, l.captures = literals(pkg)
 	l.unwinds = programDefers(pkg)
 	l.countG = reached(pkg, "runtime.NumGoroutine")
+	for _, u := range program.Packages {
+		l.reflect = l.reflect || u.Types.Path() == "reflect"
+	}
 	for _, vs := range l.captures {
 		for _, v := range vs {
 			l.addrTaken[v] = true // shared with the closure (D-040)
@@ -216,6 +219,9 @@ type lowerer struct {
 	// countG is whether the scheduler counts goroutines, for
 	// runtime.NumGoroutine (intrinsic.go).
 	countG bool
+	// reflect is whether the program has package reflect, whose type
+	// descriptors describe their types in full (reflect.go).
+	reflect bool
 
 	wantRecover bool     // the program unwinds and calls recover
 	dfr         *deferFn // the defer state of the function being lowered, if it has a defer statement
@@ -1798,6 +1804,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			}
 			if b != nil && (b.Name() == "min" || b.Name() == "max") {
 				return l.minMax(e, b.Name() == "min")
+			}
+			if b != nil && (b.Name() == "real" || b.Name() == "imag") {
+				return l.complexPartOf(e, b.Name() == "imag")
 			}
 			if v, ok := l.chanBuiltin(e); ok {
 				return v // D-048

@@ -62,7 +62,7 @@ const (
 	FeatConversion    = "conversion"
 	FeatVariadic      = "variadic-call"
 	FeatPredeclared   = "predeclared-identifier"
-	FeatImagLit       = "imaginary-literal"
+	FeatComplexArith  = "complex-arithmetic"
 	FeatCompositeLit  = "composite-literal"
 	FeatSelector      = "selector"
 	FeatIndex         = "index-expression"
@@ -259,7 +259,7 @@ func init() {
 		FeatPackageDecl, FeatFuncDecl, FeatLocalType,
 		FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
-		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
+		FeatConversion, FeatVariadic, FeatPredeclared, FeatComplexArith,
 		FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
@@ -431,7 +431,9 @@ const maxFrameObjects = 1 << 29
 func (c *checker) frameBytes(n ast.Node) int64 {
 	var total int64
 	add := func(t types.Type) {
-		if isAggregate(t) {
+		// Lowering keeps a complex number as an aggregate of its two
+		// parts (D-049, increment 11.8).
+		if isAggregate(t) || isComplex(t) {
 			total += sizes.Sizeof(t) + 8
 		}
 	}
@@ -484,9 +486,14 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			if isMap(c.info.Types[n].Type) {
 				break // its elements are values, stored by assignment (D-042)
 			}
-			for _, elt := range n.Elts {
+			st, _ := c.info.Types[n].Type.Underlying().(*types.Struct)
+			for i, elt := range n.Elts {
 				if kv, ok := elt.(*ast.KeyValueExpr); ok {
 					elt = kv.Value
+				} else if st != nil && st.Field(i).Name() == "_" {
+					// A blank field's element, never named by a key, is
+					// evaluated into a temporary of its own.
+					continue
 				}
 				if _, ok := ast.Unparen(elt).(*ast.CompositeLit); ok {
 					inPlace[ast.Unparen(elt)] = true
@@ -520,11 +527,22 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 		if !ok || tv.IsType() {
 			return true
 		}
+		if tv.Value != nil && isComplex(tv.Type) {
+			// A constant: one object, its operands not lowered; none if
+			// untyped, as in a constant declaration.
+			if b := tv.Type.Underlying().(*types.Basic); b.Info()&types.IsUntyped == 0 {
+				add(tv.Type)
+			}
+			return false
+		}
 		switch e := e.(type) {
 		case *ast.ParenExpr:
 			return true // counted as its operand
 		case *ast.CallExpr:
 			if c.info.Types[e.Fun].IsType() {
+				if isComplex(tv.Type) {
+					add(tv.Type) // a new object, made from its operand's
+				}
 				return true // a conversion: counted as its operand
 			}
 			if tuple, ok := tv.Type.(*types.Tuple); ok {
@@ -618,7 +636,9 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.AssignStmt:
 		c.assign(s)
 	case *ast.IncDecStmt:
-		c.target(s.X)
+		if !c.complexArith(s.X, s.X) {
+			c.target(s.X)
+		}
 	case *ast.ExprStmt:
 		c.exprStmt(s)
 	case *ast.BlockStmt:
@@ -787,7 +807,7 @@ func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
 var supportedTypeNames = []string{
 	"bool", "int", "int8", "int16", "int32", "int64",
 	"uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "byte", "rune",
-	"float32", "float64", "string", "any", "error",
+	"float32", "float64", "complex64", "complex128", "string", "any", "error",
 }
 
 // typeExpr allows the predeclared types in supportedTypeNames, identified by
@@ -973,6 +993,9 @@ func (c *checker) assign(s *ast.AssignStmt) {
 		token.AND_ASSIGN, token.OR_ASSIGN, token.XOR_ASSIGN, token.AND_NOT_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
 		// += of a string concatenates (D-037); go/types allows no other
 		// operator on strings.
+		if c.complexArith(s.Lhs[0], s.Lhs[0]) {
+			return
+		}
 		c.target(s.Lhs[0])
 	default:
 		c.reject(s, featOperatorPrefix+"other", "compound assignment "+s.Tok.String())
@@ -1199,6 +1222,13 @@ func (c *checker) call(call *ast.CallExpr) bool {
 				c.expr(call.Args[0])
 				return true
 			}
+			// complex, real, and imag (D-049, increment 11.8).
+			if (obj.Name() == "complex" || obj.Name() == "real" || obj.Name() == "imag") && !call.Ellipsis.IsValid() && !c.multiValue(call.Args) {
+				for _, a := range call.Args {
+					c.expr(a)
+				}
+				return true
+			}
 			// min and max of integers (D-049).
 			if (obj.Name() == "min" || obj.Name() == "max") && !call.Ellipsis.IsValid() && isInteger(c.info.Types[call].Type) {
 				for _, a := range call.Args {
@@ -1322,11 +1352,8 @@ func (c *checker) expr(e ast.Expr) {
 	switch e := e.(type) {
 	case *ast.BasicLit:
 		switch e.Kind {
-		case token.INT, token.FLOAT, token.STRING, token.CHAR:
+		case token.INT, token.FLOAT, token.STRING, token.CHAR, token.IMAG:
 			c.typed(e)
-		case token.IMAG:
-			c.reject(e, FeatImagLit, "imaginary literal "+e.Value)
-			return
 		default:
 			c.internal(e, "unknown literal kind %s", e.Kind)
 			return
@@ -1356,6 +1383,9 @@ func (c *checker) expr(e ast.Expr) {
 			c.reject(e, unaryFeature(e.Op), "unary operator "+e.Op.String())
 			return
 		}
+		if c.complexArith(e, e.X) {
+			return
+		}
 		if c.typed(e) {
 			c.expr(e.X)
 		}
@@ -1366,6 +1396,9 @@ func (c *checker) expr(e ast.Expr) {
 			token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
 		default:
 			c.reject(e, featOperatorPrefix+"other", "operator "+e.Op.String())
+			return
+		}
+		if e.Op != token.EQL && e.Op != token.NEQ && c.complexArith(e, e.X) {
 			return
 		}
 		if c.typed(e) {
@@ -1621,6 +1654,24 @@ func isScalar(t types.Type) bool {
 		b.Kind() == types.Float32 || b.Kind() == types.Float64 || b.Kind() == types.String)
 }
 
+// isComplex reports whether t is complex64 or complex128, or a type
+// defined as one, or an untyped complex constant's type.
+func isComplex(t types.Type) bool {
+	b, ok := t.Underlying().(*types.Basic)
+	return ok && b.Info()&types.IsComplex != 0
+}
+
+// complexArith rejects e, an operation on x other than a comparison, if x
+// is complex and e is not a constant, reporting whether it did: complex
+// numbers are values without arithmetic (D-049, increment 11.8).
+func (c *checker) complexArith(e, x ast.Expr) bool {
+	if !isComplex(c.info.Types[x].Type) || c.info.Types[e].Value != nil {
+		return false
+	}
+	c.reject(e, FeatComplexArith, "complex arithmetic")
+	return true
+}
+
 // isUnsafePointer reports whether t is unsafe.Pointer, or a type defined
 // as it.
 func isUnsafePointer(t types.Type) bool {
@@ -1669,7 +1720,7 @@ func (c *checker) supported(t types.Type) bool {
 // the result, which is false if any of them is not. It ends on recursive
 // types, which go/types allows only through pointers.
 func (c *checker) sizedType(t types.Type, seen map[*types.Named]bool) bool {
-	if isScalar(t) || isUnsafePointer(t) {
+	if isScalar(t) || isUnsafePointer(t) || isComplex(t) {
 		return true
 	}
 	if !c.composite(t, seen) {
@@ -1708,7 +1759,8 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 		// A channel (D-048), of an element gc accepts.
 		return c.sizedType(t.Elem(), seen) && sizes.Sizeof(t.Elem()) <= maxChanElem
 	case *types.Basic:
-		return t.Kind() == types.UnsafePointer // a pointer (D-049, increment 11.7)
+		// A pointer (D-049, increment 11.7), or a complex number (11.8).
+		return t.Kind() == types.UnsafePointer || t.Info()&types.IsComplex != 0
 	case *types.Array:
 		return isScalar(t.Elem()) || c.composite(t.Elem(), seen)
 	case *types.Struct:
@@ -1868,7 +1920,8 @@ func (c *checker) isString(e ast.Expr) bool {
 func (c *checker) supportedOrUntyped(t types.Type) bool {
 	return c.supported(t) || types.Identical(t, types.Typ[types.UntypedNil]) || types.Identical(t, types.Typ[types.UntypedInt]) ||
 		types.Identical(t, types.Typ[types.UntypedBool]) || types.Identical(t, types.Typ[types.UntypedRune]) ||
-		types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.UntypedString])
+		types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.UntypedString]) ||
+		types.Identical(t, types.Typ[types.UntypedComplex])
 }
 
 // isIdent reports whether e is the identifier name.

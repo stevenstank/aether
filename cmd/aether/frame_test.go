@@ -47,6 +47,8 @@ func TestFrameBound(t *testing.T) {
 		"q := Q{1}; println(P(q).x, P{2}.x)",
 		"println([2]*P{{1}, nil}[0].x)",
 		"var e any = [2]int{5, 6}; println(e.([2]int)[1], e.(Q).x)",
+		// Elements of blank fields, evaluated and discarded.
+		"s := struct{ a, _ int; _ [2]int; _ P; _ [2]int }{1, f()[0], [2]int{3, 4}, P{5}, f()}; println(s.a)",
 	} {
 		src := "package main\n\ntype P struct{ x int }\n\ntype Q struct{ x int }\n\nfunc f() [2]int { return [2]int{3, 4} }\n\nfunc main() {\n" + body + "\n}\n"
 		progs = append(progs, program{fmt.Sprintf("operand%d.go", i), []byte(src)})

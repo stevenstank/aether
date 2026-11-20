@@ -3,5 +3,5 @@
 package main
 
 func main() {
-	println(len([]complex128{1}))
+	println(len([]struct{ error }{{}}))
 }

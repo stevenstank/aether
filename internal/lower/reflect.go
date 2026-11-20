@@ -1,0 +1,129 @@
+package lower
+
+import (
+	"fmt"
+	"go/types"
+
+	"github.com/stevenstank/aether/internal/ir"
+)
+
+// Type descriptors for package reflect (D-049, increment 11.8). In a
+// program with package reflect, a descriptor (iface.go) continues with the
+// words reflect's rtype reads (the overlay's reflect/type.go):
+//
+//	32 the kind, as reflect numbers them
+//	40 the size of a value
+//	48 the descriptor of the element type: of a pointer, slice, array,
+//	   channel, or map
+//	56 the descriptor of a map's key type
+//	64 an array's length, a struct's fields, an interface's methods
+//	72 a struct's field records: each its name, its type's descriptor,
+//	   its offset, and its flags (1 exported, 2 embedded)
+//	80 a map entry's size, 88 the element's offset in it (maps.go)
+//
+// The descriptors of the element, key, and field types are made with it,
+// so reflect reaches every type a value holds.
+const (
+	reflectDescSize = 96
+	fieldRecSize    = 40
+)
+
+// reflectKind returns reflect's Kind of t.
+func reflectKind(t types.Type) int64 {
+	switch u := t.Underlying().(type) {
+	case *types.Basic:
+		k := map[types.BasicKind]int64{types.Bool: 1, types.Int: 2, types.Int8: 3, types.Int16: 4, types.Int32: 5, types.Int64: 6,
+			types.Uint: 7, types.Uint8: 8, types.Uint16: 9, types.Uint32: 10, types.Uint64: 11, types.Uintptr: 12,
+			types.Float32: 13, types.Float64: 14, types.Complex64: 15, types.Complex128: 16,
+			types.String: 24, types.UnsafePointer: 26}[u.Kind()]
+		return k
+	case *types.Array:
+		return 17
+	case *types.Chan:
+		return 18
+	case *types.Signature:
+		return 19
+	case *types.Interface:
+		return 20
+	case *types.Map:
+		return 21
+	case *types.Pointer:
+		return 22
+	case *types.Slice:
+		return 23
+	case *types.Struct:
+		return 25
+	}
+	return 0
+}
+
+// reflectDesc makes the descriptors d refers to, and its field records.
+func (l *lowerer) reflectDesc(d *tdesc, pos ir.Pos) {
+	switch u := d.t.Underlying().(type) {
+	case *types.Pointer:
+		d.elem = l.desc(u.Elem())
+	case *types.Slice:
+		d.elem = l.desc(u.Elem())
+	case *types.Array:
+		d.elem = l.desc(u.Elem())
+	case *types.Chan:
+		d.elem = l.desc(u.Elem())
+	case *types.Map:
+		d.elem, d.key = l.desc(u.Elem()), l.desc(u.Key())
+	case *types.Struct:
+		d.fields = l.prog.NewMem(fmt.Sprintf("%sf%d", genPrefix, d.id), max(fieldRecSize*int64(u.NumFields()), 8), 8, l.fn.File, pos)
+		for f := range u.Fields() {
+			d.fieldDescs = append(d.fieldDescs, l.desc(f.Type()))
+		}
+	}
+}
+
+// initReflectDesc writes, in Init's entry block b, the words of the
+// descriptor d and its field records that reflect reads.
+func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
+	a := l.fn.Addr(b, d.mem, pos)
+	word := func(p *ir.Instr, off int64, v *ir.Instr) { l.fn.StM(b, p, l.fn.Const(b, off, pos), v, pos) }
+	c := func(v int64) *ir.Instr { return l.fn.Const(b, v, pos) }
+	word(a, 32, c(reflectKind(d.t)))
+	word(a, 40, c(sizes.Sizeof(d.t)))
+	if d.elem != nil {
+		word(a, 48, l.fn.Addr(b, d.elem.mem, pos))
+	}
+	if d.key != nil {
+		word(a, 56, l.fn.Addr(b, d.key.mem, pos))
+	}
+	switch u := d.t.Underlying().(type) {
+	case *types.Array:
+		word(a, 64, c(u.Len()))
+	case *types.Interface:
+		word(a, 64, c(int64(u.NumMethods())))
+	case *types.Map:
+		mt := l.mapType(d.t)
+		word(a, 80, c(mt.esize))
+		word(a, 88, c(mt.voff))
+	case *types.Struct:
+		word(a, 64, c(int64(u.NumFields())))
+		fa := l.fn.Addr(b, d.fields, pos)
+		word(a, 72, fa)
+		var fields []*types.Var
+		for f := range u.Fields() {
+			fields = append(fields, f)
+		}
+		offs := sizes.Offsetsof(fields)
+		for i, f := range fields {
+			r := fieldRecSize * int64(i)
+			word(fa, r, l.fn.Str(b, l.prog.Intern(f.Name()), pos))
+			word(fa, r+8, c(int64(len(f.Name()))))
+			word(fa, r+16, l.fn.Addr(b, d.fieldDescs[i].mem, pos))
+			word(fa, r+24, c(offs[i]))
+			flags := int64(0)
+			if f.Exported() {
+				flags |= 1
+			}
+			if f.Embedded() {
+				flags |= 2
+			}
+			word(fa, r+32, c(flags))
+		}
+	}
+}

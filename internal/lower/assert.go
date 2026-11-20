@@ -8,7 +8,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"slices"
 
 	"github.com/stevenstank/aether/internal/ir"
 )
@@ -120,7 +119,7 @@ func (l *lowerer) samePathFunc(t types.Type, pos ir.Pos) *ir.Func {
 	l.samePaths[path] = f
 	l.late = append(l.late, func() {
 		ps := l.enter(f, pos)
-		for _, d := range slices.Clone(l.descs) {
+		for _, d := range l.dynDescs() {
 			if pkgPath(d.t) != path {
 				continue
 			}

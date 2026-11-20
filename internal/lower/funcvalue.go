@@ -149,7 +149,7 @@ func (l *lowerer) method(n ast.Node, sel *types.Selection) (*ir.Func, bool) {
 	obj, _ := sel.Obj().(*types.Func)
 	f := l.funcs[obj]
 	if f == nil {
-		l.fail(n, "method %s is not a method of the program", sel.Obj().Name())
+		l.fail(n, "method %s is not a method of the program (%s)", sel.Obj().Name(), sel.Recv())
 	}
 	_, ptr := obj.Type().(*types.Signature).Recv().Type().(*types.Pointer)
 	return f, ptr
@@ -335,6 +335,9 @@ func (l *lowerer) initStatics() {
 		}
 		if d.hash != nil {
 			l.fn.StM(entry, a, l.fn.Const(entry, descHash, pos), l.fn.FuncAddr(entry, d.hash, pos), pos)
+		}
+		if l.reflect {
+			l.initReflectDesc(entry, d, pos)
 		}
 	}
 	for _, it := range l.itabs {

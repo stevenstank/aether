@@ -44,9 +44,9 @@ Supported subset (S2):
   and channels with go, send, receive, close, len, cap, range, and
   select; if, for, for range over integers, arrays, slices, and
   strings, switch, labels, and goto; package-level var and const; init
-  functions; iota, min and max of integers, fallthrough; print and
-  println. Not supported: complex numbers, range over functions,
-  packages that need gc's runtime (fmt, os, strings).
+  functions; iota, min and max of integers, fallthrough; complex
+  numbers without arithmetic; reflect in part; print and println. Not
+  supported: complex arithmetic, range over functions, fmt.
   See docs/SEMANTICS.md.
 
 Build flags:

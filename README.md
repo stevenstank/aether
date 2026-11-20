@@ -141,8 +141,10 @@ potentially long-term dependencies. The exact ownership boundaries are in
   `fallthrough`, and variadic functions (increment 11.5), and the
   packages `runtime`, `os`, `sync`, and `sync/atomic` in part (increment
   11.6), and generic code of other packages, `cmp`, `slices`, `sort`,
-  `maps`, and `errors` (increment 11.7, first part), are supported:
-  no complex numbers; no range over functions; no type aliases. Panics print no
+  `maps`, and `errors` (increment 11.7, first part), and complex numbers
+  without arithmetic and part of `reflect` (increment 11.8, first part),
+  are supported: no complex arithmetic; no range over functions; no type
+  aliases. Panics print no
   traceback.
 - `//go:build` lines and the directives `//go:noinline`, `//go:norace`,
   `//go:nocheckptr`, and `//go:registerparams` are accepted and ignored
