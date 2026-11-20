@@ -1,1 +1,1 @@
-testdata/check/unsupported_generic_body.go:10:3: unsupported: fallthrough statement is not supported in subset S1 [fallthrough]
+testdata/check/unsupported_generic_body.go:8:2: unsupported: defer of builtin recover is not supported in subset S1 [defer]

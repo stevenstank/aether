@@ -1,16 +1,12 @@
-// aether:expect unsupported fallthrough
+// aether:expect unsupported defer
 
 package main
 
 // The copies of generic code are checked against the subset; a
 // rejection is reported once, at the generic code's position.
 func pick[T int | float64](x T) T {
-	switch {
-	case x > 0:
-		fallthrough
-	default:
-		x++
-	}
+	defer recover()
+	x++
 	return x
 }
 

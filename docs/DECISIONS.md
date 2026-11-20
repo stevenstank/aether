@@ -4187,6 +4187,38 @@ packages.
   Uninstantiated generic code is not rejected there: an importer could
   instantiate it.
 
+**Implementation notes (increment 11.5, 2026-11-20).**
+- Overlays are embedded from `internal/frontend/_overlay/IMPORTPATH/`, a
+  directory the go command ignores. A table in `overlay.go` also lists, per
+  package, GOROOT files left out and GOROOT files replaced by gc's own
+  portable variants (`*_noasm.go`, `*_bootstrap.go`), built whatever their
+  build constraints. That keeps Aether's own Go to the intrinsics and a few
+  small functions.
+- `math.Exp` and `math.Log` keep their body-less `archExp`/`archLog`:
+  gc's amd64 assembly computes them with other algorithms (and FMA when
+  the CPU has it) than the portable Go, so compiling the portable Go
+  would change results. They are rejected when reached.
+- The float-bits intrinsics store the operand in a frame object and load
+  it as the other type; the IR needs no new operation.
+- Reachability marks more than D-049 requires: every method of a reached
+  defined type, not only of types converted to an interface. A package
+  variable is a root if its initializer may have an effect: anything but
+  constants, identifiers, function literals, composite literals and `&`
+  of those, and conversions to non-pointer types.
+- `go/types` asks the importer for `unsafe`; the loader answers with
+  `types.Unsafe`, and the gate rejects what it does not support. The main
+  module still may not import `unsafe` (11.7).
+- `runtime` is not compiled from GOROOT. Its import is `unsupported`
+  until 11.6 replaces it, which keeps the classification of programs
+  importing `fmt` or `os` short and stable.
+- `types.Initializer.Rhs` holds the initializer expression itself, so the
+  rewrite of qualified identifiers updates it too.
+- The packages needed `iota`, implicit constants, integer `min`/`max`,
+  `fallthrough`, variadic functions, and interface switch tags. A variadic
+  call's extra arguments become a slice literal of the parameter's type,
+  built after every argument is evaluated; variadic methods, func values,
+  and `go`/`defer` of variadic calls stay `unsupported`.
+
 ---
 
 ## Phase 0 research notes

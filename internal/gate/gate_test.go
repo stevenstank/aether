@@ -27,7 +27,7 @@ func classifyFile(t *testing.T, src string) []string {
 	if len(ds) > 0 {
 		t.Fatalf("syntax error: %v", ds)
 	}
-	if ds := Precheck(fset, f, true); len(ds) > 0 {
+	if ds := Precheck(fset, f, true, false); len(ds) > 0 {
 		return features(t, ds)
 	}
 	pkg, ds := frontend.TypeCheck(fset, []*ast.File{f})
@@ -217,7 +217,8 @@ func TestRejected(t *testing.T) {
 		{"slice of large elements", `var s [][1 << 22]int; println(len(s))`, []string{"non-int-type"}},
 		{"range over string", `for i := range "ab" { println(i) }`, nil},
 		{"println complex", `println(1i)`, []string{"println-argument-type"}},
-		{"builtin constant", `x := min(1, 2); println(x)`, []string{"builtin"}},
+		{"builtin constant", `x := min(1, 2); println(x)`, nil},
+		{"min of floats", `x, y := 1.5, 2.5; println(min(x, y))`, []string{"builtin"}},
 		{"math function", `x := 1.5; println(min(x, 2))`, []string{"builtin"}},
 		{"function literal", `f := func() {}; f()`, nil},
 		{"closures", `x := 1; f := func(k int) int { x += k; return x }; g := func() func() int { y := x; return func() int { y++; return y + x } }(); println(f(2), g(), g(), x)`, nil},
@@ -225,17 +226,17 @@ func TestRejected(t *testing.T) {
 		{"closure assigning a loop variable", `for i := 0; i < 2; i++ { func() { i++ }() }`, []string{"loop-variable-address"}},
 		{"loop variable of a closure", `f := func() { for i := 0; i < 2; i++ { g := func() int { return 1 }; println(i, g()) } }; f()`, nil},
 		{"closure with named results", `f := func() (r int) { defer func() { r++ }(); return 1 }; println(f())`, nil},
-		{"iota", `const c = iota; println(c)`, []string{"predeclared-identifier"}},
+		{"iota", `const c = iota; println(c)`, nil},
 		{"blank assignment", `x := 1; _ = x`, nil},
 		{"blank var", `var _ = 1`, nil},
 		{"blank typed var", `var _ int`, nil},
 		{"blank const", `const _ = 1`, nil},
 		{"blank in short declaration", `a, _ := 1, 2; println(a)`, nil},
-		{"implicit const value", "const (\n a = 1\n b\n)\nprintln(a, b)", []string{"const-implicit-value"}},
+		{"implicit const value", "const (\n a = 1\n b\n)\nprintln(a, b)", nil},
 		{"local type", `type T int`, nil},
 		{"parenthesized target", `x := 1; (x) = 2; println(x)`, []string{"assignment-target"}},
 		{"range", `for range 3 {}`, nil},
-		{"fallthrough", `switch { case true: fallthrough; default: }`, []string{"fallthrough"}},
+		{"fallthrough", `switch { case true: fallthrough; default: }`, nil},
 		{"labeled switch", "L:\nswitch {\ndefault:\nbreak L\n}", nil},
 		{"switch with a rejected case body", `switch { case true: defer recover() }`, []string{"defer"}},
 		{"select", `L: for { select { default: break L } }`, nil},
@@ -271,7 +272,7 @@ func TestRejected(t *testing.T) {
 		{"switch on a struct", `var s struct{ x int }; switch s { case s: }`, []string{"non-int-type"}},
 		{"range over an array", `var a [2]int; for i := range a { println(i) }`, nil},
 		{"range over a func", `for range func(func() bool) {} {}`, []string{"for-range"}},
-		{"fallthrough", "switch {\ncase true:\nfallthrough\ndefault:\n}", []string{"fallthrough"}},
+		{"fallthrough", "switch {\ncase true:\nfallthrough\ndefault:\n}", nil},
 		{"local type alias", `type A = [2]int; var a A; a[0] = 1`, []string{"local-type-declaration"}},
 		{"parenthesized field target", `var s struct{ x int }; (s).x = 1`, []string{"assignment-target"}},
 	}
@@ -319,7 +320,7 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"println of aggregate results", "package main\n\nfunc f() ([1]int, int) { return [1]int{}, 1 }\n\nfunc main() { println(f()) }\n", []string{"println-argument-type"}},
 		{"package complex var", "package main\n\nvar c complex64\n\nfunc main() {}\n", []string{"non-int-type"}},
 		{"package blank var", "package main\n\nvar _ = 1\n\nfunc main() {}\n", nil},
-		{"package const without value", "package main\n\nconst (\n\ta = 1\n\tb\n)\n\nfunc main() { println(a, b) }\n", []string{"const-implicit-value"}},
+		{"package const without value", "package main\n\nconst (\n\ta = 1\n\tb\n)\n\nfunc main() { println(a, b) }\n", nil},
 		{"named result", "package main\n\nfunc f() (r int) { return }\n\nfunc main() { println(f()) }\n", nil},
 		{"named aggregate results", "package main\n\ntype P struct{ a [2]int }\n\nfunc f() (p P, _ [3]string, q *P) { q = &p; defer func() { p.a[0]++ }(); return }\n\nfunc main() { p, s, q := f(); println(p.a[0], q.a[0], s[0]) }\n", nil},
 		{"named result of an unsupported type", "package main\n\nfunc f() (c complex64) { return }\n\nfunc main() { f() }\n", []string{"non-int-type"}},
@@ -327,7 +328,12 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"blank result target", "package main\n\nfunc f() (int, int) { return 1, 2 }\n\nfunc main() { x, _ := f(); println(x) }\n", nil},
 		{"generic function", "package main\n\nfunc f[T any]() {}\n\nfunc main() { f[int]() }\n", []string{"function-declaration", "index-expression"}},
 		{"complex parameter", "package main\n\nfunc f(b complex128) {}\n\nfunc main() { f(1) }\n", []string{"non-int-type"}},
-		{"variadic function", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { f(1, 2) }\n", []string{"non-int-type"}},
+		{"variadic function", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { f(1, 2); f(); f([]int{1}...) }\n", nil},
+		{"variadic method", "package main\n\ntype T int\n\nfunc (T) f(xs ...int) {}\n\nfunc main() { T(0).f(1) }\n", []string{"non-int-type"}},
+		{"variadic defer", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { defer f(1) }\n", []string{"variadic-call"}},
+		{"variadic go", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { go f(1) }\n", []string{"variadic-call"}},
+		{"variadic func value", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { g := f; g(1) }\n", []string{"non-int-type", "variadic-call"}},
+		{"variadic with results", "package main\n\nfunc f(xs ...int) {}\n\nfunc two() (int, int) { return 1, 2 }\n\nfunc main() { f(two()) }\n", []string{"variadic-call"}},
 		{"function without body", "package main\n\nfunc f()\n\nfunc main() { f() }\n", []string{"function-without-body"}},
 		{"function named _", "package main\n\nfunc _() {}\n\nfunc main() {}\n", []string{"blank-identifier"}},
 		{"function value", "package main\n\nfunc f() {}\n\nfunc main() { g := f; g() }\n", nil},
@@ -344,7 +350,8 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"interfaces", "package main\n\ntype I interface{ M(int) [2]int }\n\ntype J interface {\n\tI\n\tN() string\n}\n\ntype T struct{}\n\nfunc (T) M(k int) [2]int { return [2]int{k} }\n\nfunc (*T) N() string { return \"\" }\n\nfunc main() { var i I = T{}; var j J = &T{}; var a any = i; var e error; i = j; v, ok := a.(J); w := a.(I); switch x := a.(type) { case nil, int: println(x == nil); case I: println(x.M(1)[0]); default: } ; println(i.M(2)[1], v == nil, ok, w != nil, e == nil, a == any(1), I.M(i, 3)[0]); f := i.M; println(f(4)[0]) }\n", nil},
 		{"constraint interface", "package main\n\ntype C interface{ ~int }\n\nfunc main() {}\n", []string{"non-int-type"}},
 		{"interface embedded in a struct", "package main\n\ntype I interface{ M() }\n\ntype T struct{ I }\n\nfunc main() { var t T; t.M() }\n", []string{"non-int-type"}},
-		{"switch on an interface", "package main\n\nfunc main() { var a any = 1; switch a { case 1: } }\n", []string{"non-int-type"}},
+		{"switch on an interface", "package main\n\nfunc main() { var a any = 1; switch a { case 1, nil: } }\n", nil},
+		{"interface case of another interface", "package main\n\nfunc main() { var e error; switch e { case any(1): } }\n", []string{"non-int-type"}},
 		{"interface case value", "package main\n\nfunc main() { var a any = 1; switch 1 { case a: } }\n", []string{"non-int-type"}},
 		{"println of an interface", "package main\n\nfunc main() { var a any; println(a) }\n", []string{"println-argument-type"}},
 		{"interface of an unsupported method", "package main\n\ntype I interface{ M(complex64) }\n\nfunc main() {}\n", []string{"non-int-type"}},
@@ -427,6 +434,29 @@ func TestMissingTypeInformationIsInternal(t *testing.T) {
 	for _, d := range ds {
 		if d.Class != diag.Internal {
 			t.Errorf("got %s, want only internal diagnostics", d)
+		}
+	}
+}
+
+func TestPrecheckStd(t *testing.T) {
+	tests := []struct {
+		src  string
+		want []string
+	}{
+		{"package p\n\nimport _ \"unsafe\"\n\n//go:linkname x runtime.x\nvar x error\n", []string{"directive"}},
+		{"package p\n\nimport _ \"unsafe\"\n\n//go:linkname x\nvar x error\n", nil},
+		{"package p\n\nimport _ \"unsafe\"\n\n//go:linkname x p.x\nvar x error\n", nil},
+		{"package p\n\nimport _ \"unsafe\"\n\n//go:linkname f runtime.f\nfunc f()\n", nil},
+		{"package p\n\n//go:nosplit\nfunc f() {}\n\n//go:noescape\nfunc g(p *int)\n", nil},
+	}
+	for _, tt := range tests {
+		fset := token.NewFileSet()
+		f, ds := frontend.Parse(fset, "p.go", []byte(tt.src))
+		if len(ds) > 0 {
+			t.Fatal(ds)
+		}
+		if got := features(t, Precheck(fset, f, false, true)); !slices.Equal(got, tt.want) {
+			t.Errorf("%q: features %v, want %v", tt.src, got, tt.want)
 		}
 	}
 }

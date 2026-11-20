@@ -60,6 +60,10 @@ func (c *checker) goStmt(s *ast.GoStmt) {
 			return
 		}
 	}
+	if c.variadic(s.Call) {
+		c.reject(s.Call, FeatVariadic, "variadic call in a go statement")
+		return
+	}
 	c.call(s.Call)
 }
 

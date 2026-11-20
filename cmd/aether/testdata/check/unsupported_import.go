@@ -2,8 +2,8 @@
 
 package main
 
-import "os"
+import "runtime"
 
 func main() {
-	os.Exit(0)
+	runtime.GC()
 }

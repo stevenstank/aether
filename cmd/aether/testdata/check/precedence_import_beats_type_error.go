@@ -3,7 +3,7 @@
 
 package main
 
-import "os"
+import "runtime"
 
 func main() {
 	var x int = "s"

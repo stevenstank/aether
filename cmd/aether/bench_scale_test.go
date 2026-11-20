@@ -66,7 +66,7 @@ func stageRun(t *testing.T, name string, src []byte, exe string, mem bool) (stag
 			}
 		},
 		func() {
-			if ds := gate.Precheck(fset, file, true); len(ds) > 0 {
+			if ds := gate.Precheck(fset, file, true, false); len(ds) > 0 {
 				fail("precheck", ds)
 			}
 			var ds []diag.Diagnostic

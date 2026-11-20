@@ -96,7 +96,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 			if ok && l.generic(fd) {
 				continue
 			}
-			if !ok || fd.Body == nil || fd.Type.TypeParams != nil {
+			if !ok || fd.Body == nil && !frontend.Intrinsics[intrinsicKey(l.pkg.Info, fd)] || fd.Type.TypeParams != nil {
 				l.fail(d, "unexpected top-level declaration")
 			}
 			l.declare(prog, fd)
@@ -110,6 +110,10 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 		l.panics() // every function of the source copies .rframe
 	}
 	for _, fd := range decls {
+		if fd.Body == nil {
+			l.intrinsic(fd)
+			continue
+		}
 		l.function(fd)
 	}
 	l.init(prog)
@@ -217,8 +221,9 @@ type lowerer struct {
 // condition). A switch has no next.
 type target struct {
 	next, exit *ir.Block
-	broken     bool     // a break targets exit
-	stmt       ast.Stmt // the statement, which a label may name (D-049)
+	broken     bool      // a break targets exit
+	stmt       ast.Stmt  // the statement, which a label may name (D-049)
+	fall       *ir.Block // in a switch, the next case's body, for fallthrough
 }
 
 func (l *lowerer) fail(n ast.Node, format string, args ...any) {
@@ -247,7 +252,7 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 		l.fail(fd, "no function object for %s", fd.Name.Name)
 	}
 	sig := obj.Type().(*types.Signature)
-	if sig.Variadic() || (fd.Recv != nil) != (sig.Recv() != nil) {
+	if sig.Variadic() && fd.Recv != nil || (fd.Recv != nil) != (sig.Recv() != nil) {
 		l.fail(fd, "unexpected signature for %s", fd.Name.Name)
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
@@ -417,6 +422,67 @@ func (l *lowerer) generic(n ast.Node) bool {
 	}
 	obj := l.pkg.Info.Defs[id]
 	return obj != nil && obj.Pkg().Path() != "main" && frontend.Generic(l.pkg.Info, n)
+}
+
+// variadicArgs evaluates the arguments of a call of a variadic function
+// whose parameters are of types ts (D-049): with ..., the last is the
+// slice; otherwise the arguments after the fixed ones are the elements of
+// a new slice, nil if there are none. Every argument is evaluated, left to
+// right, before the slice is made.
+func (l *lowerer) variadicArgs(call *ast.CallExpr, ts []types.Type) [][]*ir.Instr {
+	if call.Ellipsis.IsValid() {
+		return l.values(call.Args, ts)
+	}
+	n := len(ts) - 1
+	pos := l.pos(call, call.Pos())
+	vals := l.values(call.Args[:n], ts[:n])
+	extra := call.Args[n:]
+	if len(extra) == 0 {
+		return append(vals, []*ir.Instr{l.fn.TypedConst(l.b, ir.Ptr, 0, pos), l.fn.Const(l.b, 0, pos), l.fn.Const(l.b, 0, pos)})
+	}
+	gets := make([]func() []*ir.Instr, n)
+	for i, w := range vals {
+		gets[i] = l.spillWords(w, pos)
+	}
+	// The elements as a slice literal of the parameter's type.
+	lit := &ast.CompositeLit{Lbrace: extra[0].Pos(), Elts: extra, Rbrace: extra[len(extra)-1].End()}
+	l.pkg.Info.Types[lit] = types.TypeAndValue{Type: ts[n]}
+	s := l.sliceLit(lit)
+	out := make([][]*ir.Instr, n, n+1)
+	for i, get := range gets {
+		out[i] = get()
+	}
+	return append(out, s)
+}
+
+// minMax lowers min or max of integers (D-049): the arguments are
+// evaluated in order, then each replaces the result so far if it is less,
+// or greater.
+func (l *lowerer) minMax(e *ast.CallExpr, isMin bool) *ir.Instr {
+	pos := l.pos(e, e.Pos())
+	vals := make([]func() *ir.Instr, len(e.Args))
+	for i, a := range e.Args {
+		vals[i] = l.spill(l.expr(a), pos)
+	}
+	res := l.fn.NewSlot("minmax", vals[0]().Type, pos)
+	l.fn.Store(l.b, res, vals[0](), pos)
+	op := ir.Gt
+	if isMin {
+		op = ir.Lt
+	}
+	for _, v := range vals[1:] {
+		x := v()
+		if x.Type != res.Type || x.Type.IsFloat() {
+			l.fail(e, "%s of operands of types %s and %s", ast.Unparen(e.Fun), x.Type, res.Type)
+		}
+		set, join := l.fn.NewBlock(), l.fn.NewBlock()
+		l.fn.Branch(l.b, l.compare(op, x, l.fn.Load(l.b, res, pos), pos), set, join, pos)
+		l.b = set
+		l.fn.Store(l.b, res, v(), pos)
+		l.fn.Jump(l.b, join, pos)
+		l.b = join
+	}
+	return l.fn.Load(l.b, res, pos)
 }
 
 // qualify returns name, of obj or a function or global for it, qualified
@@ -670,6 +736,16 @@ func (l *lowerer) stmt(s ast.Stmt) {
 	case *ast.LabeledStmt:
 		l.labeledStmt(s) // D-049
 	case *ast.BranchStmt:
+		if s.Tok == token.FALLTHROUGH {
+			// The last statement of a case: the next case's body.
+			t := l.targets[len(l.targets)-1]
+			if t.fall == nil {
+				l.fail(s, "fallthrough outside a switch case")
+			}
+			l.fn.Jump(l.b, t.fall, l.pos(s, s.Pos()))
+			l.done = true
+			return
+		}
 		if s.Tok == token.GOTO {
 			l.fn.Jump(l.b, l.labelBlock(l.pkg.Info.Uses[s.Label].(*types.Label)), l.pos(s, s.Pos()))
 			l.done = true
@@ -833,9 +909,14 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 	}
 	var tag func() *ir.Instr
 	var strTag func() []*ir.Instr // a string tag's words (D-037)
+	var ifaceTag func() []*ir.Instr
+	var tagType types.Type
 	sliceTag := false
 	if s.Tag != nil {
 		switch tt := l.pkg.Info.Types[s.Tag].Type; {
+		case isIface(tt):
+			// Compared with each case value converted to its type (D-049).
+			ifaceTag, tagType = l.spillWords(l.value(s.Tag), l.pos(s.Tag, s.Tag.Pos())), tt
 		case isString(tt):
 			strTag = l.spillWords(l.value(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
 		case isSlice(tt):
@@ -862,6 +943,11 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 			pos := l.pos(e, e.Pos())
 			var cond *ir.Instr
 			switch {
+			case ifaceTag != nil && l.pkg.Info.Types[e].IsNil():
+				cond = l.fn.Compare(l.b, ir.Eq, ifaceTag()[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos)
+			case ifaceTag != nil:
+				v := l.values([]ast.Expr{e}, []types.Type{tagType})[0]
+				cond = l.ifaceEqual(ifaceTag(), v, tagType, pos)
 			case strTag != nil:
 				v := l.value(e)
 				cond = l.stringEqual(strTag(), v, pos)
@@ -894,6 +980,10 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 	for i, c := range s.Body.List {
 		cc := c.(*ast.CaseClause)
 		l.b, l.done = bodies[i], false
+		sw.fall = nil
+		if i+1 < len(bodies) {
+			sw.fall = bodies[i+1]
+		}
 		l.stmts(cc.Body)
 		if !l.done {
 			end := s.Body.Rbrace
@@ -1104,9 +1194,6 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 // (D-038): the receiver, then the arguments, are evaluated left to right,
 // then the function is called.
 func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
-	if call.Ellipsis.IsValid() {
-		l.fail(call, "unexpected call")
-	}
 	pos := l.pos(call, call.Pos())
 	var obj *types.Func
 	recv := func() []*ir.Instr { return nil }
@@ -1143,7 +1230,15 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 	for v := range sig.Params().Variables() {
 		ts = append(ts, v.Type())
 	}
-	vals := l.valuesOrResults(call.Args, ts)
+	var vals [][]*ir.Instr
+	if sig.Variadic() {
+		vals = l.variadicArgs(call, ts)
+	} else {
+		if call.Ellipsis.IsValid() {
+			l.fail(call, "unexpected call with ...")
+		}
+		vals = l.valuesOrResults(call.Args, ts)
+	}
 	args := append(recv(), flatten(vals)...)
 	// A new object for each array or struct result, passed after the
 	// arguments (D-034).
@@ -1574,7 +1669,9 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 			case *ast.CallExpr:
 				// make, append, and copy check and may grow (slice.go), and
 				// a call of a func value checks it for nil (funcvalue.go).
-				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy") || l.isValueCall(n)
+				// min and max select by branching (D-049).
+				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy") || l.isValueCall(n) ||
+					l.isBuiltin(n, "min") || l.isBuiltin(n, "max")
 			case *ast.SelectorExpr:
 				if sel := l.pkg.Info.Selections[n]; sel != nil && sel.Indirect() {
 					found = true
@@ -1689,6 +1786,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			}
 			if b != nil && b.Name() == "copy" {
 				return l.copySlice(e)
+			}
+			if b != nil && (b.Name() == "min" || b.Name() == "max") {
+				return l.minMax(e, b.Name() == "min")
 			}
 			if v, ok := l.chanBuiltin(e); ok {
 				return v // D-048

@@ -1183,7 +1183,17 @@ repeated in each phase below:
     Tests: `TestPackagePrograms` against gc, `TestPackageRejects`, loader
     tests.
   - **11.5** The standard library from GOROOT source: overlays,
-    intrinsics, reachability.
+    intrinsics, reachability. *Done 2026-11-20, owner review pending:*
+    the GOROOT check; standard-library packages loaded from
+    `$GOROOT/src` with embedded overlays (`internal/frontend/_overlay`)
+    and gc's portable variants of assembly-backed files; float-bits
+    intrinsics; reachability pruning of every imported package; `iota`,
+    implicit constants, integer `min`/`max`, `fallthrough`, variadic
+    functions, and interface switch tags, which these packages use.
+    `unicode/utf8`, `unicode`, `math/bits`, `math` (not `Exp`/`Log`),
+    and `strconv` match gc. Tests: `TestStdPrograms`, `TestStdRejects`,
+    `TestGOROOTVersion`, `s7_l01`, `s7_l02`. `TestGorootRun`: 467 of
+    1,005 pass, 0 bugs.
   - **11.6** `runtime`, `os`, `sync`, and `sync/atomic` overlays.
   - **11.7** `unsafe` and generics across packages.
   - **11.8** A `reflect` subset and `fmt` from source.

@@ -121,6 +121,16 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     import as `unsupported`, so `go/types` never sees an unresolved one.
     The typed walk then runs on every package, and lowering lowers all of
     them as one program, with symbols qualified by import path.
+    Since increment 11.5 the loader also reads standard-library packages
+    from `$GOROOT/src`, patched with Aether's embedded overlay files
+    (`internal/frontend/overlay.go`, `_overlay/`), and, after loading,
+    prunes every package besides main to what main reaches
+    (`internal/frontend/reach.go`), so the typed walk and lowering see
+    only that. In a standard-library file the pre-check ignores gc's
+    directives except a `//go:linkname` that makes a variable another
+    package's. Body-less overlay functions listed in
+    `frontend.Intrinsics` get their bodies from lowering
+    (`internal/lower/intrinsic.go`).
   - A typed walk after type checking. It visits **every** expression, including
     sub-expressions of constant expressions, because S1's literal and
     operator restrictions apply to constant expressions too (`SEMANTICS.md`

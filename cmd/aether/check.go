@@ -42,9 +42,21 @@ func check(srcs []source) []diag.Diagnostic {
 	return ds
 }
 
-// compile runs the steps of check and returns the verified IR of a program
-// inside the subset, or the diagnostics and no IR.
+// compile is compileGOROOT for a program whose GOROOT is usable; a problem
+// with it is an internal error. Only tests call it.
 func compile(srcs []source) (*ir.Program, []diag.Diagnostic) {
+	prog, ds, err := compileGOROOT(srcs)
+	if err != nil {
+		return nil, []diag.Diagnostic{{Class: diag.Internal, Message: err.Error()}}
+	}
+	return prog, ds
+}
+
+// compileGOROOT runs the steps of check and returns the verified IR of a
+// program inside the subset, or the diagnostics and no IR, or an error: a
+// problem with GOROOT, which a program importing the standard library
+// needs (D-049), and which is a usage error.
+func compileGOROOT(srcs []source) (*ir.Program, []diag.Diagnostic, error) {
 	names := make([]string, len(srcs))
 	fsrcs := make([]frontend.Source, len(srcs))
 	for i, s := range srcs {
@@ -52,25 +64,25 @@ func compile(srcs []source) (*ir.Program, []diag.Diagnostic) {
 		fsrcs[i] = frontend.Source{Name: s.name, Data: s.data}
 	}
 	if ds := gate.Files(names); len(ds) > 0 {
-		return nil, ds
+		return nil, ds, nil
 	}
-	program, ds := frontend.Load(token.NewFileSet(), fsrcs, frontend.Stages{Precheck: gate.Precheck, Prepare: mono.Instantiate, Reject: gate.Reject})
-	if len(ds) > 0 {
-		return nil, ds
+	program, ds, err := frontend.Load(token.NewFileSet(), fsrcs, frontend.Stages{Precheck: gate.Precheck, Prepare: mono.Instantiate, Reject: gate.Reject})
+	if err != nil || len(ds) > 0 {
+		return nil, ds, err
 	}
 	for _, pkg := range program.Packages {
 		if ds := gate.Check(pkg); len(ds) > 0 {
-			return nil, distinct(ds)
+			return nil, distinct(ds), nil
 		}
 	}
 	prog, ds := lower.LowerProgram(program)
 	if len(ds) > 0 {
-		return nil, ds
+		return nil, ds, nil
 	}
 	if ds := verify(prog, names[0]); len(ds) > 0 {
-		return nil, ds
+		return nil, ds, nil
 	}
-	return prog, nil
+	return prog, nil, nil
 }
 
 // verify runs the IR verifier. Lowering must produce well-formed IR, so a

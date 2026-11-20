@@ -80,8 +80,14 @@ func TestPackageRejects(t *testing.T) {
 			"--\nb/b.go:package b\nimport \"m.test/x/a\"\nfunc G() { a.F() }\n",
 			[]string{"main.go"}, diag.Invalid, "b/b.go:2:8: invalid: import cycle not allowed"},
 		{"standard library", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
-			"--\na/a.go:package a\nimport \"os\"\nfunc F() { os.Exit(0) }\n",
-			[]string{"main.go"}, diag.Unsupported, `a/a.go:2:8: unsupported: import "os" is not supported in subset S1 [import]`},
+			"--\na/a.go:package a\nimport \"runtime\"\nfunc F() { runtime.GC() }\n",
+			[]string{"main.go"}, diag.Unsupported, `a/a.go:2:8: unsupported: import "runtime" is not supported in subset S1 [import]`},
+		{"unreachable in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { println(a.F()) }\n" +
+			"--\na/a.go:package a\nvar v = g()\nfunc g() int { return 2 }\nfunc F() int { return v }\nfunc H() { println(1i) }\nvar w = 1i\n",
+			[]string{"main.go"}, 0, ""},
+		{"root initializer in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
+			"--\na/a.go:package a\nvar _ = h()\nfunc h() complex128 { return 1i }\nfunc F() {}\n",
+			[]string{"main.go"}, diag.Unsupported, "a/a.go:2:9: unsupported"},
 		{"no module", "main.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n",
 			[]string{"main.go"}, diag.Unsupported, `main.go:2:8: unsupported: import "m.test/x/a"`},
 		{"outside the module", mod + "--\nmain.go:package main\nimport \"m.test/xy\"\nfunc main() { xy.F() }\n",
@@ -149,5 +155,126 @@ func TestPackageRejects(t *testing.T) {
 				t.Fatalf("diagnostics %v, want first %v containing %q", ds, tt.class, tt.want)
 			}
 		})
+	}
+}
+
+// TestStdPrograms builds each program of testdata/std, which import the
+// standard-library packages Aether compiles from GOROOT source (D-049,
+// increment 11.5), with gc and with Aether, with and without -O0, and
+// compares what they do.
+func TestStdPrograms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds with gc")
+	}
+	gobin, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go command not found")
+	}
+	for _, tool := range []string{"as", "ld"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	files, err := filepath.Glob(filepath.Join("testdata", "std", "*.go"))
+	if err != nil || len(files) == 0 {
+		t.Fatal(files, err)
+	}
+	progs := map[string][]byte{}
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		progs[strings.TrimSuffix(filepath.Base(f), ".go")] = src
+	}
+	want := gcRun(t, gobin, progs)
+	for _, f := range files {
+		name := strings.TrimSuffix(filepath.Base(f), ".go")
+		t.Run(name, func(t *testing.T) {
+			for _, o0 := range []bool{false, true} {
+				out := filepath.Join(t.TempDir(), name)
+				args := []string{"build", "-o", out}
+				if o0 {
+					args = append(args, "-O0")
+				}
+				if stderr, code := runAether(append(args, f)...); code != 0 {
+					t.Fatalf("aether %v: exit %d\n%s", args, code, stderr)
+				}
+				if got := runExe(t, out); got != want[name] {
+					t.Errorf("-O0 %v: aether %+v, gc %+v", o0, got, want[name])
+				}
+			}
+		})
+	}
+}
+
+// TestStdRejects checks how programs importing the standard library that
+// Aether does not compile are classified, and that only what main reaches
+// of an imported package is checked (D-049).
+func TestStdRejects(t *testing.T) {
+	tests := []struct {
+		name, src string
+		class     diag.Class
+		want      string
+	}{
+		{"assembly", "package main\nimport \"math\"\nfunc main() { println(math.Exp(1)) }\n",
+			diag.Unsupported, "$GOROOT/src/math/exp_asm.go:11:1: unsupported: function archExp without a body (implemented outside Go)"},
+		{"runtime", "package main\nimport \"os\"\nfunc main() { os.Exit(1) }\n",
+			diag.Unsupported, `unsupported: import "runtime"`},
+		{"internal", "package main\nimport \"internal/strconv\"\nfunc main() { println(strconv.Itoa(1)) }\n",
+			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/strconv not allowed"},
+		{"not in std", "package main\nimport \"nosuch/pkg\"\nfunc main() { pkg.F() }\n",
+			diag.Invalid, "p.go:2:8: invalid: package nosuch/pkg is not in std"},
+		{"unsafe", "package main\nimport \"unsafe\"\nfunc main() { println(unsafe.Sizeof(1)) }\n",
+			diag.Unsupported, `p.go:2:8: unsupported: import "unsafe"`},
+		{"errors.Is", "package main\nimport \"errors\"\nfunc main() { println(errors.Is(nil, nil)) }\n",
+			diag.Unsupported, "$AETHER/errors/wrap.go:8:1: unsupported: function Is without a body"},
+		// sync/atomic imports unsafe, which has nothing to initialize: the
+		// initialization order once never ended.
+		{"imports unsafe", "package main\nimport \"sync/atomic\"\nfunc main() { var x atomic.Int32; println(x.Add(1)) }\n",
+			diag.Unsupported, "$GOROOT/src/sync/atomic/doc.go:71:1: unsupported: function SwapInt32 without a body"},
+		{"unreachable", "package main\nimport \"strconv\"\nfunc main() { println(strconv.Itoa(7)) }\n", 0, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := check([]source{{name: "p.go", data: []byte(tt.src)}})
+			if tt.want == "" {
+				if len(ds) != 0 {
+					t.Fatalf("rejected: %v", ds)
+				}
+				return
+			}
+			diag.Sort(ds)
+			if len(ds) == 0 || ds[0].Class != tt.class || !strings.Contains(ds[0].String(), tt.want) {
+				t.Fatalf("diagnostics %v, want first %v containing %q", ds, tt.class, tt.want)
+			}
+		})
+	}
+}
+
+// TestGOROOTVersion checks that a GOROOT of another Go version is a usage
+// error for a program importing the standard library, and is not read by
+// one that imports nothing (D-049).
+func TestGOROOTVersion(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "VERSION"), []byte("go1.25.3\ntime x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GOROOT", root)
+	dir := t.TempDir()
+	for name, src := range map[string]string{
+		"std.go":  "package main\nimport \"unicode/utf8\"\nfunc main() { println(utf8.RuneLen('x')) }\n",
+		"none.go": "package main\nfunc main() {}\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stderr, code := runAether("check", filepath.Join(dir, "std.go"))
+	if code != diag.ExitUsage || !strings.Contains(stderr, "is go1.25.3; Aether needs go1.26") {
+		t.Errorf("std: exit %d, %q", code, stderr)
+	}
+	if stderr, code := runAether("check", filepath.Join(dir, "none.go")); code != 0 {
+		t.Errorf("no imports: exit %d, %q", code, stderr)
 	}
 }

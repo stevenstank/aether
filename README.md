@@ -137,8 +137,9 @@ potentially long-term dependencies. The exact ownership boundaries are in
   and the blank identifier (Phase 11 increment 11.2), and `for range`
   over integers, arrays, slices, and strings, labels, `goto`, and `init`
   functions (increment 11.3), and several files and packages of the main
-  module (increment 11.4), are supported: no complex numbers; no
-  `fallthrough` or range over functions; no type aliases. Panics print no
+  module (increment 11.4), and `iota`, integer `min` and `max`,
+  `fallthrough`, and variadic functions (increment 11.5), are supported:
+  no complex numbers; no range over functions; no type aliases. Panics print no
   traceback.
 - `//go:build` lines and the directives `//go:noinline`, `//go:norace`,
   `//go:nocheckptr`, and `//go:registerparams` are accepted and ignored
@@ -148,8 +149,11 @@ potentially long-term dependencies. The exact ownership boundaries are in
   The heap is collected by a conservative mark-sweep collector (D-046).
 - A program is the files of `package main` in one directory, named on the
   command line, and the packages of its module (the nearest `go.mod`) that
-  it imports (increment 11.4). Standard-library imports are not yet
-  accepted.
+  it imports (increment 11.4), and the standard-library packages
+  `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`,
+  and their callers), and `strconv`, compiled from `$GOROOT/src`, which
+  must be go1.26 (increment 11.5). Packages that need gc's `runtime`
+  (`fmt`, `os`, `strings`, ...) are not yet accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).
 - The optimization passes are constant folding and dead code elimination. By default, values are kept

@@ -31,6 +31,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -45,12 +46,12 @@ const (
 	FeatMultipleFiles = "multiple-files"
 	FeatPackageName   = "package-name"
 	FeatImport        = frontend.FeatImport
+	FeatStdlib        = frontend.FeatStdlib
 	FeatCgo           = "cgo"
 	FeatDirective     = "directive"
 	FeatPackageDecl   = "package-level-declaration"
 	FeatFuncDecl      = "function-declaration"
 	FeatLocalType     = "local-type-declaration"
-	FeatConstImplicit = "const-implicit-value"
 	FeatBlank         = "blank-identifier"
 	FeatNonIntType    = "non-int-type"
 	FeatAssignTarget  = "assignment-target"
@@ -99,7 +100,12 @@ func Files(names []string) []diag.Diagnostic {
 // Aether lacks, and those it would wrongly report as errors. It must run on a
 // file that parsed without errors, of package main if main is set. Imports
 // besides "C" are the loader's (D-049).
-func Precheck(fset *token.FileSet, f *ast.File, main bool) []diag.Diagnostic {
+//
+// In a file of the standard library (std), written for gc, directives are
+// gc's business and ignored, except //go:linkname making a package
+// variable one of another package, which Aether cannot give it. A body-less function, which //go:linkname may implement, is
+// rejected if the program reaches it (D-049).
+func Precheck(fset *token.FileSet, f *ast.File, main, std bool) []diag.Diagnostic {
 	var ds []diag.Diagnostic
 	pos := func(p token.Pos) diag.Pos { return frontend.Position(fset, p) }
 	if main && f.Name.Name != "main" {
@@ -113,6 +119,13 @@ func Precheck(fset *token.FileSet, f *ast.File, main bool) []diag.Diagnostic {
 	}
 	for _, g := range f.Comments {
 		for _, c := range g.List {
+			if std {
+				if fields := strings.Fields(c.Text); len(fields) >= 3 && fields[0] == "//go:linkname" && packageVar(f, fields[1]) &&
+					path.Base(fields[2][:max(strings.LastIndex(fields[2], "."), 0)]) != f.Name.Name {
+					ds = append(ds, unsupported(pos(c.Pos()), FeatDirective, "directive //go:linkname of variable "+fields[1]))
+				}
+				continue
+			}
 			if name, ok := directive(c.Text); ok && !allowedDirective(fset, f, c, name) {
 				ds = append(ds, unsupported(pos(c.Pos()), FeatDirective, "directive "+name))
 			}
@@ -131,6 +144,22 @@ func Precheck(fset *token.FileSet, f *ast.File, main bool) []diag.Diagnostic {
 		}
 	}
 	return ds
+}
+
+// packageVar reports whether f declares the package variable name.
+func packageVar(f *ast.File, name string) bool {
+	for _, d := range f.Decls {
+		if g, ok := d.(*ast.GenDecl); ok && g.Tok == token.VAR {
+			for _, s := range g.Specs {
+				for _, id := range s.(*ast.ValueSpec).Names {
+					if id.Name == name {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // funcDirectives are the directives that change nothing Aether reproduces,
@@ -226,9 +255,9 @@ var featureNames = map[string]bool{}
 
 func init() {
 	for _, f := range []string{
-		FeatMultipleFiles, FeatPackageName, FeatImport, FeatCgo, FeatDirective,
+		FeatMultipleFiles, FeatPackageName, FeatImport, FeatStdlib, FeatCgo, FeatDirective,
 		FeatPackageDecl, FeatFuncDecl, FeatLocalType,
-		FeatConstImplicit, FeatBlank, FeatNonIntType, FeatAssignTarget,
+		FeatBlank, FeatNonIntType, FeatAssignTarget,
 		FeatMultiValue, FeatPrintlnArg, FeatBuiltin, FeatCall,
 		FeatConversion, FeatVariadic, FeatPredeclared, FeatImagLit,
 		FeatCompositeLit,
@@ -238,7 +267,6 @@ func init() {
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "go",
 		"defer",
-		token.FALLTHROUGH.String(),
 	} {
 		featureNames[f] = true
 	}
@@ -336,7 +364,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	// A declaration without a body is valid Go: it declares a function
 	// implemented outside Go, such as in assembly (spec §Function
 	// declarations). go/types accepts it; Aether does not support it.
-	if d.Body == nil {
+	if d.Body == nil && !c.intrinsic(d) {
 		c.reject(d, FeatNoBody, "function "+name+" without a body (implemented outside Go)")
 		return
 	}
@@ -346,7 +374,11 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		ok = c.typeExpr(d.Recv.List[0].Type)
 	}
 	for _, field := range d.Type.Params.List {
-		ok = c.typeExpr(field.Type) && ok
+		t := field.Type
+		if el, isVariadic := t.(*ast.Ellipsis); isVariadic && d.Recv == nil {
+			t = el.Elt // a variadic function, but not method (D-049)
+		}
+		ok = c.typeExpr(t) && ok
 	}
 	// An empty result list, "func f() ()", means no result. Precheck has
 	// rejected it on main and init.
@@ -356,7 +388,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 			ok = c.typeExpr(field.Type) && ok
 		}
 	}
-	if len(c.ds) > mark || !ok {
+	if len(c.ds) > mark || !ok || d.Body == nil {
 		return
 	}
 	c.stmts(d.Body.List)
@@ -644,17 +676,24 @@ func (c *checker) stmt(s ast.Stmt) {
 		if s.Init != nil {
 			c.stmt(s.Init)
 		}
+		// An interface tag (D-049) is compared with each case value
+		// converted to its type, which must be assignable to it, or nil.
+		var ifaceTag types.Type
 		if s.Tag != nil {
-			if tv, ok := c.info.Types[s.Tag]; ok && (isAggregate(tv.Type) || isInterface(tv.Type)) {
+			if tv, ok := c.info.Types[s.Tag]; ok && isAggregate(tv.Type) {
 				c.reject(s.Tag, FeatNonIntType, fmt.Sprintf("switch on a value of type %s", tv.Type))
 				return
+			}
+			if tv := c.info.Types[s.Tag]; isInterface(tv.Type) {
+				ifaceTag = tv.Type
 			}
 			c.expr(s.Tag)
 		}
 		for _, cc := range s.Body.List {
 			cc := cc.(*ast.CaseClause)
 			for _, e := range cc.List {
-				if tv, ok := c.info.Types[e]; ok && isInterface(tv.Type) {
+				if tv, ok := c.info.Types[e]; ok && ifaceTag != nil && !tv.IsNil() && !types.AssignableTo(tv.Type, ifaceTag) ||
+					ifaceTag == nil && isInterface(tv.Type) {
 					c.reject(e, FeatNonIntType, fmt.Sprintf("case value of type %s", tv.Type))
 					continue
 				}
@@ -678,12 +717,11 @@ func (c *checker) stmt(s ast.Stmt) {
 			}
 		}
 	case *ast.BranchStmt:
-		if s.Tok == token.FALLTHROUGH {
-			c.reject(s, s.Tok.String(), s.Tok.String()+" statement")
-		}
-		// break and continue, labeled or not, and goto (D-049): go/types
-		// has checked that each label exists and that a goto jumps
-		// neither into a block nor over a variable declaration.
+		// break and continue, labeled or not, goto, and fallthrough
+		// (D-049): go/types has checked that each label exists, that a
+		// goto jumps neither into a block nor over a variable
+		// declaration, and that fallthrough ends a case of an expression
+		// switch that is not the last.
 	case *ast.LabeledStmt:
 		c.stmt(s.Stmt) // D-049
 	case *ast.SendStmt:
@@ -710,12 +748,8 @@ func (c *checker) declStmt(d *ast.GenDecl) {
 }
 
 func (c *checker) valueSpec(tok token.Token, spec *ast.ValueSpec) {
-	if tok == token.CONST && len(spec.Values) == 0 {
-		// The implicit repetition of the previous expression in a
-		// constant group is not part of S1.
-		c.reject(spec, FeatConstImplicit, "constant declaration without a value")
-		return
-	}
+	// A constant without a value repeats the previous expression of its
+	// group (D-049), whose value go/types has computed, as it has iota's.
 	multi := len(spec.Names) > 1 && c.multiValue(spec.Values)
 	if tok == token.VAR && !multi && len(spec.Values) != 0 && len(spec.Values) != len(spec.Names) {
 		c.reject(spec, FeatMultiValue, "multi-value initialization")
@@ -1165,6 +1199,13 @@ func (c *checker) call(call *ast.CallExpr) bool {
 				c.expr(call.Args[0])
 				return true
 			}
+			// min and max of integers (D-049).
+			if (obj.Name() == "min" || obj.Name() == "max") && !call.Ellipsis.IsValid() && isInteger(c.info.Types[call].Type) {
+				for _, a := range call.Args {
+					c.expr(a)
+				}
+				return true
+			}
 			if c.sliceBuiltin(call, obj.Name()) || c.mapBuiltin(call, obj.Name()) || c.chanBuiltin(call, obj.Name()) {
 				return true
 			}
@@ -1189,9 +1230,11 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		case *types.Func:
 			if packageLevel(obj) {
 				// A function with an unsupported signature is rejected
-				// at its declaration.
-				if call.Ellipsis.IsValid() {
-					c.reject(call, FeatVariadic, "variadic call")
+				// at its declaration. A variadic one is called with its
+				// arguments (D-049) or a slice and ..., not with the
+				// results of a call.
+				if obj.Type().(*types.Signature).Variadic() && c.multiValue(call.Args) {
+					c.reject(call, FeatVariadic, "variadic call with the results of a call")
 					return false
 				}
 				if !c.multiValue(call.Args) {
@@ -1494,7 +1537,8 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 	case *types.Var:
 		return c.declared(id, obj) && c.capture(id, obj)
 	case *types.Const:
-		if obj == types.Universe.Lookup("true") || obj == types.Universe.Lookup("false") {
+		// iota is a constant of a constant declaration (D-049).
+		if obj == types.Universe.Lookup("true") || obj == types.Universe.Lookup("false") || obj == types.Universe.Lookup("iota") {
 			return true
 		}
 		if obj.Parent() == types.Universe {
@@ -1523,6 +1567,22 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 		c.reject(id, FeatExpression, fmt.Sprintf("identifier %s (%T)", id.Name, obj))
 	}
 	return false
+}
+
+// variadic reports whether call calls a variadic function or func value.
+func (c *checker) variadic(call *ast.CallExpr) bool {
+	sig, ok := c.info.Types[call.Fun].Type.Underlying().(*types.Signature)
+	return ok && sig.Variadic()
+}
+
+// intrinsic reports whether d, a function declaration without a body, is
+// one lowering implements (frontend.Intrinsics, D-049): it must be in an
+// overlay file.
+func (c *checker) intrinsic(d *ast.FuncDecl) bool {
+	obj := c.info.Defs[d.Name]
+	file := frontend.Position(c.pkg.Fset, d.Pos()).File
+	return obj != nil && d.Recv == nil && strings.HasPrefix(file, "$AETHER/") &&
+		frontend.Intrinsics[obj.Pkg().Path()+"."+obj.Name()]
 }
 
 // packageLevel reports whether obj is declared at the package level of a

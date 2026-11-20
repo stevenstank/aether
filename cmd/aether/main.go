@@ -26,9 +26,10 @@ Commands:
   help                              print this message
 
 Supported subset (S2):
-  the files of package main, in one directory, and the packages of its
-  module that it imports; no standard-library imports; functions with
-  multiple results;
+  the files of package main, in one directory, the packages of its
+  module that it imports, and unicode/utf8, unicode, math/bits, math, and
+  strconv from GOROOT (go1.26); functions with multiple results and
+  variadic functions;
   bool, every integer type, float32, float64, strings with len, indexing,
   slicing, +, comparison, and []byte, []rune, and integer conversions,
   rune literals, arrays and structs of them, pointers, &, and new, and
@@ -40,8 +41,9 @@ Supported subset (S2):
   and channels with go, send, receive, close, len, cap, range, and
   select; if, for, for range over integers, arrays, slices, and
   strings, switch, labels, and goto; package-level var and const; init
-  functions; print and println. Not supported: complex numbers,
-  fallthrough, range over functions.
+  functions; iota, min and max of integers, fallthrough; print and
+  println. Not supported: complex numbers, range over functions,
+  packages that need gc's runtime (fmt, os, strings).
   See docs/SEMANTICS.md.
 
 Build flags:
@@ -88,7 +90,17 @@ func runCheck(args []string, stderr io.Writer) int {
 	if err != nil {
 		return diag.ExitUsage
 	}
-	return report(stderr, guard(func() []diag.Diagnostic { return check(srcs) }))
+	var gorootErr error
+	ds := guard(func() []diag.Diagnostic {
+		_, ds, err := compileGOROOT(srcs)
+		gorootErr = err
+		return ds
+	})
+	if gorootErr != nil {
+		fmt.Fprintf(stderr, "aether check: %v\n", gorootErr)
+		return diag.ExitUsage
+	}
+	return report(stderr, ds)
 }
 
 // readSources reads the source files named on the command line of cmd. A

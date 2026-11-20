@@ -436,11 +436,11 @@ brackets. The names are a stable contract (D-018), used by tests and the
 
 | Area | Feature names |
 |---|---|
-| Files and packages | `multiple-files` (files in more than one directory), `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
+| Files and packages | `multiple-files` (files in more than one directory), `package-name`, `import`, `stdlib-package`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `function-without-body` |
 | Generics (D-045) | `generic-instance`, `generic-uninstantiated` |
-| Statements | `for-range`, `go`, `defer`, `fallthrough`, `statement` |
-| Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
+| Statements | `for-range`, `go`, `defer`, `statement` |
+| Declarations and assignment | `local-type-declaration`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
 | Operators | `operator-receive`, `operator-other`, `loop-variable-address` |
@@ -1228,6 +1228,53 @@ declarations" above.
   instances. An instance of it in another package, or a type argument of
   another package, is `unsupported` (`generic-instance`) until 11.7.
 
+
+## The standard library from source (Phase 11 increment 11.5)
+
+D-049. These supersede the 11.4 rule that standard-library imports are
+`unsupported`.
+- **GOROOT.** Standard-library packages are compiled from `$GOROOT/src`:
+  `$GOROOT`, or else the GOROOT of the toolchain that built Aether. Its
+  `VERSION` must be go1.26; otherwise a program importing the standard
+  library is a usage error (exit 2). Files are selected as for module
+  packages; diagnostics name them `$GOROOT/src/...`, and Aether's overlay
+  files `$AETHER/...`.
+- **Compiled:** `unicode/utf8`, `unicode`, `math/bits`, `math`, `strconv`
+  (with `internal/strconv`), and `errors.New`. Overlays:
+  - `math`: `Float32bits`, `Float32frombits`, `Float64bits`, and
+    `Float64frombits` are intrinsics; `Floor`, `Ceil`, `Trunc`, `Max`,
+    `Min`, and `Hypot` use gc's portable `_noasm` files, which give the
+    same results as its assembly. `Exp` and `Log`, whose amd64 assembly
+    uses other algorithms, and everything calling them (for example
+    `Pow`, `Sinh`, `Gamma`) are `unsupported` (`function-without-body`).
+  - `math/bits`: the overflow and divide errors are gc's bootstrap
+    version, of a type of `math/bits` rather than `runtime`, with the same
+    messages.
+  - `strconv`: gc's bootstrap `index`; `internal/stringslite` is Aether's
+    (`Clone`, `HasPrefix`, `HasSuffix`, `IndexByte`, `TrimPrefix`,
+    `TrimSuffix`).
+  - `errors`: `New` from GOROOT; `Is`, `As`, `Unwrap`, and `Join` are
+    `unsupported` until 11.7.
+- **Reachability.** In every package besides main, the gate and lowering
+  see only what main reaches: `init` functions and package variables
+  whose initializers may have an effect are roots; a reached type brings
+  all its methods. An unsupported construct elsewhere is not reported.
+- **Language features the compiled packages need**, now supported
+  everywhere: `iota` and constants without a value; `min` and `max` of
+  integers; `fallthrough`; variadic functions (not methods), called with
+  arguments or with a slice and `...`, but not in `go` or `defer`
+  statements, as func values, or with the results of a call; and
+  expression switches on an interface value, with case values assignable
+  to its type or `nil`.
+- `unsupported`: an import of `runtime` (until 11.6), so every package
+  that imports it (`fmt`, `os`, `strings`, `sort`, ...); a body-less
+  function reached outside the overlays' intrinsics; a `//go:linkname`
+  making a variable another package's; `unsafe` in the main module
+  (`import`); a standard-library package that does not type-check as
+  Aether selects its files (`stdlib-package`). `invalid`: an import of an
+  `internal` package from outside the standard library, and a path in
+  neither the module nor GOROOT.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1273,6 +1320,8 @@ declarations" above.
 | The blank identifier in declarations and assignments | Blank identifier, Assignment statements | Phase 11 / 11.2 | Supported (native) | `s7_b01_blank` to `s7_b03_blank_declarations`; gate tests; `TestGorootRun` |
 | `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
+| `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
+| `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`; gate tests |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

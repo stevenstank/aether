@@ -20,5 +20,9 @@ func (c *checker) deferStmt(s *ast.DeferStmt) {
 			return
 		}
 	}
+	if c.variadic(s.Call) {
+		c.reject(s.Call, FeatVariadic, "variadic call in a defer statement")
+		return
+	}
 	c.call(s.Call)
 }

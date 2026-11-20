@@ -87,12 +87,12 @@ func checkOutput(out string, inputs []string) error {
 // failure, opt.out is neither created nor modified.
 func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic, error) {
 	var asm []byte
+	var gorootErr error
 	ds := guard(func() []diag.Diagnostic {
-		prog, ds := compile(srcs)
-		if len(ds) > 0 {
+		prog, ds, err := compileGOROOT(srcs)
+		if gorootErr = err; err != nil || len(ds) > 0 {
 			return ds
 		}
-		var err error
 		if opt.o0 {
 			// compile verified prog, and nothing has changed it.
 			asm, err = amd64.EmitWith(prog, amd64.EmitOptions{Verified: true})
@@ -104,6 +104,9 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 		}
 		return nil
 	})
+	if gorootErr != nil {
+		return nil, gorootErr
+	}
 	if len(ds) > 0 {
 		return ds, nil
 	}

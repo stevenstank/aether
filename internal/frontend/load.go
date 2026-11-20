@@ -18,8 +18,13 @@ import (
 	"github.com/stevenstank/aether/internal/diag"
 )
 
-// FeatImport is the feature of an import Aether cannot resolve (D-049).
-const FeatImport = "import"
+// Features of the loader's Unsupported diagnostics (D-049): an import
+// Aether cannot resolve, and a standard-library package that does not
+// type-check as Aether selects its files.
+const (
+	FeatImport = "import"
+	FeatStdlib = "stdlib-package"
+)
 
 // A Source is a file named on the command line.
 type Source struct {
@@ -39,9 +44,9 @@ func (p *Program) Main() *Package { return p.Packages[len(p.Packages)-1] }
 
 // Stages are the steps of D-003 that the loader runs on each package.
 type Stages struct {
-	// Precheck checks a file that parsed, of main or not, before type
-	// checking.
-	Precheck func(fset *token.FileSet, f *ast.File, main bool) []diag.Diagnostic
+	// Precheck checks a file that parsed, of main, of the standard
+	// library, or neither, before type checking.
+	Precheck func(fset *token.FileSet, f *ast.File, main, std bool) []diag.Diagnostic
 	// Prepare transforms a package after type checking, before the
 	// packages that import it are type-checked.
 	Prepare func(*Package) (*Package, []diag.Diagnostic)
@@ -52,13 +57,19 @@ type Stages struct {
 // Load parses and type-checks the program whose package main is srcs, with
 // the packages of its main module that it imports (D-049). It stops at the
 // first package with diagnostics. The packages are loaded depth first, each
-// in the order D-003 gives its steps, with stages.
-func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.Diagnostic) {
+// in the order D-003 gives its steps, with stages. The packages besides
+// main are then pruned to what main reaches (prune). The error is a
+// problem with GOROOT, which only a program with a standard-library import
+// reads.
+func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.Diagnostic, error) {
 	ld := &loader{fset: fset, stages: stages, pkgs: map[string]*Package{}, loading: map[string]bool{}}
 	ld.findModule(filepath.Dir(srcs[0].Name))
 	main, ds := ld.load("main", srcs)
+	if ld.err != nil {
+		return nil, nil, ld.err
+	}
 	if len(ds) > 0 {
-		return nil, ds
+		return nil, ds, nil
 	}
 	// Spec §Package initialization: repeatedly the first package, sorted
 	// by import path, whose imports are all initialized.
@@ -66,7 +77,8 @@ func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.D
 	done := map[*types.Package]bool{}
 	for len(prog.Packages) < len(ld.order) {
 		for _, p := range ld.order {
-			if !done[p.Types] && !slices.ContainsFunc(p.Types.Imports(), func(q *types.Package) bool { return !done[q] }) {
+			// unsafe is go/types' own, with nothing to initialize.
+			if !done[p.Types] && !slices.ContainsFunc(p.Types.Imports(), func(q *types.Package) bool { return !done[q] && q != types.Unsafe }) {
 				done[p.Types] = true
 				prog.Packages = append(prog.Packages, p)
 				break
@@ -74,7 +86,8 @@ func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.D
 		}
 	}
 	prog.Packages = append(prog.Packages, main)
-	return prog, nil
+	prune(prog)
+	return prog, nil, nil
 }
 
 type loader struct {
@@ -85,6 +98,8 @@ type loader struct {
 	pkgs    map[string]*Package
 	loading map[string]bool // the packages being loaded: an import of one is a cycle
 	order   []*Package      // the packages besides main, sorted by path
+	root    string          // GOROOT, once a standard-library package is imported
+	err     error           // a problem with GOROOT
 }
 
 // findModule finds the main module: the nearest go.mod at or above dir,
@@ -122,8 +137,12 @@ func modulePath(data []byte) string {
 	return ""
 }
 
-// Import returns a loaded package; it is the importer of go/types.
+// Import returns a loaded package, or unsafe; it is the importer of
+// go/types.
 func (ld *loader) Import(path string) (*types.Package, error) {
+	if path == "unsafe" {
+		return types.Unsafe, nil
+	}
 	if p := ld.pkgs[path]; p != nil {
 		return p.Types, nil
 	}
@@ -145,8 +164,9 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 	if len(ds) > 0 {
 		return nil, ds
 	}
+	std := path != "main" && isStd(path)
 	for _, f := range files {
-		ds = append(ds, ld.stages.Precheck(ld.fset, f, path == "main")...)
+		ds = append(ds, ld.stages.Precheck(ld.fset, f, path == "main", std)...)
 	}
 	if len(ds) > 0 {
 		return nil, ds
@@ -154,17 +174,24 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 	ld.loading[path] = true
 	for _, f := range files {
 		for _, imp := range f.Imports {
-			if ds := ld.importSpec(imp); len(ds) > 0 {
+			if ds := ld.importSpec(path, imp); len(ds) > 0 || ld.err != nil {
 				return nil, ds
 			}
 		}
 	}
 	delete(ld.loading, path)
 	var imp types.Importer
-	if len(ld.pkgs) > 0 {
-		imp = ld
+	for _, f := range files {
+		if len(f.Imports) > 0 {
+			imp = ld
+		}
 	}
 	pkg, ds := CheckPackage(ld.fset, path, files, imp)
+	if len(ds) > 0 && std {
+		// Files written for gc or gccgo, not Aether's subset.
+		return nil, []diag.Diagnostic{ld.stages.Reject(ds[0].Pos, FeatStdlib,
+			"package "+path+", which does not type-check as Aether builds it ("+ds[0].Message+"),")}
+	}
 	if len(ds) == 0 && ld.stages.Prepare != nil {
 		pkg, ds = ld.stages.Prepare(pkg)
 	}
@@ -175,24 +202,45 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 	return pkg, nil
 }
 
-// importSpec loads the package imp imports, unless it is loaded: a package
-// of the main module. Other imports are unsupported (until increment 11.5,
-// the standard library).
-func (ld *loader) importSpec(imp *ast.ImportSpec) []diag.Diagnostic {
+// importSpec loads the package that imp, of the package from, imports,
+// unless it is loaded: a package of the main module or of the standard
+// library. Other imports are unsupported.
+func (ld *loader) importSpec(from string, imp *ast.ImportSpec) []diag.Diagnostic {
 	path, err := strconv.Unquote(imp.Path.Value)
 	if err != nil || path == "C" || ld.pkgs[path] != nil {
 		return nil // go/types reports a malformed path; Precheck, cgo
 	}
 	at := Position(ld.fset, imp.Pos())
-	rel, ok := strings.CutPrefix(path, ld.modPath)
-	if ld.modPath == "" || !ok || rel != "" && rel[0] != '/' {
-		return []diag.Diagnostic{ld.stages.Reject(at, FeatImport, "import "+imp.Path.Value)}
-	}
+	fromStd := from != "main" && isStd(from)
 	if ld.loading[path] {
 		return []diag.Diagnostic{{Class: diag.Invalid, Pos: at, Message: "import cycle not allowed"}}
 	}
+	rel, inModule := strings.CutPrefix(path, ld.modPath)
+	inModule = inModule && ld.modPath != "" && (rel == "" || rel[0] == '/')
+	var srcs []Source
+	switch {
+	case path == "unsafe" && fromStd:
+		return nil // go/types' own package; the gate rejects what it does not support
+	case !inModule && notYet[path]:
+		return []diag.Diagnostic{ld.stages.Reject(at, FeatImport, "import "+imp.Path.Value)}
+	case !inModule && isStd(path) && path != "unsafe":
+		if !fromStd && (strings.HasPrefix(path, "internal/") || strings.Contains(path, "/internal/") || strings.HasSuffix(path, "/internal")) {
+			return []diag.Diagnostic{{Class: diag.Invalid, Pos: at, Message: "use of internal package " + path + " not allowed"}}
+		}
+		if ld.root == "" {
+			if ld.root, ld.err = GOROOT(); ld.err != nil {
+				return nil
+			}
+		}
+		if srcs, err = stdFiles(ld.root, path); err != nil {
+			return []diag.Diagnostic{{Class: diag.Invalid, Pos: at, Message: fmt.Sprintf("package %s is not in std: %v", path, err)}}
+		}
+		return ld.loaded(path, srcs)
+	case !inModule:
+		return []diag.Diagnostic{ld.stages.Reject(at, FeatImport, "import "+imp.Path.Value)}
+	}
 	dir := filepath.Join(ld.modDir, filepath.FromSlash(rel))
-	srcs, err := packageFiles(dir)
+	srcs, err = packageFiles(dir, dir)
 	if err != nil {
 		return []diag.Diagnostic{{Class: diag.Invalid, Pos: at, Message: fmt.Sprintf("package %s: %v", path, err)}}
 	}
@@ -211,8 +259,13 @@ func (ld *loader) importSpec(imp *ast.ImportSpec) []diag.Diagnostic {
 	if name == "main" {
 		return []diag.Diagnostic{ld.stages.Reject(at, FeatImport, "import "+imp.Path.Value+" of a program")}
 	}
+	return ld.loaded(path, srcs)
+}
+
+// loaded loads the package path from srcs and records it.
+func (ld *loader) loaded(path string, srcs []Source) []diag.Diagnostic {
 	pkg, ds := ld.load(path, srcs)
-	if len(ds) > 0 {
+	if len(ds) > 0 || ld.err != nil {
 		return ds
 	}
 	ld.pkgs[path] = pkg
@@ -222,8 +275,9 @@ func (ld *loader) importSpec(imp *ast.ImportSpec) []diag.Diagnostic {
 }
 
 // packageFiles reads the files of the package in dir that the go command
-// builds for linux/amd64 without cgo, sorted by name (D-049).
-func packageFiles(dir string) ([]Source, error) {
+// builds for linux/amd64 without cgo, sorted by name, and names them in
+// the directory display (D-049).
+func packageFiles(dir, display string) ([]Source, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, errors.New("no such package directory")
@@ -240,7 +294,7 @@ func packageFiles(dir string) ([]Source, error) {
 			return nil, err
 		}
 		if buildable(data) {
-			srcs = append(srcs, Source{Name: filepath.Join(dir, name), Data: data})
+			srcs = append(srcs, Source{Name: display + string(filepath.Separator) + name, Data: data})
 		}
 	}
 	if len(srcs) == 0 {
@@ -360,5 +414,9 @@ func unqualify(pkg *Package) {
 	}
 	for _, f := range pkg.Files {
 		walk(reflect.ValueOf(f).Elem().FieldByName("Decls"))
+	}
+	// InitOrder holds the initializers themselves, not their places.
+	for _, in := range pkg.Info.InitOrder {
+		walk(reflect.ValueOf(in).Elem().FieldByName("Rhs"))
 	}
 }

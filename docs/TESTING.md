@@ -987,6 +987,10 @@ counted 141 top-level files containing a `// run` line.
   - After increment 11.4 (2026-11-20): unchanged, 439 pass. Nine tests
     now report a directive before their import, which the loader rejects
     after the pre-check.
+  - After increment 11.5 (2026-11-20): 467 pass (46.5 %), 538
+    `unsupported` (376 for an import, almost all of `runtime` through
+    `fmt` or `os`; 59 for a `//go:linkname` variable, mostly in `reflect`;
+    50 for generic code of another package, mostly `sync`), 0 bugs.
 - **Programs of several packages** (D-049, increment 11.4).
   `TestPackagePrograms` builds each program under
   `cmd/aether/testdata/packages/cmd`, in the module
@@ -994,5 +998,11 @@ counted 141 top-level files containing a `// run` line.
   compares exit status, stdout, and stderr. `TestPackageRejects` writes
   small modules and checks how cycles, missing and excluded packages,
   standard-library imports, and generics across packages are classified.
+- **Standard-library programs** (D-049, increment 11.5).
+  `TestStdPrograms` builds each program of `cmd/aether/testdata/std`,
+  which use `unicode/utf8`, `unicode`, `math/bits`, `math`, and `strconv`
+  compiled from GOROOT, with gc and with Aether (default and `-O0`), and
+  compares them. `TestStdRejects` covers assembly, `runtime`, `internal`,
+  `unsafe`, and unreached code; `TestGOROOTVersion` the GOROOT check.
 - It is read in place from GOROOT, not copied into the repository. Copying would
   require handling the BSD license.
