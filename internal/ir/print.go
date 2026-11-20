@@ -177,7 +177,7 @@ func (in *Instr) String() string {
 		if in.Const == 1 {
 			ops = append(ops, "noscan")
 		}
-	case Call, FuncAddr:
+	case Call, FuncAddr, GoNew:
 		if in.Callee != nil {
 			ops = append(ops, in.Callee.Name)
 		} else {

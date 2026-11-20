@@ -76,6 +76,16 @@ const symAlloc = "aether.alloc"
 // words the collector does not scan (D-047).
 const symAllocNoScan = "aether.allocnoscan"
 
+// The goroutine primitives (D-048), under the helper interface:
+// aether.gonew takes the code address of the goroutine's function in %rdi
+// and returns its handle in %rax; aether.goswitch and aether.goexit take
+// the handle to resume in %rdi, and aether.goexit never returns.
+const (
+	symGoNew    = "aether.gonew"
+	symGoSwitch = "aether.goswitch"
+	symGoExit   = "aether.goexit"
+)
+
 const symPanicIndex = "aether.panicindex"
 
 // strSym is the local symbol of the program's string i, in .rodata.
@@ -806,6 +816,18 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		}
 		op("movq\t%d(%%rbp), %%rax", 16+8*in.Index)
 		op("movq\t%%rax, %s", res())
+	case ir.GoNew:
+		// Calls of the runtime (clobbers).
+		op("leaq\t%s(%%rip), %%rdi", funcSym(in.Callee))
+		op("call\t%s", symGoNew)
+		e.finish(in, "%rax")
+	case ir.GoSwitch, ir.GoExit:
+		e.load(in.Args[0], "%rdi")
+		if in.Op == ir.GoSwitch {
+			op("call\t%s", symGoSwitch)
+		} else {
+			op("call\t%s", symGoExit)
+		}
 	case ir.FuncAddr:
 		t := e.target(in)
 		op("leaq\t%s(%%rip), %s", funcSym(in.Callee), t)

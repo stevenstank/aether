@@ -1039,7 +1039,7 @@ repeated in each phase below:
   skipped. A 60 s run made 1,112 executions on 2026-11-20. Negative
   control: strings noscan was found within 2 s.
 
-## Phase 10: Concurrency (design: D-048, 2026-11-20; no code yet)
+## Phase 10: Concurrency (design: D-048, 2026-11-20; increment 10.1 done)
 
 - **Scope:**
   - goroutines on one OS thread, scheduled cooperatively (D-048)
@@ -1062,7 +1062,16 @@ repeated in each phase below:
   - The schedule is deterministic (D-048), so no seed is needed to
     reproduce a run.
 - **Increments:**
-  - **10.1** Runtime stacks and switching.
+  - **10.1** Runtime stacks and switching. *Done 2026-11-20, owner
+    review pending:* `rt/goroutine.s`, the three IR ops in the verifier,
+    printer, interpreter (one frame stack per goroutine, the same
+    131,072-goroutine limit), and the backend; `.Lscangs` in `heap.s`.
+    Tests: `TestGoroutineOps`, `TestGoroutineGC` (every backend variant,
+    with and without `AETHER_GCSTRESS`), `TestGoroutineGCControl` (without
+    `.Lscangs`, every variant prints wrong sums), `TestGoroutinePrograms`
+    (132,072 goroutines run in turn, so stacks are reused; a goroutine
+    started in `init`; overflow in a goroutine; the slot limit), and
+    `TestGoroutineDefects`. Nothing in lowering or the gate uses them yet.
     - The `GoNew`, `GoSwitch`, and `GoExit` IR ops, with the verifier,
       printer, interpreter, both backends, and `rt/goroutine.s`.
     - The collector's roots across stacks.

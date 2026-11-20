@@ -326,6 +326,26 @@ const (
 	// Results (D-039). The callee's Params and Results must be Sig's.
 	// Each call has a fresh set of slots.
 	CallInd
+	// GoNew produces the I64 handle of a new goroutine (D-048), which is
+	// suspended: the first GoSwitch to it runs Callee, a function of the
+	// program other than Init with no parameters and no results, on the
+	// goroutine's own stack. Callee must never return; it ends with
+	// GoExit. The handle is never 0, which is the main goroutine's (the one
+	// that runs Init and main). No args. It is an effect, a call of the
+	// runtime. If no goroutine stack is left (MaxGoroutines live), the
+	// program ends with a fatal error.
+	GoNew
+	// GoSwitch suspends the running goroutine and resumes the goroutine
+	// whose handle is args[0], an I64, where it last suspended (or starts
+	// it). It produces no value; it returns when another GoSwitch, or a
+	// GoExit, resumes this goroutine. Precondition: args[0] is the handle of
+	// a live goroutine (0 or a GoNew's, not ended by GoExit).
+	GoSwitch
+	// GoExit ends the running goroutine and resumes the goroutine whose
+	// handle is args[0], an I64, as GoSwitch does. It is a terminator.
+	// Preconditions: the running goroutine is not the main one, and
+	// args[0] is the handle of another live goroutine.
+	GoExit
 )
 
 var opNames = [...]string{
@@ -341,6 +361,7 @@ var opNames = [...]string{
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
 	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd", Move: "move",
 	FuncAddr: "funcaddr", CallInd: "callind",
+	GoNew: "gonew", GoSwitch: "goswitch", GoExit: "goexit",
 }
 
 func (op Op) String() string {
@@ -351,7 +372,9 @@ func (op Op) String() string {
 }
 
 // IsTerminator reports whether op ends a block.
-func (op Op) IsTerminator() bool { return op == Ret || op == Jump || op == Branch || op == Panic }
+func (op Op) IsTerminator() bool {
+	return op == Ret || op == Jump || op == Branch || op == Panic || op == GoExit
+}
 
 // The run-time errors of Panic (D-023: a closed set), with their messages.
 const (
@@ -850,6 +873,21 @@ func (f *Func) Call(b *Block, callee *Func, args []*Instr, pos Pos) *Instr {
 // FuncAddr appends the address of callee's code (D-039).
 func (f *Func) FuncAddr(b *Block, callee *Func, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: FuncAddr, Type: Ptr, Callee: callee, Pos: pos})
+}
+
+// GoNew appends the creation of a goroutine that will run f (D-048).
+func (f *Func) GoNew(b *Block, callee *Func, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: GoNew, Type: I64, Callee: callee, Pos: pos})
+}
+
+// GoSwitch appends a switch to the goroutine whose handle is h.
+func (f *Func) GoSwitch(b *Block, h *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: GoSwitch, Args: []*Instr{h}, Pos: pos})
+}
+
+// GoExit appends the end of the running goroutine and a switch to h.
+func (f *Func) GoExit(b *Block, h *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: GoExit, Args: []*Instr{h}, Pos: pos})
 }
 
 // CallInd appends a call, of signature sig, of the code at the address

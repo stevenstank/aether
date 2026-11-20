@@ -32,6 +32,34 @@ const stackOverflow = "fatal error: stack overflow\n"
 // (D-010).
 const outOfMemory = "fatal error: runtime: out of memory\n"
 
+// MaxGoroutines is the most goroutines, the main one not counted, that may
+// be live at once: the native runtime's stack slots (D-048). GoNew beyond
+// it ends the program with noGoroutineStack.
+const MaxGoroutines = 131072
+
+// noGoroutineStack is what the native runtime writes when no goroutine
+// stack is left (D-048).
+const noGoroutineStack = "fatal error: runtime: cannot allocate goroutine stack\n"
+
+// goroutines holds the goroutines (D-048). Each is its own frame stack,
+// indexed by its handle; the main goroutine, handle 0, runs Init and then
+// main. The running goroutine's stack is run's own stack variable, so its
+// entry here is stale until it switches away. The handles of ended
+// goroutines are reused last in, first out, as the native runtime reuses
+// its slots.
+type goroutines struct {
+	stacks [][]frame
+	live   []bool
+	free   []int64
+	cur    int64
+	n      int // live, the main goroutine not counted
+}
+
+// valid reports whether h is the handle of a live goroutine.
+func (gs *goroutines) valid(h int64) bool {
+	return h >= 0 && h < int64(len(gs.live)) && gs.live[h]
+}
+
 // Run executes the program's Init function, if it has one, and then its
 // entry function, main, with the globals starting at zero, writes the output
 // of println to stderr, and returns the program's exit status: 0 when main
@@ -56,16 +84,17 @@ func RunSteps(prog *ir.Program, stderr io.Writer, steps int64) (int, error) {
 		return 0, fmt.Errorf("interp: malformed IR: %w", errors.Join(errs...))
 	}
 	globals := make([]int64, len(prog.Globals))
+	gs := &goroutines{stacks: make([][]frame, 1), live: []bool{true}}
 	mem := newMemory(prog)
 	var executed int64
 	if prog.Init != nil {
-		if code, err := run(prog.Init, globals, mem, stderr, steps, &executed); code != 0 || err != nil {
+		if code, err := run(prog.Init, globals, mem, gs, stderr, steps, &executed); code != 0 || err != nil {
 			return code, err
 		}
 	}
 	for _, f := range prog.Funcs {
 		if f.Name == "main" {
-			return run(f, globals, mem, stderr, steps, &executed)
+			return run(f, globals, mem, gs, stderr, steps, &executed)
 		}
 	}
 	return 0, errors.New("interp: no function main") // excluded by Verify
@@ -92,7 +121,7 @@ type frame struct {
 // A Ptr is 0 (nil, and the empty string's address, D-033) or an object's
 // number and an offset in it (memory.go, D-034, D-035); a program string
 // is a read-only object (D-037).
-func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps int64, executed *int64) (int, error) {
+func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, stderr io.Writer, steps int64, executed *int64) (int, error) {
 	nvalues := map[*ir.Func]int{}
 	newFrame := func(f *ir.Func, args []int64) frame {
 		n, ok := nvalues[f]
@@ -332,6 +361,9 @@ func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps i
 			}
 			stack = stack[:len(stack)-1]
 			if len(stack) == 0 {
+				if gs.cur != 0 {
+					return 0, fmt.Errorf("interp: func %s: %s: a goroutine's function returned", fr.f.Name, in)
+				}
 				return 0, nil
 			}
 			caller := &stack[len(stack)-1]
@@ -347,6 +379,50 @@ func run(entry *ir.Func, globals []int64, mem *memory, stderr io.Writer, steps i
 			}
 		case ir.Extract:
 			fr.values[in.ID] = fr.tuples[in.Args[0].ID][in.Index]
+		case ir.GoNew:
+			if gs.n == MaxGoroutines {
+				_, _ = io.WriteString(stderr, noGoroutineStack)
+				return 2, nil
+			}
+			var h int64
+			if k := len(gs.free); k > 0 {
+				h, gs.free = gs.free[k-1], gs.free[:k-1]
+			} else {
+				h = int64(len(gs.live))
+				gs.stacks = append(gs.stacks, nil)
+				gs.live = append(gs.live, false)
+			}
+			gs.stacks[h] = []frame{newFrame(in.Callee, nil)}
+			gs.live[h] = true
+			gs.n++
+			fr.values[in.ID] = h
+		case ir.GoSwitch, ir.GoExit:
+			h := arg(0)
+			if !gs.valid(h) {
+				return 0, fmt.Errorf("interp: func %s: %s: %d is not a live goroutine", fr.f.Name, in, h)
+			}
+			if in.Op == ir.GoExit {
+				if gs.cur == 0 || h == gs.cur {
+					return 0, fmt.Errorf("interp: func %s: %s: goroutine %d cannot end and resume %d", fr.f.Name, in, gs.cur, h)
+				}
+				// Its frames' memory objects end with it (D-034).
+				for _, dead := range stack {
+					for i, m := range dead.mems {
+						if m != 0 {
+							mem.free(m)
+							mem.live -= dead.f.Mems[i].Size
+						}
+					}
+				}
+				stack = nil
+				gs.live[gs.cur] = false
+				gs.free = append(gs.free, gs.cur)
+				gs.n--
+			}
+			gs.stacks[gs.cur] = stack
+			gs.cur = h
+			stack = gs.stacks[h]
+			gs.stacks[h] = nil
 		default:
 			return 0, fmt.Errorf("interp: func %s: cannot execute %s", fr.f.Name, in)
 		}

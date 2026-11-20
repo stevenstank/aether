@@ -690,6 +690,18 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		case in.Callee == v.p.Init:
 			v.errorf(bi, i, in, "funcaddr of init")
 		}
+	case GoNew:
+		want = I64
+		switch {
+		case in.Callee == nil || !v.funcs[in.Callee]:
+			v.errorf(bi, i, in, "gonew of a function not of the program")
+		case in.Callee == v.p.Init:
+			v.errorf(bi, i, in, "gonew of init")
+		case len(in.Callee.Params) != 0 || len(in.Callee.Results) != 0:
+			v.errorf(bi, i, in, "gonew of %s, which has parameters or results", in.Callee.Name)
+		}
+	case GoSwitch, GoExit:
+		args = []Type{I64}
 	case CallInd:
 		if in.Sig == nil {
 			v.errorf(bi, i, in, "callind without a signature")
@@ -768,7 +780,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 	if in.Op != Param && in.Op != Extract && in.Op != Panic && in.Op != Str && in.Index != 0 {
 		v.errorf(bi, i, in, "%s has a parameter index", in.Op)
 	}
-	if in.Op != Call && in.Op != FuncAddr && in.Callee != nil {
+	if in.Op != Call && in.Op != FuncAddr && in.Op != GoNew && in.Callee != nil {
 		v.errorf(bi, i, in, "%s has a callee", in.Op)
 	}
 	if in.Op != CallInd && in.Sig != nil {

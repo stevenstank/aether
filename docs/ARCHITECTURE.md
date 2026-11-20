@@ -228,7 +228,11 @@ makes pointers into an object, and `eq` and `ne` compare pointers (D-035).
 `move` copies bytes between objects, overlapping or not, for slices (D-036).
 `funcaddr` produces a function's code address, and `callind` calls the code
 at such an address with arguments typed by the signature it carries, for
-func values (D-039).
+func values (D-039). `gonew` makes a suspended goroutine that will run a
+function with no parameters and no results, and returns its handle;
+`goswitch` resumes the goroutine with a given handle (0 is the main one), and
+the terminator `goexit` ends the running goroutine and resumes another
+(D-048, Phase 10 increment 10.1).
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|
@@ -345,7 +349,7 @@ and value numbering never depend on map iteration order.
   nothing.
 - **Implemented: dead code elimination** (`opt.DCE`), after folding. It keeps
   the instructions with an effect (terminators, `call`, `callind`, `println`, `print`,
-  `gstore`, and `param`) and their operands, transitively, and removes the
+  `gstore`, `stm`, `alloc`, `move`, `gonew`, `goswitch`, and `param`) and their operands, transitively, and removes the
   rest, dead phi cycles included. `div` and `rem` cannot trap (lowering's zero
   check is a branch of its own), and a dead `gload` is not reordered but gone.
 - Copy propagation has nothing to do after promotion: the IR has no copy
@@ -621,7 +625,14 @@ so none can be read as an option.
     - If either call fails, `_start` writes `fatal error: cannot allocate the
       main stack` to fd 2 and exits with status 2 (`SEMANTICS.md`, D-022).
   - `rt/heap.s`: `aether.alloc` and the conservative mark-sweep collector
-    of D-046 (table below).
+    of D-046 (table below). Its roots include every suspended goroutine's
+    stack (D-048).
+  - `rt/goroutine.s`: `aether.gonew`, `aether.goswitch`, and
+    `aether.goexit` (D-048): 64 MiB goroutine stacks in one 8 TiB
+    `MAP_NORESERVE` region, each topped by a record (saved `%rsp`, state,
+    free link, limit, top), and a switch that pushes `%rbx`, `%rbp`, and
+    `%r12`–`%r15`, and keeps `aether.stacklimit` and `aether.stacktop` those
+    of the running goroutine.
   - `rt/slice.s`: `aether.memmove` and the slice panics of D-036 (table
     below).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.

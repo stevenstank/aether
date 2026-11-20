@@ -22,7 +22,8 @@
 # .Lnextgc, or when no run of free pages fits. It marks every object that
 # a word of the roots, or of a marked object, points into: the roots are
 # the stack, from the collector's %rsp to aether.stacktop, with the
-# callee-saved registers pushed on it, and .bss. Then it sweeps: it rebuilds
+# callee-saved registers pushed on it, .bss, and the stack of every other
+# live goroutine (D-048, .Lscangs). Then it sweeps: it rebuilds
 # the free lists, frees the pages of small pages with no live object and of
 # dead large objects, and releases them to the kernel. With
 # AETHER_GCSTRESS=1 in the environment (aether.gcstress, set by _start),
@@ -295,6 +296,7 @@ aether.alloc:
 	andq	$-8, %r12
 	leaq	_end(%rip), %r13
 	call	.Lscan
+	call	.Lscangs
 1:	cmpq	.Lmark(%rip), %r14	# the marked objects' words
 	je	2f
 	subq	$8, %r14
@@ -319,6 +321,37 @@ aether.alloc:
 	popq	%rbx
 	ret
 	.size	.Lgc, .-.Lgc
+
+# .Lscangs scans the stack of every live goroutine that is not running
+# (D-048, goroutine.s), from its saved %rsp, below which it pushed its
+# registers, to its top: the main goroutine's, if it is not running, and
+# those in the slots used so far. The running goroutine's stack is the one
+# from the collector's %rsp to aether.stacktop.
+	.type	.Lscangs, @function
+.Lscangs:
+	cmpq	$0, aether.gcur(%rip)
+	je	1f
+	leaq	aether.g0(%rip), %r9
+	movq	(%r9), %r12
+	movq	32(%r9), %r13
+	call	.Lscan
+1:	movq	aether.gused(%rip), %r10
+	movq	aether.gregion(%rip), %r9
+	addq	$0x4000000-64, %r9	# the first slot's record
+2:	testq	%r10, %r10
+	jz	4f
+	cmpq	$1, 8(%r9)
+	jne	3f			# free
+	cmpq	aether.gcur(%rip), %r9
+	je	3f			# running
+	movq	(%r9), %r12
+	movq	32(%r9), %r13
+	call	.Lscan
+3:	addq	$0x4000000, %r9		# the next slot's
+	decq	%r10
+	jmp	2b
+4:	ret
+	.size	.Lscangs, .-.Lscangs
 
 # .Lscan marks what each word from %r12 to %r13 points into.
 	.type	.Lscan, @function

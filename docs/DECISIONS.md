@@ -73,7 +73,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-042 | Maps (Phase 8 increment 8.5) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-043 | Defer, panic, and recover (Phase 8 increment 8.6) | Accepted (2026-11-19, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-044 | Named results (Phase 8 increment 8.7) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
-| D-048 | Goroutines, channels, and the scheduler (Phase 10) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending; no code yet) |
+| D-048 | Goroutines, channels, and the scheduler (Phase 10) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending; increment 10.1 implemented) |
 
 ## Review log
 
