@@ -217,3 +217,43 @@ func TestRedeclarationRecordedAsUse(t *testing.T) {
 		t.Error("redeclared a not recorded as a use")
 	}
 }
+
+func TestFileSelection(t *testing.T) {
+	names := map[string]bool{
+		"a.go": true, "a_linux.go": true, "a_amd64.go": true, "a_linux_amd64.go": true,
+		"a_windows.go": false, "a_arm64.go": false, "a_linux_arm64.go": false, "a_darwin_amd64.go": false,
+		"linux.go": true, "a_unix.go": true, "a_android.go": false, "x_test_linux.go": true,
+	}
+	for name, want := range names {
+		if got := goodOSArch(name); got != want {
+			t.Errorf("goodOSArch(%q) = %v", name, got)
+		}
+	}
+	headers := map[string]bool{
+		"package p":                                        true,
+		"//go:build linux && amd64\n\npackage p":           true,
+		"//go:build unix && purego && go1.26\n\npackage p": true,
+		"//go:build gc\n\npackage p":                       false,
+		"//go:build cgo || gccgo\n\npackage p":             false,
+		"//go:build go1.27\n\npackage p":                   false,
+		"//go:build ignore\n\npackage p":                   false,
+		"// +build windows\n\npackage p":                   false,
+		"//go:build linux\n// +build windows\n\npackage p": true,
+		"//go:build windows\npackage p":                    true, // a doc comment
+	}
+	for src, want := range headers {
+		if got := buildable([]byte(src)); got != want {
+			t.Errorf("buildable(%q) = %v", src, got)
+		}
+	}
+	mods := map[string]string{
+		"module example.com/m\n\ngo 1.26\n":     "example.com/m",
+		"// c\nmodule \"q.org/x\" // comment\n": "q.org/x",
+		"go 1.26\n":                             "",
+	}
+	for src, want := range mods {
+		if got := modulePath([]byte(src)); got != want {
+			t.Errorf("modulePath(%q) = %q, want %q", src, got, want)
+		}
+	}
+}

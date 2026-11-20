@@ -1,7 +1,6 @@
 package main
 
 import (
-	"go/ast"
 	"go/token"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -20,14 +19,20 @@ type source struct {
 // check classifies a program. Each step runs only if every earlier step
 // reported nothing, which yields the precedence of D-003:
 //
-//  1. more than one file: unsupported (gate.Files)
+//  1. files in more than one directory: unsupported (gate.Files)
 //  2. syntax errors: invalid (a file must parse before it can be inspected)
-//  3. file-level constructs: unsupported (gate.Precheck)
-//  4. type errors and program-level checks: invalid (frontend.TypeCheck)
+//  3. file-level constructs: unsupported (gate.Precheck), and imports the
+//     loader cannot resolve
+//  4. type errors and program-level checks: invalid (frontend.CheckPackage)
 //  5. everything else outside the subset: unsupported (mono.Instantiate,
 //     which replaces generic declarations by their instances, D-045, then
 //     gate.Check on the instances)
-//  6. lowering to IR and verifying it: internal (lower.Lower, ir.Verify)
+//  6. lowering to IR and verifying it: internal (lower.LowerProgram,
+//     ir.Verify)
+//
+// Steps 2 to 4 and mono.Instantiate run on each package, the packages it
+// imports first, by frontend.Load (D-049); gate.Check then runs on each
+// package in the order they are initialized.
 //
 // An empty result means the program is inside the subset (S2). Step 6 cannot fail for a
 // correct compiler; running it on every accepted program means a lowering
@@ -41,43 +46,24 @@ func check(srcs []source) []diag.Diagnostic {
 // inside the subset, or the diagnostics and no IR.
 func compile(srcs []source) (*ir.Program, []diag.Diagnostic) {
 	names := make([]string, len(srcs))
+	fsrcs := make([]frontend.Source, len(srcs))
 	for i, s := range srcs {
 		names[i] = s.name
+		fsrcs[i] = frontend.Source{Name: s.name, Data: s.data}
 	}
 	if ds := gate.Files(names); len(ds) > 0 {
 		return nil, ds
 	}
-	fset := token.NewFileSet()
-	var files []*ast.File
-	var ds []diag.Diagnostic
-	for _, s := range srcs {
-		f, errs := frontend.Parse(fset, s.name, s.data)
-		ds = append(ds, errs...)
-		if f != nil {
-			files = append(files, f)
+	program, ds := frontend.Load(token.NewFileSet(), fsrcs, frontend.Stages{Precheck: gate.Precheck, Prepare: mono.Instantiate, Reject: gate.Reject})
+	if len(ds) > 0 {
+		return nil, ds
+	}
+	for _, pkg := range program.Packages {
+		if ds := gate.Check(pkg); len(ds) > 0 {
+			return nil, distinct(ds)
 		}
 	}
-	if len(ds) > 0 {
-		return nil, ds
-	}
-	for _, f := range files {
-		ds = append(ds, gate.Precheck(fset, f)...)
-	}
-	if len(ds) > 0 {
-		return nil, ds
-	}
-	pkg, ds := frontend.TypeCheck(fset, files)
-	if len(ds) > 0 {
-		return nil, ds
-	}
-	pkg, ds = mono.Instantiate(pkg)
-	if len(ds) > 0 {
-		return nil, ds
-	}
-	if ds := gate.Check(pkg); len(ds) > 0 {
-		return nil, distinct(ds)
-	}
-	prog, ds := lower.Lower(pkg)
+	prog, ds := lower.LowerProgram(program)
 	if len(ds) > 0 {
 		return nil, ds
 	}

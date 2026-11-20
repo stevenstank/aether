@@ -47,7 +47,7 @@ func literals(pkg *frontend.Package) (map[*ast.FuncLit]int, map[*ast.FuncLit][]*
 					open = append(open, n)
 				case *ast.Ident:
 					v, ok := pkg.Info.Uses[n].(*types.Var)
-					if !ok || v.IsField() || v.Parent() == nil || v.Parent() == pkg.Types.Scope() || v.Parent() == types.Universe {
+					if !ok || v.IsField() || v.Parent() == nil || v.Pkg() != nil && v.Parent() == v.Pkg().Scope() || v.Parent() == types.Universe {
 						break
 					}
 					for _, lit := range open {

@@ -436,7 +436,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 
 | Area | Feature names |
 |---|---|
-| Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
+| Files and packages | `multiple-files` (files in more than one directory), `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `function-without-body` |
 | Generics (D-045) | `generic-instance`, `generic-uninstantiated` |
 | Statements | `for-range`, `go`, `defer`, `fallthrough`, `statement` |
@@ -1199,6 +1199,35 @@ D-049. These supersede the rejections earlier sections list for them.
   (`for-range`). The feature names `label`, `goto`, and `init-function`
   are no longer reported and were removed.
 
+
+## Files and packages (Phase 11 increment 11.4)
+
+D-049. These supersede "exactly one source file" and "no import
+declarations" above.
+- **Files.** The command line names the `.go` files of `package main`,
+  all in one directory; their `//go:build` lines are ignored, as `go build
+  file.go` ignores them. Files in more than one directory are
+  `unsupported` (`multiple-files`); a file of another package is
+  `package-name`.
+- **Imports** of a package of the main module, the nearest `go.mod` at or
+  above the files, which is read for its `module` line only. Its files are
+  those the go command builds for linux/amd64: not `_test.go` files or
+  names beginning with `_` or `.`, with `_GOOS`, `_GOARCH`, and
+  `_GOOS_GOARCH` name suffixes and `//go:build` (or `// +build`) lines
+  evaluated with the tags `linux`, `unix`, `amd64`, `purego`, and `go1.1`
+  to `go1.26`. `gc`, `gccgo`, and `cgo` are not set.
+- Packages are initialized in the specification's order: repeatedly the
+  first package, sorted by import path, whose imports are all initialized;
+  in each, its variables, then its `init` functions; `main` last.
+- Every package is gated in full (until reachability, increment 11.5).
+- `unsupported` (`import`): the standard library (until 11.5), packages
+  outside the main module, and a package named `main`. `invalid`: an
+  import cycle, a missing package directory, a directory with no file for
+  linux/amd64 or with two package names, and type errors in a package.
+- Generic code of an imported package is compiled only for its own
+  instances. An instance of it in another package, or a type argument of
+  another package, is `unsupported` (`generic-instance`) until 11.7.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1243,6 +1272,7 @@ D-049. These supersede the rejections earlier sections list for them.
 | Defined types of every supported underlying type, with methods, conversions, and interfaces | Type definitions, Method declarations, Conversions | Phase 11 / 11.2 | Supported (native) | `s7_t01_defined_types`, `s7_t02_local_types`; gate tests; `TestGorootRun` |
 | The blank identifier in declarations and assignments | Blank identifier, Assignment statements | Phase 11 / 11.2 | Supported (native) | `s7_b01_blank` to `s7_b03_blank_declarations`; gate tests; `TestGorootRun` |
 | `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
+| Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

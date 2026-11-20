@@ -76,13 +76,13 @@ func checkStream(t *testing.T, name, got, want string) {
 
 func TestRunMultipleFiles(t *testing.T) {
 	a := filepath.Join("testdata", "check", "s1_01_empty_main.go")
-	b := filepath.Join("testdata", "check", "s1_02_println_no_args.go")
+	b := filepath.Join("testdata", "packages", "cmd", "multi", "more.go")
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"check", a, b}, &stdout, &stderr)
 	if code != diag.ExitUnsupported {
 		t.Errorf("exit code %d, want %d", code, diag.ExitUnsupported)
 	}
-	want := b + ": unsupported: a program of 2 source files is not supported in subset S1 [multiple-files]\n"
+	want := b + ": unsupported: source files in more than one directory is not supported in subset S1 [multiple-files]\n"
 	if stderr.String() != want {
 		t.Errorf("stderr = %q, want %q", stderr.String(), want)
 	}

@@ -4165,6 +4165,28 @@ packages.
   Lowering names wrappers after the defined type, so the gate rejects it
   (`selector`).
 
+**Implementation notes (increment 11.4, 2026-11-20).**
+- `frontend.Load` is the loader. The steps of D-003 it runs on each
+  package (pre-check, type check, monomorphization) are passed in, since
+  the gate and `internal/mono` import `internal/frontend`. Imports are no
+  longer rejected by the pre-check: the loader rejects what it cannot
+  resolve, after the pre-check of the importing file.
+- After its last type check, each qualified identifier `p.X` of a package
+  is replaced in the syntax tree by `X`, with the type and value go/types
+  recorded for `p.X`. The gate and lowering then treat names of other
+  packages as names of this one; their objects still belong to the other
+  package. The gate's tests for "declared in this package" are now "in a
+  package of the program".
+- Lowering lowers every package as one, over the union of their
+  `types.Info` maps. Each IR function holds positions of one file, so
+  Init, in main's first file, calls a function `.initN` for each run of
+  initializers declared in another file.
+- Monomorphization re-type-checks a package other than main with its
+  generic declarations kept, unchanged, so that importers see them; the
+  gate and lowering skip them, and only their instances are compiled.
+  Uninstantiated generic code is not rejected there: an importer could
+  instantiate it.
+
 ---
 
 ## Phase 0 research notes

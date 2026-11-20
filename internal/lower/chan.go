@@ -106,7 +106,7 @@ func (l *lowerer) sched() *sched {
 	if l.sch != nil {
 		return l.sch
 	}
-	f0 := l.pkg.Files[0]
+	f0 := l.mainFile
 	saved := l.fn
 	l.fn = nil
 	pos := l.pos(f0, f0.Package)

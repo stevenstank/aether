@@ -34,7 +34,7 @@ go build -o aether ./cmd/aether
 ./prog
 ```
 
-`aether check` parses and type-checks one file with the standard library's
+`aether check` parses and type-checks the program with the standard library's
 `go/parser` and `go/types`; Aether reuses these, it does not implement them.
 It then runs Aether's own subset gate and reports one of the following:
 
@@ -136,7 +136,8 @@ potentially long-term dependencies. The exact ownership boundaries are in
   10.2 and 10.3), and defined types of every supported underlying type
   and the blank identifier (Phase 11 increment 11.2), and `for range`
   over integers, arrays, slices, and strings, labels, `goto`, and `init`
-  functions (increment 11.3), are supported: no complex numbers; no
+  functions (increment 11.3), and several files and packages of the main
+  module (increment 11.4), are supported: no complex numbers; no
   `fallthrough` or range over functions; no type aliases. Panics print no
   traceback.
 - `//go:build` lines and the directives `//go:noinline`, `//go:norace`,
@@ -145,7 +146,10 @@ potentially long-term dependencies. The exact ownership boundaries are in
 - `TestGorootRun` publishes the pass rate on GOROOT's `// run` tests in
   `cmd/aether/testdata/goroot/run.golden` (D-049).
   The heap is collected by a conservative mark-sweep collector (D-046).
-- Only one source file, `package main`, with no imports, is ever accepted.
+- A program is the files of `package main` in one directory, named on the
+  command line, and the packages of its module (the nearest `go.mod`) that
+  it imports (increment 11.4). Standard-library imports are not yet
+  accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).
 - The optimization passes are constant folding and dead code elimination. By default, values are kept

@@ -111,7 +111,7 @@ func programDefers(pkg *frontend.Package) bool {
 // body build makes, if not nil, after every function of the program has
 // been lowered.
 func (l *lowerer) genFunc(name string, params, results []ir.Type, build func(ps []func() *ir.Instr, pos ir.Pos)) *ir.Func {
-	f0 := l.pkg.Files[0]
+	f0 := l.mainFile
 	file := frontend.Position(l.pkg.Fset, f0.Package).File
 	saved := l.fn
 	l.fn = nil
@@ -135,7 +135,7 @@ func (l *lowerer) panics() *panicState {
 		return l.ps
 	}
 	saved := l.fn
-	f0 := l.pkg.Files[0]
+	f0 := l.mainFile
 	file := frontend.Position(l.pkg.Fset, f0.Package).File
 	l.fn = nil
 	pos := l.pos(f0, f0.Package)

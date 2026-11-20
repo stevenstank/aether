@@ -27,7 +27,7 @@ func classifyFile(t *testing.T, src string) []string {
 	if len(ds) > 0 {
 		t.Fatalf("syntax error: %v", ds)
 	}
-	if ds := Precheck(fset, f); len(ds) > 0 {
+	if ds := Precheck(fset, f, true); len(ds) > 0 {
 		return features(t, ds)
 	}
 	pkg, ds := frontend.TypeCheck(fset, []*ast.File{f})
@@ -294,7 +294,6 @@ func TestRejectedFileLevel(t *testing.T) {
 		want []string
 	}{
 		{"package name", "package lib\n\nfunc main() {}\n", []string{"package-name"}},
-		{"import", "package main\n\nimport \"os\"\n\nfunc main() { os.Exit(0) }\n", []string{"import"}},
 		{"cgo", "package main\n\nimport \"C\"\n\nfunc main() {}\n", []string{"cgo"}},
 		{"go directive", "package main\n\n//go:nosplit\nfunc main() {}\n", []string{"directive"}},
 		{"unknown go directive", "package main\n\n//go:foobar\nfunc main() {}\n", []string{"directive"}},
@@ -376,8 +375,11 @@ func TestFiles(t *testing.T) {
 	if ds := Files([]string{"a.go"}); len(ds) != 0 {
 		t.Errorf("one file rejected: %v", ds)
 	}
-	ds := Files([]string{"a.go", "b.go", "c.go"})
-	if len(ds) != 1 || ds[0].Feature != FeatMultipleFiles || ds[0].Pos.File != "b.go" || !strings.Contains(ds[0].Message, "3 source files") {
+	if ds := Files([]string{"d/a.go", "d/b.go", "d/c.go"}); len(ds) != 0 {
+		t.Errorf("files of one directory rejected: %v", ds)
+	}
+	ds := Files([]string{"a.go", "d/b.go", "c.go"})
+	if len(ds) != 1 || ds[0].Feature != FeatMultipleFiles || ds[0].Pos.File != "d/b.go" || !strings.Contains(ds[0].Message, "more than one directory") {
 		t.Errorf("Files = %v", ds)
 	}
 }

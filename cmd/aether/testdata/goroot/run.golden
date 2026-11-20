@@ -351,7 +351,7 @@ fixedbugs/issue17039.go pass
 fixedbugs/issue17381.go unsupported import
 fixedbugs/issue17640.go unsupported import
 fixedbugs/issue17752.go pass
-fixedbugs/issue18149.go unsupported import
+fixedbugs/issue18149.go unsupported directive
 fixedbugs/issue18410.go pass
 fixedbugs/issue18595.go pass
 fixedbugs/issue18636.go unsupported import
@@ -388,7 +388,7 @@ fixedbugs/issue22083.go unsupported import
 fixedbugs/issue22326.go unsupported non-int-type
 fixedbugs/issue22605.go unsupported import
 fixedbugs/issue22660.go unsupported import
-fixedbugs/issue22662.go unsupported import
+fixedbugs/issue22662.go unsupported directive
 fixedbugs/issue22662b.go unsupported import
 fixedbugs/issue22683.go unsupported import
 fixedbugs/issue22781.go unsupported import
@@ -410,8 +410,8 @@ fixedbugs/issue24187.go skip
 fixedbugs/issue24419.go unsupported import
 fixedbugs/issue24449.go unsupported import
 fixedbugs/issue24488.go unsupported import
-fixedbugs/issue24491a.go unsupported import
-fixedbugs/issue24491b.go unsupported import
+fixedbugs/issue24491a.go unsupported directive
+fixedbugs/issue24491b.go unsupported directive
 fixedbugs/issue24503.go pass
 fixedbugs/issue24547.go unsupported import
 fixedbugs/issue24763.go pass
@@ -457,7 +457,7 @@ fixedbugs/issue29312.go unsupported import
 fixedbugs/issue29362.go unsupported import
 fixedbugs/issue29362b.go unsupported import
 fixedbugs/issue29402.go pass
-fixedbugs/issue29504.go unsupported import
+fixedbugs/issue29504.go unsupported directive
 fixedbugs/issue29735.go unsupported import
 fixedbugs/issue29943.go pass
 fixedbugs/issue30041.go unsupported import
@@ -807,7 +807,7 @@ nil.go unsupported import
 nilptr.go unsupported import
 nilptr2.go unsupported println-argument-type
 nilptr_aix.go skip
-noinit.go unsupported import
+noinit.go unsupported directive
 nosplit.go unsupported import
 peano.go unsupported import
 print.go unsupported println-argument-type
@@ -863,7 +863,7 @@ typeparam/double.go unsupported import
 typeparam/eface.go pass
 typeparam/equal.go unsupported generic-instance
 typeparam/fact.go unsupported import
-typeparam/genembed.go unsupported import
+typeparam/genembed.go unsupported directive
 typeparam/genembed2.go unsupported import
 typeparam/graph.go unsupported import
 typeparam/ifaceconv.go unsupported import
@@ -878,7 +878,7 @@ typeparam/issue45722.go unsupported import
 typeparam/issue45817.go unsupported import
 typeparam/issue46472.go pass
 typeparam/issue46591.go unsupported generic-instance
-typeparam/issue47258.go unsupported import
+typeparam/issue47258.go unsupported directive
 typeparam/issue47272.go unsupported import
 typeparam/issue47514.go pass
 typeparam/issue47514b.go pass
@@ -996,7 +996,7 @@ typeparam/typeswitch7.go pass
 typeparam/value.go unsupported import
 typeswitch.go unsupported import
 typeswitch1.go unsupported import
-uintptrescapes3.go unsupported import
+uintptrescapes3.go unsupported directive
 unsafe_slice_data.go unsupported import
 unsafe_string.go unsupported import
 unsafe_string_data.go unsupported import

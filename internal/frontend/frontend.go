@@ -38,6 +38,10 @@ type Package struct {
 	Files []*ast.File
 	Types *types.Package
 	Info  *types.Info
+	// Importer resolves the package's imports, nil if it has none: the
+	// loader (D-049). Monomorphization type-checks the package again with
+	// it.
+	Importer types.Importer
 }
 
 // Parse parses one source file. Syntax errors are returned as Invalid
@@ -86,15 +90,26 @@ func disableLineDirectives(src []byte) ([]byte, bool) {
 	return bytes.ReplaceAll(out, []byte("/*line "), []byte("/*xine ")), true
 }
 
-// TypeCheck type-checks files as one package and then runs the program-level
-// checks. All errors are Invalid diagnostics. No importer is installed: import
-// declarations must have been rejected before this point (D-002).
+// TypeCheck type-checks files as one package without imports, whose path
+// is its name, and then runs the program-level checks. All errors are
+// Invalid diagnostics.
 func TypeCheck(fset *token.FileSet, files []*ast.File) (*Package, []diag.Diagnostic) {
+	if len(files) == 0 {
+		return nil, []diag.Diagnostic{{Class: diag.Internal, Message: "TypeCheck called with no files"}}
+	}
+	return CheckPackage(fset, files[0].Name.Name, files, nil)
+}
+
+// CheckPackage type-checks files as the package with the import path path,
+// whose imports imp resolves, and runs the program-level checks on main.
+// The only importer is the loader (D-002, D-049).
+func CheckPackage(fset *token.FileSet, path string, files []*ast.File, imp types.Importer) (*Package, []diag.Diagnostic) {
 	if len(files) == 0 {
 		return nil, []diag.Diagnostic{{Class: diag.Internal, Message: "TypeCheck called with no files"}}
 	}
 	var ds []diag.Diagnostic
 	conf := types.Config{
+		Importer:  imp,
 		GoVersion: GoVersion,
 		Sizes:     types.SizesFor("gc", "amd64"),
 		Error: func(err error) {
@@ -124,14 +139,14 @@ func TypeCheck(fset *token.FileSet, files []*ast.File) (*Package, []diag.Diagnos
 		Instances:  map[*ast.Ident]types.Instance{},
 	}
 	// The package path of a main package is "main", as in gc.
-	pkg, _ := conf.Check(files[0].Name.Name, fset, files, info)
-	if len(ds) == 0 {
+	pkg, _ := conf.Check(path, fset, files, info)
+	if len(ds) == 0 && path == "main" {
 		// After type errors the package scope may be incomplete (for
 		// example, "var main" is reported and left out of it), so the
 		// program-level checks would give misleading results.
 		ds = programChecks(fset, files, pkg)
 	}
-	return &Package{Fset: fset, Files: files, Types: pkg, Info: info}, ds
+	return &Package{Fset: fset, Files: files, Types: pkg, Info: info, Importer: imp}, ds
 }
 
 // programChecks reports violations of rules that the Go specification places

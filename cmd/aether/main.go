@@ -18,14 +18,17 @@ import (
 const usage = `usage: aether <command> [arguments]
 
 Commands:
-  check FILE.go                     report whether FILE.go is inside Aether's
+  check FILE.go...                  report whether the program of package main
+                                    in FILE.go... is inside Aether's
                                     supported subset (S2)
-  build [-x] [-work] [-O0] -o OUT FILE.go
-                                    compile FILE.go into the executable OUT
+  build [-x] [-work] [-O0] -o OUT FILE.go...
+                                    compile the program into the executable OUT
   help                              print this message
 
 Supported subset (S2):
-  one file, package main, no imports; functions with multiple results;
+  the files of package main, in one directory, and the packages of its
+  module that it imports; no standard-library imports; functions with
+  multiple results;
   bool, every integer type, float32, float64, strings with len, indexing,
   slicing, +, comparison, and []byte, []rune, and integer conversions,
   rune literals, arrays and structs of them, pointers, &, and new, and

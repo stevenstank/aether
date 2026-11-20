@@ -1174,6 +1174,14 @@ repeated in each phase below:
     of 1,005 pass, 0 bugs. Tests: `s7_g01` to `s7_g04`, gate and
     lowering tests.
   - **11.4** Several files of `package main`; packages of the main module.
+    *Done 2026-11-20, owner review pending:* `frontend.Load`, the
+    importer; qualified identifiers resolved to their objects after type
+    checking; the gate's package tests extended to every package of the
+    program; one IR program with symbols qualified by import path, and
+    Init calling `.initN` for initializers in other files. `TestGorootRun`:
+    439 of 1,005 pass, 0 bugs (it has no multi-package `run` tests).
+    Tests: `TestPackagePrograms` against gc, `TestPackageRejects`, loader
+    tests.
   - **11.5** The standard library from GOROOT source: overlays,
     intrinsics, reachability.
   - **11.6** `runtime`, `os`, `sync`, and `sync/atomic` overlays.

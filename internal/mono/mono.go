@@ -76,6 +76,17 @@ func Instantiate(pkg *frontend.Package) (*frontend.Package, []diag.Diagnostic) {
 		funcs: map[*types.Func]*ast.FuncDecl{}, types: map[*types.TypeName]*ast.TypeSpec{},
 		methods: map[*types.TypeName][]*ast.FuncDecl{}, insts: map[string]*instance{},
 		copies: map[ast.Node]ast.Node{}, seen: map[diag.Pos]bool{}}
+	// An instance is made in its generic declaration's package, which
+	// is not yet supported for another package's (D-049, increment 11.7).
+	for id, in := range pkg.Info.Instances {
+		if obj := pkg.Info.Uses[id]; obj != nil && obj.Pkg() != pkg.Types {
+			m.rejectAt(id, gate.FeatGenericInstance, "instance "+in.Type.String()+" of another package's generic code")
+		}
+	}
+	if len(m.ds) > 0 {
+		diag.Sort(m.ds)
+		return nil, m.ds
+	}
 	if !m.collect() {
 		return pkg, nil
 	}
@@ -111,11 +122,16 @@ func Instantiate(pkg *frontend.Package) (*frontend.Package, []diag.Diagnostic) {
 	if len(m.ds) > 0 {
 		return nil, m.ds
 	}
-	m.unused()
+	// Another package's generic code may be instantiated only by the
+	// packages importing it, which are rejected until increment 11.7
+	// (D-049); the instances leave it out.
+	if pkg.Types.Path() == "main" {
+		m.unused()
+	}
 	if len(m.ds) > 0 {
 		return nil, m.ds
 	}
-	out, ds := frontend.TypeCheck(pkg.Fset, m.files())
+	out, ds := frontend.CheckPackage(pkg.Fset, pkg.Types.Path(), m.files(), pkg.Importer)
 	if len(ds) > 0 {
 		// The first error only: the others often follow from it.
 		m.reject(ds[0].Pos, gate.FeatGenericInstance, "generic code whose instance does not type-check ("+ds[0].Message+")")
@@ -372,7 +388,11 @@ func bind(ps *types.TypeParamList, args []types.Type) env {
 
 // files assembles the copies in the order of the declarations they come
 // from, each generic declaration replaced by its instances' copies.
+//
+// A package besides main keeps its generic declarations, as they are, for
+// the packages importing it; the gate and lowering skip them (D-049).
 func (m *mono) files() []*ast.File {
+	keep := m.pkg.Types.Path() != "main"
 	var files []*ast.File
 	for _, f := range m.pkg.Files {
 		nf := &ast.File{Package: f.Package, Name: f.Name, FileStart: f.FileStart, FileEnd: f.FileEnd, GoVersion: f.GoVersion}
@@ -387,11 +407,17 @@ func (m *mono) files() []*ast.File {
 							nf.Decls = append(nf.Decls, in.fn)
 						}
 					}
+					if keep {
+						nf.Decls = append(nf.Decls, d)
+					}
 				case tn != nil:
 					for _, in := range m.order {
 						if in.obj == tn {
 							nf.Decls = append(nf.Decls, in.methods[d])
 						}
+					}
+					if keep {
+						nf.Decls = append(nf.Decls, d)
 					}
 				default:
 					nf.Decls = append(nf.Decls, m.copies[d].(ast.Decl))
@@ -410,8 +436,13 @@ func (m *mono) files() []*ast.File {
 								g.Specs = append(g.Specs, in.spec)
 							}
 						}
+						if keep {
+							g.Specs = append(g.Specs, s)
+						}
 					} else if c := m.copies[s]; c != nil {
 						g.Specs = append(g.Specs, c.(ast.Spec))
+					} else if keep {
+						g.Specs = append(g.Specs, s) // a constraint
 					}
 				}
 				if len(g.Specs) > 0 {

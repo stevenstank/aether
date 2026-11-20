@@ -131,6 +131,9 @@ func (m *mono) typeExpr1(n ast.Node, t types.Type, pos token.Pos) ast.Expr {
 				args[i] = t.TypeArgs().At(i)
 			}
 			return ident(m.instance(n, t.Origin().Obj(), args).name)
+		case obj.Pkg() != m.pkg.Types:
+			m.rejectAt(n, gate.FeatGenericInstance, "type argument "+obj.Name()+" of another package")
+			return nil
 		case obj.Parent() == obj.Pkg().Scope():
 			return ident(obj.Name())
 		}

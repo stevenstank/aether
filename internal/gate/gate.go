@@ -31,6 +31,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -43,7 +44,7 @@ import (
 const (
 	FeatMultipleFiles = "multiple-files"
 	FeatPackageName   = "package-name"
-	FeatImport        = "import"
+	FeatImport        = frontend.FeatImport
 	FeatCgo           = "cgo"
 	FeatDirective     = "directive"
 	FeatPackageDecl   = "package-level-declaration"
@@ -81,32 +82,34 @@ const (
 // for example "operator-receive", or "other".
 const featOperatorPrefix = "operator-"
 
-// Files rejects programs consisting of more than one source file.
+// Files rejects programs whose source files are not in one directory: the
+// files of package main (D-049).
 func Files(names []string) []diag.Diagnostic {
-	if len(names) <= 1 {
-		return nil
+	for _, n := range names {
+		if filepath.Dir(n) != filepath.Dir(names[0]) {
+			return []diag.Diagnostic{unsupported(diag.Pos{File: n}, FeatMultipleFiles,
+				"source files in more than one directory")}
+		}
 	}
-	return []diag.Diagnostic{unsupported(diag.Pos{File: names[1]}, FeatMultipleFiles,
-		fmt.Sprintf("a program of %d source files", len(names)))}
+	return nil
 }
 
 // Precheck rejects the constructs that must be rejected before type checking
 // (docs/ARCHITECTURE.md §2): those go/types cannot check without capabilities
 // Aether lacks, and those it would wrongly report as errors. It must run on a
-// file that parsed without errors.
-func Precheck(fset *token.FileSet, f *ast.File) []diag.Diagnostic {
+// file that parsed without errors, of package main if main is set. Imports
+// besides "C" are the loader's (D-049).
+func Precheck(fset *token.FileSet, f *ast.File, main bool) []diag.Diagnostic {
 	var ds []diag.Diagnostic
 	pos := func(p token.Pos) diag.Pos { return frontend.Position(fset, p) }
-	if f.Name.Name != "main" {
+	if main && f.Name.Name != "main" {
 		ds = append(ds, unsupported(pos(f.Name.Pos()), FeatPackageName,
 			fmt.Sprintf("package %s (only package main)", f.Name.Name)))
 	}
 	for _, imp := range f.Imports {
 		if imp.Path.Value == `"C"` {
 			ds = append(ds, unsupported(pos(imp.Pos()), FeatCgo, `cgo (import "C")`))
-			continue
 		}
-		ds = append(ds, unsupported(pos(imp.Pos()), FeatImport, "import "+imp.Path.Value))
 	}
 	for _, g := range f.Comments {
 		for _, c := range g.List {
@@ -282,9 +285,7 @@ func (c *checker) topDecl(d ast.Decl) {
 	switch d := d.(type) {
 	case *ast.GenDecl:
 		if d.Tok == token.IMPORT {
-			// Precheck rejects imports before type checking.
-			c.internal(d, "import declaration reached the typed check")
-			return
+			return // the loader's (D-049)
 		}
 		if d.Tok == token.TYPE {
 			c.typeDecl(d, FeatPackageDecl)
@@ -299,6 +300,8 @@ func (c *checker) topDecl(d ast.Decl) {
 		c.declStmt(d)
 	case *ast.FuncDecl:
 		switch {
+		case c.pkg.Types.Path() != "main" && frontend.Generic(c.info, d):
+			// Kept for importers; only instances are compiled (D-049).
 		case d.Recv != nil:
 			c.method(d)
 		case d.Name.Name == "init":
@@ -767,7 +770,7 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 				return true
 			}
 		}
-		if tn, ok := c.info.Uses[t].(*types.TypeName); ok && tn.Pkg() == c.pkg.Types && tn.Parent() != types.Universe {
+		if tn, ok := c.info.Uses[t].(*types.TypeName); ok && tn.Pkg() != nil {
 			// A type declaration of the program, checked where it is: one
 			// it rejects is not reported again at each use.
 			return c.supported(tn.Type())
@@ -872,6 +875,8 @@ func (c *checker) typeDecl(d *ast.GenDecl, feature string) {
 			continue
 		}
 		switch {
+		case feature == FeatPackageDecl && c.pkg.Types.Path() != "main" && frontend.Generic(c.info, spec):
+			// Kept for importers; only instances are compiled (D-049).
 		case spec.Assign.IsValid():
 			c.reject(spec, feature, "type alias "+spec.Name.Name)
 		case spec.TypeParams != nil:
@@ -1144,7 +1149,7 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		// A method of the program's (D-038): the gate allows no other
 		// type with methods.
 		if sel := c.info.Selections[se]; sel != nil && sel.Kind() == types.MethodVal {
-			if fn, ok := sel.Obj().(*types.Func); ok && (fn.Pkg() == c.pkg.Types || isInterface(sel.Recv())) {
+			if fn, ok := sel.Obj().(*types.Func); ok && (fn.Pkg() != nil || isInterface(sel.Recv())) {
 				return c.methodCall(call, se.X, sel)
 			}
 		}
@@ -1182,7 +1187,7 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			c.reject(call, FeatBuiltin, "builtin "+obj.Name())
 			return false
 		case *types.Func:
-			if obj.Parent() == c.pkg.Types.Scope() {
+			if packageLevel(obj) {
 				// A function with an unsupported signature is rejected
 				// at its declaration.
 				if call.Ellipsis.IsValid() {
@@ -1508,7 +1513,7 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 		c.reject(id, FeatBuiltin, "builtin "+id.Name)
 	case *types.Func:
 		// A function of the program as a value (D-039).
-		if obj.Parent() == c.pkg.Types.Scope() {
+		if packageLevel(obj) {
 			return true
 		}
 		c.reject(id, FeatCall, "function value "+id.Name)
@@ -1518,6 +1523,12 @@ func (c *checker) valueIdent(id *ast.Ident) bool {
 		c.reject(id, FeatExpression, fmt.Sprintf("identifier %s (%T)", id.Name, obj))
 	}
 	return false
+}
+
+// packageLevel reports whether obj is declared at the package level of a
+// package of the program: main or a package it imports (D-049).
+func packageLevel(obj types.Object) bool {
+	return obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope()
 }
 
 // declared reports whether obj, named by id, is declared in the program,
@@ -1584,7 +1595,7 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 		if n == types.Universe.Lookup("error").Type() {
 			return true // an interface (D-041)
 		}
-		if n.Obj().Pkg() != c.pkg.Types || n.Obj().Parent() == types.Universe || n.TypeParams().Len() > 0 || n.TypeArgs().Len() > 0 {
+		if n.Obj().Pkg() == nil || n.TypeParams().Len() > 0 || n.TypeArgs().Len() > 0 {
 			return false
 		}
 		if seen[n] {

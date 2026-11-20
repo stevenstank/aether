@@ -107,15 +107,20 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
 - **Two passes:**
   - A pre-check on the raw files *before* type checking, for file-level
     constructs. It rejects:
-    - more than one source file
-    - a package name other than `main`
-    - any import declaration, including `import "C"` (cgo)
+    - source files in more than one directory (D-049)
+    - a package name other than `main` on the command line
+    - `import "C"` (cgo)
     - `//go:` directive comments, `// +build` lines, and `//line` directives
     - an empty result list on `main` or `init` (`func main() ()`), which
       `go/types` wrongly reports as an error (E12)
 
-    Imports must be rejected here: without an importer `go/types` reports
-    them as errors, which would misclassify unsupported programs as invalid.
+    Since increment 11.4 the loader (`frontend.Load`, D-049) is the
+    importer: it runs parsing, this pre-check, type checking, and
+    monomorphization on each package of the main module that the program
+    imports, before the packages importing it, and rejects every other
+    import as `unsupported`, so `go/types` never sees an unresolved one.
+    The typed walk then runs on every package, and lowering lowers all of
+    them as one program, with symbols qualified by import path.
   - A typed walk after type checking. It visits **every** expression, including
     sub-expressions of constant expressions, because S1's literal and
     operator restrictions apply to constant expressions too (`SEMANTICS.md`

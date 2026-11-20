@@ -38,6 +38,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"maps"
 	"math"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -45,11 +46,23 @@ import (
 	"github.com/stevenstank/aether/internal/ir"
 )
 
-// Lower translates pkg, which must have passed the subset gate, into IR. It
-// returns either a program or Internal diagnostics, never both. It does not
-// verify the program; the caller runs ir.Verify.
-func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
-	l := &lowerer{pkg: pkg, slots: map[*types.Var][]*ir.Slot{}, globals: map[*types.Var][]*ir.Global{}, funcs: map[*types.Func]*ir.Func{},
+// Lower lowers the program of the one package pkg, as LowerProgram does.
+func Lower(pkg *frontend.Package) (*ir.Program, []diag.Diagnostic) {
+	return LowerProgram(&frontend.Program{Fset: pkg.Fset, Packages: []*frontend.Package{pkg}})
+}
+
+// LowerProgram translates program, whose every package must have passed the
+// subset gate, into IR. It returns either a program or Internal
+// diagnostics, never both. It does not verify the program; the caller runs
+// ir.Verify.
+//
+// The packages are lowered as one, whose files and types.Info are all of
+// theirs (D-049): Info's maps have distinct keys in each package. The names
+// of a package's functions and globals besides main's are qualified by its
+// import path.
+func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagnostic) {
+	pkg := merge(program)
+	l := &lowerer{pkg: pkg, units: program.Packages, mainFile: program.Main().Files[0], inits: map[*types.Package][]*ir.Func{}, slots: map[*types.Var][]*ir.Slot{}, globals: map[*types.Var][]*ir.Global{}, funcs: map[*types.Func]*ir.Func{},
 		mems: map[*types.Var]*ir.Mem{}, ptrs: map[*types.Var]*ir.Slot{}, temps: map[*ir.Instr][]*ir.Mem{},
 		addrTaken: addressTaken(pkg.Info, pkg.Files)}
 	l.lits, l.captures = literals(pkg)
@@ -80,6 +93,9 @@ func Lower(pkg *frontend.Package) (prog *ir.Program, ds []diag.Diagnostic) {
 				continue
 			}
 			fd, ok := d.(*ast.FuncDecl)
+			if ok && l.generic(fd) {
+				continue
+			}
 			if !ok || fd.Body == nil || fd.Type.TypeParams != nil {
 				l.fail(d, "unexpected top-level declaration")
 			}
@@ -132,8 +148,13 @@ type lowerer struct {
 	// distinct objects in every function, so the maps are never reset.
 	labeled     map[*types.Label]ast.Stmt
 	labelBlocks map[*types.Label]*ir.Block
-	// inits are the package's init functions, in source order (D-049).
-	inits []*ir.Func
+	// inits are each package's init functions, in source order (D-049).
+	inits map[*types.Package][]*ir.Func
+	// units are the program's packages, in initialization order, and
+	// pkg all of them as one (LowerProgram); mainFile is main's first
+	// file, where Init is.
+	units    []*frontend.Package
+	mainFile *ast.File
 
 	pkg     *frontend.Package
 	prog    *ir.Program
@@ -231,14 +252,15 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
 	name := l.funcName(fd, obj)
-	if fd.Recv == nil && fd.Name.Name == "init" {
+	isInit := fd.Recv == nil && fd.Name.Name == "init"
+	if isInit {
 		// init functions, which nothing can name, are init.0, init.1,
 		// and so on, in source order, as gc names them (D-049).
-		name = fmt.Sprintf("init.%d", len(l.inits))
+		name = fmt.Sprintf("init.%d", len(l.inits[obj.Pkg()]))
 	}
-	f := prog.NewFunc(name, file, l.pos(fd.Name, fd.Name.Pos()))
-	if fd.Recv == nil && fd.Name.Name == "init" {
-		l.inits = append(l.inits, f)
+	f := prog.NewFunc(qualify(obj, name), file, l.pos(fd.Name, fd.Name.Pos()))
+	if isInit {
+		l.inits[obj.Pkg()] = append(l.inits[obj.Pkg()], f)
 	}
 	if r := sig.Recv(); r != nil {
 		f.Params = append(f.Params, l.words(fd, r.Type())...)
@@ -266,7 +288,7 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 // source order. A package-level constant, like a local one, has no storage.
 func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 	switch d.Tok {
-	case token.CONST:
+	case token.CONST, token.IMPORT:
 		return
 	case token.TYPE:
 		// A type has no storage, only a layout (D-034).
@@ -287,7 +309,7 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 			}
 			file := frontend.Position(l.pkg.Fset, id.Pos()).File
 			if isAggregate(v.Type()) || l.addrTaken[v] {
-				l.mems[v] = prog.NewMem(id.Name, sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
+				l.mems[v] = prog.NewMem(qualify(v, id.Name), sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
 				continue
 			}
 			// A string's or slice's words are the globals name.ptr,
@@ -301,52 +323,133 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 				case len(ts) > 1:
 					name += [3]string{".ptr", ".len", ".cap"}[i]
 				}
-				l.globals[v] = append(l.globals[v], prog.NewGlobal(name, t, file, l.pos(id, id.Pos())))
+				l.globals[v] = append(l.globals[v], prog.NewGlobal(qualify(v, name), t, file, l.pos(id, id.Pos())))
 			}
 		}
 	}
 }
 
 // init lowers the package-level variables' initializers into the program's
-// Init, in types.Info.InitOrder (spec §Package initialization): each
-// evaluates its expression, which may call functions, then stores the
-// value, or each result of a call, in its variables. A variable without an
-// initializer keeps its zero value. Then it calls the init functions, in
-// source order (D-049). Init is at the package clause.
+// Init, package by package in initialization order and each in its
+// types.Info.InitOrder (spec §Package initialization): each evaluates its
+// expression, which may call functions, then stores the value, or each
+// result of a call, in its variables. A variable without an initializer
+// keeps its zero value. After a package's variables, Init calls its init
+// functions, in source order (D-049). Init is at main's package clause; the
+// initializers of each run of variables in another file are a function
+// .initN of that file, which Init calls.
 func (l *lowerer) init(prog *ir.Program) {
-	order := l.pkg.Info.InitOrder
-	if len(order) == 0 && len(l.inits) == 0 {
+	need := false
+	for _, u := range l.units {
+		need = need || len(u.Info.InitOrder) > 0 || len(l.inits[u.Types]) > 0
+	}
+	if !need {
 		return
 	}
-	f := l.pkg.Files[0]
-	file := frontend.Position(l.pkg.Fset, f.Package).File
-	l.fn = prog.NewFunc("init", file, l.pos(f, f.Package))
+	file := frontend.Position(l.pkg.Fset, l.mainFile.Package).File
+	l.fn = prog.NewFunc("init", file, l.pos(l.mainFile, l.mainFile.Package))
 	prog.Init = l.fn
 	l.b, l.done = l.fn.Entry(), false
 	l.rtok = nil
-	for _, init := range order {
-		var ts []types.Type
-		for _, v := range init.Lhs {
-			ts = append(ts, v.Type())
-		}
-		vals := l.valuesOrResults([]ast.Expr{init.Rhs}, ts)
-		for i, v := range init.Lhs {
-			if v.Name() == "_" {
-				continue // evaluated and discarded
-			}
-			gv, ok := l.globalVar(v, l.pos(init.Rhs, v.Pos()))
-			if !ok {
-				l.fail(init.Rhs, "initializer of %s, which is not a global", v.Name())
-			}
-			l.store(gv, vals[i], l.pos(init.Rhs, v.Pos()))
+	in, initB := l.fn, l.b
+	leave := func() { // back to Init from a function .initN
+		if l.fn != in {
+			l.fn.Ret(l.b, l.fn.Pos)
+			prune(l.fn)
+			l.fn, l.b = in, initB
 		}
 	}
-	for _, f := range l.inits {
-		l.fn.Call(l.b, f, nil, f.Pos)
+	chunks := 0
+	for _, u := range l.units {
+		for _, init := range u.Info.InitOrder {
+			at := frontend.Position(l.pkg.Fset, init.Lhs[0].Pos())
+			switch {
+			case at.File == file:
+				leave()
+			case at.File != l.fn.File:
+				leave()
+				c := prog.NewFunc(fmt.Sprintf("%sinit%d", genPrefix, chunks), at.File, ir.Pos{Line: at.Line, Col: at.Col})
+				chunks++
+				in.Call(l.b, c, nil, c.Pos)
+				initB = l.b
+				l.fn, l.b = c, c.Entry()
+			}
+			l.initializer(init)
+		}
+		leave()
+		for _, f := range l.inits[u.Types] {
+			l.fn.Call(l.b, f, nil, f.Pos)
+		}
 	}
 	l.fn.Ret(l.b, l.fn.Pos)
 	prune(l.fn)
 	l.fn = nil
+}
+
+// initializer lowers one package-level initializer, as init describes.
+func (l *lowerer) initializer(init *types.Initializer) {
+	var ts []types.Type
+	for _, v := range init.Lhs {
+		ts = append(ts, v.Type())
+	}
+	vals := l.valuesOrResults([]ast.Expr{init.Rhs}, ts)
+	for i, v := range init.Lhs {
+		if v.Name() == "_" {
+			continue // evaluated and discarded
+		}
+		gv, ok := l.globalVar(v, l.pos(init.Rhs, v.Pos()))
+		if !ok {
+			l.fail(init.Rhs, "initializer of %s, which is not a global", v.Name())
+		}
+		l.store(gv, vals[i], l.pos(init.Rhs, v.Pos()))
+	}
+}
+
+// generic reports whether n is generic code another package than main kept
+// for its importers (frontend.Generic), which lowering leaves out.
+func (l *lowerer) generic(n ast.Node) bool {
+	var id *ast.Ident
+	switch n := n.(type) {
+	case *ast.FuncDecl:
+		id = n.Name
+	case *ast.TypeSpec:
+		id = n.Name
+	}
+	obj := l.pkg.Info.Defs[id]
+	return obj != nil && obj.Pkg().Path() != "main" && frontend.Generic(l.pkg.Info, n)
+}
+
+// qualify returns name, of obj or a function or global for it, qualified
+// by obj's package's import path if it is not main's (D-049).
+func qualify(obj types.Object, name string) string {
+	if p := obj.Pkg(); p != nil && p.Path() != "main" {
+		return p.Path() + "." + name
+	}
+	return name
+}
+
+// merge returns the packages of program as one package, for lowering.
+func merge(program *frontend.Program) *frontend.Package {
+	if len(program.Packages) == 1 {
+		return program.Packages[0]
+	}
+	info := &types.Info{
+		Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{},
+		Implicits: map[ast.Node]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{},
+		Scopes: map[ast.Node]*types.Scope{}, Instances: map[*ast.Ident]types.Instance{},
+	}
+	out := &frontend.Package{Fset: program.Fset, Types: program.Main().Types, Info: info}
+	for _, p := range program.Packages {
+		out.Files = append(out.Files, p.Files...)
+		maps.Copy(info.Types, p.Info.Types)
+		maps.Copy(info.Defs, p.Info.Defs)
+		maps.Copy(info.Uses, p.Info.Uses)
+		maps.Copy(info.Implicits, p.Info.Implicits)
+		maps.Copy(info.Selections, p.Info.Selections)
+		maps.Copy(info.Scopes, p.Info.Scopes)
+		maps.Copy(info.Instances, p.Info.Instances)
+	}
+	return out
 }
 
 // function lowers fd's body. Each named parameter gets a slot, stored from
@@ -2101,6 +2204,9 @@ func int64Val(tv types.TypeAndValue) (int64, bool) {
 func (l *lowerer) typeDecl(d *ast.GenDecl, what string) {
 	for _, spec := range d.Specs {
 		tn, ok := l.pkg.Info.Defs[spec.(*ast.TypeSpec).Name].(*types.TypeName)
+		if ok && l.generic(spec) {
+			continue
+		}
 		if !ok || tn.IsAlias() {
 			l.fail(d, "unexpected %s", what)
 		}
