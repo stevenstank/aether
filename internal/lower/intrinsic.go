@@ -95,6 +95,14 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 		// address, length, and capacity.
 		fdv, p, n := l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos), l.fn.Param(b, 2, pos)
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysWrite, ir.I64, pos, fdv, p, n))
+	case "errors.isComparable":
+		// Whether the dynamic type's descriptor has an equality function
+		// (iface.go).
+		tab := l.fn.Param(b, 0, pos)
+		l.fn.Param(b, 1, pos)
+		l.b = b
+		eq := l.fn.LdM(l.b, ir.Ptr, l.dynDesc(sig.Params().At(0).Type(), tab, pos), l.fn.Const(l.b, 16, pos), pos)
+		l.fn.Ret(l.b, pos, l.fn.Compare(l.b, ir.Ne, eq, l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos))
 	case "sync.fatal":
 		l.fn.Panic(b, ir.PanicFatal, pos, l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos))
 	default:

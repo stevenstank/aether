@@ -77,7 +77,7 @@ func TestFrameBound(t *testing.T) {
 			continue // a generated program with an overflowing constant
 		}
 		// Generic code is checked in its instances' copies (D-045).
-		if pkg, ds = mono.Instantiate(pkg); len(ds) > 0 {
+		if pkg, _, ds = mono.Instantiate(pkg, nil, false); len(ds) > 0 {
 			t.Fatalf("%s: %v", p.name, ds)
 		}
 		file = pkg.Files[0]

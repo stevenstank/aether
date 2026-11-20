@@ -1205,7 +1205,16 @@ repeated in each phase below:
     errors), `TestStdRejects`, `TestStdoutErrors`, `TestSys`,
     `TestSysNative`, `TestSysOps`, `TestInitOrder`. `TestGorootRun`: 516 of
     1,005 pass, 0 bugs.
-  - **11.7** `unsafe` and generics across packages.
+  - **11.7** `unsafe` and generics across packages, in two parts.
+    *First part done 2026-11-20, owner review pending:* instances of
+    another package's generic code, made in that package (wants), with
+    type arguments it can name; each package checked twice (original and
+    prepared); `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, and
+    `errors` (not `As`) from GOROOT, `iter` and `internal/reflectlite` as
+    Aether's. Tests: `TestPackagePrograms` (`cmd/generic`),
+    `TestPackageRejects`, `TestStdPrograms` (`generics`, `errors`),
+    `TestStdRejects`, gate tests. `TestGorootRun`: 518 of 1,005 pass,
+    0 bugs. *Second part:* `unsafe`, `strings`, and `bytes`.
   - **11.8** A `reflect` subset and `fmt` from source.
 
 ---

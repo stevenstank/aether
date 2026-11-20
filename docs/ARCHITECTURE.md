@@ -137,6 +137,15 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     because it names something such a replacement lacks (for example
     `runtime.Caller`), the loader reports that as `unsupported`
     (`stdlib-package`), not `invalid`.
+    Since increment 11.7 a package has two checks. Its original check,
+    against the original checks of the packages it imports, is what
+    monomorphization reads. Monomorphization then runs twice over the
+    program: from main down, only to collect each package's *wants*
+    (instances of another package's exported generic code, which that
+    package makes), and then from the packages without imports up, making
+    each package's instances and wants and checking its copies against
+    the prepared packages it imports. The gate and lowering see the
+    prepared packages.
   - A typed walk after type checking. It visits **every** expression, including
     sub-expressions of constant expressions, because S1's literal and
     operator restrictions apply to constant expressions too (`SEMANTICS.md`

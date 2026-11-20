@@ -140,7 +140,8 @@ potentially long-term dependencies. The exact ownership boundaries are in
   module (increment 11.4), and `iota`, integer `min` and `max`,
   `fallthrough`, and variadic functions (increment 11.5), and the
   packages `runtime`, `os`, `sync`, and `sync/atomic` in part (increment
-  11.6), are supported:
+  11.6), and generic code of other packages, `cmp`, `slices`, `sort`,
+  `maps`, and `errors` (increment 11.7, first part), are supported:
   no complex numbers; no range over functions; no type aliases. Panics print no
   traceback.
 - `//go:build` lines and the directives `//go:noinline`, `//go:norace`,
@@ -157,8 +158,11 @@ potentially long-term dependencies. The exact ownership boundaries are in
   must be go1.26 (increment 11.5), and Aether's own `runtime` (`GOOS`,
   `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`,
   `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`),
-  and `sync/atomic` (increment 11.6). Packages that need more of gc's
-  runtime (`fmt`, `strings`, `sort`, ...) are not yet accepted.
+  and `sync/atomic` (increment 11.6), and `cmp`, `slices`, `sort`,
+  `maps`, and `errors` (increment 11.7), with another package's generic
+  code instantiated with types that package can name. Packages that need
+  `unsafe` or reflection (`strings`, `bytes`, `fmt`, ...) are not yet
+  accepted.
   Everything outside S2 is **rejected with an explicit diagnostic**. The
   diagnostic's text still says "subset S1" (`SEMANTICS.md` §Subset S2).
 - The optimization passes are constant folding and dead code elimination. By default, values are kept

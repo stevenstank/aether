@@ -996,6 +996,11 @@ counted 141 top-level files containing a `// run` line.
     package that needs more of `runtime`, `sync`, or `sync/atomic` than
     Aether's: `runtime.Caller` in `internal/reflectlite`, `sync.Pool` in
     `io`, `runtime.Goexit` in `iter`), 0 bugs.
+  - After the first part of increment 11.7 (2026-11-20): 518 pass
+    (51.5 %), 487 `unsupported`, 0 bugs. 231 tests moved from
+    `stdlib-package` to `directive`: with `iter` and generics across
+    packages, programs importing `fmt` now reach `internal/abi`, whose
+    `//go:linkname` variable `zeroVal` stops them (11.8).
 - **Programs of several packages** (D-049, increment 11.4).
   `TestPackagePrograms` builds each program under
   `cmd/aether/testdata/packages/cmd`, in the module
@@ -1013,6 +1018,9 @@ counted 141 top-level files containing a `// run` line.
   `sync/atomic`; each also runs in the interpreter, and a program ending
   in a fatal error (`syncfatal`, `syncdeadlock`) is compared by the panic
   rule. `TestStdoutErrors` runs a program with its standard output closed
-  and on `/dev/full` under gc and Aether.
+  and on `/dev/full` under gc and Aether. Since increment 11.7 `generics`
+  and `errors` use `cmp`, `slices`, `maps`, `sort`, and `errors`, and
+  `testdata/packages/cmd/generic` instantiates a module package's generic
+  code.
 - It is read in place from GOROOT, not copied into the repository. Copying would
   require handling the BSD license.

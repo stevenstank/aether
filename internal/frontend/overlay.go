@@ -47,6 +47,8 @@ var patches = map[string]patch{
 	"internal/stringslite": {replace: true},
 	// gc's runtime, and packages that depend on its internals (11.6).
 	"runtime": {replace: true}, "os": {replace: true}, "sync": {replace: true}, "sync/atomic": {replace: true},
+	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)
+	"internal/reflectlite": {replace: true}, // until Aether has reflection (11.8)
 }
 
 // Intrinsics are the functions of overlay files declared without a body
@@ -57,6 +59,7 @@ var Intrinsics = map[string]bool{
 	"internal/strconv.float64bits": true, "internal/strconv.float64frombits": true,
 	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
 	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "sync.fatal": true,
+	"errors.isComparable": true,
 }
 
 // isStd reports whether an import path names a standard-library package:

@@ -130,9 +130,22 @@ func (m *mono) typeExpr1(n ast.Node, t types.Type, pos token.Pos) ast.Expr {
 			for i := range args {
 				args[i] = t.TypeArgs().At(i)
 			}
+			if p := obj.Pkg(); p.Path() != m.pkg.Types.Path() {
+				// Another package's instance, named as the file imports
+				// it, by its package name.
+				name := m.want(n, t.Origin().Obj(), args)
+				if name == "" {
+					return nil
+				}
+				return &ast.SelectorExpr{X: ident(p.Name()), Sel: &ast.Ident{NamePos: pos, Name: name}}
+			}
 			return ident(m.instance(n, t.Origin().Obj(), args).name)
-		case obj.Pkg() != m.pkg.Types:
-			m.rejectAt(n, gate.FeatGenericInstance, "type argument "+obj.Name()+" of another package")
+		case obj.Pkg().Path() != m.pkg.Types.Path():
+			if imports(m.pkg.Types, obj) {
+				// Named as the file imports it, by its package name.
+				return &ast.SelectorExpr{X: ident(obj.Pkg().Name()), Sel: &ast.Ident{NamePos: pos, Name: obj.Name()}}
+			}
+			m.rejectAt(n, gate.FeatGenericInstance, "type argument "+typeName(t, true)+" of a package "+m.pkg.Types.Path()+" does not import")
 			return nil
 		case obj.Parent() == obj.Pkg().Scope():
 			return ident(obj.Name())
@@ -287,4 +300,90 @@ func sigName(s *types.Signature, arg bool) string {
 		r += " (" + strings.Join(rs, ", ") + ")"
 	}
 	return r
+}
+
+// pathName is the name of t with every package written as its path, which
+// tells types of different packages apart where typeName may not, and is
+// the same for a type of different checks of one package.
+func pathName(t types.Type) string {
+	return types.TypeString(t, func(p *types.Package) string { return p.Path() })
+}
+
+// imports reports whether p can name obj, an exported package-level
+// declaration of a package that p imports.
+func imports(p *types.Package, obj types.Object) bool {
+	if !obj.Exported() || obj.Parent() != obj.Pkg().Scope() {
+		return false
+	}
+	for _, q := range p.Imports() {
+		if q.Path() == obj.Pkg().Path() {
+			return true
+		}
+	}
+	return false
+}
+
+// unnameable returns the name of a type in t that the package q cannot
+// write, or "": a defined type of a package that is neither q nor one q
+// imports, or a struct field or interface method unexported by another
+// package.
+func unnameable(t types.Type, q *types.Package) string {
+	path := q.Path()
+	switch t := t.(type) {
+	case *types.Alias:
+		return unnameable(types.Unalias(t), q)
+	case *types.Named:
+		obj := t.Obj()
+		if obj.Pkg() != nil && (obj.Pkg().Path() != path || obj.Parent() != obj.Pkg().Scope()) && !imports(q, obj) {
+			return typeName(t, true)
+		}
+		for a := range t.TypeArgs().Types() {
+			if bad := unnameable(a, q); bad != "" {
+				return bad
+			}
+		}
+	case *types.Pointer:
+		return unnameable(t.Elem(), q)
+	case *types.Slice:
+		return unnameable(t.Elem(), q)
+	case *types.Array:
+		return unnameable(t.Elem(), q)
+	case *types.Chan:
+		return unnameable(t.Elem(), q)
+	case *types.Map:
+		if bad := unnameable(t.Key(), q); bad != "" {
+			return bad
+		}
+		return unnameable(t.Elem(), q)
+	case *types.Tuple:
+		for v := range t.Variables() {
+			if bad := unnameable(v.Type(), q); bad != "" {
+				return bad
+			}
+		}
+	case *types.Signature:
+		if bad := unnameable(t.Params(), q); bad != "" {
+			return bad
+		}
+		return unnameable(t.Results(), q)
+	case *types.Struct:
+		for f := range t.Fields() {
+			if !f.Exported() && f.Pkg() != nil && f.Pkg().Path() != path {
+				return typeName(t, true)
+			}
+			if bad := unnameable(f.Type(), q); bad != "" {
+				return bad
+			}
+		}
+	case *types.Interface:
+		for f := range t.Methods() {
+			if !f.Exported() && f.Pkg() != nil && f.Pkg().Path() != path {
+				return typeName(t, true)
+			}
+			if bad := unnameable(f.Type(), q); bad != "" {
+				return bad
+			}
+		}
+	}
+	return ""
 }

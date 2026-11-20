@@ -24,7 +24,7 @@ func instantiate(t *testing.T, src string) (*frontend.Package, *frontend.Package
 	if len(ds) > 0 {
 		t.Fatal(ds)
 	}
-	out, ds := Instantiate(pkg)
+	out, _, ds := Instantiate(pkg, nil, false)
 	return pkg, out, ds
 }
 

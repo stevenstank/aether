@@ -646,10 +646,27 @@ func (l *lowerer) mapMake(call *ast.CallExpr) *ir.Instr {
 	return l.fn.Alloc(l.b, l.fn.Const(l.b, hdrSize, pos), pos)
 }
 
-// mapBuiltin lowers delete(m, k) and clear(m).
+// sliceClear lowers clear(s) of a slice s of elements of type et: each
+// element in its length is set to the zero value (spec §Clear).
+func (l *lowerer) sliceClear(s ast.Expr, et types.Type, pos ir.Pos) {
+	w := l.value(s)
+	base, n := l.keep(w[0], pos), l.keep(w[1], pos)
+	m := mb{l, pos}
+	i := m.v("i", m.c(0))
+	m.loop(func() *ir.Instr { return m.cmp(ir.Lt, i.get(), n()) }, func() {
+		l.zero(l.indexed(place{base: base, t: et}, i.get, sizes.Sizeof(et), et, pos), pos)
+		i.set(m.bin(ir.Add, i.get(), m.c(1)))
+	})
+}
+
+// mapBuiltin lowers delete(m, k) and clear(m), and clear(s) of a slice.
 func (l *lowerer) mapBuiltin(call *ast.CallExpr) {
 	pos := l.pos(call, call.Pos())
 	if l.isBuiltin(call, "clear") {
+		if st, ok := l.pkg.Info.TypeOf(call.Args[0]).Underlying().(*types.Slice); ok {
+			l.sliceClear(call.Args[0], st.Elem(), pos)
+			return
+		}
 		l.fn.Call(l.b, l.mapClearFunc(pos), []*ir.Instr{l.expr(call.Args[0])}, pos)
 		return
 	}

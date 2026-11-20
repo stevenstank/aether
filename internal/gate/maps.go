@@ -24,7 +24,7 @@ func (c *checker) isMap(e ast.Expr) bool {
 
 // mapBuiltin checks a call of make, delete, or clear on a map, reporting
 // whether it is one: make of a map type with perhaps a size hint, delete
-// of a key, and clear.
+// of a key, and clear, also of a slice (D-049, increment 11.7).
 func (c *checker) mapBuiltin(call *ast.CallExpr, name string) bool {
 	args := call.Args
 	switch {
@@ -36,7 +36,7 @@ func (c *checker) mapBuiltin(call *ast.CallExpr, name string) bool {
 		}
 		args = args[1:]
 	case name == "delete" && len(args) == 2 && c.isMap(args[0]),
-		name == "clear" && len(args) == 1 && c.isMap(args[0]):
+		name == "clear" && len(args) == 1 && (c.isMap(args[0]) || c.isSlice(args[0])):
 	default:
 		return false
 	}

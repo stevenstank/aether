@@ -265,7 +265,7 @@ func TestRejected(t *testing.T) {
 		{"map type declaration", `type M map[int]int; var m M; println(len(m))`, nil},
 		{"map of complex", `var m map[int]complex128; println(len(m))`, []string{"non-int-type"}},
 		{"map of large elements", `var m map[int][1 << 22]int; println(len(m))`, []string{"non-int-type"}},
-		{"clear of a slice", `s := []int{1}; clear(s)`, []string{"builtin"}},
+		{"clear of a slice", `s := []int{1}; clear(s); type T []string; clear(T(nil)[:0])`, nil}, // 11.7
 		{"array too large", `var a [1 << 22]int; a[0] = 1`, []string{"non-int-type"}},
 		{"println of an array", `var a [2]int; println(a)`, []string{"println-argument-type"}},
 		{"println of a struct", `print(struct{ x int }{})`, []string{"println-argument-type"}},

@@ -4256,6 +4256,48 @@ packages.
   not `invalid`. A standard-library package that names one is already
   `stdlib-package`.
 
+**Implementation notes (increment 11.7, first part, 2026-11-20).**
+- An instance of another package's generic code is made in that
+  package, as decided above. A reference to one becomes a *want*: the
+  generic's name and type arguments, which the package declaring it
+  makes along with its own instances, under the same name (`Sort[[]int]`),
+  and which the referring package names through its import
+  (`slices.Sort[[]int]`).
+- A type argument must be nameable in the package making the instance:
+  predeclared types, its own package-level types, exported types of the
+  packages it imports, and types built from those. A type of the package
+  that wants it is not, since the declaring package cannot import it
+  (that would be a cycle). Such instances stay `unsupported`
+  (`generic-instance`); lifting the restriction needs instances made
+  outside the declaring package, which could not use its unexported
+  names. Alternatives considered: copying the generic code into the
+  using package (it cannot name the declaring package's unexported
+  helpers); type-checking every package as one (`go/types` checks one
+  package at a time).
+- Each package is checked twice. Its original check is against the
+  original checks of its imports, so that, for example, a literal of
+  `a.Pair[string, a.Level]` and the result of `a.Levels()` have the same
+  type. Monomorphization reads it. The prepared package is checked
+  against the prepared imports, whose instances its copies name.
+  Monomorphization runs first from main down only to collect the wants,
+  since wants go from a package to those it imports, and then from the
+  bottom up to make the instances. A package with nothing to instantiate
+  is still checked again against the prepared imports.
+- The copies may leave an import unused (a constraint such as
+  `cmp.Ordered` was all a file used of it); that error is ignored.
+- `clear` of a slice, which `slices` uses, is supported.
+- `iter` and `internal/reflectlite` are replaced packages: `iter` has
+  `Seq` and `Seq2` (gc's `Pull` uses its runtime's coroutines), and
+  `reflectlite` declares without bodies what `sort` uses, so `sort.Slice`
+  is `unsupported` until Aether has reflection. `maps.go` is Aether's,
+  since gc's `Clone` is a `//go:linkname` of its runtime's. In `errors`,
+  `Unwrap`, `Is`, and `Join` are compiled; `Is` reads whether the target's
+  dynamic type is comparable from its descriptor (the intrinsic
+  `errors.isComparable`); `As` needs reflection.
+- **Split.** 11.7 is done in two parts, to keep each change near the
+  size limit: generics across packages here, then `unsafe` with
+  `strings` and `bytes`.
+
 ---
 
 ## Phase 0 research notes

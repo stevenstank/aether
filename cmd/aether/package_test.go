@@ -109,12 +109,21 @@ func TestPackageRejects(t *testing.T) {
 		{"unsupported in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
 			"--\na/a.go:package a\nfunc F() { println(1i) }\n",
 			[]string{"main.go"}, diag.Unsupported, "a/a.go:2:20: unsupported"},
-		{"generic instance of a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { println(a.Id(1)) }\n" +
+		// Another package's generic code is instantiated there, with type
+		// arguments it can name (11.7).
+		{"type argument a package cannot name", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\ntype T int\nfunc main() { println(a.Id(T(1)) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
-			[]string{"main.go"}, diag.Unsupported, "main.go:3:25: unsupported: instance func(x int) int of another package's generic code"},
-		{"type argument of a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc id[T any](x T) T { return x }\nfunc main() { println(id(a.T(1)) == 1) }\n" +
+			[]string{"main.go"}, diag.Unsupported, "main.go:4:25: unsupported: type argument main.T, which package m.test/x/a cannot name, is not supported in subset S1 [generic-instance]"},
+		{"local type argument", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { type T int; println(a.Id(T(1)) == 1) }\n" +
+			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
+			[]string{"main.go"}, diag.Unsupported, "main.go:3:37: unsupported: type argument main.T, which package m.test/x/a cannot name,"},
+		{"unexported type argument", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nimport \"m.test/x/b\"\nfunc main() { println(b.F() == 1, a.Id(1) == 1) }\n" +
+			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n" +
+			"--\nb/b.go:package b\nimport \"m.test/x/a\"\ntype t int\nfunc F() t { return a.Id(t(1)) }\n",
+			[]string{"main.go"}, diag.Unsupported, "b/b.go:4:23: unsupported: type argument b.t, which package m.test/x/a cannot name,"},
+		{"type argument of an imported package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc id[T any](x T) T { return x }\nfunc main() { println(id(a.T(1)) == 1) }\n" +
 			"--\na/a.go:package a\ntype T int\n",
-			[]string{"main.go"}, diag.Unsupported, "type argument T of another package"},
+			[]string{"main.go"}, 0, ""},
 		{"files in two directories", "main.go:package main\nfunc main() { f() }\n--\nd/f.go:package main\nfunc f() {}\n",
 			[]string{"main.go", "d/f.go"}, diag.Unsupported, "source files in more than one directory"},
 		{"main in another file", "main.go:package main\nfunc f() {}\n--\nm.go:package main\nfunc main() { f() }\n",
@@ -244,15 +253,26 @@ func TestStdRejects(t *testing.T) {
 		{"still invalid", "package main\nimport \"os\"\nfunc main() { os.Exit(\"1\") }\n",
 			diag.Invalid, "p.go:3:23: invalid: cannot use \"1\""},
 		{"std package needing more runtime", "package main\nimport \"strings\"\nfunc main() { println(strings.ToUpper(\"a\")) }\n",
-			diag.Unsupported, "$GOROOT/src/iter/iter.go:324:13: unsupported: package iter, which does not type-check as Aether builds it (undefined: runtime.Goexit)"},
+			diag.Unsupported, "$GOROOT/src/io/io.go:655:26: unsupported: package io, which does not type-check as Aether builds it (undefined: sync.Pool)"},
 		{"internal", "package main\nimport \"internal/strconv\"\nfunc main() { println(strconv.Itoa(1)) }\n",
 			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/strconv not allowed"},
 		{"not in std", "package main\nimport \"nosuch/pkg\"\nfunc main() { pkg.F() }\n",
 			diag.Invalid, "p.go:2:8: invalid: package nosuch/pkg is not in std"},
 		{"unsafe", "package main\nimport \"unsafe\"\nfunc main() { println(unsafe.Sizeof(1)) }\n",
 			diag.Unsupported, `p.go:2:8: unsupported: import "unsafe"`},
-		{"errors.Is", "package main\nimport \"errors\"\nfunc main() { println(errors.Is(nil, nil)) }\n",
-			diag.Unsupported, "$AETHER/errors/wrap.go:8:1: unsupported: function Is without a body"},
+		{"errors.As", "package main\nimport \"errors\"\ntype E struct{}\nfunc (*E) Error() string { return \"\" }\nfunc main() { var e *E; println(errors.As(errors.New(\"x\"), &e)) }\n",
+			diag.Unsupported, "$AETHER/errors/wrap.go:60:1: unsupported: function As without a body"},
+		// Another package's generic code (11.7).
+		{"type argument of main", "package main\nimport \"slices\"\ntype T int\nfunc main() { slices.Sort([]T{2, 1}) }\n",
+			diag.Unsupported, "p.go:4:22: unsupported: type argument main.T, which package slices cannot name, is not supported in subset S1 [generic-instance]"},
+		{"unsafe in slices", "package main\nimport \"slices\"\nfunc main() { println(len(slices.Insert([]int{1}, 0, 2))) }\n",
+			diag.Unsupported, "$GOROOT/src/slices/slices.go:457:21: unsupported: builtin Sizeof"},
+		{"reflection in sort", "package main\nimport \"sort\"\nfunc main() { sort.Slice([]int{1}, func(i, j int) bool { return false }) }\n",
+			diag.Unsupported, "$AETHER/internal/reflectlite/reflectlite.go:11:1: unsupported: function ValueOf without a body"},
+		{"iter.Pull", "package main\nimport \"iter\"\nfunc main() { next, stop := iter.Pull(iter.Seq[int](nil)); _, _ = next, stop }\n",
+			diag.Unsupported, "p.go:3:34: unsupported: iter.Pull, which Aether's package iter does not have,"},
+		{"range over func in slices", "package main\nimport \"slices\"\nfunc main() { println(len(slices.Collect(slices.Values([]int{1})))) }\n",
+			diag.Unsupported, "$GOROOT/src/slices/iter.go:51:2: unsupported: for-range statement"},
 		{"unreachable", "package main\nimport \"strconv\"\nfunc main() { println(strconv.Itoa(7)) }\n", 0, ""},
 	}
 	for _, tt := range tests {

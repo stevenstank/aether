@@ -1225,8 +1225,9 @@ declarations" above.
   import cycle, a missing package directory, a directory with no file for
   linux/amd64 or with two package names, and type errors in a package.
 - Generic code of an imported package is compiled only for its own
-  instances. An instance of it in another package, or a type argument of
-  another package, is `unsupported` (`generic-instance`) until 11.7.
+  instances. Until 11.7 (below), an instance of it in another package, or
+  a type argument of another package, was `unsupported`
+  (`generic-instance`).
 
 
 ## The standard library from source (Phase 11 increment 11.5)
@@ -1253,8 +1254,8 @@ D-049. These supersede the 11.4 rule that standard-library imports are
   - `strconv`: gc's bootstrap `index`; `internal/stringslite` is Aether's
     (`Clone`, `HasPrefix`, `HasSuffix`, `IndexByte`, `TrimPrefix`,
     `TrimSuffix`).
-  - `errors`: `New` from GOROOT; `Is`, `As`, `Unwrap`, and `Join` are
-    `unsupported` until 11.7.
+  - `errors`: `New` from GOROOT; `Is`, `As`, `Unwrap`, and `Join` were
+    `unsupported` until 11.7 (below).
 - **Reachability.** In every package besides main, the gate and lowering
   see only what main reaches: `init` functions and package variables
   whose initializers may have an effect are roots; a reached type brings
@@ -1313,10 +1314,40 @@ internals). They declare part of gc's API, with gc's behavior:
   (for example `runtime.Caller`, `os.Getenv`, `sync.Map`,
   `atomic.Pointer`, `WaitGroup.Go`, `File.Close`), named by the main
   module, which gc's packages declare; and a standard-library package
-  that uses one (for example `iter` needs `runtime.Goexit`, so `strings`
-  and `slices` stay unsupported).
+  that uses one (for example `io` needs `sync.Pool`, so `strings` and
+  `bytes` stay unsupported).
 - A goroutine that never blocks or yields keeps the others from running
   (D-048), where gc would preempt it.
+
+## Generics across packages (Phase 11 increment 11.7, first part)
+
+D-049. These supersede the 11.4 rule that an instance of another
+package's generic code is `unsupported`.
+- **Instances of another package's generic code.** A generic function or
+  type of another package is instantiated in that package, as D-049
+  planned: with the type arguments written there, and type-checked
+  there. Its instances may use any of that package's own code. A type
+  argument must be one that package can name: predeclared types, its own
+  package-level types, exported package-level types of the packages it
+  imports, and types built from those. Anything else (a type of the
+  importing package, a local type, a struct or interface with unexported
+  names of another package) is `unsupported` (`generic-instance`), which
+  includes, for example, `slices.Sort` of a slice of main's own type.
+- A generic function instantiated with an exported type of a package its
+  package imports is now compiled, as is a generic type's instance.
+- **`clear` of a slice** sets each element in its length to its zero
+  value.
+- **Compiled from GOROOT:** `cmp`, `slices`, `sort`, `maps` (its
+  `maps.go` is Aether's, since gc's `Clone` is its runtime's), and
+  `errors` with `Unwrap`, `Is`, and `Join` (Aether's `wrap.go` and
+  `join.go`; `Is` reads comparability from the type descriptor, an
+  intrinsic). `iter` is Aether's: `Seq` and `Seq2`.
+- `unsupported`: `errors.As`, `sort.Slice` and the others using
+  reflection (`internal/reflectlite` is Aether's, without bodies) until
+  Aether has reflection; `iter.Pull` and `iter.Pull2` (`stdlib-package`);
+  everything ranging over an iterator (`slices.Collect`, `maps.Keys`, ...,
+  `for-range`); `slices` functions using `unsafe` (`Insert`, `Replace`);
+  `sort.Reverse` (a struct embedding an interface).
 
 ## Support matrix
 
@@ -1366,6 +1397,7 @@ internals). They declare part of gc's API, with gc's behavior:
 | `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
 | `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`; gate tests |
 | `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysOps` |
+| Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

@@ -47,22 +47,38 @@ type Stages struct {
 	// Precheck checks a file that parsed, of main, of the standard
 	// library, or neither, before type checking.
 	Precheck func(fset *token.FileSet, f *ast.File, main, std bool) []diag.Diagnostic
-	// Prepare transforms a package after type checking, before the
-	// packages that import it are type-checked.
-	Prepare func(*Package) (*Package, []diag.Diagnostic)
+	// Prepare transforms a package after type checking: it makes the
+	// instances of generic code the package needs and the wants other
+	// packages have of it, and returns the instances it wants of other
+	// packages' generic code. If collect, it only returns those, and no
+	// package.
+	Prepare func(p *Package, wants []Want, collect bool) (*Package, []Want, []diag.Diagnostic)
 	// Reject returns the Unsupported diagnostic of an import.
 	Reject func(pos diag.Pos, feature, what string) diag.Diagnostic
 }
 
+// A Want is an instance of an exported generic function or type that a
+// package needs of another, Path, which makes it in its own code (D-049,
+// increment 11.7): the instance Name of Generic with the type arguments
+// Args, which Path can name.
+type Want struct {
+	Path, Generic, Name string
+	Args                []types.Type
+}
+
 // Load parses and type-checks the program whose package main is srcs, with
-// the packages of its main module that it imports (D-049). It stops at the
-// first package with diagnostics. The packages are loaded depth first, each
-// in the order D-003 gives its steps, with stages. The packages besides
+// the packages it imports (D-049). It stops at the first package with
+// diagnostics. The packages are parsed, prechecked, and type-checked depth
+// first, each against the original checks of the packages it imports.
+// Then the wants of other packages' generic code are collected from main
+// down, and each package is prepared, after the packages it imports and
+// checked against their prepared code (prepare). The packages besides
 // main are then pruned to what main reaches (prune). The error is a
 // problem with GOROOT, which only a program with a standard-library import
 // reads.
 func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.Diagnostic, error) {
-	ld := &loader{fset: fset, stages: stages, pkgs: map[string]*Package{}, loading: map[string]bool{}}
+	ld := &loader{fset: fset, stages: stages, pkgs: map[string]*Package{}, loading: map[string]bool{},
+		files: map[string][]*ast.File{}, origs: map[string]*Package{}, wants: map[string][]Want{}}
 	ld.findModule(filepath.Dir(srcs[0].Name))
 	main, ds := ld.load("main", srcs)
 	if ld.err != nil {
@@ -71,9 +87,85 @@ func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.D
 	if len(ds) > 0 {
 		return nil, ds, nil
 	}
-	prog := &Program{Fset: fset, Packages: append(initOrder(ld.order), main)}
+	order := append(initOrder(ld.order), main)
+	// Wants go from a package to those it imports (D-049, increment
+	// 11.7): they are collected from main down, and then each package
+	// is prepared, after those it imports, with all its wants.
+	for i := len(order) - 1; i >= 0; i-- {
+		if _, ds := ld.prepare(order[i], true); len(ds) > 0 {
+			return nil, ds, nil
+		}
+	}
+	prog := &Program{Fset: fset}
+	for _, orig := range order {
+		pkg, ds := ld.prepare(orig, false)
+		if len(ds) > 0 {
+			return nil, ds, nil
+		}
+		ld.pkgs[orig.Types.Path()] = pkg
+		prog.Packages = append(prog.Packages, pkg)
+	}
+	for _, p := range prog.Packages {
+		unqualify(p)
+	}
 	prune(prog)
 	return prog, nil, nil
+}
+
+// prepare prepares orig, a package's original check, with its wants, or,
+// if collect, only collects the wants it has of the packages it imports.
+// The prepared package is checked against the prepared packages it
+// imports: a package Prepare leaves as it is is checked again, since an
+// import's prepared code (its instances) differs from its original.
+func (ld *loader) prepare(orig *Package, collect bool) (*Package, []diag.Diagnostic) {
+	path := orig.Types.Path()
+	in := *orig
+	if in.Importer != nil {
+		in.Importer = ld
+	}
+	if ld.stages.Prepare == nil {
+		return &in, nil
+	}
+	pkg, ws, ds := ld.stages.Prepare(&in, ld.wants[path], collect)
+	if len(ds) > 0 {
+		return nil, ds
+	}
+	for _, w := range ws {
+		if !slices.ContainsFunc(ld.wants[w.Path], func(v Want) bool { return v.Name == w.Name }) {
+			ld.wants[w.Path] = append(ld.wants[w.Path], w)
+		}
+	}
+	if !collect && pkg == &in && in.Importer != nil {
+		if pkg, ds = CheckPackage(ld.fset, path, ld.files[path], ld); len(ds) > 0 {
+			return nil, ld.checkFailed(path, ds)
+		}
+	}
+	return pkg, nil
+}
+
+// checkFailed returns the diagnostics of a package that does not
+// type-check: for a standard-library package, files written for gc or
+// gccgo, not Aether's subset.
+func (ld *loader) checkFailed(path string, ds []diag.Diagnostic) []diag.Diagnostic {
+	if path != "main" && isStd(path) {
+		return []diag.Diagnostic{ld.stages.Reject(ds[0].Pos, FeatStdlib,
+			"package "+path+", which does not type-check as Aether builds it ("+ds[0].Message+"),")}
+	}
+	return ds
+}
+
+// origImporter is the importer of the packages' original checks, which
+// see the original checks of the packages they import (prepare).
+type origImporter struct{ ld *loader }
+
+func (o origImporter) Import(path string) (*types.Package, error) {
+	if path == "unsafe" {
+		return types.Unsafe, nil
+	}
+	if p := o.ld.origs[path]; p != nil {
+		return p.Types, nil
+	}
+	return nil, errors.New("package not loaded: " + path)
 }
 
 // initOrder returns the packages of order, sorted by import path, in the
@@ -101,10 +193,13 @@ type loader struct {
 	modPath string // the main module's path, "" without one
 	modDir  string // its directory, relative to the main package's as named
 	pkgs    map[string]*Package
-	loading map[string]bool // the packages being loaded: an import of one is a cycle
-	order   []*Package      // the packages besides main, sorted by path
-	root    string          // GOROOT, once a standard-library package is imported
-	err     error           // a problem with GOROOT
+	loading map[string]bool        // the packages being loaded: an import of one is a cycle
+	order   []*Package             // the packages besides main, sorted by path
+	files   map[string][]*ast.File // each package's files, as parsed
+	origs   map[string]*Package    // each package's original check
+	wants   map[string][]Want      // each package's wants, from others
+	root    string                 // GOROOT, once a standard-library package is imported
+	err     error                  // a problem with GOROOT
 }
 
 // findModule finds the main module: the nearest go.mod at or above dir,
@@ -188,28 +283,20 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 	var imp types.Importer
 	for _, f := range files {
 		if len(f.Imports) > 0 {
-			imp = ld
+			imp = origImporter{ld}
 		}
 	}
 	pkg, ds := CheckPackage(ld.fset, path, files, imp)
-	if len(ds) > 0 && std {
-		// Files written for gc or gccgo, not Aether's subset.
-		return nil, []diag.Diagnostic{ld.stages.Reject(ds[0].Pos, FeatStdlib,
-			"package "+path+", which does not type-check as Aether builds it ("+ds[0].Message+"),")}
-	}
-	if len(ds) > 0 {
+	if len(ds) > 0 && !std {
 		if d, ok := ld.missing(pkg); ok {
 			// Valid Go, but beyond what Aether's replacement declares.
 			return nil, []diag.Diagnostic{d}
 		}
 	}
-	if len(ds) == 0 && ld.stages.Prepare != nil {
-		pkg, ds = ld.stages.Prepare(pkg)
-	}
 	if len(ds) > 0 {
-		return nil, ds
+		return nil, ld.checkFailed(path, ds)
 	}
-	unqualify(pkg)
+	ld.files[path], ld.origs[path] = files, pkg
 	return pkg, nil
 }
 
@@ -258,7 +345,7 @@ func (ld *loader) missing(pkg *Package) (diag.Diagnostic, bool) {
 // library. Other imports are unsupported.
 func (ld *loader) importSpec(from string, imp *ast.ImportSpec) []diag.Diagnostic {
 	path, err := strconv.Unquote(imp.Path.Value)
-	if err != nil || path == "C" || ld.pkgs[path] != nil {
+	if err != nil || path == "C" || ld.origs[path] != nil {
 		return nil // go/types reports a malformed path; Precheck, cgo
 	}
 	at := Position(ld.fset, imp.Pos())
@@ -317,7 +404,6 @@ func (ld *loader) loaded(path string, srcs []Source) []diag.Diagnostic {
 	if len(ds) > 0 || ld.err != nil {
 		return ds
 	}
-	ld.pkgs[path] = pkg
 	i, _ := slices.BinarySearchFunc(ld.order, path, func(p *Package, path string) int { return strings.Compare(p.Types.Path(), path) })
 	ld.order = slices.Insert(ld.order, i, pkg)
 	return nil

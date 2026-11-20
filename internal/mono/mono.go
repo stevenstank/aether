@@ -20,6 +20,7 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -66,32 +67,49 @@ type mono struct {
 	written []written
 	ds      []diag.Diagnostic
 	seen    map[diag.Pos]bool
+	wants   []frontend.Want // of other packages' generic code
 }
 
 // Instantiate returns pkg with its generic declarations replaced by their
-// instances, type-checked again, or Unsupported diagnostics. A program
-// without generic declarations is returned as it is.
-func Instantiate(pkg *frontend.Package) (*frontend.Package, []diag.Diagnostic) {
+// instances, type-checked again, or Unsupported diagnostics. It also makes
+// the instances other packages want, and returns those it wants of other
+// packages' generic code, which they make (D-049, increment 11.7). A
+// package without generic code, wants, or instances of other packages'
+// generic code is returned as it is. If collect, Instantiate only makes
+// the copies and returns the wants, without a package.
+func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*frontend.Package, []frontend.Want, []diag.Diagnostic) {
 	m := &mono{pkg: pkg, info: pkg.Info, ctxt: types.NewContext(),
 		funcs: map[*types.Func]*ast.FuncDecl{}, types: map[*types.TypeName]*ast.TypeSpec{},
 		methods: map[*types.TypeName][]*ast.FuncDecl{}, insts: map[string]*instance{},
 		copies: map[ast.Node]ast.Node{}, seen: map[diag.Pos]bool{}}
-	// An instance is made in its generic declaration's package, which
-	// is not yet supported for another package's (D-049, increment 11.7).
-	for id, in := range pkg.Info.Instances {
+	foreign := false
+	for id := range pkg.Info.Instances {
 		if obj := pkg.Info.Uses[id]; obj != nil && obj.Pkg() != pkg.Types {
-			m.rejectAt(id, gate.FeatGenericInstance, "instance "+in.Type.String()+" of another package's generic code")
+			foreign = true
 		}
 	}
-	if len(m.ds) > 0 {
-		diag.Sort(m.ds)
-		return nil, m.ds
-	}
-	if !m.collect() {
-		return pkg, nil
+	if !m.collect() && !foreign && len(wants) == 0 {
+		return pkg, nil, nil
 	}
 	if len(m.ds) > 0 {
-		return nil, m.ds
+		return nil, nil, m.ds
+	}
+	for _, w := range wants {
+		obj := pkg.Types.Scope().Lookup(w.Generic)
+		var decl ast.Node
+		switch obj := obj.(type) {
+		case *types.Func:
+			decl = m.funcs[obj]
+		case *types.TypeName:
+			decl = m.types[obj]
+		}
+		if decl == nil {
+			m.ds = append(m.ds, diag.Diagnostic{Class: diag.Internal, Message: "monomorphization: wanted instance " + w.Name + " of no generic declaration"})
+			return nil, nil, m.ds
+		}
+		if in := m.instance(decl, obj, w.Args); in.name != w.Name {
+			m.internal(decl, "wanted instance %s made as %s", w.Name, in.name)
+		}
 	}
 	// The non-generic declarations, which instantiate the first instances.
 	for _, f := range pkg.Files {
@@ -120,7 +138,7 @@ func Instantiate(pkg *frontend.Package) (*frontend.Package, []diag.Diagnostic) {
 		m.build(in)
 	}
 	if len(m.ds) > 0 {
-		return nil, m.ds
+		return nil, nil, m.ds
 	}
 	// Another package's generic code may be instantiated only by the
 	// packages importing it, which are rejected until increment 11.7
@@ -129,15 +147,21 @@ func Instantiate(pkg *frontend.Package) (*frontend.Package, []diag.Diagnostic) {
 		m.unused()
 	}
 	if len(m.ds) > 0 {
-		return nil, m.ds
+		return nil, nil, m.ds
+	}
+	if collect {
+		return nil, m.wants, nil
 	}
 	out, ds := frontend.CheckPackage(pkg.Fset, pkg.Types.Path(), m.files(), pkg.Importer)
+	// The copies leave out constraints, which may be all a file uses of
+	// an import, such as cmp.Ordered.
+	ds = slices.DeleteFunc(ds, func(d diag.Diagnostic) bool { return strings.HasSuffix(d.Message, " imported and not used") })
 	if len(ds) > 0 {
 		// The first error only: the others often follow from it.
 		m.reject(ds[0].Pos, gate.FeatGenericInstance, "generic code whose instance does not type-check ("+ds[0].Message+")")
 	}
 	if len(m.ds) > 0 {
-		return nil, m.ds
+		return nil, nil, m.ds
 	}
 	// A type expression written for a type argument must denote it: a
 	// local declaration could shadow the name it is written with.
@@ -148,9 +172,9 @@ func Instantiate(pkg *frontend.Package) (*frontend.Package, []diag.Diagnostic) {
 		}
 	}
 	if len(m.ds) > 0 {
-		return nil, m.ds
+		return nil, nil, m.ds
 	}
-	return out, nil
+	return out, m.wants, nil
 }
 
 func (m *mono) reject(pos diag.Pos, feature, what string) {
@@ -308,6 +332,11 @@ func (m *mono) unused() {
 // instance returns the instance of the generic obj with args, creating it
 // and queuing its copy if it is new.
 func (m *mono) instance(n ast.Node, obj types.Object, args []types.Type) *instance {
+	if obj.Pkg() != m.pkg.Types {
+		// The same declaration, as an earlier check of this package that
+		// another package's want was made against.
+		obj = m.pkg.Types.Scope().Lookup(obj.Name())
+	}
 	names := make([]string, len(args))
 	for i, a := range args {
 		names[i] = typeName(a, true)
@@ -315,7 +344,7 @@ func (m *mono) instance(n ast.Node, obj types.Object, args []types.Type) *instan
 	name := obj.Name() + "[" + strings.Join(names, ",") + "]"
 	if in := m.insts[name]; in != nil {
 		for i, a := range in.args {
-			if !types.Identical(a, args[i]) {
+			if !types.Identical(a, args[i]) && pathName(a) != pathName(args[i]) {
 				m.rejectAt(n, gate.FeatGenericInstance, "instance "+name+" of different type arguments with the same name")
 			}
 		}
@@ -526,17 +555,9 @@ func (m *mono) rewrite(n ast.Node, e env) ast.Node {
 			return m.ref(n, n, in, e)
 		}
 	case *ast.IndexExpr:
-		if id, ok := ast.Unparen(n.X).(*ast.Ident); ok {
-			if in, ok := m.info.Instances[id]; ok {
-				return m.ref(n, id, in, e)
-			}
-		}
+		return m.refIndexed(n, n.X, e)
 	case *ast.IndexListExpr:
-		if id, ok := ast.Unparen(n.X).(*ast.Ident); ok {
-			if in, ok := m.info.Instances[id]; ok {
-				return m.ref(n, id, in, e)
-			}
-		}
+		return m.refIndexed(n, n.X, e)
 	case *ast.CallExpr:
 		// Under a type parameter, T(c) is not a constant: arithmetic on
 		// it happens at run time. [1]T{T(c)}[0] has its value and is not
@@ -555,10 +576,65 @@ func (m *mono) rewrite(n ast.Node, e env) ast.Node {
 	return nil
 }
 
+// refIndexed returns the replacement of n, x[...], when x names a generic
+// function or type, of this package or, by a selector, of another.
+func (m *mono) refIndexed(n, x ast.Expr, e env) ast.Node {
+	switch x := ast.Unparen(x).(type) {
+	case *ast.Ident:
+		if in, ok := m.info.Instances[x]; ok {
+			return m.ref(n, x, in, e)
+		}
+	case *ast.SelectorExpr:
+		if in, ok := m.info.Instances[x.Sel]; ok {
+			if id, ok := m.ref(n, x.Sel, in, e).(*ast.Ident); ok {
+				return &ast.SelectorExpr{X: m.copy(x.X, e).(ast.Expr), Sel: id}
+			}
+		}
+	}
+	return nil
+}
+
+// want records the instance of obj, another package's exported generic
+// function or type, with args, which that package makes, and returns its
+// name, or "" if that package cannot name an argument (D-049, increment
+// 11.7).
+func (m *mono) want(n ast.Node, obj types.Object, args []types.Type) string {
+	path := obj.Pkg().Path()
+	for _, a := range args {
+		if bad := unnameable(a, obj.Pkg()); bad != "" {
+			m.rejectAt(n, gate.FeatGenericInstance, "type argument "+bad+", which package "+path+" cannot name,")
+			return ""
+		}
+	}
+	names := make([]string, len(args))
+	for i, a := range args {
+		names[i] = typeName(a, true)
+	}
+	name := obj.Name() + "[" + strings.Join(names, ",") + "]"
+	for _, w := range m.wants {
+		if w.Name == name {
+			return name
+		}
+	}
+	m.wants = append(m.wants, frontend.Want{Path: path, Generic: obj.Name(), Name: name, Args: args})
+	return name
+}
+
 // ref returns the identifier of the instance that id, in the expression
 // n, refers to.
 func (m *mono) ref(n ast.Node, id *ast.Ident, in types.Instance, e env) ast.Node {
 	obj := m.info.Uses[id]
+	if obj != nil && obj.Pkg() != nil && obj.Pkg() != m.pkg.Types {
+		args := make([]types.Type, in.TypeArgs.Len())
+		for i := range args {
+			args[i] = m.subst(n, in.TypeArgs.At(i), e)
+		}
+		name := m.want(n, obj, args)
+		if name == "" {
+			return nil
+		}
+		return &ast.Ident{NamePos: n.Pos(), Name: name}
+	}
 	switch obj := obj.(type) {
 	case *types.Func:
 		if m.funcs[obj] == nil {
