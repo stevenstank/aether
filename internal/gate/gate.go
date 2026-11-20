@@ -359,7 +359,9 @@ const maxFrameObjects = 1 << 29
 // variable, field, or element that is
 // assigned, selected from, indexed, or whose address is taken is used in
 // place, but a literal or call selected from or indexed is not, a literal whose address is taken is on the heap, and the operand of
-// a constant len is not evaluated. Each object may need up to 8 more bytes
+// a constant len is not evaluated. A send, a receive, and a range over a
+// channel each have an object for the element, of any type, and a select
+// an array of its cases (D-048). Each object may need up to 8 more bytes
 // for its alignment.
 func (c *checker) frameBytes(n ast.Node) int64 {
 	var total int64
@@ -368,9 +370,20 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			total += sizes.Sizeof(t) + 8
 		}
 	}
+	elem := func(ch ast.Expr) {
+		if t, ok := c.info.Types[ch].Type.Underlying().(*types.Chan); ok {
+			total += sizes.Sizeof(t.Elem()) + 8
+		}
+	}
 	inPlace := map[ast.Expr]bool{}
 	ast.Inspect(n, func(n ast.Node) bool {
 		switch n := n.(type) {
+		case *ast.SendStmt:
+			elem(n.Chan)
+		case *ast.RangeStmt:
+			elem(n.X)
+		case *ast.SelectStmt:
+			total += int64(len(n.Body.List))*32 + 8
 		case *ast.SelectorExpr:
 			inPlace[n.X] = c.addressed(n.X)
 			// A method's value receiver is copied, for a call (D-038) or a
@@ -393,6 +406,9 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 		case *ast.UnaryExpr:
 			if n.Op == token.AND {
 				inPlace[n.X] = true // a variable, or a literal on the heap
+			}
+			if n.Op == token.ARROW {
+				elem(n.X)
 			}
 		case *ast.CompositeLit:
 			if isMap(c.info.Types[n].Type) {

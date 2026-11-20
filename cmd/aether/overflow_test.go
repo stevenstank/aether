@@ -125,6 +125,9 @@ func main() { println(9223372036854775807); println(f(5)) }`,
 func g() int { println(5); return r(0) }
 func r(x int) int { return r(x+1) + 1 }
 func main() { println(n) }`,
+	// In a goroutine, while main waits: its 64 MiB stack (D-048).
+	"goroutine": `func r(n int) int { return r(n+1) + 1 }
+func main() { c := make(chan int); println(3); go func() { c <- r(0) }(); println(<-c) }`,
 }
 
 // TestStackOverflowAgainstGc compares unbounded recursion with gc by the

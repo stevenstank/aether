@@ -1039,7 +1039,7 @@ repeated in each phase below:
   skipped. A 60 s run made 1,112 executions on 2026-11-20. Negative
   control: strings noscan was found within 2 s.
 
-## Phase 10: Concurrency (design: D-048, 2026-11-20; increment 10.1 done)
+## Phase 10: Concurrency (done 2026-11-20; owner review pending)
 
 - **Scope:**
   - goroutines on one OS thread, scheduled cooperatively (D-048)
@@ -1108,6 +1108,23 @@ repeated in each phase below:
       in `FuzzGenerated` and `FuzzGC`.
     - Stress tests: 100,000 blocked goroutines; a million goroutines run in
       sequence in bounded memory; stack overflow in a goroutine.
+    - *Done 2026-11-20, owner review pending:* `gen_chan_test.go` in
+      `TestDifferentialAgainstGc`, `TestChanPrograms`, `TestGCStress`,
+      `FuzzGenerated`, and `FuzzGC`; the `goroutines` and `blocked`
+      workloads of `TestGCMemoryBound`; the `goroutine` program of
+      `TestStackOverflowAgainstGc` (`TESTING.md`). The gate's frame bound
+      now counts the frame objects of sends, receives, ranges over
+      channels, and select (`TestFrameBound` found it undercounting).
+- **Phase validation (2026-11-20):**
+  - `gofmt`, `go vet ./...`, and `go test -timeout 30m ./...` passed, the
+    last after fixes to four tests that 10.1 to 10.3 had left stale: the
+    runtime file list and defined symbols, a negative control's expected
+    output, and the frame bound above.
+  - `FuzzCheck` (60 s) passed.
+  - `FuzzGC` (60 s) passed, with 969 executions.
+  - `FuzzGenerated` passed, but neither its 60 s run nor a 300 s run got
+    past gathering baseline coverage of its 2,673 cached inputs (993 in
+    300 s), so it ran no new inputs: open.
 
 ## Phase 11: Packages, standard library, conformance
 

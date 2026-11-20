@@ -95,6 +95,13 @@ func FuzzGenerated(f *testing.F) {
 			t.Fatalf("generic program rejected: %s\n%s", ds[0], generic)
 		}
 		checkRegistersGenerated(t, generic, checkPromotion(t, "gen.go", generic, 1_000_000, &promoteStats{}))
+		// And its goroutine and channel program (gen_chan_test.go), since
+		// Phase 10 increment 10.4.
+		chans := []byte(generateChans(seed))
+		if ds := compileAndRun(t, chans); len(ds) > 0 {
+			t.Fatalf("channel program rejected: %s\n%s", ds[0], chans)
+		}
+		checkRegistersGenerated(t, chans, checkPromotion(t, "gen.go", chans, 1_000_000, &promoteStats{}))
 		src := []byte(generate(seed))
 		ds := compileAndRun(t, src)
 		if len(ds) > 0 {

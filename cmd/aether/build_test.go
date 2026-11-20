@@ -315,7 +315,7 @@ func TestBuildWorkAndLog(t *testing.T) {
 	for _, cmd := range []string{
 		"cd " + work,
 		" --64 -o prog.o prog.s", " --64 -o float.o float.s", " --64 -o heap.o heap.s", " --64 -o pow10.o pow10.s", " --64 -o print.o print.s", " --64 -o slice.o slice.s", " --64 -o start.o start.s",
-		" -static -nostdlib -e _start -o a.out prog.o float.o heap.o pow10.o print.o slice.o start.o",
+		" -static -nostdlib -e _start -o a.out prog.o float.o goroutine.o heap.o pow10.o print.o slice.o start.o",
 		"# as version: GNU assembler", "# ld version: GNU ld",
 	} {
 		if !strings.Contains(stderr, cmd) {

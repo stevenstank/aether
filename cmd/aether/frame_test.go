@@ -63,6 +63,7 @@ func TestFrameBound(t *testing.T) {
 		progs = append(progs, program{fmt.Sprintf("map%04d.go", seed), []byte(generateMaps(seed))})
 		progs = append(progs, program{fmt.Sprintf("nmd%04d.go", seed), []byte(generateNamed(seed))})
 		progs = append(progs, program{fmt.Sprintf("gnr%04d.go", seed), []byte(generateGenerics(seed))})
+		progs = append(progs, program{fmt.Sprintf("chn%04d.go", seed), []byte(generateChans(seed))})
 	}
 	checked, slack := 0, int64(0)
 	for _, p := range progs {

@@ -63,6 +63,7 @@ func TestGCStress(t *testing.T) {
 		for prefix, gen := range map[string]func(uint64) string{
 			"slc": generateSlices, "mth": generateMethods, "fnv": generateFuncValues, "cls": generateClosures,
 			"ifc": generateIfaces, "map": generateMaps, "nmd": generateNamed, "gnr": generateGenerics,
+			"chn": generateChans,
 		} {
 			progs[fmt.Sprintf("%s%04d", prefix, seed)] = []byte(gen(seed))
 		}
@@ -244,7 +245,54 @@ func main() {
 	println(total)
 }
 `,
+	// A million goroutines, one at a time: each one's stack slot is
+	// released and reused, and its G object collected (D-048, 10.4).
+	"goroutines": `package main
+
+func main() {
+	done := make(chan int)
+	s := 0
+	for i := 0; i < 1000000; i++ {
+		go func(i int) { done <- i % 7 }(i)
+		s += <-done
+	}
+	println(s)
 }
+`,
+}
+
+// goroutineWorkloads are programs with many goroutines live at once, for
+// TestGCMemoryBound, under goroutineMemoryBound: a blocked goroutine
+// costs at least the page of its stack that it uses (D-048).
+var goroutineWorkloads = map[string]string{
+	// 100,000 goroutines blocked at once: 417 MB peak on 2026-11-20 (gc's
+	// binary: 271 MB).
+	"blocked": `package main
+
+func main() {
+	const n = 100000
+	start, results := make(chan int), make(chan int, 100)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			v, ok := <-start
+			if !ok {
+				results <- i + v
+			}
+		}(i)
+	}
+	close(start)
+	s := 0
+	for i := 0; i < n; i++ {
+		s += <-results
+	}
+	println(s)
+}
+`,
+}
+
+// goroutineMemoryBound is what goroutineWorkloads' peak resident memory
+// must stay below: about 10 KiB for each of 100,000 goroutines.
+const goroutineMemoryBound = 1 << 30
 
 // gcMemoryBound is what the workloads' peak resident memory must stay
 // below. Each allocates several GiB in all.
@@ -263,8 +311,12 @@ func TestGCMemoryBound(t *testing.T) {
 		t.Skip("go command not found")
 	}
 	progs := map[string][]byte{}
+	bounds := map[string]int64{}
 	for name, src := range gcWorkloads {
-		progs[name] = []byte(src)
+		progs[name], bounds[name] = []byte(src), gcMemoryBound
+	}
+	for name, src := range goroutineWorkloads {
+		progs[name], bounds[name] = []byte(src), goroutineMemoryBound
 	}
 	want := gcRun(t, gobin, progs)
 	dir := t.TempDir()
@@ -294,8 +346,8 @@ func TestGCMemoryBound(t *testing.T) {
 			t.Errorf("%s: differs from gc:\n%s", name, diffResults(got, want[name]))
 		}
 		t.Logf("%s: peak resident memory at most %d KiB (with the helper's own)", name, rss>>10)
-		if rss > gcMemoryBound {
-			t.Errorf("%s: peak resident memory %d bytes, above the bound %d", name, rss, gcMemoryBound)
+		if rss > bounds[name] {
+			t.Errorf("%s: peak resident memory %d bytes, above the bound %d", name, rss, bounds[name])
 		}
 	}
 }
@@ -343,6 +395,22 @@ func FuzzGC(f *testing.F) {
 		defer os.Remove(exe)
 		if got := runExeEnv(t, exe, gcStressEnv); got != want {
 			t.Errorf("under GC stress, differs from the interpreter:\n%s\n%s", diffResults(got, want), src)
+		}
+		// Since Phase 10 increment 10.4, also the seed's goroutine and
+		// channel program: the interpreter runs the same schedule (D-048).
+		chans := []byte(generateChans(seed))
+		want, ds, err = interpret("chans.go", chans)
+		if errors.Is(err, interp.ErrSteps) {
+			t.Skip("longer than the interpreter's step budget: no oracle")
+		}
+		if len(ds) > 0 || err != nil {
+			t.Fatalf("not interpreted: %v %v\n%s", ds, err, chans)
+		}
+		if ds, err := build([]source{{"chans.go", chans}}, buildOptions{out: exe}, io.Discard); len(ds) > 0 || err != nil {
+			t.Fatalf("not built: %v %v", ds, err)
+		}
+		if got := runExeEnv(t, exe, gcStressEnv); got != want {
+			t.Errorf("channel program under GC stress, differs from the interpreter:\n%s\n%s", diffResults(got, want), chans)
 		}
 	})
 }

@@ -544,6 +544,44 @@ generated programs unsupported (a constant overflows in a copy), and
 writing unexported field names unqualified in type arguments makes
 `s5_g02` differ from gc.
 
+Goroutine and channel programs (`gen_chan_test.go`, Phase 10 increment
+10.4, D-048) come from their own random stream. `main` runs 2 to 6 random
+blocks:
+- pipelines of 1 to 3 stages over buffered and unbuffered channels;
+- worker pools with a closer goroutine, over struct elements with strings;
+- `select` loops over two producers that drop closed channels;
+- a server goroutine answering requests on reply channels carried in a
+  struct, stopped through a `select`;
+- buffered channels and non-blocking selects that only `main` uses;
+- a goroutine that recovers its own panic and sends the value.
+
+Only `main` prints, and only what does not depend on the schedule (V-10).
+About one program in four ends in a deadlock, a close of a closed channel,
+or a send on a closed channel in a goroutine.
+
+Where they run:
+- `TestDifferentialAgainstGc` runs 60 of them.
+- `TestChanPrograms` runs 30, with the `s6_*` corpus programs, also under
+  `-O0` and ABI-R1.
+- `TestGCStress` runs 10 under stress.
+- `FuzzGenerated` runs the one of each seed.
+- `FuzzGC` builds the one of each seed and runs it under stress against
+  the interpreter, whose schedule is the same.
+
+On 2026-11-20, the programs of seeds 1001 to 1200 all gave gc's output
+in the interpreter and natively; 55 of them end in a panic or fatal
+error.
+
+Stress tests:
+- `TestGCMemoryBound` runs a million goroutines one at a time (7 MiB
+  peak) and a `select` that blocks two million times (7 MiB), each under
+  64 MiB.
+- It also runs 100,000 goroutines blocked at once (417 MB peak, gc's
+  binary 271 MB) under 1 GiB.
+- `TestStackOverflowAgainstGc` overflows a goroutine's stack.
+- `internal/amd64`'s `TestGoroutinePrograms` reaches the 131,072-goroutine
+  limit and reuses stacks past it.
+
 Allocation programs (`gen_alloc_test.go`, Phase 9, D-046) come from their
 own random stream, for the garbage collector. A loop of 1000 to 4000
 iterations runs random statements, each on some iterations, that build

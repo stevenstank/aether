@@ -290,7 +290,7 @@ func checkELF(t *testing.T, out, ref string) {
 		}
 	}
 	slices.Sort(defined)
-	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.alloc", "aether.allocnoscan", "aether.gcstress", "aether.mainstack", "aether.memmove", "aether.panicbounds", "aether.panicdivide", "aether.panicexit", "aether.panicgrowlen", "aether.panicindex", "aether.panicindexu", "aether.panicmakecap", "aether.panicmakelen", "aether.panicmsg", "aether.panicnil", "aether.panicshift", "aether.pow10", "aether.printbool", "aether.printfloat32", "aether.printfloat64", "aether.printint", "aether.printnl", "aether.printsp", "aether.printstr", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.stacktop", "aether.write", "aether.zerobase", "main.init", "main.main"}
+	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.alloc", "aether.allocnoscan", "aether.g0", "aether.gcstress", "aether.gcur", "aether.goexit", "aether.gonew", "aether.goswitch", "aether.gregion", "aether.gused", "aether.mainstack", "aether.memmove", "aether.panicbounds", "aether.panicdivide", "aether.panicexit", "aether.panicfatal", "aether.panicgrowlen", "aether.panicindex", "aether.panicindexu", "aether.panicmakecap", "aether.panicmakelen", "aether.panicmsg", "aether.panicnil", "aether.panicshift", "aether.pow10", "aether.printbool", "aether.printfloat32", "aether.printfloat64", "aether.printint", "aether.printnl", "aether.printsp", "aether.printstr", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.stacktop", "aether.write", "aether.zerobase", "main.init", "main.main"}
 	if !slices.Equal(defined, want) {
 		t.Errorf("nm: defined symbols %v, want %v", defined, want)
 	}

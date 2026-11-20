@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -143,4 +145,31 @@ func main() {
 `)
 	want := "1 2 5 8 9 12 15 17 18 20 22 24 25 26 28 31 32 35 36 39 \n1025 1015 960\n"
 	checkPinned(t, "choice", src, result{stderr: want})
+}
+
+// TestChanPrograms runs the goroutine and channel corpus programs (s6_*)
+// and generated ones (generateChans) under gc, the interpreter, aether
+// build with and without -O0, and ABI-R1: all must agree (D-048).
+func TestChanPrograms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds programs with gc")
+	}
+	progs := map[string][]byte{}
+	for _, path := range corpus(t) {
+		if !strings.HasPrefix(filepath.Base(path), "s6_") {
+			continue
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		progs[strings.TrimSuffix(filepath.Base(path), ".go")] = src
+	}
+	if len(progs) == 0 {
+		t.Fatal("no s6 corpus programs")
+	}
+	for seed := uint64(1); seed <= 30; seed++ {
+		progs[fmt.Sprintf("chn%04d", seed)] = []byte(generateChans(seed))
+	}
+	checkR1Programs(t, progs)
 }

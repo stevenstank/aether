@@ -122,6 +122,10 @@ const generatedIfacePrograms = 100
 // differential test runs besides them.
 const generatedMapPrograms = 100
 
+// generatedChanPrograms is how many goroutine and channel programs
+// (generateChans) TestDifferentialAgainstGc runs (Phase 10 increment 10.4).
+const generatedChanPrograms = 60
+
 // generatedNamedPrograms is how many named-result programs (generateNamed)
 // the differential test runs besides them.
 const generatedNamedPrograms = 100
@@ -206,6 +210,11 @@ func TestDifferentialAgainstGc(t *testing.T) {
 	for seed := uint64(1); seed <= generatedGenericPrograms; seed++ {
 		progs[fmt.Sprintf("gnr%04d", seed)] = []byte(generateGenerics(seed))
 	}
+	// Goroutine and channel programs (gen_chan_test.go), never invalid.
+	for seed := uint64(1); seed <= generatedChanPrograms; seed++ {
+		progs[fmt.Sprintf("chn%04d", seed)] = []byte(generateChans(seed))
+	}
+	t.Logf("%d goroutine and channel programs", generatedChanPrograms)
 	t.Logf("%d corpus programs, %d generated, %d generated programs invalid (overflowing constant), %d slice programs, %d method programs, %d func value programs, %d closure programs, %d interface programs, %d map programs, %d named-result programs, %d generic programs",
 		corpusRun, generatedPrograms, len(rejected), generatedSlicePrograms, generatedMethodPrograms, generatedFuncValuePrograms, generatedClosurePrograms, generatedIfacePrograms, generatedMapPrograms, generatedNamedPrograms, generatedGenericPrograms)
 	gcRejects(t, gobin, rejected)
