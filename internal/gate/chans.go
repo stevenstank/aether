@@ -3,7 +3,7 @@ package gate
 // Goroutines and channels (Phase 10 increment 10.2, D-048): go statements
 // of the calls defer allows, channel types of supported element types,
 // make, send, receive (also comma-ok and as a statement), close, len, cap,
-// comparison, and range over a channel. select is still rejected.
+// comparison, and range over a channel; select (increment 10.3).
 
 import (
 	"go/ast"
@@ -67,4 +67,46 @@ func (c *checker) goStmt(s *ast.GoStmt) {
 func isRecv(e ast.Expr) bool {
 	u, ok := ast.Unparen(e).(*ast.UnaryExpr)
 	return ok && u.Op == token.ARROW
+}
+
+// selectStmt checks a select statement: each case's send or receive, and
+// the variables a receive declares or the targets it assigns, as a range
+// over a map's, then its statements.
+func (c *checker) selectStmt(s *ast.SelectStmt) {
+	for _, st := range s.Body.List {
+		cc := st.(*ast.CommClause)
+		switch comm := cc.Comm.(type) {
+		case nil:
+		case *ast.SendStmt:
+			c.expr(comm.Chan)
+			c.expr(comm.Value)
+		case *ast.ExprStmt:
+			c.expr(comm.X)
+		case *ast.AssignStmt:
+			u, ok := ast.Unparen(comm.Rhs[0]).(*ast.UnaryExpr)
+			if !ok || u.Op != token.ARROW || len(comm.Rhs) != 1 {
+				c.internal(comm, "select case that is not a receive")
+				continue
+			}
+			c.expr(u.X)
+			for _, e := range comm.Lhs {
+				if id, ok := e.(*ast.Ident); ok && id.Name == "_" {
+					continue
+				}
+				if comm.Tok == token.DEFINE {
+					id, ok := e.(*ast.Ident)
+					if !ok {
+						c.internal(e, "non-identifier declared by a select case")
+						continue
+					}
+					c.intVar(id, c.info.Defs[id], true)
+					continue
+				}
+				c.target(e)
+			}
+		default:
+			c.internal(cc, "unexpected select case %T", comm)
+		}
+		c.stmts(cc.Body)
+	}
 }

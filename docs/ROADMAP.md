@@ -1094,6 +1094,15 @@ repeated in each phase below:
       `.park`, `s6_g05` fails; with woken goroutines queued at the tail,
       `TestScheduleOrder` fails.
   - **10.3** `select`, with `default` and nil channels.
+    *Done 2026-11-20, owner review pending:* the gate's `selectStmt`,
+    lowering's `selectStmt` and generated `.selectgo`, select waiters
+    claimed once through a shared record and removed from their other
+    queues when one completes. Tests: `s6_g08_select` and
+    `s6_g09_select_deadlock` (against gc), `TestSelectChoice`, and the
+    `select` workload of `TestGCMemoryBound`. Negative controls, run by
+    hand and reverted: without removing the other waiters, the workload
+    peaked at 328 MiB; with completed selects' waiters not skipped,
+    `s6_g08` printed a wrong sum and crashed.
   - **10.4** Generated programs and stress tests.
     - A generator of programs whose output does not depend on the schedule,
       in `FuzzGenerated` and `FuzzGC`.

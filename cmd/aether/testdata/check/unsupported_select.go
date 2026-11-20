@@ -1,7 +1,14 @@
-// aether:expect unsupported select
+// aether:expect unsupported label
 
 package main
 
+// A labeled break out of a select statement: labels are not supported.
 func main() {
-	select {}
+L:
+	for {
+		select {
+		default:
+			break L
+		}
+	}
 }

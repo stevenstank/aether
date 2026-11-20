@@ -204,7 +204,7 @@ func init() {
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
 		FeatLoopVarAddr, FeatGenericInstance, FeatGenericUnused,
 		// Statement kinds, named by the statement keyword (see stmt).
-		"for-range", "select", "go",
+		"for-range", "go",
 		"defer", "label",
 		token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
@@ -608,7 +608,7 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.TypeSwitchStmt:
 		c.typeSwitch(s)
 	case *ast.SelectStmt:
-		c.reject(s, "select", "select statement")
+		c.selectStmt(s) // D-048
 	case *ast.GoStmt:
 		c.goStmt(s) // D-048
 	case *ast.DeferStmt:
@@ -628,7 +628,8 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.reject(s, "label", "labeled "+s.Tok.String())
 		}
 		// An unlabeled break or continue: every enclosing statement that
-		// could be its target other than for and switch is rejected.
+		// could be its target other than for, switch, and select is
+		// rejected.
 	case *ast.LabeledStmt:
 		c.reject(s, "label", "labeled statement")
 	case *ast.SendStmt:

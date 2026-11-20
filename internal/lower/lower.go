@@ -512,6 +512,8 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.goStmt(s) // D-048
 	case *ast.SendStmt:
 		l.sendStmt(s) // D-048
+	case *ast.SelectStmt:
+		l.selectStmt(s) // D-048
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
 		l.ret(s)
@@ -537,8 +539,8 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		if s.Label != nil || s.Tok != token.BREAK && s.Tok != token.CONTINUE {
 			l.fail(s, "unexpected %s statement", s.Tok)
 		}
-		// break leaves the innermost for or switch, continue the innermost
-		// for.
+		// break leaves the innermost for, switch, or select, continue the
+		// innermost for.
 		var dest *ir.Block
 		for i := len(l.targets) - 1; i >= 0 && dest == nil; i-- {
 			t := l.targets[i]

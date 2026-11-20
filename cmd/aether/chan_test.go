@@ -103,3 +103,44 @@ func main() {
 `)
 	checkPinned(t, "gonil", src, result{stderr: "after\npanic: runtime error: invalid memory address or nil pointer dereference\n", exit: 2})
 }
+
+// TestSelectChoice pins Aether's choice among ready select cases (D-048,
+// increment 10.3): uniform, from a xorshift generator of fixed seed, so
+// the same in every run, in the interpreter and natively. Three cases
+// always ready, 3000 times: the counts, near 1000 each, and the first 20
+// running weighted sums are Aether's, measured 2026-11-20.
+func TestSelectChoice(t *testing.T) {
+	src := []byte(`package main
+
+func main() {
+	a, b, c := make(chan int, 1), make(chan int, 1), make(chan int, 1)
+	na, nb, nc := 0, 0, 0
+	for i := 0; i < 3000; i++ {
+		a <- 1
+		b <- 2
+		c <- 3
+		select {
+		case <-a:
+			na++
+			<-b
+			<-c
+		case <-b:
+			nb++
+			<-a
+			<-c
+		case <-c:
+			nc++
+			<-a
+			<-b
+		}
+		if i < 20 {
+			print(na+2*nb+3*nc, " ")
+		}
+	}
+	println()
+	println(na, nb, nc)
+}
+`)
+	want := "1 2 5 8 9 12 15 17 18 20 22 24 25 26 28 31 32 35 36 39 \n1025 1015 960\n"
+	checkPinned(t, "choice", src, result{stderr: want})
+}

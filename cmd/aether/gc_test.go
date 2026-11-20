@@ -217,6 +217,33 @@ func main() {
 	println(total, len(keep), len(keep[3]))
 }
 `,
+	// A select that blocks two million times on a reply and on a channel
+	// never used: each time, its waiter on the idle channel must leave
+	// that queue (D-048, increment 10.3), or the queue keeps them all
+	// (328 MiB, measured 2026-11-20). req is buffered so that main reaches
+	// the select before the reply is sent, and blocks in it.
+	"select": `package main
+
+func main() {
+	req, resp, idle := make(chan int, 1), make(chan int), make(chan int)
+	go func() {
+		for v := range req {
+			resp <- v * 2
+		}
+	}()
+	total := 0
+	for i := 0; i < 2000000; i++ {
+		req <- i
+		select {
+		case v := <-resp:
+			total += v
+		case <-idle:
+			total = -1
+		}
+	}
+	println(total)
+}
+`,
 }
 
 // gcMemoryBound is what the workloads' peak resident memory must stay

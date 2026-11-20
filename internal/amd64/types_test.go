@@ -193,8 +193,8 @@ func TestConversions(t *testing.T) {
 // and exit status 2, also when stderr is unwritable.
 func TestPanics(t *testing.T) {
 	for kind, msg := range ir.PanicMessages {
-		if ir.IsBounds(kind) || kind == ir.PanicMsg || kind == ir.PanicExit {
-			continue // TestPanicIndex, TestNativeBounds, TestPanicMsg: they have operands; TestPanicMsg also checks PanicExit
+		if ir.IsBounds(kind) || kind == ir.PanicMsg || kind == ir.PanicExit || kind == ir.PanicFatal {
+			continue // TestPanicIndex, TestNativeBounds, TestPanicMsg: they have operands; TestPanicMsg also checks PanicExit and PanicFatal
 		}
 		for _, newline := range []bool{true, false} {
 			p := &ir.Program{}
@@ -273,5 +273,25 @@ func TestPanicMsg(t *testing.T) {
 	exe = link(t, t.TempDir(), withRuntime(asm))
 	if out, code := execute(t, exe, nil); code != 2 || out != "7" {
 		t.Errorf("PanicExit, native: exit %d, stderr %q; want exit 2, \"7\"", code, out)
+	}
+	// PanicFatal writes gc's fatal error (D-048), also after print.
+	p = &ir.Program{}
+	f = p.NewFunc("main", "p.go", p1)
+	b = f.Entry()
+	f.Print(b, []*ir.Instr{f.Const(b, 7, p1)}, p1)
+	msg = "all goroutines are asleep - deadlock!"
+	s = f.Str(b, p.Intern(msg), p1)
+	f.Panic(b, ir.PanicFatal, p1, s, f.Const(b, int64(len(msg)), p1))
+	want = "7fatal error: " + msg + "\n"
+	got.Reset()
+	if code, err := interp.Run(p, &got); err != nil || code != 2 || got.String() != want {
+		t.Errorf("PanicFatal, interpreter: exit %d, %v, stderr %q; want exit 2, %q", code, err, got.String(), want)
+	}
+	if asm, err = Emit(p); err != nil {
+		t.Fatal(err)
+	}
+	exe = link(t, t.TempDir(), withRuntime(asm))
+	if out, code := execute(t, exe, nil); code != 2 || out != want {
+		t.Errorf("PanicFatal, native: exit %d, stderr %q; want exit 2, %q", code, out, want)
 	}
 }

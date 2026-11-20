@@ -238,7 +238,7 @@ func TestRejected(t *testing.T) {
 		{"fallthrough", `switch { case true: fallthrough; default: }`, []string{"fallthrough"}},
 		{"labeled switch", "L:\nswitch {\ndefault:\nbreak L\n}", []string{"label"}},
 		{"switch with a rejected case body", `switch { case true: defer recover() }`, []string{"defer"}},
-		{"select", `select {}`, []string{"select"}},
+		{"select", `L: for { select { default: break L } }`, []string{"label"}},
 		{"go", `go panic(1)`, []string{"go"}},
 		{"defer of recover", `defer recover()`, []string{"defer"}},
 		{"defer of panic", `defer panic(1)`, []string{"defer"}},

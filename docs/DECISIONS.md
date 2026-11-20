@@ -3933,6 +3933,18 @@ roots and settles D-011's "Goroutines (Phase 10)" trigger and D-009's
   with zero bytes when the element is an array or struct, so that padding
   is written before `Move` reads it.
 
+**Implementation notes (increment 10.3, 2026-11-20).**
+- gc polls the cases in a random permutation and takes the first ready
+  one. Aether counts the ready cases and takes the j-th, with j uniform
+  below their number: the same distribution, with no permutation.
+- A blocked select queues a waiter on each channel's queue, in case
+  order, all sharing one record. A send, receive, or close takes the
+  first waiter whose select has not completed, marks that select
+  completed, and records which waiter won. The select, when it resumes,
+  removes its other waiters from their queues, scanning each queue.
+- `select {}` and a select whose channels are all nil park with nothing
+  queued, so only a deadlock ends them.
+
 ---
 
 ## Phase 0 research notes

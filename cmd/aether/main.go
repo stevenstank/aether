@@ -33,10 +33,10 @@ Supported subset (S2):
   func values of functions and methods, and closures; interfaces, type
   assertions, and type switches; maps with make, literals, indexing,
   delete, len, clear, and range; defer, panic, and recover; goroutines
-  and channels with go, send, receive, close, len, cap, and range; if,
-  for, and switch; package-level var and const; print and println. Not
-  supported: complex numbers, select, range over anything but maps and
-  channels.
+  and channels with go, send, receive, close, len, cap, range, and
+  select; if, for, and switch; package-level var and const; print and
+  println. Not supported: complex numbers, range over anything but maps
+  and channels.
   See docs/SEMANTICS.md.
 
 Build flags:
