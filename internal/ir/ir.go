@@ -181,7 +181,7 @@ const (
 	// Panic ends the program with the run-time error Index, one of the
 	// Panic constants: the message and exit status 2. It is a terminator.
 	// PanicIndex and the slice bounds errors (IsBounds) have args: x, of any
-	// integer type, and y, an I64 (BoundsMessage); PanicMsg has its
+	// integer type, and y, an I64 (BoundsMessage); PanicMsg and PanicFatal have their
 	// message's Ptr and I64 length; the others have none.
 	Panic
 	// Conv produces args[0], of any integer type, converted to the
@@ -402,6 +402,11 @@ const (
 	// PanicExit ends the program with exit status 2 and writes nothing:
 	// the panics have been written already (D-043). No args.
 	PanicExit
+	// PanicFatal ends the program with gc's fatal error whose message is
+	// the string args[0] (a Ptr) and args[1] (an I64): it writes "fatal
+	// error: ", the message, and a newline (D-048). It is never recovered
+	// and runs no deferred calls.
+	PanicFatal
 )
 
 // PanicMessages are the run-time errors' messages, as gc prints them after
@@ -414,7 +419,7 @@ var PanicMessages = [...]string{PanicDivide: "integer divide by zero", PanicShif
 	PanicSlice3Alen: "slice bounds out of range", PanicSlice3Acap: "slice bounds out of range", PanicSlice3B: "slice bounds out of range",
 	PanicSlice3C: "slice bounds out of range",
 	PanicMakeLen: "makeslice: len out of range", PanicMakeCap: "makeslice: cap out of range", PanicGrowLen: "growslice: len out of range",
-	PanicMsg: "", PanicExit: ""}
+	PanicMsg: "", PanicExit: "", PanicFatal: ""}
 
 // IsBounds reports whether the run-time error kind has operands: it is
 // PanicIndex or a slice bounds error.

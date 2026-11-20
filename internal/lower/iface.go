@@ -545,6 +545,14 @@ func gcName(t types.Type) string {
 		return fmt.Sprintf("[%d]%s", t.Len(), gcName(t.Elem()))
 	case *types.Map:
 		return "map[" + gcName(t.Key()) + "]" + gcName(t.Elem())
+	case *types.Chan:
+		switch t.Dir() {
+		case types.SendOnly:
+			return "chan<- " + gcName(t.Elem())
+		case types.RecvOnly:
+			return "<-chan " + gcName(t.Elem())
+		}
+		return "chan " + gcName(t.Elem())
 	case *types.Struct:
 		if t.NumFields() == 0 {
 			return "struct {}"

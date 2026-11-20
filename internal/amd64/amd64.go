@@ -57,7 +57,7 @@ const (
 // symPanicBounds (D-036).
 var panicSyms = [...]string{ir.PanicDivide: "aether.panicdivide", ir.PanicShift: "aether.panicshift", ir.PanicIndex: "aether.panicindexu",
 	ir.PanicNil: "aether.panicnil", ir.PanicMakeLen: "aether.panicmakelen", ir.PanicMakeCap: "aether.panicmakecap",
-	ir.PanicGrowLen: "aether.panicgrowlen", ir.PanicMsg: "aether.panicmsg",
+	ir.PanicGrowLen: "aether.panicgrowlen", ir.PanicMsg: "aether.panicmsg", ir.PanicFatal: "aether.panicfatal",
 	ir.PanicExit: "aether.panicexit"}
 
 // symPanicBounds takes a slice bounds error's x in %rdi, its y in %rsi, and
@@ -618,7 +618,7 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("movq\t%%rax, %s", res())
 	case ir.Panic:
 		sym := panicSyms[in.Index]
-		if in.Index == ir.PanicMsg {
+		if in.Index == ir.PanicMsg || in.Index == ir.PanicFatal {
 			// The message's Ptr and length (D-041).
 			e.load(in.Args[0], "%rax")
 			e.load(in.Args[1], "%rcx")

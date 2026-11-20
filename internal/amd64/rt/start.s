@@ -199,14 +199,26 @@ aether.panicexit:
 # run time (D-041): the %rsi bytes at %rdi. It writes "panic: ", the message,
 # and a newline, and exits with status 2. It uses at most 24 bytes below
 # %rsp: its return address, 8 bytes of alignment, and aether.write's.
+# aether.panicfatal is the same with "fatal error: " for gc's fatal errors
+# (D-048).
+	.globl	aether.panicfatal
+	.type	aether.panicfatal, @function
+aether.panicfatal:
+	leaq	.Lfatalmsg(%rip), %rax
+	movl	$.Lfatalmsglen, %ecx
+	jmp	1f
+	.size	aether.panicfatal, .-aether.panicfatal
+
 	.globl	aether.panicmsg
 	.type	aether.panicmsg, @function
 aether.panicmsg:
-	subq	$8, %rsp		# align for the helpers' calls
+	leaq	.Lpanicmsg(%rip), %rax
+	movl	$.Lpanicmsglen, %ecx
+1:	subq	$8, %rsp		# align for the helpers' calls
 	movq	%rdi, %rbx		# the helpers preserve %rbx and %r12
 	movq	%rsi, %r12
-	leaq	.Lpanicmsg(%rip), %rsi
-	movl	$.Lpanicmsglen, %edx
+	movq	%rax, %rsi
+	movq	%rcx, %rdx
 	call	aether.write
 	movq	%rbx, %rsi
 	movq	%r12, %rdx
@@ -222,6 +234,9 @@ aether.panicmsg:
 .Lpanicmsg:
 	.ascii	"panic: "
 	.set	.Lpanicmsglen, .-.Lpanicmsg
+.Lfatalmsg:
+	.ascii	"fatal error: "
+	.set	.Lfatalmsglen, .-.Lfatalmsg
 .Lpanicindex:
 	.ascii	"panic: runtime error: index out of range ["
 	.set	.Lpanicindexlen, .-.Lpanicindex

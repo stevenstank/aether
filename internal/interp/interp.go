@@ -200,12 +200,16 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, stderr io
 			switch {
 			case ir.IsBounds(in.Index):
 				msg = "runtime error: " + ir.BoundsMessage(in.Index, arg(0), in.Args[0].Type.Signed(), arg(1))
-			case in.Index == ir.PanicMsg:
+			case in.Index == ir.PanicMsg || in.Index == ir.PanicFatal:
 				b, err := mem.bytes(arg(0), arg(1))
 				if err != nil {
 					return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
 				}
 				msg = string(b)
+			}
+			if in.Index == ir.PanicFatal {
+				_, _ = io.WriteString(stderr, "fatal error: "+msg+"\n")
+				return 2, nil
 			}
 			_, _ = io.WriteString(stderr, "panic: "+msg+"\n")
 			return 2, nil

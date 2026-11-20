@@ -1084,6 +1084,15 @@ repeated in each phase below:
     - The generated scheduler, per-goroutine panic state, and deadlock
       detection.
     - Differential tests against gc, plus a deadlock comparison rule.
+    - *Done 2026-11-20, owner review pending:* `lower/chan.go`,
+      `gate/chans.go`, `callRecord` shared with `defer`, the run-time error
+      `PanicFatal`. Tests: `s6_g01` to `s6_g07` (interpreter and native
+      against gc, and under `AETHER_GCSTRESS`), `TestScheduleOrder` (equal
+      to gc's output with `GOMAXPROCS=1`), `TestGoNilFuncArgs`, and
+      `TestPanicPrefix` with the fatal-error rule. Negative controls, run
+      by hand and reverted: without the panic state's save and restore in
+      `.park`, `s6_g05` fails; with woken goroutines queued at the tail,
+      `TestScheduleOrder` fails.
   - **10.3** `select`, with `default` and nil channels.
   - **10.4** Generated programs and stress tests.
     - A generator of programs whose output does not depend on the schedule,

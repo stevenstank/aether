@@ -557,7 +557,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		if IsBounds(in.Index) {
 			args = []Type{integer, I64}
 		}
-		if in.Index == PanicMsg {
+		if in.Index == PanicMsg || in.Index == PanicFatal {
 			args = []Type{Ptr, I64}
 		}
 	case Str:

@@ -3918,6 +3918,21 @@ roots and settles D-011's "Goroutines (Phase 10)" trigger and D-009's
 - Generics still reject channel type arguments (D-045).
 - `sync` and `sync/atomic` move to Phase 11 with imports.
 
+**Implementation notes (increment 10.2, 2026-11-20).**
+- The deadlock is one use of a new run-time error, `PanicFatal`. It writes
+  `fatal error: ` and a message, is never raised as a panic, and runs no
+  deferred calls. `go` of a nil func value is its other use.
+- gc passes the func value of a `go` call with no arguments and no results
+  straight to its runtime, which ends with `fatal error: go of nil func
+  value` (measured). gc wraps every other `go` call in a closure, so a nil
+  func value panics in the new goroutine (gc's
+  `typecheck.normalizeGoDeferCall`). Aether does the same.
+- `close` readies its waiters in gc's order: receivers, then senders, each
+  in queue order, readied from a stack, so the last is readied first.
+- A send copies its element from a frame object, which it first fills
+  with zero bytes when the element is an array or struct, so that padding
+  is written before `Move` reads it.
+
 ---
 
 ## Phase 0 research notes

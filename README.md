@@ -131,9 +131,11 @@ potentially long-term dependencies. The exact ownership boundaries are in
   interfaces with type assertions and type switches (increment 8.4), and
   maps with `for range` over them (increment 8.5), and `defer`, `panic`,
   and `recover` (increment 8.6), and named results (increment 8.7), and
-  generic functions and types, compiled per instance (increment 8.8), are
-  supported: no complex numbers or goroutines; no
-  `fallthrough`, labels, `goto`, or `for range` except over maps; no `type`
+  generic functions and types, compiled per instance (increment 8.8), and
+  goroutines and channels on one thread (Phase 10 increment 10.2), are
+  supported: no complex numbers or `select`; no
+  `fallthrough`, labels, `goto`, or `for range` except over maps and
+  channels; no `type`
   declarations other than of arrays, structs, and interfaces, and no `init` functions. Panics print no traceback.
   The heap is collected by a conservative mark-sweep collector (D-046).
 - Only one source file, `package main`, with no imports, is ever accepted.

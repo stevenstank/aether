@@ -177,6 +177,8 @@ type lowerer struct {
 	ps      *panicState // its panic state, once needed
 	rtok    *ir.Slot    // the copy of .rframe of the function being lowered, if it calls recover (recover.go)
 
+	sch *sched // the scheduler and channel functions, once needed (chan.go)
+
 	wantRecover bool     // the program unwinds and calls recover
 	dfr         *deferFn // the defer state of the function being lowered, if it has a defer statement
 }
@@ -506,6 +508,10 @@ func (l *lowerer) stmt(s ast.Stmt) {
 		l.exprStmt(s)
 	case *ast.DeferStmt:
 		l.deferStmt(s) // D-043
+	case *ast.GoStmt:
+		l.goStmt(s) // D-048
+	case *ast.SendStmt:
+		l.sendStmt(s) // D-048
 	case *ast.ReturnStmt:
 		// go/types has checked the results against the signature.
 		l.ret(s)
@@ -515,6 +521,10 @@ func (l *lowerer) stmt(s ast.Stmt) {
 	case *ast.ForStmt:
 		l.forStmt(s)
 	case *ast.RangeStmt:
+		if isChan(l.pkg.Info.Types[s.X].Type) {
+			l.chanRange(s) // D-048
+			return
+		}
 		if !isMap(l.pkg.Info.Types[s.X].Type) {
 			l.fail(s, "unexpected statement %T", s)
 		}
@@ -836,7 +846,15 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 // are evaluated left to right, then printed by a single instruction. A call
 // of a function discards its result, if any.
 func (l *lowerer) exprStmt(s *ast.ExprStmt) {
+	if isRecv(s.X) {
+		l.recvPlace(s.X) // D-048
+		return
+	}
 	call, ok := s.X.(*ast.CallExpr)
+	if ok && l.isBuiltin(call, "close") {
+		l.closeCall(call) // D-048
+		return
+	}
 	if ok && l.isBuiltin(call, "copy") {
 		l.copySlice(call)
 		return
@@ -1018,6 +1036,9 @@ func (l *lowerer) valuesOrResults(list []ast.Expr, ts []types.Type) [][]*ir.Inst
 		from = l.pkg.Info.Types[list[0]].Type.(*types.Tuple)
 	} else if ix, ok := ast.Unparen(list[0]).(*ast.IndexExpr); ok && len(list) == 1 && n == 2 && isMap(l.pkg.Info.Types[ix.X].Type) {
 		vals = l.mapIndexOk(ix) // v, ok := m[k] (D-042)
+		from = l.pkg.Info.Types[list[0]].Type.(*types.Tuple)
+	} else if isRecv(list[0]) && len(list) == 1 && n == 2 {
+		vals = l.recvOk(list[0]) // v, ok := <-ch (D-048)
 		from = l.pkg.Info.Types[list[0]].Type.(*types.Tuple)
 	} else {
 		call, ok := list[0].(*ast.CallExpr)
@@ -1440,6 +1461,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			if b != nil && b.Name() == "copy" {
 				return l.copySlice(e)
 			}
+			if v, ok := l.chanBuiltin(e); ok {
+				return v // D-048
+			}
 			if b != nil && b.Name() == "make" && isMap(tv.Type) {
 				return l.mapMake(e) // D-042
 			}
@@ -1504,6 +1528,8 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 		return v
 	case *ast.UnaryExpr:
 		switch e.Op {
+		case token.ARROW:
+			return l.scalar(e, l.recvValue(e)) // D-048
 		case token.AND:
 			return l.addressOf(e)
 		case token.ADD:
@@ -1564,6 +1590,9 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 	}
 	if ta, ok := ast.Unparen(e).(*ast.TypeAssertExpr); ok {
 		return l.assert(ta, false)[0] // D-041
+	}
+	if isRecv(e) {
+		return l.recvValue(e) // D-048
 	}
 	if isIface(tv.Type) {
 		return l.ifaceValue(e)
@@ -1821,8 +1850,8 @@ func (l *lowerer) irType(n ast.Node, t types.Type) ir.Type {
 			return it
 		}
 	}
-	if _, ok := pointee(t); ok || isFunc(t) || isMap(t) {
-		return ir.Ptr // a func value is the Ptr of its closure (D-039), a map of its header (D-042)
+	if _, ok := pointee(t); ok || isFunc(t) || isMap(t) || isChan(t) {
+		return ir.Ptr // a func value is the Ptr of its closure (D-039), a map or channel of its header (D-042, D-048)
 	}
 	l.fail(n, "unexpected type %s", t)
 	return ir.NoType

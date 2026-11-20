@@ -363,25 +363,36 @@ func (l *lowerer) endProgram(pos ir.Pos) {
 	ps.final[l.fn.Panic(l.b, ir.PanicExit, pos)] = true
 }
 
-// deferStmt lowers a defer statement: the function value, if the call is
-// not of print or println, and the arguments are evaluated and copied into
-// a new record, which is pushed on the function's list; .deferN, generated
-// for the statement, makes the call from the record.
+// deferStmt lowers a defer statement: its call's record (callRecord) is
+// pushed on the function's list.
 func (l *lowerer) deferStmt(s *ast.DeferStmt) {
-	call := s.Call
 	pos := l.pos(s, s.Defer)
-	if call.Ellipsis.IsValid() || l.dfr == nil {
+	if s.Call.Ellipsis.IsValid() || l.dfr == nil {
 		l.fail(s, "unexpected defer statement")
 	}
 	ps := l.panics()
 	ps.defers++
+	rec, _ := l.callRecord(s, s.Call, fmt.Sprintf("defer%d", ps.defers), pos)
+	l.fn.StM(l.b, rec(), l.fn.Const(l.b, 0, pos), l.fn.Load(l.b, l.dfr.list, pos), pos)
+	l.fn.Store(l.b, l.dfr.list, rec(), pos)
+}
+
+// callRecord evaluates the function value of call, unless it is a call of
+// print or println, and its arguments, as a defer or go statement s does,
+// and copies them into a new record: the link (left zero), the code
+// address of a function named name, generated for s, which makes the call
+// from the record, then the func value and the arguments. It returns the
+// record and the func value, or nil for print and println.
+func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir.Pos) (rec, fv func() *ir.Instr) {
+	if call.Ellipsis.IsValid() {
+		l.fail(s, "unexpected variadic call")
+	}
 	builtin := ""
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok {
 			builtin = b.Name()
 		}
 	}
-	var fv func() *ir.Instr
 	var sig *types.Signature
 	var ts []types.Type // the Go type of each argument; nil for print's
 	n := len(call.Args)
@@ -396,14 +407,14 @@ func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 	case "":
 		sig = l.pkg.Info.Types[call.Fun].Type.Underlying().(*types.Signature)
 		if sig.Variadic() {
-			l.fail(s, "defer of a variadic call")
+			l.fail(s, "variadic call in a defer or go statement")
 		}
 		fv = l.spill(l.expr(call.Fun), pos)
 		for v := range sig.Params().Variables() {
 			ts = append(ts, v.Type())
 		}
 	default:
-		l.fail(s, "defer of builtin %s", builtin)
+		l.fail(s, "call of builtin %s in a defer or go statement", builtin)
 	}
 	vals := l.valuesOrResults(call.Args, ts)
 	// The layout after the link, the code, and the func value: 8 bytes
@@ -428,7 +439,6 @@ func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 			off += 8
 		}
 	}
-	name := fmt.Sprintf("defer%d", ps.defers)
 	code := l.genFunc(name, []ir.Type{ir.Ptr}, nil, func(p []func() *ir.Instr, pos ir.Pos) {
 		var args []*ir.Instr
 		for _, f := range fields {
@@ -448,7 +458,7 @@ func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 		}
 		l.fn.Ret(l.b, pos)
 	})
-	rec := l.keep(l.fn.Alloc(l.b, l.fn.Const(l.b, off, pos), pos), pos)
+	rec = l.keep(l.fn.Alloc(l.b, l.fn.Const(l.b, off, pos), pos), pos)
 	if fv != nil {
 		l.fn.StM(l.b, rec(), l.fn.Const(l.b, 16, pos), fv(), pos)
 	}
@@ -466,8 +476,7 @@ func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 		}
 	}
 	l.fn.StM(l.b, rec(), l.fn.Const(l.b, 8, pos), l.fn.FuncAddr(l.b, code, pos), pos)
-	l.fn.StM(l.b, rec(), l.fn.Const(l.b, 0, pos), l.fn.Load(l.b, l.dfr.list, pos), pos)
-	l.fn.Store(l.b, l.dfr.list, rec(), pos)
+	return rec, fv
 }
 
 // deferredCall calls the func value fv of type sig with args, as a call of

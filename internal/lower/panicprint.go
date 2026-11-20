@@ -100,7 +100,7 @@ func (l *lowerer) buildPrintval(pos ir.Pos) {
 	l.fn.Ret(l.b, pos)
 	l.b = no
 	for k := range ir.PanicMessages {
-		if k == ir.PanicExit {
+		if k == ir.PanicExit || k == ir.PanicFatal { // never in a panic record
 			continue
 		}
 		no = is(kindRuntime + int64(k))

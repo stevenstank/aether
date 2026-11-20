@@ -205,7 +205,7 @@ func init() {
 		FeatLoopVarAddr, FeatGenericInstance, FeatGenericUnused,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "select", "go",
-		"defer", "label", "send",
+		"defer", "label",
 		token.GOTO.String(), token.FALLTHROUGH.String(),
 	} {
 		featureNames[f] = true
@@ -572,6 +572,10 @@ func (c *checker) stmt(s ast.Stmt) {
 		}
 		c.stmts(s.Body.List)
 	case *ast.RangeStmt:
+		if c.isChan(s.X) {
+			c.mapRange(s) // a channel's elements, as a map's keys (D-048)
+			return
+		}
 		if !c.isMap(s.X) {
 			c.reject(s, "for-range", "for-range statement")
 			return
@@ -606,7 +610,7 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.SelectStmt:
 		c.reject(s, "select", "select statement")
 	case *ast.GoStmt:
-		c.reject(s, "go", "go statement")
+		c.goStmt(s) // D-048
 	case *ast.DeferStmt:
 		c.deferStmt(s)
 	case *ast.ReturnStmt:
@@ -628,7 +632,10 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.LabeledStmt:
 		c.reject(s, "label", "labeled statement")
 	case *ast.SendStmt:
-		c.reject(s, "send", "channel send")
+		// go/types has checked that the value is assignable to the
+		// element type (D-048).
+		c.expr(s.Chan)
+		c.expr(s.Value)
 	default:
 		c.reject(s, FeatStatement, fmt.Sprintf("statement %T", s))
 	}
@@ -739,6 +746,9 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 		return false
 	case *ast.StarExpr:
 		return c.typeExpr(t.X) && c.sized(e)
+	case *ast.ChanType:
+		// A channel type (D-048).
+		return c.typeExpr(t.Value) && c.sized(e)
 	case *ast.MapType:
 		// A map type (D-042).
 		mark := len(c.ds)
@@ -990,6 +1000,10 @@ func (c *checker) intVar(id *ast.Ident, obj types.Object, reportType bool) {
 }
 
 func (c *checker) exprStmt(s *ast.ExprStmt) {
+	if isRecv(s.X) {
+		c.expr(s.X) // a receive whose value is dropped (D-048)
+		return
+	}
 	call, ok := s.X.(*ast.CallExpr)
 	if !ok {
 		c.reject(s, FeatStatement, "expression statement")
@@ -1096,7 +1110,7 @@ func (c *checker) call(call *ast.CallExpr) bool {
 				c.expr(call.Args[0])
 				return true
 			}
-			if c.sliceBuiltin(call, obj.Name()) || c.mapBuiltin(call, obj.Name()) {
+			if c.sliceBuiltin(call, obj.Name()) || c.mapBuiltin(call, obj.Name()) || c.chanBuiltin(call, obj.Name()) {
 				return true
 			}
 			// new(T), but not new of a value, new(expr), which Go 1.26
@@ -1176,6 +1190,10 @@ func (c *checker) multiValue(list []ast.Expr) bool {
 		c.expr(ix.Index)
 		return true
 	}
+	if u, ok := ast.Unparen(list[0]).(*ast.UnaryExpr); ok && u.Op == token.ARROW && isTuple(c.info.Types[list[0]].Type) {
+		c.expr(u.X) // v, ok := <-ch (D-048)
+		return true
+	}
 	call, ok := list[0].(*ast.CallExpr)
 	if !ok {
 		return false
@@ -1227,6 +1245,12 @@ func (c *checker) expr(e ast.Expr) {
 		if e.Op == token.AND {
 			if c.typed(e) {
 				c.address(e.X)
+			}
+			return
+		}
+		if e.Op == token.ARROW {
+			if c.typed(e) {
+				c.expr(e.X) // a receive (D-048)
 			}
 			return
 		}
@@ -1518,6 +1542,9 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	case *types.Map:
 		// A map (D-042): go/types has checked that its key is comparable.
 		return c.sizedType(t.Key(), seen) && c.sizedType(t.Elem(), seen)
+	case *types.Chan:
+		// A channel (D-048), of an element gc accepts.
+		return c.sizedType(t.Elem(), seen) && sizes.Sizeof(t.Elem()) <= maxChanElem
 	case *types.Array:
 		return isScalar(t.Elem()) || c.composite(t.Elem(), seen)
 	case *types.Struct:

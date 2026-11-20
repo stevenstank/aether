@@ -223,7 +223,7 @@ func (l *lowerer) buildMaterialize(pos ir.Pos) {
 	l.setError(rec, "*runtime.PanicNilError", l.strWords("panic called with nil argument", pos), pos)
 	l.b = no
 	for k := range ir.PanicMessages {
-		if k == ir.PanicExit {
+		if k == ir.PanicExit || k == ir.PanicFatal { // never in a panic record
 			continue
 		}
 		no = is(kindRuntime + int64(k))

@@ -1,1 +1,1 @@
-testdata/check/unsupported_go.go:6:2: unsupported: go statement is not supported in subset S1 [go]
+testdata/check/unsupported_go.go:6:2: unsupported: go of builtin panic is not supported in subset S1 [go]

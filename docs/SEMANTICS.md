@@ -186,9 +186,22 @@ includes nested blocks specifically to test this.
 
 ### Concurrency and the memory model
 
-- Goroutines, channels, and `select` are Phase 10 items, designed in D-048
-  and not supported yet: the gate rejects them. `sync` and `sync/atomic`
-  need imports, so they belong to Phase 11.
+- Goroutines and channels are supported since Phase 10 increment 10.2
+  (D-048): `go` statements of the calls `defer` allows, channel types of
+  elements up to 65,535 bytes (gc's limit), `make`, send, receive (also
+  comma-ok and as a statement), `close`, `len`, `cap`, comparison, and
+  `for range` over a channel. `select` is not supported yet. `sync` and
+  `sync/atomic` need imports, so they belong to Phase 11.
+- The channel panics are gc's: `send on closed channel`, `close of nil
+  channel`, `close of closed channel`, and `makechan: size out of range`,
+  recovered as `runtime.plainError` values. A receive from a nil channel,
+  and a send on one, block forever. When every goroutine is blocked, the
+  program writes `fatal error: all goroutines are asleep - deadlock!` and
+  exits with status 2, without running deferred calls; `go f()` of a nil
+  func value `f` of no parameters and no results writes `fatal error: go
+  of nil func value` the same way, while gc calls a nil func value with
+  arguments in the new goroutine, where it panics. When `main` returns,
+  the program exits, whatever other goroutines are doing.
 - **Execution model (D-048).**
   - All goroutines run on one OS thread.
   - A goroutine switches only inside a channel operation, a `select`, or at
@@ -256,7 +269,8 @@ has a defined normalization in the test harness.
 | V-7 | Method expressions | The method expression `(*T).M` of a method with a value receiver, called with a nil `*T`, panics with `panic: runtime error: invalid memory address or nil pointer dereference`, where gc's generated wrapper panics with `panic: value method main.T.M called using nil *T pointer`; both exit 2 (D-039). | Phase 8 increment 8.2 | None: differential test programs never call such a method expression with nil. `TestNilMethodExpression` pins Aether's behavior in the interpreter, both backends, and ABI-R1. |
 | V-8 | Map iteration order | A range over a map visits its entries in insertion order, the same in every run, where gc's order is randomized and differs from run to run; both are allowed by the spec (D-042). Whether an entry added during a range is visited, which the spec leaves open, follows Aether's rule in D-042. | Phase 8 increment 8.5b | None: differential test programs only print what does not depend on the order (sums, counts, lookups), and add no entries during a range. `TestMapRangeOrder` pins Aether's order in the interpreter, both backends, and ABI-R1. |
 | V-9 | Panic values | A panic value of a type other than a basic type, `error`, or `fmt.Stringer`-like (`String() string`) is written as `(T) ` and its data word in hex, which is an address of Aether's (or the interpreter's), not gc's, except for nil (`0x0`). If an `Error` or `String` method panics while the panics are written at exit, gc ends with `panic while printing panic value`; Aether writes that value as empty (D-043). | Phase 8 increment 8.6a | None: differential test programs panic with such values only when nil, and with no method that panics. |
-| V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
+| V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. A goroutine other than `main` has a stack of 64 MiB (D-048). | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
+| V-10 | Scheduling | All goroutines run on one thread and switch only inside channel operations and at their end (D-048), in gc's order with `GOMAXPROCS=1`; gc runs them on several threads and preempts them. A goroutine that loops without a channel operation never lets another run, so a program that needs another to run hangs. A fatal error (a deadlock, `go` of a nil func value) writes only gc's `fatal error: ` line, with no goroutine traceback. At most 131,072 goroutines may be live at once; one more ends the program with `fatal error: runtime: cannot allocate goroutine stack`. | Phase 10 increment 10.2 | Differential test programs write nothing that depends on the schedule, and never spin. Fatal errors are compared as panics (`panicPrefix`): gc's stderr up to its `fatal error: ` line. `TestScheduleOrder` pins Aether's order in the interpreter, both backends, and ABI-R1. |
 
 Implemented (Phase 4 increment 4.5):
 - **V-3, panics.** The run-time errors are `integer divide by zero` (for
@@ -419,7 +433,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Files and packages | `multiple-files`, `package-name`, `import`, `cgo`, `directive`, `empty-result-list` |
 | Top-level declarations | `package-level-declaration`, `function-declaration`, `init-function`, `function-without-body` |
 | Generics (D-045) | `generic-instance`, `generic-uninstantiated` |
-| Statements | `for-range`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `send`, `statement` |
+| Statements | `for-range`, `select`, `go`, `defer`, `goto`, `fallthrough`, `label`, `statement` |
 | Declarations and assignment | `local-type-declaration`, `const-implicit-value`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `imaginary-literal`, `predeclared-identifier` |
@@ -1172,6 +1186,7 @@ tests, which makes collections frequent and overwrites freed objects.
 | Defer, panic, and recover: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Named results: variables zero at entry, bare `return`, set by deferred calls and by recovering functions | Function declarations, Return statements, Defer statements | S5 / 8.7 | Supported (native), with divergences V-3 to V-5 | `s5_n01_named_results`, `s5_d12_named_defer`, `s5_d13_named_recover`; generated named-result programs; `TestNamedResultPrograms`, `TestDeferPrograms`; gate tests |
 | Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g04_generic_panic`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
+| Goroutines and channels: `go`, channel types, `make`, send, receive, comma-ok, `close`, `len`, `cap`, comparison, `for range`, nil channels, deadlock detection | Go statements, Channel types, Send statements, Receive operator, Close, For statements with range clause | Phase 10 / 10.2 | Supported (native), with divergences V-2, V-3, V-5, and V-10 | `s6_g01_channels` to `s6_g07_send_closed`; `TestScheduleOrder`, `TestGoNilFuncArgs`, `TestPanicPrefix`, `TestGoroutineGC`, `TestGCStress`; gate tests |
 | Garbage collection of the heap: unreachable objects freed and their memory reused, with a bound on memory use | Memory model (allocation), Run-time panics | Phase 9 | Supported (native), with divergence V-5 | `TestGCStress` (every corpus program, generated allocation programs, and every generator, under stress), `TestGCMemoryBound` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
 | Everything else | — | — | Unsupported | gate tests, corpus |

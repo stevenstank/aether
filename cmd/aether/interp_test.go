@@ -307,8 +307,17 @@ func gcRejects(t *testing.T, gobin string, progs map[string][]byte) {
 // must be empty, and the exit status 2. Q is what Aether must write, with
 // nothing after it. The traceback after Q is not compared. Test programs
 // never print the text themselves.
+//
+// A fatal error (D-048: a deadlock, go of a nil func value) is compared
+// the same way: if "fatal error: " occurs before any "panic: ", Q is the
+// stderr up to and including the newline after it, and the line from there
+// must be "fatal error: " and a message.
 func panicPrefix(gc result) (q string, ok bool, err error) {
 	i := strings.Index(gc.stderr, "panic: ")
+	prefix := "panic: "
+	if j := strings.Index(gc.stderr, "fatal error: "); j >= 0 && (i < 0 || j < i) {
+		i, prefix = j, "fatal error: "
+	}
 	if i < 0 {
 		return "", false, nil
 	}
@@ -316,7 +325,7 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 	switch {
 	case !found:
 		return "", false, errors.New("no newline after the panic message")
-	case !runtimePanic(line, "panic: "):
+	case !runtimePanic(line, prefix):
 		return "", false, fmt.Errorf("panic line %q has no message", line)
 	case gc.exit != 2:
 		return "", false, fmt.Errorf("exit status %d, want 2", gc.exit)
@@ -324,7 +333,7 @@ func panicPrefix(gc result) (q string, ok bool, err error) {
 		return "", false, fmt.Errorf("stdout %q, want none", gc.stdout)
 	}
 	end := i + len(line) + 1
-	for strings.HasPrefix(gc.stderr[end:], "\t") {
+	for prefix == "panic: " && strings.HasPrefix(gc.stderr[end:], "\t") {
 		next, _, found := strings.Cut(gc.stderr[end:], "\n")
 		if !found {
 			return "", false, errors.New("no newline after a panic line")
@@ -351,6 +360,9 @@ func TestPanicPrefix(t *testing.T) {
 		{"panic: 1\n" + tb, "panic: 1\n"},
 		{"panic: a\n\tb\n\tpanic: runtime error: index out of range [1] with length 0\n[signal SIGSEGV]\n" + tb,
 			"panic: a\n\tb\n\tpanic: runtime error: index out of range [1] with length 0\n"},
+		{"1\nfatal error: all goroutines are asleep - deadlock!\n\ngoroutine 1 [chan receive]:\n" + tb,
+			"1\nfatal error: all goroutines are asleep - deadlock!\n"},
+		{"fatal error: go of nil func value\n\tx\npanic: y\n" + tb, "fatal error: go of nil func value\n"},
 	}
 	for _, tt := range good {
 		if q, ok, err := panicPrefix(result{stderr: tt.stderr, exit: 2}); err != nil || !ok || q != tt.q {
@@ -366,6 +378,8 @@ func TestPanicPrefix(t *testing.T) {
 		{stderr: "panic: runtime error: integer divide by zero", exit: 2},
 		{stderr: "panic: \n", exit: 2},
 		{stderr: "panic: 1\n\tpanic: 2", exit: 2},
+		{stderr: "fatal error: \n", exit: 2},
+		{stderr: "fatal error: all goroutines are asleep - deadlock!\n", exit: 0},
 	}
 	for _, r := range bad {
 		if q, ok, err := panicPrefix(r); err == nil {

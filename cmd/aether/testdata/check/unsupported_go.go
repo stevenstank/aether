@@ -3,5 +3,5 @@
 package main
 
 func main() {
-	go println()
+	go panic(1)
 }

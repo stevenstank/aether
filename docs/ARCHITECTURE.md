@@ -709,7 +709,7 @@ Some Go features need far more runtime support than others:
 | interfaces | type descriptors, itabs |
 | closures | heap-allocated captured variables |
 | `defer`/`recover` | defer records, unwinding |
-| goroutines, channels, `select` | one OS thread; fixed stack slots in one reservation and a context switch in the runtime; scheduler and channels as generated IR (D-048, planned) |
+| goroutines, channels, `select` | one OS thread; fixed stack slots in one reservation and a context switch in the runtime; scheduler and channels as generated IR (`lower/chan.go`); `select` planned (D-048) |
 | reflection | complete type metadata |
 | the standard library | nearly all of the above, plus assembly-implemented functions and `//go:linkname` dependencies |
 

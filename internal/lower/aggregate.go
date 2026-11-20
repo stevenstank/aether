@@ -419,6 +419,11 @@ func (l *lowerer) addrOf(e ast.Expr, lhs bool) place {
 		l.fail(e, "%s is not an array or struct variable", e.Name)
 	case *ast.StarExpr:
 		return l.deref(e.X)
+	case *ast.UnaryExpr:
+		if e.Op == token.ARROW {
+			p, _ := l.recvPlace(e) // D-048
+			return p
+		}
 	case *ast.SelectorExpr:
 		sel := l.pkg.Info.Selections[e]
 		if sel == nil || sel.Kind() != types.FieldVal {
@@ -506,6 +511,10 @@ func (l *lowerer) aggValue(e ast.Expr) *ir.Instr {
 		return l.addr(m, pos)
 	case *ast.TypeAssertExpr:
 		return l.assert(e, false)[0][0] // D-041
+	case *ast.UnaryExpr:
+		if e.Op == token.ARROW {
+			return l.recvValue(e)[0] // D-048
+		}
 	case *ast.IndexExpr:
 		if isMap(l.pkg.Info.Types[e.X].Type) {
 			return l.mapIndex(e).base() // a copy (D-042)

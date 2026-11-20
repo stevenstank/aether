@@ -38,7 +38,7 @@ func (l *lowerer) raising(own map[*ir.Func]bool) map[*ir.Func]bool {
 		scan:
 			for _, b := range f.Blocks {
 				for _, in := range b.Instrs {
-					if in.Op == ir.Panic && !l.ps.final[in] || in.Op == ir.CallInd && !l.ps.noCheck[in] || in.Op == ir.Call && raising[in.Callee] {
+					if in.Op == ir.Panic && !l.ps.final[in] && in.Index != ir.PanicFatal || in.Op == ir.CallInd && !l.ps.noCheck[in] || in.Op == ir.Call && raising[in.Callee] {
 						raising[f] = true
 						changed = true
 						break scan
@@ -60,7 +60,8 @@ func (l *lowerer) exit(f *ir.Func) *ir.Block {
 	l.ps.exits[f] = b
 	l.b = b
 	pos := f.Pos
-	if f.Name == "main" || f == l.prog.Init {
+	if f.Name == "main" || f == l.prog.Init || l.sch != nil && f == l.sch.entry {
+		// A panic leaving main, Init, or a goroutine ends the program.
 		l.endProgram(pos)
 		return b
 	}
@@ -82,7 +83,7 @@ func (l *lowerer) unwindFunc(f *ir.Func, raising map[*ir.Func]bool) {
 		for i := 0; i < len(b.Instrs); i++ {
 			in := b.Instrs[i]
 			switch {
-			case in.Op == ir.Panic && !ps.final[in]:
+			case in.Op == ir.Panic && !ps.final[in] && in.Index != ir.PanicFatal: // a fatal error ends the program at once (D-048)
 				b.Instrs = b.Instrs[:i]
 				l.b = b
 				if in.Index != ir.PanicExit {
