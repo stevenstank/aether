@@ -14,43 +14,45 @@ string s12 "first"
 string s13 "aether: woken on a nil channel"
 string s14 "recovered"
 string s15 "interface conversion: interface {} is nil, not string"
-string s16 "interface conversion: interface {} is "
-string s17 ", not string"
-string s18 "panic called with nil argument"
-string s19 "runtime error: integer divide by zero"
-string s20 "runtime error: negative shift amount"
-string s21 "runtime error: index out of range ["
-string s22 "]"
-string s23 "] with length "
-string s24 "runtime error: invalid memory address or nil pointer dereference"
-string s25 "runtime error: slice bounds out of range [:"
-string s26 "] with capacity "
-string s27 "runtime error: slice bounds out of range ["
-string s28 ":]"
-string s29 ":"
-string s30 "runtime error: slice bounds out of range [::"
-string s31 "::]"
-string s32 "runtime error: makeslice: len out of range"
-string s33 "runtime error: makeslice: cap out of range"
-string s34 "runtime error: growslice: len out of range"
-string s35 "(runtime.errorString) "
-string s36 "(runtime.boundsError) "
-string s37 "(runtime.plainError) "
-string s38 "(maps.unhashableTypeError) "
-string s39 "(*runtime.TypeAssertionError) "
-string s40 "(*runtime.PanicNilError) "
-string s41 "(main.E) "
-string s42 "interface conversion: "
-string s43 "hash of unhashable type: "
-string s44 "assignment to entry in nil map"
-string s45 "runtime.errorString"
-string s46 "runtime.boundsError"
-string s47 "runtime.plainError"
-string s48 "maps.unhashableTypeError"
-string s49 "*runtime.TypeAssertionError"
-string s50 "*runtime.PanicNilError"
-string s51 "string"
-string s52 "main.E"
+string s16 "string"
+string s17 "interface conversion: interface {} is "
+string s18 ", not string"
+string s19 ", not string (types from different scopes)"
+string s20 ", not string (types from different packages)"
+string s21 "panic called with nil argument"
+string s22 "runtime error: integer divide by zero"
+string s23 "runtime error: negative shift amount"
+string s24 "runtime error: index out of range ["
+string s25 "]"
+string s26 "] with length "
+string s27 "runtime error: invalid memory address or nil pointer dereference"
+string s28 "runtime error: slice bounds out of range [:"
+string s29 "] with capacity "
+string s30 "runtime error: slice bounds out of range ["
+string s31 ":]"
+string s32 ":"
+string s33 "runtime error: slice bounds out of range [::"
+string s34 "::]"
+string s35 "runtime error: makeslice: len out of range"
+string s36 "runtime error: makeslice: cap out of range"
+string s37 "runtime error: growslice: len out of range"
+string s38 "(runtime.errorString) "
+string s39 "(runtime.boundsError) "
+string s40 "(runtime.plainError) "
+string s41 "(maps.unhashableTypeError) "
+string s42 "(*runtime.TypeAssertionError) "
+string s43 "(*runtime.PanicNilError) "
+string s44 "(main.E) "
+string s45 "interface conversion: "
+string s46 "hash of unhashable type: "
+string s47 "assignment to entry in nil map"
+string s48 "runtime.errorString"
+string s49 "runtime.boundsError"
+string s50 "runtime.plainError"
+string s51 "maps.unhashableTypeError"
+string s52 "*runtime.TypeAssertionError"
+string s53 "*runtime.PanicNilError"
+string s54 "main.E"
 global g0 .unwinding bool @testdata/check/s6_g04_goroutine_panic.go:3:1
 global g1 .panics ptr @testdata/check/s6_g04_goroutine_panic.go:3:1
 global g2 .rframe bool @testdata/check/s6_g04_goroutine_panic.go:3:1
@@ -525,7 +527,7 @@ b0:
   v5 = eq v3, v4 @3:1
   branch v5, b1, b2 @3:1
 b1:
-  v6 = str s18 @3:1
+  v6 = str s21 @3:1
   v7 = const 30 @3:1
   print v6, v7 @3:1
   ret @3:1
@@ -553,7 +555,7 @@ b4:
   v23 = eq v21, v22 @3:1
   branch v23, b5, b6 @3:1
 b5:
-  v24 = str s19 @3:1
+  v24 = str s22 @3:1
   v25 = const 37 @3:1
   print v24, v25 @3:1
   ret @3:1
@@ -565,7 +567,7 @@ b6:
   v30 = eq v28, v29 @3:1
   branch v30, b7, b8 @3:1
 b7:
-  v31 = str s20 @3:1
+  v31 = str s23 @3:1
   v32 = const 36 @3:1
   print v31, v32 @3:1
   ret @3:1
@@ -577,7 +579,7 @@ b8:
   v37 = eq v35, v36 @3:1
   branch v37, b9, b10 @3:1
 b9:
-  v38 = str s21 @3:1
+  v38 = str s24 @3:1
   v39 = const 35 @3:1
   print v38, v39 @3:1
   v40 = load s0 @3:1
@@ -592,7 +594,7 @@ b10:
   v63 = eq v61, v62 @3:1
   branch v63, b16, b17 @3:1
 b11:
-  v54 = str s23 @3:1
+  v54 = str s26 @3:1
   v55 = const 14 @3:1
   print v54, v55 @3:1
   v56 = load s0 @3:1
@@ -616,14 +618,14 @@ b13:
   print v53 @3:1
   jump b11 @3:1
 b14:
-  v48 = str s22 @3:1
+  v48 = str s25 @3:1
   v49 = const 1 @3:1
   print v48, v49 @3:1
   ret @3:1
 b15:
   jump b11 @3:1
 b16:
-  v64 = str s24 @3:1
+  v64 = str s27 @3:1
   v65 = const 64 @3:1
   print v64, v65 @3:1
   ret @3:1
@@ -635,7 +637,7 @@ b17:
   v70 = eq v68, v69 @3:1
   branch v70, b18, b19 @3:1
 b18:
-  v71 = str s25 @3:1
+  v71 = str s28 @3:1
   v72 = const 43 @3:1
   print v71, v72 @3:1
   v73 = load s0 @3:1
@@ -650,7 +652,7 @@ b19:
   v96 = eq v94, v95 @3:1
   branch v96, b25, b26 @3:1
 b20:
-  v87 = str s23 @3:1
+  v87 = str s26 @3:1
   v88 = const 14 @3:1
   print v87, v88 @3:1
   v89 = load s0 @3:1
@@ -674,14 +676,14 @@ b22:
   print v86 @3:1
   jump b20 @3:1
 b23:
-  v81 = str s22 @3:1
+  v81 = str s25 @3:1
   v82 = const 1 @3:1
   print v81, v82 @3:1
   ret @3:1
 b24:
   jump b20 @3:1
 b25:
-  v97 = str s25 @3:1
+  v97 = str s28 @3:1
   v98 = const 43 @3:1
   print v97, v98 @3:1
   v99 = load s0 @3:1
@@ -696,7 +698,7 @@ b26:
   v122 = eq v120, v121 @3:1
   branch v122, b32, b33 @3:1
 b27:
-  v113 = str s26 @3:1
+  v113 = str s29 @3:1
   v114 = const 16 @3:1
   print v113, v114 @3:1
   v115 = load s0 @3:1
@@ -720,14 +722,14 @@ b29:
   print v112 @3:1
   jump b27 @3:1
 b30:
-  v107 = str s22 @3:1
+  v107 = str s25 @3:1
   v108 = const 1 @3:1
   print v107, v108 @3:1
   ret @3:1
 b31:
   jump b27 @3:1
 b32:
-  v123 = str s27 @3:1
+  v123 = str s30 @3:1
   v124 = const 42 @3:1
   print v123, v124 @3:1
   v125 = load s0 @3:1
@@ -742,14 +744,14 @@ b33:
   v150 = eq v148, v149 @3:1
   branch v150, b39, b40 @3:1
 b34:
-  v139 = str s29 @3:1
+  v139 = str s32 @3:1
   v140 = const 1 @3:1
   print v139, v140 @3:1
   v141 = load s0 @3:1
   v142 = const 40 @3:1
   v143 = ldm i64, v141, v142 @3:1
   print v143 @3:1
-  v144 = str s22 @3:1
+  v144 = str s25 @3:1
   v145 = const 1 @3:1
   print v144, v145 @3:1
   ret @3:1
@@ -769,14 +771,14 @@ b36:
   print v138 @3:1
   jump b34 @3:1
 b37:
-  v133 = str s28 @3:1
+  v133 = str s31 @3:1
   v134 = const 2 @3:1
   print v133, v134 @3:1
   ret @3:1
 b38:
   jump b34 @3:1
 b39:
-  v151 = str s30 @3:1
+  v151 = str s33 @3:1
   v152 = const 44 @3:1
   print v151, v152 @3:1
   v153 = load s0 @3:1
@@ -791,7 +793,7 @@ b40:
   v176 = eq v174, v175 @3:1
   branch v176, b46, b47 @3:1
 b41:
-  v167 = str s23 @3:1
+  v167 = str s26 @3:1
   v168 = const 14 @3:1
   print v167, v168 @3:1
   v169 = load s0 @3:1
@@ -815,14 +817,14 @@ b43:
   print v166 @3:1
   jump b41 @3:1
 b44:
-  v161 = str s22 @3:1
+  v161 = str s25 @3:1
   v162 = const 1 @3:1
   print v161, v162 @3:1
   ret @3:1
 b45:
   jump b41 @3:1
 b46:
-  v177 = str s30 @3:1
+  v177 = str s33 @3:1
   v178 = const 44 @3:1
   print v177, v178 @3:1
   v179 = load s0 @3:1
@@ -837,7 +839,7 @@ b47:
   v202 = eq v200, v201 @3:1
   branch v202, b53, b54 @3:1
 b48:
-  v193 = str s26 @3:1
+  v193 = str s29 @3:1
   v194 = const 16 @3:1
   print v193, v194 @3:1
   v195 = load s0 @3:1
@@ -861,14 +863,14 @@ b50:
   print v192 @3:1
   jump b48 @3:1
 b51:
-  v187 = str s22 @3:1
+  v187 = str s25 @3:1
   v188 = const 1 @3:1
   print v187, v188 @3:1
   ret @3:1
 b52:
   jump b48 @3:1
 b53:
-  v203 = str s25 @3:1
+  v203 = str s28 @3:1
   v204 = const 43 @3:1
   print v203, v204 @3:1
   v205 = load s0 @3:1
@@ -883,14 +885,14 @@ b54:
   v230 = eq v228, v229 @3:1
   branch v230, b60, b61 @3:1
 b55:
-  v219 = str s29 @3:1
+  v219 = str s32 @3:1
   v220 = const 1 @3:1
   print v219, v220 @3:1
   v221 = load s0 @3:1
   v222 = const 40 @3:1
   v223 = ldm i64, v221, v222 @3:1
   print v223 @3:1
-  v224 = str s22 @3:1
+  v224 = str s25 @3:1
   v225 = const 1 @3:1
   print v224, v225 @3:1
   ret @3:1
@@ -910,14 +912,14 @@ b57:
   print v218 @3:1
   jump b55 @3:1
 b58:
-  v213 = str s28 @3:1
+  v213 = str s31 @3:1
   v214 = const 2 @3:1
   print v213, v214 @3:1
   ret @3:1
 b59:
   jump b55 @3:1
 b60:
-  v231 = str s27 @3:1
+  v231 = str s30 @3:1
   v232 = const 42 @3:1
   print v231, v232 @3:1
   v233 = load s0 @3:1
@@ -932,14 +934,14 @@ b61:
   v258 = eq v256, v257 @3:1
   branch v258, b67, b68 @3:1
 b62:
-  v247 = str s29 @3:1
+  v247 = str s32 @3:1
   v248 = const 1 @3:1
   print v247, v248 @3:1
   v249 = load s0 @3:1
   v250 = const 40 @3:1
   v251 = ldm i64, v249, v250 @3:1
   print v251 @3:1
-  v252 = str s28 @3:1
+  v252 = str s31 @3:1
   v253 = const 2 @3:1
   print v252, v253 @3:1
   ret @3:1
@@ -959,14 +961,14 @@ b64:
   print v246 @3:1
   jump b62 @3:1
 b65:
-  v241 = str s31 @3:1
+  v241 = str s34 @3:1
   v242 = const 3 @3:1
   print v241, v242 @3:1
   ret @3:1
 b66:
   jump b62 @3:1
 b67:
-  v259 = str s32 @3:1
+  v259 = str s35 @3:1
   v260 = const 42 @3:1
   print v259, v260 @3:1
   ret @3:1
@@ -978,7 +980,7 @@ b68:
   v265 = eq v263, v264 @3:1
   branch v265, b69, b70 @3:1
 b69:
-  v266 = str s33 @3:1
+  v266 = str s36 @3:1
   v267 = const 42 @3:1
   print v266, v267 @3:1
   ret @3:1
@@ -990,7 +992,7 @@ b70:
   v272 = eq v270, v271 @3:1
   branch v272, b71, b72 @3:1
 b71:
-  v273 = str s34 @3:1
+  v273 = str s37 @3:1
   v274 = const 42 @3:1
   print v273, v274 @3:1
   ret @3:1
@@ -1018,7 +1020,7 @@ b74:
   v290 = eq v288, v289 @3:1
   branch v290, b75, b76 @3:1
 b75:
-  v291 = str s35 @3:1
+  v291 = str s38 @3:1
   v292 = const 22 @3:1
   print v291, v292 @3:1
   v293 = load s0 @3:1
@@ -1034,7 +1036,7 @@ b76:
   v300 = eq v298, v299 @3:1
   branch v300, b77, b78 @3:1
 b77:
-  v301 = str s36 @3:1
+  v301 = str s39 @3:1
   v302 = const 22 @3:1
   print v301, v302 @3:1
   v303 = load s0 @3:1
@@ -1050,7 +1052,7 @@ b78:
   v310 = eq v308, v309 @3:1
   branch v310, b79, b80 @3:1
 b79:
-  v311 = str s37 @3:1
+  v311 = str s40 @3:1
   v312 = const 21 @3:1
   print v311, v312 @3:1
   v313 = load s0 @3:1
@@ -1066,7 +1068,7 @@ b80:
   v320 = eq v318, v319 @3:1
   branch v320, b81, b82 @3:1
 b81:
-  v321 = str s38 @3:1
+  v321 = str s41 @3:1
   v322 = const 27 @3:1
   print v321, v322 @3:1
   v323 = load s0 @3:1
@@ -1082,7 +1084,7 @@ b82:
   v330 = eq v328, v329 @3:1
   branch v330, b83, b84 @3:1
 b83:
-  v331 = str s39 @3:1
+  v331 = str s42 @3:1
   v332 = const 30 @3:1
   print v331, v332 @3:1
   v333 = load s0 @3:1
@@ -1098,7 +1100,7 @@ b84:
   v340 = eq v338, v339 @3:1
   branch v340, b85, b86 @3:1
 b85:
-  v341 = str s40 @3:1
+  v341 = str s43 @3:1
   v342 = const 25 @3:1
   print v341, v342 @3:1
   v343 = load s0 @3:1
@@ -1132,7 +1134,7 @@ b88:
   v362 = eq v360, v361 @3:1
   branch v362, b89, b90 @3:1
 b89:
-  v363 = str s41 @3:1
+  v363 = str s44 @3:1
   v364 = const 9 @3:1
   print v363, v364 @3:1
   v365 = load s0 @3:1
@@ -1949,7 +1951,7 @@ b2:
   v10 = eq v8, v9 @3:1
   branch v10, b3, b4 @3:1
 b3:
-  v11 = str s18 @3:1
+  v11 = str s21 @3:1
   v12 = const 30 @3:1
   store s1, v11 @3:1
   store s2, v12 @3:1
@@ -1982,7 +1984,7 @@ b4:
   v31 = eq v29, v30 @3:1
   branch v31, b5, b6 @3:1
 b5:
-  v32 = str s19 @3:1
+  v32 = str s22 @3:1
   v33 = const 37 @3:1
   store s4, v32 @3:1
   store s5, v33 @3:1
@@ -2015,7 +2017,7 @@ b6:
   v52 = eq v50, v51 @3:1
   branch v52, b7, b8 @3:1
 b7:
-  v53 = str s20 @3:1
+  v53 = str s23 @3:1
   v54 = const 36 @3:1
   store s7, v53 @3:1
   store s8, v54 @3:1
@@ -2059,7 +2061,7 @@ b9:
   v82 = extract 1, v80 @3:1
   store s10, v81 @3:1
   store s11, v82 @3:1
-  v83 = str s21 @3:1
+  v83 = str s24 @3:1
   v84 = const 35 @3:1
   store s12, v83 @3:1
   store s13, v84 @3:1
@@ -2086,7 +2088,7 @@ b11:
   v130 = load s13 @3:1
   v131 = load s10 @3:1
   v132 = load s11 @3:1
-  v133 = str s23 @3:1
+  v133 = str s26 @3:1
   v134 = const 14 @3:1
   v135 = add v130, v132 @3:1
   v136 = add v135, v134 @3:1
@@ -2141,7 +2143,7 @@ b14:
   v94 = load s13 @3:1
   v95 = load s10 @3:1
   v96 = load s11 @3:1
-  v97 = str s22 @3:1
+  v97 = str s25 @3:1
   v98 = const 1 @3:1
   v99 = add v94, v96 @3:1
   v100 = add v99, v98 @3:1
@@ -2181,7 +2183,7 @@ b14:
 b15:
   jump b11 @3:1
 b16:
-  v166 = str s24 @3:1
+  v166 = str s27 @3:1
   v167 = const 64 @3:1
   store s20, v166 @3:1
   store s21, v167 @3:1
@@ -2225,7 +2227,7 @@ b18:
   v195 = extract 1, v193 @3:1
   store s23, v194 @3:1
   store s24, v195 @3:1
-  v196 = str s25 @3:1
+  v196 = str s28 @3:1
   v197 = const 43 @3:1
   store s25, v196 @3:1
   store s26, v197 @3:1
@@ -2252,7 +2254,7 @@ b20:
   v243 = load s26 @3:1
   v244 = load s23 @3:1
   v245 = load s24 @3:1
-  v246 = str s23 @3:1
+  v246 = str s26 @3:1
   v247 = const 14 @3:1
   v248 = add v243, v245 @3:1
   v249 = add v248, v247 @3:1
@@ -2307,7 +2309,7 @@ b23:
   v207 = load s26 @3:1
   v208 = load s23 @3:1
   v209 = load s24 @3:1
-  v210 = str s22 @3:1
+  v210 = str s25 @3:1
   v211 = const 1 @3:1
   v212 = add v207, v209 @3:1
   v213 = add v212, v211 @3:1
@@ -2358,7 +2360,7 @@ b25:
   v287 = extract 1, v285 @3:1
   store s33, v286 @3:1
   store s34, v287 @3:1
-  v288 = str s25 @3:1
+  v288 = str s28 @3:1
   v289 = const 43 @3:1
   store s35, v288 @3:1
   store s36, v289 @3:1
@@ -2385,7 +2387,7 @@ b27:
   v335 = load s36 @3:1
   v336 = load s33 @3:1
   v337 = load s34 @3:1
-  v338 = str s26 @3:1
+  v338 = str s29 @3:1
   v339 = const 16 @3:1
   v340 = add v335, v337 @3:1
   v341 = add v340, v339 @3:1
@@ -2440,7 +2442,7 @@ b30:
   v299 = load s36 @3:1
   v300 = load s33 @3:1
   v301 = load s34 @3:1
-  v302 = str s22 @3:1
+  v302 = str s25 @3:1
   v303 = const 1 @3:1
   v304 = add v299, v301 @3:1
   v305 = add v304, v303 @3:1
@@ -2491,7 +2493,7 @@ b32:
   v379 = extract 1, v377 @3:1
   store s43, v378 @3:1
   store s44, v379 @3:1
-  v380 = str s27 @3:1
+  v380 = str s30 @3:1
   v381 = const 42 @3:1
   store s45, v380 @3:1
   store s46, v381 @3:1
@@ -2518,9 +2520,9 @@ b34:
   v427 = load s46 @3:1
   v428 = load s43 @3:1
   v429 = load s44 @3:1
-  v430 = str s29 @3:1
+  v430 = str s32 @3:1
   v431 = const 1 @3:1
-  v432 = str s22 @3:1
+  v432 = str s25 @3:1
   v433 = const 1 @3:1
   v434 = add v427, v429 @3:1
   v435 = add v434, v431 @3:1
@@ -2579,7 +2581,7 @@ b37:
   v391 = load s46 @3:1
   v392 = load s43 @3:1
   v393 = load s44 @3:1
-  v394 = str s28 @3:1
+  v394 = str s31 @3:1
   v395 = const 2 @3:1
   v396 = add v391, v393 @3:1
   v397 = add v396, v395 @3:1
@@ -2630,7 +2632,7 @@ b39:
   v476 = extract 1, v474 @3:1
   store s53, v475 @3:1
   store s54, v476 @3:1
-  v477 = str s30 @3:1
+  v477 = str s33 @3:1
   v478 = const 44 @3:1
   store s55, v477 @3:1
   store s56, v478 @3:1
@@ -2657,7 +2659,7 @@ b41:
   v524 = load s56 @3:1
   v525 = load s53 @3:1
   v526 = load s54 @3:1
-  v527 = str s23 @3:1
+  v527 = str s26 @3:1
   v528 = const 14 @3:1
   v529 = add v524, v526 @3:1
   v530 = add v529, v528 @3:1
@@ -2712,7 +2714,7 @@ b44:
   v488 = load s56 @3:1
   v489 = load s53 @3:1
   v490 = load s54 @3:1
-  v491 = str s22 @3:1
+  v491 = str s25 @3:1
   v492 = const 1 @3:1
   v493 = add v488, v490 @3:1
   v494 = add v493, v492 @3:1
@@ -2763,7 +2765,7 @@ b46:
   v568 = extract 1, v566 @3:1
   store s63, v567 @3:1
   store s64, v568 @3:1
-  v569 = str s30 @3:1
+  v569 = str s33 @3:1
   v570 = const 44 @3:1
   store s65, v569 @3:1
   store s66, v570 @3:1
@@ -2790,7 +2792,7 @@ b48:
   v616 = load s66 @3:1
   v617 = load s63 @3:1
   v618 = load s64 @3:1
-  v619 = str s26 @3:1
+  v619 = str s29 @3:1
   v620 = const 16 @3:1
   v621 = add v616, v618 @3:1
   v622 = add v621, v620 @3:1
@@ -2845,7 +2847,7 @@ b51:
   v580 = load s66 @3:1
   v581 = load s63 @3:1
   v582 = load s64 @3:1
-  v583 = str s22 @3:1
+  v583 = str s25 @3:1
   v584 = const 1 @3:1
   v585 = add v580, v582 @3:1
   v586 = add v585, v584 @3:1
@@ -2896,7 +2898,7 @@ b53:
   v660 = extract 1, v658 @3:1
   store s73, v659 @3:1
   store s74, v660 @3:1
-  v661 = str s25 @3:1
+  v661 = str s28 @3:1
   v662 = const 43 @3:1
   store s75, v661 @3:1
   store s76, v662 @3:1
@@ -2923,9 +2925,9 @@ b55:
   v708 = load s76 @3:1
   v709 = load s73 @3:1
   v710 = load s74 @3:1
-  v711 = str s29 @3:1
+  v711 = str s32 @3:1
   v712 = const 1 @3:1
-  v713 = str s22 @3:1
+  v713 = str s25 @3:1
   v714 = const 1 @3:1
   v715 = add v708, v710 @3:1
   v716 = add v715, v712 @3:1
@@ -2984,7 +2986,7 @@ b58:
   v672 = load s76 @3:1
   v673 = load s73 @3:1
   v674 = load s74 @3:1
-  v675 = str s28 @3:1
+  v675 = str s31 @3:1
   v676 = const 2 @3:1
   v677 = add v672, v674 @3:1
   v678 = add v677, v676 @3:1
@@ -3035,7 +3037,7 @@ b60:
   v757 = extract 1, v755 @3:1
   store s83, v756 @3:1
   store s84, v757 @3:1
-  v758 = str s27 @3:1
+  v758 = str s30 @3:1
   v759 = const 42 @3:1
   store s85, v758 @3:1
   store s86, v759 @3:1
@@ -3062,9 +3064,9 @@ b62:
   v805 = load s86 @3:1
   v806 = load s83 @3:1
   v807 = load s84 @3:1
-  v808 = str s29 @3:1
+  v808 = str s32 @3:1
   v809 = const 1 @3:1
-  v810 = str s28 @3:1
+  v810 = str s31 @3:1
   v811 = const 2 @3:1
   v812 = add v805, v807 @3:1
   v813 = add v812, v809 @3:1
@@ -3123,7 +3125,7 @@ b65:
   v769 = load s86 @3:1
   v770 = load s83 @3:1
   v771 = load s84 @3:1
-  v772 = str s31 @3:1
+  v772 = str s34 @3:1
   v773 = const 3 @3:1
   v774 = add v769, v771 @3:1
   v775 = add v774, v773 @3:1
@@ -3163,7 +3165,7 @@ b65:
 b66:
   jump b62 @3:1
 b67:
-  v846 = str s32 @3:1
+  v846 = str s35 @3:1
   v847 = const 42 @3:1
   store s93, v846 @3:1
   store s94, v847 @3:1
@@ -3196,7 +3198,7 @@ b68:
   v866 = eq v864, v865 @3:1
   branch v866, b69, b70 @3:1
 b69:
-  v867 = str s33 @3:1
+  v867 = str s36 @3:1
   v868 = const 42 @3:1
   store s96, v867 @3:1
   store s97, v868 @3:1
@@ -3229,7 +3231,7 @@ b70:
   v887 = eq v885, v886 @3:1
   branch v887, b71, b72 @3:1
 b71:
-  v888 = str s34 @3:1
+  v888 = str s37 @3:1
   v889 = const 42 @3:1
   store s99, v888 @3:1
   store s100, v889 @3:1
@@ -3274,7 +3276,7 @@ b73:
 b74:
   ret @3:1
 b75:
-  v917 = str s42 @3:1
+  v917 = str s45 @3:1
   v918 = const 22 @3:1
   v919 = load s0 @3:1
   v920 = const 56 @3:1
@@ -3328,7 +3330,7 @@ b77:
 b78:
   jump b76 @3:1
 b79:
-  v955 = str s43 @3:1
+  v955 = str s46 @3:1
   v956 = const 25 @3:1
   v957 = load s0 @3:1
   v958 = const 56 @3:1
@@ -3382,7 +3384,7 @@ b81:
 b82:
   jump b80 @3:1
 b83:
-  v993 = str s44 @3:1
+  v993 = str s47 @3:1
   v994 = const 30 @3:1
   v995 = load s0 @3:1
   v996 = const 56 @3:1
@@ -4277,10 +4279,11 @@ func .lit2(ptr) @testdata/check/s6_g04_goroutine_panic.go:17:9
   slot s10 v i64 @19:27
   slot s11 ok bool @19:27
   slot s12 tmp ptr @19:27
-  slot s13 tmp ptr @20:10
+  slot s13 tmp ptr @19:27
   slot s14 tmp ptr @20:10
   slot s15 tmp ptr @20:10
   slot s16 tmp ptr @20:10
+  slot s17 tmp ptr @20:10
   mem m0 tmp 8 align 8 @20:10
 b0:
   v0 = param 0 @17:9
@@ -4330,33 +4333,33 @@ b2:
   v26 = eq v24, v25 @19:27
   branch v26, b4, b5 @19:27
 b3:
-  v50 = load s9 @19:27
-  v51 = load s10 @19:27
-  v52 = load s5 @19:12
-  v53 = load s6 @19:12
-  println v52, v53, v50, v51 @19:4
-  v54 = load s1 @20:15
-  v55 = const 0 @20:15
-  v56 = ldm ptr, v54, v55 @20:15
-  v57 = call c2, v56 @20:12
-  v58 = addr m0 @20:10
-  v59 = const 0 @20:12
-  stm v58, v59, v57 @20:12
-  store s13, v58 @20:10
-  v60 = const 8 @20:10
-  v61 = alloc noscan, v60 @20:10
-  store s14, v61 @20:10
-  v62 = load s13 @20:10
-  store s15, v62 @20:10
-  v63 = const 0 @20:10
-  v64 = ldm i64, v62, v63 @20:10
-  v65 = const 0 @20:10
-  stm v61, v65, v64 @20:10
-  store s16, v61 @20:10
-  v66 = addr gm7 @20:10
-  v67 = load s16 @20:10
-  call .gopanic, v66, v67 @20:4
-  jump b6 @20:4
+  v97 = load s9 @19:27
+  v98 = load s10 @19:27
+  v99 = load s5 @19:12
+  v100 = load s6 @19:12
+  println v99, v100, v97, v98 @19:4
+  v101 = load s1 @20:15
+  v102 = const 0 @20:15
+  v103 = ldm ptr, v101, v102 @20:15
+  v104 = call c2, v103 @20:12
+  v105 = addr m0 @20:10
+  v106 = const 0 @20:12
+  stm v105, v106, v104 @20:12
+  store s14, v105 @20:10
+  v107 = const 8 @20:10
+  v108 = alloc noscan, v107 @20:10
+  store s15, v108 @20:10
+  v109 = load s14 @20:10
+  store s16, v109 @20:10
+  v110 = const 0 @20:10
+  v111 = ldm i64, v109, v110 @20:10
+  v112 = const 0 @20:10
+  stm v108, v112, v111 @20:10
+  store s17, v108 @20:10
+  v113 = addr gm7 @20:10
+  v114 = load s17 @20:10
+  call .gopanic, v113, v114 @20:4
+  jump b10 @20:4
 b4:
   v27 = str s15 @19:27
   v28 = const 53 @19:27
@@ -4364,45 +4367,121 @@ b4:
   v30 = const 0 @19:27
   v31 = padd v29, v30 @19:27
   move v31, v27, v28 @19:27
-  v68 = const 0 @19:27
-  v69 = const 0 @19:27
-  v70 = const false @19:27
-  v71 = const ptr 0 @19:27
-  v72 = const 0 @19:27
-  v73 = const 17 @19:27
-  call .raise, v73, v68, v69, v70, v29, v28 @19:27
-  jump b6 @19:27
+  v115 = const 0 @19:27
+  v116 = const 0 @19:27
+  v117 = const false @19:27
+  v118 = const ptr 0 @19:27
+  v119 = const 0 @19:27
+  v120 = const 17 @19:27
+  call .raise, v120, v115, v116, v117, v29, v28 @19:27
+  jump b10 @19:27
 b5:
   v32 = load s7 @19:27
-  v33 = str s16 @19:27
-  v34 = const 38 @19:27
-  v35 = const 0 @19:27
-  v36 = ldm ptr, v32, v35 @19:27
-  v37 = const 8 @19:27
-  v38 = ldm i64, v32, v37 @19:27
-  v39 = str s17 @19:27
-  v40 = const 12 @19:27
-  v41 = add v34, v38 @19:27
-  v42 = add v41, v40 @19:27
-  v43 = alloc noscan, v42 @19:27
-  v44 = const 0 @19:27
-  v45 = padd v43, v44 @19:27
-  move v45, v33, v34 @19:27
-  v46 = add v44, v34 @19:27
-  v47 = padd v43, v46 @19:27
-  move v47, v36, v38 @19:27
-  v48 = add v46, v38 @19:27
-  v49 = padd v43, v48 @19:27
-  move v49, v39, v40 @19:27
-  v74 = const 0 @19:27
-  v75 = const 0 @19:27
-  v76 = const false @19:27
-  v77 = const ptr 0 @19:27
-  v78 = const 0 @19:27
-  v79 = const 17 @19:27
-  call .raise, v79, v74, v75, v76, v43, v42 @19:27
-  jump b6 @19:27
+  store s13, v32 @19:27
+  v33 = const 0 @19:27
+  v34 = ldm ptr, v32, v33 @19:27
+  v35 = const 8 @19:27
+  v36 = ldm i64, v32, v35 @19:27
+  v37 = str s16 @19:27
+  v38 = const 6 @19:27
+  v39 = call .streq, v34, v36, v37, v38 @19:27
+  v40 = not v39 @19:27
+  branch v40, b6, b7 @19:27
 b6:
+  v41 = str s17 @19:27
+  v42 = const 38 @19:27
+  v43 = load s13 @19:27
+  v44 = const 0 @19:27
+  v45 = ldm ptr, v43, v44 @19:27
+  v46 = const 8 @19:27
+  v47 = ldm i64, v43, v46 @19:27
+  v48 = str s18 @19:27
+  v49 = const 12 @19:27
+  v50 = add v42, v47 @19:27
+  v51 = add v50, v49 @19:27
+  v52 = alloc noscan, v51 @19:27
+  v53 = const 0 @19:27
+  v54 = padd v52, v53 @19:27
+  move v54, v41, v42 @19:27
+  v55 = add v53, v42 @19:27
+  v56 = padd v52, v55 @19:27
+  move v56, v45, v47 @19:27
+  v57 = add v55, v47 @19:27
+  v58 = padd v52, v57 @19:27
+  move v58, v48, v49 @19:27
+  v121 = const 0 @19:27
+  v122 = const 0 @19:27
+  v123 = const false @19:27
+  v124 = const ptr 0 @19:27
+  v125 = const 0 @19:27
+  v126 = const 17 @19:27
+  call .raise, v126, v121, v122, v123, v52, v51 @19:27
+  jump b10 @19:27
+b7:
+  v59 = load s13 @19:27
+  v60 = call .samepath0, v59 @19:27
+  branch v60, b8, b9 @19:27
+b8:
+  v61 = str s17 @19:27
+  v62 = const 38 @19:27
+  v63 = load s13 @19:27
+  v64 = const 0 @19:27
+  v65 = ldm ptr, v63, v64 @19:27
+  v66 = const 8 @19:27
+  v67 = ldm i64, v63, v66 @19:27
+  v68 = str s19 @19:27
+  v69 = const 42 @19:27
+  v70 = add v62, v67 @19:27
+  v71 = add v70, v69 @19:27
+  v72 = alloc noscan, v71 @19:27
+  v73 = const 0 @19:27
+  v74 = padd v72, v73 @19:27
+  move v74, v61, v62 @19:27
+  v75 = add v73, v62 @19:27
+  v76 = padd v72, v75 @19:27
+  move v76, v65, v67 @19:27
+  v77 = add v75, v67 @19:27
+  v78 = padd v72, v77 @19:27
+  move v78, v68, v69 @19:27
+  v127 = const 0 @19:27
+  v128 = const 0 @19:27
+  v129 = const false @19:27
+  v130 = const ptr 0 @19:27
+  v131 = const 0 @19:27
+  v132 = const 17 @19:27
+  call .raise, v132, v127, v128, v129, v72, v71 @19:27
+  jump b10 @19:27
+b9:
+  v79 = str s17 @19:27
+  v80 = const 38 @19:27
+  v81 = load s13 @19:27
+  v82 = const 0 @19:27
+  v83 = ldm ptr, v81, v82 @19:27
+  v84 = const 8 @19:27
+  v85 = ldm i64, v81, v84 @19:27
+  v86 = str s20 @19:27
+  v87 = const 44 @19:27
+  v88 = add v80, v85 @19:27
+  v89 = add v88, v87 @19:27
+  v90 = alloc noscan, v89 @19:27
+  v91 = const 0 @19:27
+  v92 = padd v90, v91 @19:27
+  move v92, v79, v80 @19:27
+  v93 = add v91, v80 @19:27
+  v94 = padd v90, v93 @19:27
+  move v94, v83, v85 @19:27
+  v95 = add v93, v85 @19:27
+  v96 = padd v90, v95 @19:27
+  move v96, v86, v87 @19:27
+  v133 = const 0 @19:27
+  v134 = const 0 @19:27
+  v135 = const false @19:27
+  v136 = const ptr 0 @19:27
+  v137 = const 0 @19:27
+  v138 = const 17 @19:27
+  call .raise, v138, v133, v134, v135, v90, v89 @19:27
+  jump b10 @19:27
+b10:
   ret @17:9
 
 func .defer3(ptr) @testdata/check/s6_g04_goroutine_panic.go:3:1
@@ -4600,6 +4679,38 @@ b5:
   jump b4 @3:1
 b6:
   ret @3:1
+
+func .samepath0(ptr) bool @testdata/check/s6_g04_goroutine_panic.go:19:27
+  slot s0 tmp ptr @19:27
+b0:
+  v0 = param 0 @19:27
+  store s0, v0 @19:27
+  v1 = load s0 @19:27
+  v2 = addr gm4 @19:27
+  v3 = eq v1, v2 @19:27
+  branch v3, b1, b2 @19:27
+b1:
+  v4 = const true @19:27
+  ret v4 @19:27
+b2:
+  v5 = load s0 @19:27
+  v6 = addr gm5 @19:27
+  v7 = eq v5, v6 @19:27
+  branch v7, b3, b4 @19:27
+b3:
+  v8 = const true @19:27
+  ret v8 @19:27
+b4:
+  v9 = load s0 @19:27
+  v10 = addr gm6 @19:27
+  v11 = eq v9, v10 @19:27
+  branch v11, b5, b6 @19:27
+b5:
+  v12 = const true @19:27
+  ret v12 @19:27
+b6:
+  v13 = const false @19:27
+  ret v13 @19:27
 
 func .eq7(ptr, ptr, ptr) bool @testdata/check/s6_g04_goroutine_panic.go:17:9
   slot s0 tmp ptr @17:9
@@ -4799,7 +4910,7 @@ func init @testdata/check/s6_g04_goroutine_panic.go:3:1
 b0:
   v0 = addr gm0 @3:1
   v1 = const 0 @3:1
-  v2 = str s45 @3:1
+  v2 = str s48 @3:1
   stm v0, v1, v2 @3:1
   v3 = const 8 @3:1
   v4 = const 19 @3:1
@@ -4809,7 +4920,7 @@ b0:
   stm v0, v5, v6 @3:1
   v7 = addr gm1 @3:1
   v8 = const 0 @3:1
-  v9 = str s46 @3:1
+  v9 = str s49 @3:1
   stm v7, v8, v9 @3:1
   v10 = const 8 @3:1
   v11 = const 19 @3:1
@@ -4819,7 +4930,7 @@ b0:
   stm v7, v12, v13 @3:1
   v14 = addr gm2 @3:1
   v15 = const 0 @3:1
-  v16 = str s47 @3:1
+  v16 = str s50 @3:1
   stm v14, v15, v16 @3:1
   v17 = const 8 @3:1
   v18 = const 18 @3:1
@@ -4829,7 +4940,7 @@ b0:
   stm v14, v19, v20 @3:1
   v21 = addr gm3 @3:1
   v22 = const 0 @3:1
-  v23 = str s48 @3:1
+  v23 = str s51 @3:1
   stm v21, v22, v23 @3:1
   v24 = const 8 @3:1
   v25 = const 24 @3:1
@@ -4839,7 +4950,7 @@ b0:
   stm v21, v26, v27 @3:1
   v28 = addr gm4 @3:1
   v29 = const 0 @3:1
-  v30 = str s49 @3:1
+  v30 = str s52 @3:1
   stm v28, v29, v30 @3:1
   v31 = const 8 @3:1
   v32 = const 27 @3:1
@@ -4849,7 +4960,7 @@ b0:
   stm v28, v33, v34 @3:1
   v35 = addr gm5 @3:1
   v36 = const 0 @3:1
-  v37 = str s50 @3:1
+  v37 = str s53 @3:1
   stm v35, v36, v37 @3:1
   v38 = const 8 @3:1
   v39 = const 22 @3:1
@@ -4859,7 +4970,7 @@ b0:
   stm v35, v40, v41 @3:1
   v42 = addr gm6 @3:1
   v43 = const 0 @3:1
-  v44 = str s51 @3:1
+  v44 = str s16 @3:1
   stm v42, v43, v44 @3:1
   v45 = const 8 @3:1
   v46 = const 6 @3:1
@@ -4869,7 +4980,7 @@ b0:
   stm v42, v47, v48 @3:1
   v49 = addr gm7 @3:1
   v50 = const 0 @3:1
-  v51 = str s52 @3:1
+  v51 = str s54 @3:1
   stm v49, v50, v51 @3:1
   v52 = const 8 @3:1
   v53 = const 6 @3:1

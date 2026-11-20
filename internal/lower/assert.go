@@ -4,9 +4,11 @@ package lower
 // (Phase 8 increment 8.4, D-041).
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 
 	"github.com/stevenstank/aether/internal/ir"
 )
@@ -102,6 +104,47 @@ func (l *lowerer) assert(e *ast.TypeAssertExpr, commaOk bool) [][]*ir.Instr {
 	return [][]*ir.Instr{vals, {l.fn.Load(l.b, ok, pos)}}
 }
 
+// samePathFunc returns .samepathN for t: whether a descriptor is of a type
+// whose package path is t's, gc's pkgpath (that of a defined type's
+// package, or empty).
+func (l *lowerer) samePathFunc(t types.Type, pos ir.Pos) *ir.Func {
+	path := pkgPath(t)
+	if f := l.samePaths[path]; f != nil {
+		return f
+	}
+	f := l.prog.NewFunc(fmt.Sprintf("%ssamepath%d", genPrefix, len(l.samePaths)), l.fn.File, pos)
+	f.Params, f.Results = []ir.Type{ir.Ptr}, []ir.Type{ir.Bool}
+	if l.samePaths == nil {
+		l.samePaths = map[string]*ir.Func{}
+	}
+	l.samePaths[path] = f
+	l.late = append(l.late, func() {
+		ps := l.enter(f, pos)
+		for _, d := range slices.Clone(l.descs) {
+			if pkgPath(d.t) != path {
+				continue
+			}
+			yes, no := l.fn.NewBlock(), l.fn.NewBlock()
+			l.fn.Branch(l.b, l.fn.Compare(l.b, ir.Eq, ps[0](), l.addr(d.mem, pos), pos), yes, no, pos)
+			l.b = yes
+			l.fn.Ret(l.b, pos, l.fn.BoolConst(l.b, true, pos))
+			l.b = no
+		}
+		l.fn.Ret(l.b, pos, l.fn.BoolConst(l.b, false, pos))
+		prune(l.fn)
+	})
+	return f
+}
+
+// pkgPath returns the path of the package declaring t, if it is a defined
+// type of one, or "".
+func pkgPath(t types.Type) string {
+	if n, ok := types.Unalias(t).(*types.Named); ok && n.Obj().Pkg() != nil {
+		return n.Obj().Pkg().Path()
+	}
+	return ""
+}
+
 // assertFail ends the current block with gc's panic for a failed x.(t),
 // x of static type xt with tab tab.
 func (l *lowerer) assertFail(xt, t types.Type, tab func() *ir.Instr, pos ir.Pos) {
@@ -116,7 +159,19 @@ func (l *lowerer) assertFail(xt, t types.Type, tab func() *ir.Instr, pos ir.Pos)
 	l.b = other
 	d := l.dynDesc(xt, tab(), pos)
 	if !isIface(t) {
-		l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: "+gcName(xt)+" is ", pos), l.descName(d, pos), l.strWords(", not "+gcName(t), pos)}, pos)
+		// When the names are the same, gc tells why the types differ.
+		dk := l.keep(d, pos)
+		head := func(suffix string) {
+			l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: "+gcName(xt)+" is ", pos), l.descName(dk(), pos), l.strWords(", not "+gcName(t)+suffix, pos)}, pos)
+		}
+		name, want := l.descName(dk(), pos), l.strWords(gcName(t), pos)
+		same := l.when(l.fn.Not(l.b, l.fn.Call(l.b, l.streqFunc(pos), []*ir.Instr{name[0], name[1], want[0], want[1]}, pos), pos), pos)
+		head("")
+		l.b = same
+		packages := l.when(l.fn.Call(l.b, l.samePathFunc(t, pos), []*ir.Instr{dk()}, pos), pos)
+		head(" (types from different scopes)")
+		l.b = packages
+		head(" (types from different packages)")
 		return
 	}
 	miss := l.fn.Call(l.b, l.missFunc(t, pos), []*ir.Instr{d, d}, pos)

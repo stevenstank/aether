@@ -54,51 +54,61 @@ b5:
   v26 = load s3 @10:15
   panic slice3c, v25, v26 @10:15
 b6:
-  v27 = load s5 @10:15
-  v28 = const 8 @10:15
-  v29 = padd v27, v28 @10:15
-  v30 = load s3 @10:15
-  v31 = load s2 @10:15
-  v32 = sub v30, v31 @10:15
-  v33 = load s4 @10:15
+  v27 = load s4 @10:15
+  v28 = load s2 @10:15
+  v29 = sub v27, v28 @10:15
+  v30 = neg v29 @10:15
+  v31 = or v29, v30 @10:15
+  v32 = const u64 63 @10:15
+  v33 = shr v31, v32 @10:15
   v34 = load s2 @10:15
-  v35 = sub v33, v34 @10:15
-  println v32 @10:2
-  v36 = const 2 @11:17
-  store s6, v36 @11:15
-  v37 = load s1 @11:19
-  store s7, v37 @11:15
-  v38 = load s0 @11:14
-  store s8, v38 @11:15
-  v39 = conv u64, v37 @11:15
-  v40 = const 4 @11:15
-  v41 = conv u64, v40 @11:15
-  v42 = gt v39, v41 @11:15
-  branch v42, b7, b8 @11:15
+  v35 = const 8 @10:15
+  v36 = mul v34, v35 @10:15
+  v37 = and v36, v33 @10:15
+  v38 = load s5 @10:15
+  v39 = padd v38, v37 @10:15
+  v40 = load s3 @10:15
+  v41 = load s2 @10:15
+  v42 = sub v40, v41 @10:15
+  v43 = load s4 @10:15
+  v44 = load s2 @10:15
+  v45 = sub v43, v44 @10:15
+  println v42 @10:2
+  v46 = const 2 @11:17
+  store s6, v46 @11:15
+  v47 = load s1 @11:19
+  store s7, v47 @11:15
+  v48 = load s0 @11:14
+  store s8, v48 @11:15
+  v49 = conv u64, v47 @11:15
+  v50 = const 4 @11:15
+  v51 = conv u64, v50 @11:15
+  v52 = gt v49, v51 @11:15
+  branch v52, b7, b8 @11:15
 b7:
-  v43 = load s7 @11:15
-  v44 = const 4 @11:15
-  panic slice3alen, v43, v44 @11:15
+  v53 = load s7 @11:15
+  v54 = const 4 @11:15
+  panic slice3alen, v53, v54 @11:15
 b8:
-  v45 = load s6 @11:15
-  v46 = conv u64, v45 @11:15
-  v47 = load s7 @11:15
-  v48 = conv u64, v47 @11:15
-  v49 = gt v46, v48 @11:15
-  branch v49, b9, b10 @11:15
-b9:
-  v50 = load s6 @11:15
-  v51 = load s7 @11:15
-  v52 = conv i64, v51 @11:15
-  panic slice3b, v50, v52 @11:15
-b10:
-  v53 = load s8 @11:15
-  v54 = load s6 @11:15
-  v55 = const 0 @11:15
-  v56 = sub v54, v55 @11:15
+  v55 = load s6 @11:15
+  v56 = conv u64, v55 @11:15
   v57 = load s7 @11:15
-  v58 = conv i64, v57 @11:15
-  v59 = const 0 @11:15
-  v60 = sub v58, v59 @11:15
-  println v56 @11:2
+  v58 = conv u64, v57 @11:15
+  v59 = gt v56, v58 @11:15
+  branch v59, b9, b10 @11:15
+b9:
+  v60 = load s6 @11:15
+  v61 = load s7 @11:15
+  v62 = conv i64, v61 @11:15
+  panic slice3b, v60, v62 @11:15
+b10:
+  v63 = load s8 @11:15
+  v64 = load s6 @11:15
+  v65 = const 0 @11:15
+  v66 = sub v64, v65 @11:15
+  v67 = load s7 @11:15
+  v68 = conv i64, v67 @11:15
+  v69 = const 0 @11:15
+  v70 = sub v68, v69 @11:15
+  println v66 @11:2
   ret @12:1

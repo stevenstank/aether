@@ -1206,7 +1206,7 @@ func (c *checker) call(call *ast.CallExpr) bool {
 				}
 				return true
 			}
-			if c.sliceBuiltin(call, obj.Name()) || c.mapBuiltin(call, obj.Name()) || c.chanBuiltin(call, obj.Name()) {
+			if c.sliceBuiltin(call, obj.Name()) || c.mapBuiltin(call, obj.Name()) || c.chanBuiltin(call, obj.Name()) || c.unsafeBuiltin(call, obj) {
 				return true
 			}
 			// new(T), but not new of a value, new(expr), which Go 1.26
@@ -1621,6 +1621,38 @@ func isScalar(t types.Type) bool {
 		b.Kind() == types.Float32 || b.Kind() == types.Float64 || b.Kind() == types.String)
 }
 
+// isUnsafePointer reports whether t is unsafe.Pointer, or a type defined
+// as it.
+func isUnsafePointer(t types.Type) bool {
+	b, ok := t.Underlying().(*types.Basic)
+	return ok && b.Kind() == types.UnsafePointer
+}
+
+// unsafeBuiltin checks a call of a function of package unsafe (D-049,
+// increment 11.7), reporting whether it is one: Sizeof, Alignof, and
+// Offsetof are constants, whose operands are not evaluated; Add, String,
+// StringData, Slice, and SliceData of supported operands and results.
+func (c *checker) unsafeBuiltin(call *ast.CallExpr, b *types.Builtin) bool {
+	if types.Unsafe.Scope().Lookup(b.Name()) != b {
+		return false
+	}
+	switch b.Name() {
+	case "Sizeof", "Alignof", "Offsetof":
+		if c.info.Types[call].Value == nil {
+			c.reject(call, FeatBuiltin, "unsafe."+b.Name()+" of a variable size")
+		}
+		return true
+	}
+	if t := c.info.Types[call].Type; !c.supported(t) {
+		c.reject(call, FeatNonIntType, "unsafe."+b.Name()+" of type "+t.String())
+		return true
+	}
+	for _, a := range call.Args {
+		c.expr(a)
+	}
+	return true
+}
+
 // sizes is the layout lowering gives arrays and structs (D-034).
 var sizes = types.SizesFor("gc", "amd64")
 
@@ -1637,7 +1669,7 @@ func (c *checker) supported(t types.Type) bool {
 // the result, which is false if any of them is not. It ends on recursive
 // types, which go/types allows only through pointers.
 func (c *checker) sizedType(t types.Type, seen map[*types.Named]bool) bool {
-	if isScalar(t) {
+	if isScalar(t) || isUnsafePointer(t) {
 		return true
 	}
 	if !c.composite(t, seen) {
@@ -1675,6 +1707,8 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	case *types.Chan:
 		// A channel (D-048), of an element gc accepts.
 		return c.sizedType(t.Elem(), seen) && sizes.Sizeof(t.Elem()) <= maxChanElem
+	case *types.Basic:
+		return t.Kind() == types.UnsafePointer // a pointer (D-049, increment 11.7)
 	case *types.Array:
 		return isScalar(t.Elem()) || c.composite(t.Elem(), seen)
 	case *types.Struct:

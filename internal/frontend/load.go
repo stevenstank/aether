@@ -357,7 +357,7 @@ func (ld *loader) importSpec(from string, imp *ast.ImportSpec) []diag.Diagnostic
 	inModule = inModule && ld.modPath != "" && (rel == "" || rel[0] == '/')
 	var srcs []Source
 	switch {
-	case path == "unsafe" && fromStd:
+	case path == "unsafe":
 		return nil // go/types' own package; the gate rejects what it does not support
 	case !inModule && isStd(path) && path != "unsafe":
 		if !fromStd && (strings.HasPrefix(path, "internal/") || strings.Contains(path, "/internal/") || strings.HasSuffix(path, "/internal")) {

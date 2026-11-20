@@ -5,28 +5,30 @@ string s3 "panic: "
 string s4 "x"
 string s5 "s"
 string s6 "interface conversion: interface {} is nil, not int"
-string s7 "interface conversion: interface {} is "
-string s8 ", not int"
-string s9 "assignment to entry in nil map"
-string s10 "panic called with nil argument"
-string s11 "runtime error: integer divide by zero"
-string s12 "runtime error: negative shift amount"
-string s13 "runtime error: index out of range ["
-string s14 "]"
-string s15 "] with length "
-string s16 "runtime error: invalid memory address or nil pointer dereference"
-string s17 "runtime error: slice bounds out of range [:"
-string s18 "] with capacity "
-string s19 "runtime error: slice bounds out of range ["
-string s20 ":]"
-string s21 ":"
-string s22 "runtime error: slice bounds out of range [::"
-string s23 "::]"
-string s24 "runtime error: makeslice: len out of range"
-string s25 "runtime error: makeslice: cap out of range"
-string s26 "runtime error: growslice: len out of range"
-string s27 "string"
-string s28 "int"
+string s7 "int"
+string s8 "interface conversion: interface {} is "
+string s9 ", not int"
+string s10 ", not int (types from different scopes)"
+string s11 ", not int (types from different packages)"
+string s12 "assignment to entry in nil map"
+string s13 "panic called with nil argument"
+string s14 "runtime error: integer divide by zero"
+string s15 "runtime error: negative shift amount"
+string s16 "runtime error: index out of range ["
+string s17 "]"
+string s18 "] with length "
+string s19 "runtime error: invalid memory address or nil pointer dereference"
+string s20 "runtime error: slice bounds out of range [:"
+string s21 "] with capacity "
+string s22 "runtime error: slice bounds out of range ["
+string s23 ":]"
+string s24 ":"
+string s25 "runtime error: slice bounds out of range [::"
+string s26 "::]"
+string s27 "runtime error: makeslice: len out of range"
+string s28 "runtime error: makeslice: cap out of range"
+string s29 "runtime error: growslice: len out of range"
+string s30 "string"
 global g0 .unwinding bool @testdata/check/s5_d04_runtime_errors.go:3:1
 global g1 .panics ptr @testdata/check/s5_d04_runtime_errors.go:3:1
 mem gm0 .v.lit1 8 align 8 @testdata/check/s5_d04_runtime_errors.go:13:8
@@ -407,7 +409,7 @@ b0:
   v5 = eq v3, v4 @3:1
   branch v5, b1, b2 @3:1
 b1:
-  v6 = str s10 @3:1
+  v6 = str s13 @3:1
   v7 = const 30 @3:1
   print v6, v7 @3:1
   ret @3:1
@@ -435,7 +437,7 @@ b4:
   v23 = eq v21, v22 @3:1
   branch v23, b5, b6 @3:1
 b5:
-  v24 = str s11 @3:1
+  v24 = str s14 @3:1
   v25 = const 37 @3:1
   print v24, v25 @3:1
   ret @3:1
@@ -447,7 +449,7 @@ b6:
   v30 = eq v28, v29 @3:1
   branch v30, b7, b8 @3:1
 b7:
-  v31 = str s12 @3:1
+  v31 = str s15 @3:1
   v32 = const 36 @3:1
   print v31, v32 @3:1
   ret @3:1
@@ -459,7 +461,7 @@ b8:
   v37 = eq v35, v36 @3:1
   branch v37, b9, b10 @3:1
 b9:
-  v38 = str s13 @3:1
+  v38 = str s16 @3:1
   v39 = const 35 @3:1
   print v38, v39 @3:1
   v40 = load s0 @3:1
@@ -474,7 +476,7 @@ b10:
   v63 = eq v61, v62 @3:1
   branch v63, b16, b17 @3:1
 b11:
-  v54 = str s15 @3:1
+  v54 = str s18 @3:1
   v55 = const 14 @3:1
   print v54, v55 @3:1
   v56 = load s0 @3:1
@@ -498,14 +500,14 @@ b13:
   print v53 @3:1
   jump b11 @3:1
 b14:
-  v48 = str s14 @3:1
+  v48 = str s17 @3:1
   v49 = const 1 @3:1
   print v48, v49 @3:1
   ret @3:1
 b15:
   jump b11 @3:1
 b16:
-  v64 = str s16 @3:1
+  v64 = str s19 @3:1
   v65 = const 64 @3:1
   print v64, v65 @3:1
   ret @3:1
@@ -517,7 +519,7 @@ b17:
   v70 = eq v68, v69 @3:1
   branch v70, b18, b19 @3:1
 b18:
-  v71 = str s17 @3:1
+  v71 = str s20 @3:1
   v72 = const 43 @3:1
   print v71, v72 @3:1
   v73 = load s0 @3:1
@@ -532,7 +534,7 @@ b19:
   v96 = eq v94, v95 @3:1
   branch v96, b25, b26 @3:1
 b20:
-  v87 = str s15 @3:1
+  v87 = str s18 @3:1
   v88 = const 14 @3:1
   print v87, v88 @3:1
   v89 = load s0 @3:1
@@ -556,14 +558,14 @@ b22:
   print v86 @3:1
   jump b20 @3:1
 b23:
-  v81 = str s14 @3:1
+  v81 = str s17 @3:1
   v82 = const 1 @3:1
   print v81, v82 @3:1
   ret @3:1
 b24:
   jump b20 @3:1
 b25:
-  v97 = str s17 @3:1
+  v97 = str s20 @3:1
   v98 = const 43 @3:1
   print v97, v98 @3:1
   v99 = load s0 @3:1
@@ -578,7 +580,7 @@ b26:
   v122 = eq v120, v121 @3:1
   branch v122, b32, b33 @3:1
 b27:
-  v113 = str s18 @3:1
+  v113 = str s21 @3:1
   v114 = const 16 @3:1
   print v113, v114 @3:1
   v115 = load s0 @3:1
@@ -602,14 +604,14 @@ b29:
   print v112 @3:1
   jump b27 @3:1
 b30:
-  v107 = str s14 @3:1
+  v107 = str s17 @3:1
   v108 = const 1 @3:1
   print v107, v108 @3:1
   ret @3:1
 b31:
   jump b27 @3:1
 b32:
-  v123 = str s19 @3:1
+  v123 = str s22 @3:1
   v124 = const 42 @3:1
   print v123, v124 @3:1
   v125 = load s0 @3:1
@@ -624,14 +626,14 @@ b33:
   v150 = eq v148, v149 @3:1
   branch v150, b39, b40 @3:1
 b34:
-  v139 = str s21 @3:1
+  v139 = str s24 @3:1
   v140 = const 1 @3:1
   print v139, v140 @3:1
   v141 = load s0 @3:1
   v142 = const 40 @3:1
   v143 = ldm i64, v141, v142 @3:1
   print v143 @3:1
-  v144 = str s14 @3:1
+  v144 = str s17 @3:1
   v145 = const 1 @3:1
   print v144, v145 @3:1
   ret @3:1
@@ -651,14 +653,14 @@ b36:
   print v138 @3:1
   jump b34 @3:1
 b37:
-  v133 = str s20 @3:1
+  v133 = str s23 @3:1
   v134 = const 2 @3:1
   print v133, v134 @3:1
   ret @3:1
 b38:
   jump b34 @3:1
 b39:
-  v151 = str s22 @3:1
+  v151 = str s25 @3:1
   v152 = const 44 @3:1
   print v151, v152 @3:1
   v153 = load s0 @3:1
@@ -673,7 +675,7 @@ b40:
   v176 = eq v174, v175 @3:1
   branch v176, b46, b47 @3:1
 b41:
-  v167 = str s15 @3:1
+  v167 = str s18 @3:1
   v168 = const 14 @3:1
   print v167, v168 @3:1
   v169 = load s0 @3:1
@@ -697,14 +699,14 @@ b43:
   print v166 @3:1
   jump b41 @3:1
 b44:
-  v161 = str s14 @3:1
+  v161 = str s17 @3:1
   v162 = const 1 @3:1
   print v161, v162 @3:1
   ret @3:1
 b45:
   jump b41 @3:1
 b46:
-  v177 = str s22 @3:1
+  v177 = str s25 @3:1
   v178 = const 44 @3:1
   print v177, v178 @3:1
   v179 = load s0 @3:1
@@ -719,7 +721,7 @@ b47:
   v202 = eq v200, v201 @3:1
   branch v202, b53, b54 @3:1
 b48:
-  v193 = str s18 @3:1
+  v193 = str s21 @3:1
   v194 = const 16 @3:1
   print v193, v194 @3:1
   v195 = load s0 @3:1
@@ -743,14 +745,14 @@ b50:
   print v192 @3:1
   jump b48 @3:1
 b51:
-  v187 = str s14 @3:1
+  v187 = str s17 @3:1
   v188 = const 1 @3:1
   print v187, v188 @3:1
   ret @3:1
 b52:
   jump b48 @3:1
 b53:
-  v203 = str s17 @3:1
+  v203 = str s20 @3:1
   v204 = const 43 @3:1
   print v203, v204 @3:1
   v205 = load s0 @3:1
@@ -765,14 +767,14 @@ b54:
   v230 = eq v228, v229 @3:1
   branch v230, b60, b61 @3:1
 b55:
-  v219 = str s21 @3:1
+  v219 = str s24 @3:1
   v220 = const 1 @3:1
   print v219, v220 @3:1
   v221 = load s0 @3:1
   v222 = const 40 @3:1
   v223 = ldm i64, v221, v222 @3:1
   print v223 @3:1
-  v224 = str s14 @3:1
+  v224 = str s17 @3:1
   v225 = const 1 @3:1
   print v224, v225 @3:1
   ret @3:1
@@ -792,14 +794,14 @@ b57:
   print v218 @3:1
   jump b55 @3:1
 b58:
-  v213 = str s20 @3:1
+  v213 = str s23 @3:1
   v214 = const 2 @3:1
   print v213, v214 @3:1
   ret @3:1
 b59:
   jump b55 @3:1
 b60:
-  v231 = str s19 @3:1
+  v231 = str s22 @3:1
   v232 = const 42 @3:1
   print v231, v232 @3:1
   v233 = load s0 @3:1
@@ -814,14 +816,14 @@ b61:
   v258 = eq v256, v257 @3:1
   branch v258, b67, b68 @3:1
 b62:
-  v247 = str s21 @3:1
+  v247 = str s24 @3:1
   v248 = const 1 @3:1
   print v247, v248 @3:1
   v249 = load s0 @3:1
   v250 = const 40 @3:1
   v251 = ldm i64, v249, v250 @3:1
   print v251 @3:1
-  v252 = str s20 @3:1
+  v252 = str s23 @3:1
   v253 = const 2 @3:1
   print v252, v253 @3:1
   ret @3:1
@@ -841,14 +843,14 @@ b64:
   print v246 @3:1
   jump b62 @3:1
 b65:
-  v241 = str s23 @3:1
+  v241 = str s26 @3:1
   v242 = const 3 @3:1
   print v241, v242 @3:1
   ret @3:1
 b66:
   jump b62 @3:1
 b67:
-  v259 = str s24 @3:1
+  v259 = str s27 @3:1
   v260 = const 42 @3:1
   print v259, v260 @3:1
   ret @3:1
@@ -860,7 +862,7 @@ b68:
   v265 = eq v263, v264 @3:1
   branch v265, b69, b70 @3:1
 b69:
-  v266 = str s25 @3:1
+  v266 = str s28 @3:1
   v267 = const 42 @3:1
   print v266, v267 @3:1
   ret @3:1
@@ -872,7 +874,7 @@ b70:
   v272 = eq v270, v271 @3:1
   branch v272, b71, b72 @3:1
 b71:
-  v273 = str s26 @3:1
+  v273 = str s29 @3:1
   v274 = const 42 @3:1
   print v273, v274 @3:1
   ret @3:1
@@ -1202,6 +1204,7 @@ func .lit2(ptr) @testdata/check/s5_d04_runtime_errors.go:17:8
   slot s9 v i64 @19:13
   slot s10 ok bool @19:13
   slot s11 tmp ptr @19:13
+  slot s12 tmp ptr @19:13
 b0:
   v0 = param 0 @17:8
   store s0, v0 @17:8
@@ -1246,8 +1249,8 @@ b2:
   v22 = eq v20, v21 @19:13
   branch v22, b4, b5 @19:13
 b3:
-  v46 = load s9 @19:13
-  println v46 @19:3
+  v93 = load s9 @19:13
+  println v93 @19:3
   ret @20:2
 b4:
   v23 = str s6 @19:13
@@ -1256,45 +1259,121 @@ b4:
   v26 = const 0 @19:13
   v27 = padd v25, v26 @19:13
   move v27, v23, v24 @19:13
-  v47 = const 0 @19:13
-  v48 = const 0 @19:13
-  v49 = const false @19:13
-  v50 = const ptr 0 @19:13
-  v51 = const 0 @19:13
-  v52 = const 17 @19:13
-  call .raise, v52, v47, v48, v49, v25, v24 @19:13
-  jump b6 @19:13
+  v94 = const 0 @19:13
+  v95 = const 0 @19:13
+  v96 = const false @19:13
+  v97 = const ptr 0 @19:13
+  v98 = const 0 @19:13
+  v99 = const 17 @19:13
+  call .raise, v99, v94, v95, v96, v25, v24 @19:13
+  jump b10 @19:13
 b5:
   v28 = load s7 @19:13
-  v29 = str s7 @19:13
-  v30 = const 38 @19:13
-  v31 = const 0 @19:13
-  v32 = ldm ptr, v28, v31 @19:13
-  v33 = const 8 @19:13
-  v34 = ldm i64, v28, v33 @19:13
-  v35 = str s8 @19:13
-  v36 = const 9 @19:13
-  v37 = add v30, v34 @19:13
-  v38 = add v37, v36 @19:13
-  v39 = alloc noscan, v38 @19:13
-  v40 = const 0 @19:13
-  v41 = padd v39, v40 @19:13
-  move v41, v29, v30 @19:13
-  v42 = add v40, v30 @19:13
-  v43 = padd v39, v42 @19:13
-  move v43, v32, v34 @19:13
-  v44 = add v42, v34 @19:13
-  v45 = padd v39, v44 @19:13
-  move v45, v35, v36 @19:13
-  v53 = const 0 @19:13
-  v54 = const 0 @19:13
-  v55 = const false @19:13
-  v56 = const ptr 0 @19:13
-  v57 = const 0 @19:13
-  v58 = const 17 @19:13
-  call .raise, v58, v53, v54, v55, v39, v38 @19:13
-  jump b6 @19:13
+  store s12, v28 @19:13
+  v29 = const 0 @19:13
+  v30 = ldm ptr, v28, v29 @19:13
+  v31 = const 8 @19:13
+  v32 = ldm i64, v28, v31 @19:13
+  v33 = str s7 @19:13
+  v34 = const 3 @19:13
+  v35 = call .streq, v30, v32, v33, v34 @19:13
+  v36 = not v35 @19:13
+  branch v36, b6, b7 @19:13
 b6:
+  v37 = str s8 @19:13
+  v38 = const 38 @19:13
+  v39 = load s12 @19:13
+  v40 = const 0 @19:13
+  v41 = ldm ptr, v39, v40 @19:13
+  v42 = const 8 @19:13
+  v43 = ldm i64, v39, v42 @19:13
+  v44 = str s9 @19:13
+  v45 = const 9 @19:13
+  v46 = add v38, v43 @19:13
+  v47 = add v46, v45 @19:13
+  v48 = alloc noscan, v47 @19:13
+  v49 = const 0 @19:13
+  v50 = padd v48, v49 @19:13
+  move v50, v37, v38 @19:13
+  v51 = add v49, v38 @19:13
+  v52 = padd v48, v51 @19:13
+  move v52, v41, v43 @19:13
+  v53 = add v51, v43 @19:13
+  v54 = padd v48, v53 @19:13
+  move v54, v44, v45 @19:13
+  v100 = const 0 @19:13
+  v101 = const 0 @19:13
+  v102 = const false @19:13
+  v103 = const ptr 0 @19:13
+  v104 = const 0 @19:13
+  v105 = const 17 @19:13
+  call .raise, v105, v100, v101, v102, v48, v47 @19:13
+  jump b10 @19:13
+b7:
+  v55 = load s12 @19:13
+  v56 = call .samepath0, v55 @19:13
+  branch v56, b8, b9 @19:13
+b8:
+  v57 = str s8 @19:13
+  v58 = const 38 @19:13
+  v59 = load s12 @19:13
+  v60 = const 0 @19:13
+  v61 = ldm ptr, v59, v60 @19:13
+  v62 = const 8 @19:13
+  v63 = ldm i64, v59, v62 @19:13
+  v64 = str s10 @19:13
+  v65 = const 39 @19:13
+  v66 = add v58, v63 @19:13
+  v67 = add v66, v65 @19:13
+  v68 = alloc noscan, v67 @19:13
+  v69 = const 0 @19:13
+  v70 = padd v68, v69 @19:13
+  move v70, v57, v58 @19:13
+  v71 = add v69, v58 @19:13
+  v72 = padd v68, v71 @19:13
+  move v72, v61, v63 @19:13
+  v73 = add v71, v63 @19:13
+  v74 = padd v68, v73 @19:13
+  move v74, v64, v65 @19:13
+  v106 = const 0 @19:13
+  v107 = const 0 @19:13
+  v108 = const false @19:13
+  v109 = const ptr 0 @19:13
+  v110 = const 0 @19:13
+  v111 = const 17 @19:13
+  call .raise, v111, v106, v107, v108, v68, v67 @19:13
+  jump b10 @19:13
+b9:
+  v75 = str s8 @19:13
+  v76 = const 38 @19:13
+  v77 = load s12 @19:13
+  v78 = const 0 @19:13
+  v79 = ldm ptr, v77, v78 @19:13
+  v80 = const 8 @19:13
+  v81 = ldm i64, v77, v80 @19:13
+  v82 = str s11 @19:13
+  v83 = const 41 @19:13
+  v84 = add v76, v81 @19:13
+  v85 = add v84, v83 @19:13
+  v86 = alloc noscan, v85 @19:13
+  v87 = const 0 @19:13
+  v88 = padd v86, v87 @19:13
+  move v88, v75, v76 @19:13
+  v89 = add v87, v76 @19:13
+  v90 = padd v86, v89 @19:13
+  move v90, v79, v81 @19:13
+  v91 = add v89, v81 @19:13
+  v92 = padd v86, v91 @19:13
+  move v92, v82, v83 @19:13
+  v112 = const 0 @19:13
+  v113 = const 0 @19:13
+  v114 = const false @19:13
+  v115 = const ptr 0 @19:13
+  v116 = const 0 @19:13
+  v117 = const 17 @19:13
+  call .raise, v117, v112, v113, v114, v86, v85 @19:13
+  jump b10 @19:13
+b10:
   ret @17:8
 
 func .defer2(ptr) @testdata/check/s5_d04_runtime_errors.go:3:1
@@ -1385,15 +1464,15 @@ b0:
 b1:
   v20 = load s10 @24:9
   v21 = load s8 @24:9
-  v43 = const 0 @24:9
-  v44 = const 0 @24:9
-  v45 = const false @24:9
-  v46 = const ptr 0 @24:9
-  v47 = const 0 @24:9
-  v48 = const false @24:9
-  v49 = conv i64, v20 @24:9
-  v50 = const 8 @24:9
-  call .raise, v50, v49, v21, v48, v46, v47 @24:9
+  v53 = const 0 @24:9
+  v54 = const 0 @24:9
+  v55 = const false @24:9
+  v56 = const ptr 0 @24:9
+  v57 = const 0 @24:9
+  v58 = const false @24:9
+  v59 = conv i64, v20 @24:9
+  v60 = const 8 @24:9
+  call .raise, v60, v59, v21, v58, v56, v57 @24:9
   jump b5 @24:9
 b2:
   v22 = load s9 @24:9
@@ -1406,33 +1485,43 @@ b3:
   v27 = load s9 @24:9
   v28 = load s10 @24:9
   v29 = conv i64, v28 @24:9
-  v51 = const 0 @24:9
-  v52 = const 0 @24:9
-  v53 = const false @24:9
-  v54 = const ptr 0 @24:9
-  v55 = const 0 @24:9
-  v56 = const true @24:9
-  v57 = const 9 @24:9
-  call .raise, v57, v27, v29, v56, v54, v55 @24:9
+  v61 = const 0 @24:9
+  v62 = const 0 @24:9
+  v63 = const false @24:9
+  v64 = const ptr 0 @24:9
+  v65 = const 0 @24:9
+  v66 = const true @24:9
+  v67 = const 9 @24:9
+  call .raise, v67, v27, v29, v66, v64, v65 @24:9
   jump b5 @24:9
 b4:
-  v30 = load s6 @24:9
-  v31 = const 8 @24:9
-  v32 = padd v30, v31 @24:9
-  v33 = load s10 @24:9
-  v34 = conv i64, v33 @24:9
-  v35 = load s9 @24:9
-  v36 = sub v34, v35 @24:9
-  v37 = load s8 @24:9
-  v38 = load s9 @24:9
-  v39 = sub v37, v38 @24:9
-  store s11, v32 @24:3
-  store s12, v36 @24:3
-  store s13, v39 @24:3
-  v40 = load s11 @25:15
-  v41 = load s12 @25:15
-  v42 = load s13 @25:15
-  println v41 @25:3
+  v30 = load s8 @24:9
+  v31 = load s9 @24:9
+  v32 = sub v30, v31 @24:9
+  v33 = neg v32 @24:9
+  v34 = or v32, v33 @24:9
+  v35 = const u64 63 @24:9
+  v36 = shr v34, v35 @24:9
+  v37 = load s9 @24:9
+  v38 = const 8 @24:9
+  v39 = mul v37, v38 @24:9
+  v40 = and v39, v36 @24:9
+  v41 = load s6 @24:9
+  v42 = padd v41, v40 @24:9
+  v43 = load s10 @24:9
+  v44 = conv i64, v43 @24:9
+  v45 = load s9 @24:9
+  v46 = sub v44, v45 @24:9
+  v47 = load s8 @24:9
+  v48 = load s9 @24:9
+  v49 = sub v47, v48 @24:9
+  store s11, v42 @24:3
+  store s12, v46 @24:3
+  store s13, v49 @24:3
+  v50 = load s11 @25:15
+  v51 = load s12 @25:15
+  v52 = load s13 @25:15
+  println v51 @25:3
   ret @26:2
 b5:
   ret @21:8
@@ -1482,10 +1571,9 @@ func .lit4(ptr) @testdata/check/s5_d04_runtime_errors.go:27:8
   slot s7 tmp i64 @30:9
   slot s8 tmp i64 @30:9
   slot s9 tmp i8 @30:9
-  slot s10 tmp ptr @30:9
-  slot s11 t ptr @30:3
+  slot s10 t ptr @30:3
+  slot s11 t i64 @30:3
   slot s12 t i64 @30:3
-  slot s13 t i64 @30:3
 b0:
   v0 = param 0 @27:8
   store s0, v0 @27:8
@@ -1517,52 +1605,49 @@ b0:
 b1:
   v15 = load s9 @30:9
   v16 = load s7 @30:9
-  v40 = const 0 @30:9
-  v41 = const 0 @30:9
-  v42 = const false @30:9
-  v43 = const ptr 0 @30:9
+  v43 = const 0 @30:9
   v44 = const 0 @30:9
-  v45 = const true @30:9
-  v46 = conv i64, v15 @30:9
-  v47 = const 9 @30:9
-  call .raise, v47, v46, v16, v45, v43, v44 @30:9
-  jump b5 @30:9
+  v45 = const false @30:9
+  v46 = const ptr 0 @30:9
+  v47 = const 0 @30:9
+  v48 = const true @30:9
+  v49 = conv i64, v15 @30:9
+  v50 = const 9 @30:9
+  call .raise, v50, v49, v16, v48, v46, v47 @30:9
+  jump b3 @30:9
 b2:
-  v17 = load s6 @30:9
-  store s10, v17 @30:9
+  v17 = load s8 @30:9
   v18 = load s9 @30:9
   v19 = conv i64, v18 @30:9
-  v20 = const 0 @30:9
-  v21 = ne v19, v20 @30:9
-  branch v21, b3, b4 @30:9
-b3:
-  v22 = load s6 @30:9
-  v23 = load s9 @30:9
-  v24 = conv i64, v23 @30:9
-  v25 = const 8 @30:9
-  v26 = mul v24, v25 @30:9
-  v27 = padd v22, v26 @30:9
-  store s10, v27 @30:9
-  jump b4 @30:9
-b4:
-  v28 = load s10 @30:9
-  v29 = load s7 @30:9
-  v30 = load s9 @30:9
-  v31 = conv i64, v30 @30:9
-  v32 = sub v29, v31 @30:9
-  v33 = load s8 @30:9
-  v34 = load s9 @30:9
-  v35 = conv i64, v34 @30:9
-  v36 = sub v33, v35 @30:9
-  store s11, v28 @30:3
-  store s12, v32 @30:3
-  store s13, v36 @30:3
-  v37 = load s11 @31:15
-  v38 = load s12 @31:15
-  v39 = load s13 @31:15
-  println v38 @31:3
+  v20 = sub v17, v19 @30:9
+  v21 = neg v20 @30:9
+  v22 = or v20, v21 @30:9
+  v23 = const u64 63 @30:9
+  v24 = shr v22, v23 @30:9
+  v25 = load s9 @30:9
+  v26 = conv i64, v25 @30:9
+  v27 = const 8 @30:9
+  v28 = mul v26, v27 @30:9
+  v29 = and v28, v24 @30:9
+  v30 = load s6 @30:9
+  v31 = padd v30, v29 @30:9
+  v32 = load s7 @30:9
+  v33 = load s9 @30:9
+  v34 = conv i64, v33 @30:9
+  v35 = sub v32, v34 @30:9
+  v36 = load s8 @30:9
+  v37 = load s9 @30:9
+  v38 = conv i64, v37 @30:9
+  v39 = sub v36, v38 @30:9
+  store s10, v31 @30:3
+  store s11, v35 @30:3
+  store s12, v39 @30:3
+  v40 = load s10 @31:15
+  v41 = load s11 @31:15
+  v42 = load s12 @31:15
+  println v41 @31:3
   ret @32:2
-b5:
+b3:
   ret @27:8
 
 func .defer4(ptr) @testdata/check/s5_d04_runtime_errors.go:3:1
@@ -1762,7 +1847,7 @@ b1:
   v101 = eq v97, v100 @15:4
   branch v101, b19, b20 @15:4
 b2:
-  v11 = str s9 @15:4
+  v11 = str s12 @15:4
   v12 = const 30 @15:4
   v13 = alloc noscan, v12 @15:4
   v14 = const 0 @15:4
@@ -2076,6 +2161,73 @@ b3:
   v12 = load s5 @17:8
   ret v12 @17:8
 
+func .streq(ptr, i64, ptr, i64) bool @testdata/check/s5_d04_runtime_errors.go:19:13
+  slot s0 p ptr @19:13
+  slot s1 q ptr @19:13
+  slot s2 n i64 @19:13
+  slot s3 i i64 @19:13
+b0:
+  v0 = param 0 @19:13
+  v1 = param 1 @19:13
+  v2 = param 2 @19:13
+  v3 = param 3 @19:13
+  store s0, v0 @19:13
+  store s1, v2 @19:13
+  store s2, v1 @19:13
+  v4 = const 0 @19:13
+  store s3, v4 @19:13
+  v5 = eq v1, v3 @19:13
+  branch v5, b1, b4 @19:13
+b1:
+  v6 = load s3 @19:13
+  v7 = load s2 @19:13
+  v8 = lt v6, v7 @19:13
+  branch v8, b2, b5 @19:13
+b2:
+  v9 = load s3 @19:13
+  v10 = load s0 @19:13
+  v11 = loadb v10, v9 @19:13
+  v12 = load s1 @19:13
+  v13 = loadb v12, v9 @19:13
+  v14 = ne v11, v13 @19:13
+  branch v14, b4, b3 @19:13
+b3:
+  v15 = load s3 @19:13
+  v16 = const 1 @19:13
+  v17 = add v15, v16 @19:13
+  store s3, v17 @19:13
+  jump b1 @19:13
+b4:
+  v18 = const false @19:13
+  ret v18 @19:13
+b5:
+  v19 = const true @19:13
+  ret v19 @19:13
+
+func .samepath0(ptr) bool @testdata/check/s5_d04_runtime_errors.go:19:13
+  slot s0 tmp ptr @19:13
+b0:
+  v0 = param 0 @19:13
+  store s0, v0 @19:13
+  v1 = load s0 @19:13
+  v2 = addr gm6 @19:13
+  v3 = eq v1, v2 @19:13
+  branch v3, b1, b2 @19:13
+b1:
+  v4 = const true @19:13
+  ret v4 @19:13
+b2:
+  v5 = load s0 @19:13
+  v6 = addr gm7 @19:13
+  v7 = eq v5, v6 @19:13
+  branch v7, b3, b4 @19:13
+b3:
+  v8 = const true @19:13
+  ret v8 @19:13
+b4:
+  v9 = const false @19:13
+  ret v9 @19:13
+
 func .hash0(ptr, ptr, i64) i64 @testdata/check/s5_d04_runtime_errors.go:15:4
   slot s0 tmp ptr @15:4
   slot s1 tmp ptr @15:4
@@ -2143,49 +2295,6 @@ b3:
   v39 = xor v36, v38 @15:4
   v40 = conv i64, v39 @15:4
   ret v40 @15:4
-
-func .streq(ptr, i64, ptr, i64) bool @testdata/check/s5_d04_runtime_errors.go:15:4
-  slot s0 p ptr @15:4
-  slot s1 q ptr @15:4
-  slot s2 n i64 @15:4
-  slot s3 i i64 @15:4
-b0:
-  v0 = param 0 @15:4
-  v1 = param 1 @15:4
-  v2 = param 2 @15:4
-  v3 = param 3 @15:4
-  store s0, v0 @15:4
-  store s1, v2 @15:4
-  store s2, v1 @15:4
-  v4 = const 0 @15:4
-  store s3, v4 @15:4
-  v5 = eq v1, v3 @15:4
-  branch v5, b1, b4 @15:4
-b1:
-  v6 = load s3 @15:4
-  v7 = load s2 @15:4
-  v8 = lt v6, v7 @15:4
-  branch v8, b2, b5 @15:4
-b2:
-  v9 = load s3 @15:4
-  v10 = load s0 @15:4
-  v11 = loadb v10, v9 @15:4
-  v12 = load s1 @15:4
-  v13 = loadb v12, v9 @15:4
-  v14 = ne v11, v13 @15:4
-  branch v14, b4, b3 @15:4
-b3:
-  v15 = load s3 @15:4
-  v16 = const 1 @15:4
-  v17 = add v15, v16 @15:4
-  store s3, v17 @15:4
-  jump b1 @15:4
-b4:
-  v18 = const false @15:4
-  ret v18 @15:4
-b5:
-  v19 = const true @15:4
-  ret v19 @15:4
 
 func .mapgrow(ptr, i64) @testdata/check/s5_d04_runtime_errors.go:15:4
   slot s0 tmp ptr @15:4
@@ -2406,7 +2515,7 @@ b0:
   stm v15, v16, v17 @3:1
   v18 = addr gm6 @3:1
   v19 = const 0 @3:1
-  v20 = str s27 @3:1
+  v20 = str s30 @3:1
   stm v18, v19, v20 @3:1
   v21 = const 8 @3:1
   v22 = const 6 @3:1
@@ -2416,7 +2525,7 @@ b0:
   stm v18, v23, v24 @3:1
   v25 = addr gm7 @3:1
   v26 = const 0 @3:1
-  v27 = str s28 @3:1
+  v27 = str s7 @3:1
   stm v25, v26, v27 @3:1
   v28 = const 8 @3:1
   v29 = const 3 @3:1

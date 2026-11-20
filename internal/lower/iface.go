@@ -43,10 +43,15 @@ func isEmptyIface(t types.Type) bool {
 }
 
 // isDirect reports whether an interface's data holds a value of t itself:
-// whether t is a pointer type.
+// whether t is a pointer type or unsafe.Pointer.
 func isDirect(t types.Type) bool {
-	_, ok := t.Underlying().(*types.Pointer)
-	return ok
+	switch u := t.Underlying().(type) {
+	case *types.Pointer:
+		return true
+	case *types.Basic:
+		return u.Kind() == types.UnsafePointer
+	}
+	return false
 }
 
 // tdesc is a type descriptor.
@@ -537,6 +542,9 @@ func gcName(t types.Type) string {
 	case *types.Alias:
 		return gcName(types.Unalias(t))
 	case *types.Basic:
+		if t.Kind() == types.UnsafePointer {
+			return "unsafe.Pointer"
+		}
 		return types.Typ[t.Kind()].Name()
 	case *types.Named:
 		if t.Obj().Pkg() == nil {

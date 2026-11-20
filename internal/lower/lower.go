@@ -198,9 +198,10 @@ type lowerer struct {
 	descs     []*tdesc           // the type descriptors
 	descsDone bool               // the interface functions list every descriptor
 	itabs     []*itabT
-	finds     map[int]*ir.Func // .findK of each interface K
-	misses    map[int]*ir.Func // .missK
-	late      []func()         // builds .findK and .missK, after every other body
+	finds     map[int]*ir.Func    // .findK of each interface K
+	samePaths map[string]*ir.Func // .samepathN of each package path (assert.go)
+	misses    map[int]*ir.Func    // .missK
+	late      []func()            // builds .findK and .missK, after every other body
 
 	maps       []*mapT      // the map types, one of identical ones (maps.go)
 	hashed     []types.Type // the types of the hash functions .hashN
@@ -1673,9 +1674,10 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 			case *ast.CallExpr:
 				// make, append, and copy check and may grow (slice.go), and
 				// a call of a func value checks it for nil (funcvalue.go).
-				// min and max select by branching (D-049).
+				// min and max select by branching (D-049), and
+				// unsafe.String and unsafe.Slice check (unsafe.go).
 				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy") || l.isValueCall(n) ||
-					l.isBuiltin(n, "min") || l.isBuiltin(n, "max")
+					l.isBuiltin(n, "min") || l.isBuiltin(n, "max") || l.isBuiltin(n, "String") || l.isBuiltin(n, "Slice")
 			case *ast.SelectorExpr:
 				if sel := l.pkg.Info.Selections[n]; sel != nil && sel.Indirect() {
 					found = true
@@ -1783,6 +1785,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 	case *ast.StarExpr:
 		return l.scalar(e, l.loadPlace(l.addrOf(e, false), l.pos(e, e.Pos())))
 	case *ast.CallExpr:
+		if w, ok := l.unsafeCall(e); ok {
+			return l.scalar(e, w)
+		}
 		if id, ok := ast.Unparen(e.Fun).(*ast.Ident); ok {
 			b, _ := l.pkg.Info.Uses[id].(*types.Builtin)
 			if b != nil && b.Name() == "new" && len(e.Args) == 1 && l.pkg.Info.Types[e.Args[0]].IsType() {
@@ -1851,6 +1856,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 				return l.fn.Convert(l.b, ir.FToI, t, x, pos)
 			case x.Type.IsFloat() && t.IsFloat():
 				return l.fn.Convert(l.b, ir.FToF, t, x, pos)
+			case x.Type == ir.Ptr && t == ir.U64, x.Type == ir.U64 && t == ir.Ptr:
+				// unsafe.Pointer and uintptr: the address's bits.
+				return l.reinterpret(x, t, pos)
 			}
 			l.fail(e, "conversion from %s to %s", x.Type, t)
 		}
@@ -1926,6 +1934,9 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 	}
 	if isRecv(e) {
 		return l.recvValue(e) // D-048
+	}
+	if w, ok := l.unsafeCall(e); ok {
+		return w
 	}
 	if isIface(tv.Type) {
 		return l.ifaceValue(e)
@@ -2155,6 +2166,7 @@ var irTypes = map[types.BasicKind]ir.Type{
 	types.Uint: ir.U64, types.Uint64: ir.U64, types.Uintptr: ir.U64,
 	types.Uint8: ir.U8, types.Uint16: ir.U16, types.Uint32: ir.U32,
 	types.Float64: ir.F64, types.UntypedFloat: ir.F64, types.Float32: ir.F32,
+	types.UnsafePointer: ir.Ptr, // D-049, increment 11.7
 }
 
 // words returns the IR types of the words of a Go type: Ptr and I64 for a

@@ -1214,7 +1214,16 @@ repeated in each phase below:
     Aether's. Tests: `TestPackagePrograms` (`cmd/generic`),
     `TestPackageRejects`, `TestStdPrograms` (`generics`, `errors`),
     `TestStdRejects`, gate tests. `TestGorootRun`: 518 of 1,005 pass,
-    0 bugs. *Second part:* `unsafe`, `strings`, and `bytes`.
+    0 bugs. *Second part done 2026-11-20, owner review pending:*
+    `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer` and its
+    conversions, `Add`, `String`, `StringData`, `Slice`, `SliceData`);
+    `strings` and `bytes` from GOROOT with gc's `internal/stringslite`,
+    an `internal/bytealg` of gc's portable files and Aether's, and an
+    `internal/abi` of `NoEscape`; `sync.Pool`. Tests: `TestStdPrograms`
+    (`strings`, `unsafe`, `unsafepanic`), `TestStdRejects`.
+    It found and fixed two differences from gc, the address of an empty
+    slice expression and assertion messages between types of the same
+    name. `TestGorootRun`: 548 of 1,005 pass, 0 bugs.
   - **11.8** A `reflect` subset and `fmt` from source.
 
 ---

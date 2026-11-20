@@ -1251,9 +1251,8 @@ D-049. These supersede the 11.4 rule that standard-library imports are
   - `math/bits`: the overflow and divide errors are gc's bootstrap
     version, of a type of `math/bits` rather than `runtime`, with the same
     messages.
-  - `strconv`: gc's bootstrap `index`; `internal/stringslite` is Aether's
-    (`Clone`, `HasPrefix`, `HasSuffix`, `IndexByte`, `TrimPrefix`,
-    `TrimSuffix`).
+  - `strconv`: gc's bootstrap `index`; `internal/stringslite` was
+    Aether's until 11.7 compiled gc's.
   - `errors`: `New` from GOROOT; `Is`, `As`, `Unwrap`, and `Join` were
     `unsupported` until 11.7 (below).
 - **Reachability.** In every package besides main, the gate and lowering
@@ -1346,8 +1345,42 @@ package's generic code is `unsupported`.
   reflection (`internal/reflectlite` is Aether's, without bodies) until
   Aether has reflection; `iter.Pull` and `iter.Pull2` (`stdlib-package`);
   everything ranging over an iterator (`slices.Collect`, `maps.Keys`, ...,
-  `for-range`); `slices` functions using `unsafe` (`Insert`, `Replace`);
-  `sort.Reverse` (a struct embedding an interface).
+  `for-range`); `sort.Reverse` (a struct embedding an interface).
+
+## unsafe, strings, and bytes (Phase 11 increment 11.7, second part)
+
+D-049.
+- **`unsafe`**, in every package, the main module's included:
+  - `Sizeof`, `Alignof`, and `Offsetof`, constants of Aether's layout,
+    which is gc's for every type but those of the packages Aether
+    replaces (for example `sync.Mutex`);
+  - `unsafe.Pointer`, a pointer: its conversions to and from every
+    pointer type and `uintptr` (the address), comparison, maps, and
+    interfaces, where it is stored as a pointer is, and printed by a
+    panic as gc does, `(unsafe.Pointer) 0x…`;
+  - `Add`, `String`, `StringData`, `Slice`, and `SliceData`, with gc's
+    run-time errors (`unsafe.String: len out of range`, `unsafe.Slice:
+    ptr is nil and len is not zero`, ...), recovered as
+    `runtime.errorString` values.
+
+  Aether's collector does not move objects, and is conservative, so an
+  address kept only as a `uintptr` may keep its object alive, which gc's
+  does not; no program can observe it. `println` of an `unsafe.Pointer`
+  is `unsupported`.
+- **`strings`** and **`bytes`**, with `internal/stringslite`, from GOROOT.
+  `internal/bytealg` is gc's portable files and Aether's in place of its
+  assembly: the same results, by simpler algorithms. `MakeNoZero` makes
+  an exact length, so `strings.Builder.Cap` and `bytes.Buffer.Cap` may
+  differ from gc's (V-6). `internal/abi` is Aether's, with only `NoEscape`.
+- **`sync.Pool`**: `Get` returns the object put last, or `New()`, or nil;
+  `Put` keeps every object. gc's may drop objects at any time.
+- Two behaviors of gc that `unsafe` and `strings` made observable:
+  - a slice expression whose result has capacity 0 (a string's, length
+    0) keeps the operand's data address instead of advancing it past the
+    end of the array (`test/slicecap.go`);
+  - a failed type assertion between two types of the same name says why
+    they differ, as gc does: `(types from different packages)` or
+    `(types from different scopes)`.
 
 ## Support matrix
 
@@ -1398,6 +1431,7 @@ package's generic code is `unsupported`.
 | `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`; gate tests |
 | `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysOps` |
 | Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |
+| `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer`, `Add`, `String`, `StringData`, `Slice`, `SliceData`); `strings`, `bytes`, `sync.Pool` | Package unsafe; the packages' documentation | Phase 11 / 11.7 | Supported (native) | `TestStdPrograms` (`strings`, `unsafe`, `unsafepanic`); `TestStdRejects` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

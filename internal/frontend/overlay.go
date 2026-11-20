@@ -42,9 +42,12 @@ var patches = map[string]patch{
 			"floor_asm.go": "floor_noasm.go", "dim_asm.go": "dim_noasm.go", "hypot_asm.go": "hypot_noasm.go",
 		},
 	},
-	"math/bits":            {use: map[string]string{"bits_errors.go": "bits_errors_bootstrap.go"}},
-	"strconv":              {use: map[string]string{"bytealg.go": "bytealg_bootstrap.go"}},
-	"internal/stringslite": {replace: true},
+	"math/bits": {use: map[string]string{"bits_errors.go": "bits_errors_bootstrap.go"}},
+	"strconv":   {use: map[string]string{"bytealg.go": "bytealg_bootstrap.go"}},
+	// gc's portable files, and Aether's for its assembly and runtime (11.7).
+	"internal/bytealg": {exclude: []string{"equal_native.go", "index_native.go"}, use: map[string]string{
+		"compare_native.go": "compare_generic.go", "count_native.go": "count_generic.go", "indexbyte_native.go": "indexbyte_generic.go"}},
+	"internal/abi": {replace: true}, // gc's type metadata and calling convention; NoEscape (11.7)
 	// gc's runtime, and packages that depend on its internals (11.6).
 	"runtime": {replace: true}, "os": {replace: true}, "sync": {replace: true}, "sync/atomic": {replace: true},
 	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)

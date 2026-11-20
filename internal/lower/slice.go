@@ -271,21 +271,22 @@ func (l *lowerer) sliceExpr(e *ast.SliceExpr) []*ir.Instr {
 	}
 	size := sizes.Sizeof(et)
 	base := ptr
-	if lo != nil {
-		if tv := l.pkg.Info.Types[e.Low]; tv.Value == nil {
-			// Ptr plus lo elements, unless lo is 0, which a nil slice allows.
-			s := l.fn.NewSlot("tmp", ir.Ptr, pos)
-			l.fn.Store(l.b, s, ptr(), pos)
-			add, join := l.fn.NewBlock(), l.fn.NewBlock()
-			l.fn.Branch(l.b, l.fn.Compare(l.b, ir.Ne, l.toI64(lo(), pos), l.fn.Const(l.b, 0, pos), pos), add, join, pos)
-			l.b = add
-			l.fn.Store(l.b, s, l.fn.PAdd(l.b, ptr(), l.fn.Binary(l.b, ir.Mul, l.toI64(lo(), pos), l.fn.Const(l.b, size, pos), pos), pos), pos)
-			l.fn.Jump(l.b, join, pos)
-			l.b = join
-			base = func() *ir.Instr { return l.fn.Load(l.b, s, pos) }
-		} else if k, _ := constantIndex(tv); k != 0 {
-			base = func() *ir.Instr { return l.fn.PAdd(l.b, ptr(), l.fn.Const(l.b, k*size, pos), pos) }
+	if tv := l.pkg.Info.Types[e.Low]; lo != nil && (tv.Value == nil || constantNonZero(tv)) {
+		// Ptr plus lo elements, unless the result is empty: its capacity
+		// (a string's length) is 0, as gc does, so that the Ptr never
+		// points past the end of the array, which unsafe could observe.
+		// As gc, without a branch: the offset is masked by
+		// (x | -x) >> 63, -1 unless x, the capacity, is 0. A nil slice's
+		// offset is then 0 too.
+		rest := end
+		if isStr {
+			rest = top
 		}
+		x := l.fn.Binary(l.b, ir.Sub, l.toI64(rest(), pos), l.toI64(lo(), pos), pos)
+		mask := l.fn.Shift(l.b, ir.Shr, l.fn.Binary(l.b, ir.Or, x, l.fn.Neg(l.b, x, pos), pos), l.fn.TypedConst(l.b, ir.U64, 63, pos), pos)
+		off := l.fn.Binary(l.b, ir.And, l.fn.Binary(l.b, ir.Mul, l.toI64(lo(), pos), l.fn.Const(l.b, size, pos), pos), mask, pos)
+		p := l.fn.PAdd(l.b, ptr(), off, pos)
+		base = func() *ir.Instr { return p }
 	}
 	low := func() *ir.Instr { return l.fn.Const(l.b, 0, pos) }
 	if lo != nil {
@@ -298,6 +299,12 @@ func (l *lowerer) sliceExpr(e *ast.SliceExpr) []*ir.Instr {
 	}
 	c := l.fn.Binary(l.b, ir.Sub, l.toI64(end(), pos), low(), pos)
 	return []*ir.Instr{p, n, c}
+}
+
+// constantNonZero reports whether tv, a constant index, is not 0.
+func constantNonZero(tv types.TypeAndValue) bool {
+	k, _ := constantIndex(tv)
+	return k != 0
 }
 
 // makeSlice lowers make([]T, n) and make([]T, n, c): the length, then the

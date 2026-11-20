@@ -4298,6 +4298,43 @@ packages.
   size limit: generics across packages here, then `unsafe` with
   `strings` and `bytes`.
 
+**Implementation notes (increment 11.7, second part, 2026-11-20).**
+- `unsafe.Pointer` is a Ptr. A conversion between it and `uintptr`
+  stores the word in a frame object and loads it as the other type, as
+  the float-bits intrinsics do, so the IR is unchanged; in the
+  interpreter a `uintptr` is then its encoding of the address, which
+  orders and offsets as addresses do within an object. In an interface
+  it is stored directly, as gc stores it, and a panic prints it in hex.
+- `unsafe.String` and `unsafe.Slice` make gc's checks: a negative
+  length, a nil pointer with a length, and bytes past the end of the
+  address space, with gc's messages.
+- `internal/bytealg` keeps gc's `*_generic.go` files in place of the
+  `*_native.go` ones, and replaces `bytealg.go` and `index_amd64.go`,
+  whose `MakeNoZero`, `Index`, and `IndexString` are gc's runtime and
+  assembly, with Aether's Go: the Rabin-Karp hashes are the same
+  functions, and the searches find the same indexes.
+- `internal/abi` is replaced by `NoEscape`, all that `strings` uses;
+  increment 11.8 extends it for `reflect`. Aether's
+  `internal/stringslite` is removed: gc's compiles now.
+- `sync.Pool` keeps every object put. `io` needs it.
+- `TestGorootRun` found two differences from gc once `unsafe` and
+  `strings` compiled: a slice expression with an empty result advanced
+  its address past the end of the array (gc does not advance it, which
+  `test/slicecap.go` checks through `unsafe`), and a failed assertion
+  between two types of the same name lacked gc's `(types from different
+  scopes)` or `(... packages)` (`test/fixedbugs/issue26094.go`). The
+  latter is decided by comparing the dynamic type's descriptor with
+  those of the program's types of the asserted type's package path, a
+  function generated after every descriptor, as the interface find
+  functions are.
+- The slice fix is gc's own formulation, without a branch: the offset is
+  masked by `(x | -x) >> 63`, which is -1 unless x, the new capacity, is
+  0. A first version branched, and made a generated test function too
+  large to promote (blocks × slots, `TestBuildBackendLimits`). It adds to
+  a nil slice's Ptr an offset of 0, so the IR's `padd` now allows an
+  offset of 0 on any Ptr, nil included (an IR contract change, recorded
+  here; native code always allowed it).
+
 ---
 
 ## Phase 0 research notes

@@ -1001,6 +1001,11 @@ counted 141 top-level files containing a `// run` line.
     `stdlib-package` to `directive`: with `iter` and generics across
     packages, programs importing `fmt` now reach `internal/abi`, whose
     `//go:linkname` variable `zeroVal` stops them (11.8).
+  - After the second part of increment 11.7 (2026-11-20): 548 pass
+    (54.5 %; 30 more, none lost), 457 `unsupported` (315 `directive`,
+    almost all `reflect`'s `zeroVal`; 69 `stdlib-package`), 0 bugs. Two
+    bugs it found on the way, `slicecap.go` and
+    `fixedbugs/issue26094.go`, are fixed.
 - **Programs of several packages** (D-049, increment 11.4).
   `TestPackagePrograms` builds each program under
   `cmd/aether/testdata/packages/cmd`, in the module
@@ -1021,6 +1026,8 @@ counted 141 top-level files containing a `// run` line.
   and on `/dev/full` under gc and Aether. Since increment 11.7 `generics`
   and `errors` use `cmp`, `slices`, `maps`, `sort`, and `errors`, and
   `testdata/packages/cmd/generic` instantiates a module package's generic
-  code.
+  code. The second part adds `strings`, `unsafe`, and `unsafepanic`, and
+  `testdata/packages/cmd/samename` fails assertions between types of the
+  same name.
 - It is read in place from GOROOT, not copied into the repository. Copying would
   require handling the BSD license.

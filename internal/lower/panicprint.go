@@ -156,7 +156,7 @@ func (l *lowerer) printRuntime(k int, rec func() *ir.Instr, pos ir.Pos) {
 func (l *lowerer) printValue(t types.Type, rec func() *ir.Instr, pos ir.Pos) {
 	t = types.Unalias(t)
 	b, ok := t.Underlying().(*types.Basic)
-	if !ok {
+	if !ok || b.Kind() == types.UnsafePointer {
 		l.printStr("("+gcName(t)+") ", pos)
 		l.fn.Call(l.b, l.ps.hex, []*ir.Instr{l.recField(rec, ir.I64, recData, pos)}, pos)
 		return

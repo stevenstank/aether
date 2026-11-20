@@ -46,31 +46,41 @@ b3:
   v18 = load s6 @10:11
   panic sliceb, v17, v18 @10:11
 b4:
-  v19 = load s3 @10:11
-  v20 = const 1 @10:11
-  v21 = padd v19, v20 @10:11
-  v22 = load s6 @10:11
-  v23 = load s5 @10:11
-  v24 = sub v22, v23 @10:11
-  println v21, v24 @10:2
-  v25 = load s0 @11:10
-  v26 = load s1 @11:10
-  store s7, v25 @11:11
-  store s8, v26 @11:11
-  v27 = load s2 @11:13
-  store s9, v27 @11:11
-  v28 = conv u64, v27 @11:11
-  v29 = conv u64, v26 @11:11
-  v30 = gt v28, v29 @11:11
-  branch v30, b5, b6 @11:11
+  v19 = load s6 @10:11
+  v20 = load s5 @10:11
+  v21 = sub v19, v20 @10:11
+  v22 = neg v21 @10:11
+  v23 = or v21, v22 @10:11
+  v24 = const u64 63 @10:11
+  v25 = shr v23, v24 @10:11
+  v26 = load s5 @10:11
+  v27 = const 1 @10:11
+  v28 = mul v26, v27 @10:11
+  v29 = and v28, v25 @10:11
+  v30 = load s3 @10:11
+  v31 = padd v30, v29 @10:11
+  v32 = load s6 @10:11
+  v33 = load s5 @10:11
+  v34 = sub v32, v33 @10:11
+  println v31, v34 @10:2
+  v35 = load s0 @11:10
+  v36 = load s1 @11:10
+  store s7, v35 @11:11
+  store s8, v36 @11:11
+  v37 = load s2 @11:13
+  store s9, v37 @11:11
+  v38 = conv u64, v37 @11:11
+  v39 = conv u64, v36 @11:11
+  v40 = gt v38, v39 @11:11
+  branch v40, b5, b6 @11:11
 b5:
-  v31 = load s9 @11:11
-  v32 = load s8 @11:11
-  panic slicealen, v31, v32 @11:11
+  v41 = load s9 @11:11
+  v42 = load s8 @11:11
+  panic slicealen, v41, v42 @11:11
 b6:
-  v33 = load s7 @11:11
-  v34 = load s9 @11:11
-  v35 = const 0 @11:11
-  v36 = sub v34, v35 @11:11
-  println v33, v36 @11:2
+  v43 = load s7 @11:11
+  v44 = load s9 @11:11
+  v45 = const 0 @11:11
+  v46 = sub v44, v45 @11:11
+  println v43, v46 @11:2
   ret @12:1

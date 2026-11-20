@@ -307,7 +307,8 @@ const (
 	Alloc
 	// PAdd produces args[0], a Ptr into an object, plus args[1] bytes, an
 	// I64 (D-035). Precondition: the result lies in the same object or just
-	// past its end.
+	// past its end, or args[1] is 0, when it is args[0], whatever that is
+	// (nil included).
 	PAdd
 	// Move copies args[2] bytes, an I64, from the Ptr args[1] to the Ptr
 	// args[0], as if through a temporary, so the ranges may overlap

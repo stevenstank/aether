@@ -130,6 +130,9 @@ func (m *memory) object(p int64) (*object, int64, error) {
 // padd returns p plus i bytes, which must lie in p's object or just past
 // its end.
 func (m *memory) padd(p, i int64) (int64, error) {
+	if i == 0 {
+		return p, nil // any Ptr, nil included
+	}
 	o, base, err := m.object(p)
 	if err != nil {
 		return 0, err

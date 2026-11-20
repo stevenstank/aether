@@ -231,3 +231,20 @@ func withStrings(body func(f *ir.Func, b *ir.Block), strs ...string) *ir.Program
 	p.Strings = strs
 	return p
 }
+
+// TestPaddZero checks that a PAdd of 0 bytes is its Ptr, whatever that is,
+// nil included (D-049, increment 11.7), and that any other offset still
+// needs an object.
+func TestPaddZero(t *testing.T) {
+	m := newMemory(&ir.Program{})
+	if p, err := m.padd(0, 0); err != nil || p != 0 {
+		t.Errorf("padd(nil, 0) = %d, %v", p, err)
+	}
+	if _, err := m.padd(0, 8); err == nil {
+		t.Error("padd(nil, 8) succeeded")
+	}
+	o := m.alloc(8, true)
+	if p, err := m.padd(o, 8); err != nil || p != o+8 {
+		t.Errorf("padd(o, 8) = %d, %v", p, err)
+	}
+}

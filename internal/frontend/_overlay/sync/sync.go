@@ -231,3 +231,34 @@ func (o *Once) Do(f func()) {
 }
 
 func (o *Once) finish() { o.done = true }
+
+// A Pool is a set of temporary objects that may be individually saved and
+// retrieved. Aether's keeps every object put, and gives back the last.
+type Pool struct {
+	items []any
+	// New optionally specifies a function to generate a value when Get
+	// would otherwise return nil.
+	New func() any
+}
+
+// Put adds x to the pool; a nil x is dropped.
+func (p *Pool) Put(x any) {
+	if x != nil {
+		p.items = append(p.items, x)
+	}
+}
+
+// Get removes an item from the pool and returns it, or else returns the
+// result of calling p.New, if it is not nil, or nil.
+func (p *Pool) Get() any {
+	if n := len(p.items); n > 0 {
+		x := p.items[n-1]
+		p.items[n-1] = nil
+		p.items = p.items[:n-1]
+		return x
+	}
+	if p.New != nil {
+		return p.New()
+	}
+	return nil
+}
