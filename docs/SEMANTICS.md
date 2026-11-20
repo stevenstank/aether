@@ -186,12 +186,21 @@ includes nested blocks specifically to test this.
 
 ### Concurrency and the memory model
 
-- Goroutines, channels, `select`, and `sync`/`sync/atomic` are Phase 10 items.
-- Until then the memory model is trivially satisfied, because programs are
-  single-threaded.
-- Once concurrency exists, optimizations must respect happens-before edges
-  created by channel operations and synchronization primitives. That
-  constraint will be added to the optimizer invariants in Phase 10.
+- Goroutines, channels, and `select` are Phase 10 items, designed in D-048
+  and not supported yet: the gate rejects them. `sync` and `sync/atomic`
+  need imports, so they belong to Phase 11.
+- **Execution model (D-048).**
+  - All goroutines run on one OS thread.
+  - A goroutine switches only inside a channel operation, a `select`, or at
+    its own end. There is no preemption.
+  - Every execution is therefore sequentially consistent, which satisfies
+    the memory model.
+- **Optimizer invariant.**
+  - Every call may read and write all memory.
+  - No optimization may keep a memory value across a call or move a memory
+    access across one.
+  - Every happens-before edge created by a channel operation is a call, so
+    this invariant respects those edges.
 - Data-race behavior follows the memory model's restrictions on "programs with
   races". Aether will not try to match gc's behavior for racy programs.
 

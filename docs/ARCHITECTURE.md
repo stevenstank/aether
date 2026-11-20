@@ -698,7 +698,7 @@ Some Go features need far more runtime support than others:
 | interfaces | type descriptors, itabs |
 | closures | heap-allocated captured variables |
 | `defer`/`recover` | defer records, unwinding |
-| goroutines, channels, `select` | scheduler, stacks, possibly threads |
+| goroutines, channels, `select` | one OS thread; fixed stack slots in one reservation and a context switch in the runtime; scheduler and channels as generated IR (D-048, planned) |
 | reflection | complete type metadata |
 | the standard library | nearly all of the above, plus assembly-implemented functions and `//go:linkname` dependencies |
 
@@ -821,7 +821,6 @@ bug (`TESTING.md`).
   SSA IR (D-026 allocates on the SSA IR)
 - GC strategy (D-010)
 - Representation of interfaces, closures, defer records, and maps
-- Goroutine stack strategy
 - Multi-package compilation, and how imported packages are type-checked and
   compiled
 - Debug info (DWARF)

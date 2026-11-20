@@ -1039,18 +1039,48 @@ repeated in each phase below:
   skipped. A 60 s run made 1,112 executions on 2026-11-20. Negative
   control: strings noscan was found within 2 s.
 
-## Phase 10: Concurrency
+## Phase 10: Concurrency (design: D-048, 2026-11-20; no code yet)
 
 - **Scope:**
-  - goroutines, stack strategy, scheduler (user-level first, threads later)
+  - goroutines on one OS thread, scheduled cooperatively (D-048)
+  - each goroutine gets a fixed 64 MiB stack slot in one reserved region
+  - the scheduler and channels as generated IR
   - channels, `select`
-  - `sync/atomic` semantics per the memory model
-  - the optimizer constraints from `SEMANTICS.md`
-- **Acceptance criteria:** differential agreement on deterministic concurrent
-  programs; a deadlock-detection message or a documented divergence.
-- **Depends on:** Phase 9, D-011.
-- **Risks:** nondeterminism makes testing hard; requires a seeded scheduler for
-  reproducibility.
+  - the optimizer constraint from `SEMANTICS.md`
+  - `sync` and `sync/atomic` need imports, so they move to Phase 11. OS
+    threads and preemption need a new decision.
+- **Acceptance criteria:**
+  - Differential agreement with gc on concurrent programs whose output does
+    not depend on the schedule.
+  - Exact agreement between the interpreter and native code on every
+    concurrent program.
+  - gc's first deadlock line, with the remaining divergence documented.
+- **Depends on:** Phase 9, D-011, D-043, D-046.
+- **Risks:**
+  - A missing root on a suspended stack corrupts memory silently.
+  - A program that relies on preemption hangs.
+  - The schedule is deterministic (D-048), so no seed is needed to
+    reproduce a run.
+- **Increments:**
+  - **10.1** Runtime stacks and switching.
+    - The `GoNew`, `GoSwitch`, and `GoExit` IR ops, with the verifier,
+      printer, interpreter, both backends, and `rt/goroutine.s`.
+    - The collector's roots across stacks.
+    - Tests on hand-built IR, natively and in the interpreter, including
+      `AETHER_GCSTRESS=1` with suspended stacks. Negative control: not
+      scanning suspended stacks must fail.
+  - **10.2** Channels and `go`.
+    - `go` statements, channel types, and `make`, send, receive, comma-ok,
+      `close`, `len`, `cap`, and `for range` on channels.
+    - The generated scheduler, per-goroutine panic state, and deadlock
+      detection.
+    - Differential tests against gc, plus a deadlock comparison rule.
+  - **10.3** `select`, with `default` and nil channels.
+  - **10.4** Generated programs and stress tests.
+    - A generator of programs whose output does not depend on the schedule,
+      in `FuzzGenerated` and `FuzzGC`.
+    - Stress tests: 100,000 blocked goroutines; a million goroutines run in
+      sequence in bounded memory; stack overflow in a goroutine.
 
 ## Phase 11: Packages, standard library, conformance
 
@@ -1060,6 +1090,8 @@ repeated in each phase below:
   - compiling standard-library packages from source, starting with ones that
     have no assembly or `linkname` dependencies
   - reflection as required
+  - `sync` and `sync/atomic`, moved here from Phase 10 because they need
+    imports (D-048)
   - running `/usr/local/go/test` `// run` programs (the README states these
     are "applicable to gccgo and other Go tool chains")
 - **Acceptance criteria:** a published, reproducible pass rate on the GOROOT

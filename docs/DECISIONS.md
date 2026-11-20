@@ -73,6 +73,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-042 | Maps (Phase 8 increment 8.5) | Accepted (2026-11-18, owner's instruction to proceed without an approval cycle; owner review pending) |
 | D-043 | Defer, panic, and recover (Phase 8 increment 8.6) | Accepted (2026-11-19, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-044 | Named results (Phase 8 increment 8.7) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
+| D-048 | Goroutines, channels, and the scheduler (Phase 10) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending; no code yet) |
 
 ## Review log
 
@@ -3699,6 +3700,223 @@ keep other objects alive. Lowering knows each allocation's Go type.
 **Consequences.** A wrong noscan flag is a missing root, so `hasPointers`
 errs towards scanning, `TestHasPointers` pins it, and `TestGCStress`
 catches a wrong one (negative controls: every type, or strings, noscan).
+
+---
+
+## D-048: Goroutines, channels, and the scheduler (Phase 10)
+
+**Status:** Accepted (2026-11-20). The design-first note for Phase 10,
+written before any code; the owner's review is pending. It amends D-046's
+roots and settles D-011's "Goroutines (Phase 10)" trigger and D-009's
+"reusing or adapting gc's runtime" trigger.
+
+**Context.**
+- No value lives in a register across a call (D-026, D-030), so at every
+  call each live value of every frame is in its stack cell or in memory.
+  Compiled code preserves only `%rbp` and `%rsp` across calls; runtime
+  helpers also preserve `%rbx` and `%r12`–`%r15` (D-011).
+- Every prologue checks its frame against the global `aether.stacklimit`
+  (D-011). The collector scans `[%rsp, aether.stacktop)` and `.bss`
+  conservatively and never moves objects (D-046).
+- The panic state is three IR globals, `.panics`, `.unwinding`, and
+  `.rframe` (D-043). Go makes each of them per goroutine.
+- No pass keeps a memory value across a call or moves a memory access
+  across one. Promoted slots are frame-private.
+- The subset has no imports, so `sync`, `sync/atomic`, `runtime.Gosched`,
+  and `time` are out of reach. Phase 10's language surface is `go`,
+  channels, and `select`.
+- Measured with gc-built go1.26.1 binaries on 2026-11-20:
+  - **Deadlock.** When every goroutine is blocked, gc writes `fatal error:
+    all goroutines are asleep - deadlock!`, an empty line, and a traceback
+    of each goroutine (`goroutine 1 [chan receive]:`, `[select (no
+    cases)]`), then exits 2.
+  - **Goroutine panics.** A panic in a goroutine runs that goroutine's
+    deferred calls, writes `panic: boom` and a traceback, and ends the
+    whole program with status 2.
+  - **Exit.** When `main` returns, the program exits 0, even while other
+    goroutines are blocked or spinning.
+  - **Channel panics.** `send on closed channel`, `close of nil channel`,
+    and `close of closed channel` are recoverable errors without
+    `runtime error: `. A receive from a closed, empty channel gives `0
+    false`.
+  - **Order.** With `GOMAXPROCS=1`, three runs gave the same order. The
+    newest goroutine started by `go` runs first, then the others in FIFO
+    order, and a goroutine woken by a channel operation runs next. With the
+    default `GOMAXPROCS`, one of three runs gave a different order.
+  - **Preemption.** A goroutine running `for {}` did not stop the others,
+    because gc preempts it.
+  - **Many goroutines.** 100,000 goroutines blocked in a send: 0.26 s,
+    270 MB peak resident.
+- Measured on this host on 2026-11-20 with a hand-written static
+  executable: `MAP_NORESERVE` reservations of 8 TiB and 64 TiB succeed, and
+  pages anywhere in them can be written. The host reports `vm.max_map_count`
+  = 1,048,576; the upstream default is 65,530. Transparent huge pages are
+  in `madvise` mode, but hosts set to `always` would back each touched
+  2 MiB-aligned range with a huge page.
+
+**Decision.**
+- **Execution model.** All goroutines run on one OS thread (M:1) and switch
+  cooperatively. A switch happens only inside a channel operation, `select`,
+  or the end of a goroutine. There is no preemption. OS threads need a new
+  decision.
+- **Stacks.** `main` (and `init`) keep D-009's stack.
+  - Every other goroutine runs in a 64 MiB *slot* of one 8 TiB region, so
+    there are 131,072 slots. The runtime reserves the region on the first
+    `go`, with `mmap` flags `0x24022`
+    (`MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK|MAP_NORESERVE`), and calls
+    `madvise(MADV_NOHUGEPAGE)` on it.
+  - The top 64 bytes of a slot hold the goroutine's runtime record: its
+    saved `%rsp`, its state, and a free-list link. The stack top is just
+    below the record. The lowest 4096 bytes are the D-011 reserve, so the
+    limit is the slot's base + 4096.
+  - Slots have no guard pages between them. The prologue check, not a
+    guard page, detects overflow (D-009), and one VMA serves every slot.
+  - A freed slot releases its pages below the top page with
+    `MADV_DONTNEED`. Slots are reused last in, first out.
+  - If the reservation fails or no slot is free, the program writes `fatal
+    error: runtime: cannot allocate goroutine stack` and exits 2.
+  - Overflow in a goroutine is D-011's `fatal error: stack overflow`.
+    Prologues do not change.
+- **Runtime primitives.** A new runtime file, `rt/goroutine.s`, provides
+  three helpers that follow the helper interface. Each is an IR op that the
+  register allocator treats as a call.
+  - `GoNew f` returns an I64 *handle*. `f` must be an IR function with no
+    parameters and no results, so its call is the same under ABI-S0 and
+    ABI-R1. The helper takes a slot and builds an initial frame. The first
+    switch to the handle calls `f` on the new stack, with `%rsp` aligned
+    as `_start` aligns it. `f` never returns; if it does, that is a fatal
+    internal error.
+  - `GoSwitch h`:
+    - pushes `%rbx`, `%rbp`, and `%r12`–`%r15`, then saves `%rsp` in the
+      current record;
+    - sets `aether.stacklimit`, `aether.stacktop`, and the current handle
+      from `h`'s record;
+    - loads `h`'s `%rsp`, pops the six registers, and returns into `h`.
+
+    Handle 0 is the main goroutine, whose record is in `.bss`.
+  - `GoExit h` is a terminator. It switches to `h` without saving anything,
+    then frees the slot it left. A slot is never freed while it is running.
+  - **Interpreter.** Each goroutine is its own explicit frame stack (the
+    `run` loop's `stack`). The three ops create a stack, change which stack
+    runs, and drop a stack. Every goroutine counts against the same step
+    budget.
+- **Scheduler in generated IR.** Lowering generates the scheduler and
+  channels as IR functions, as it does maps (D-042). The interpreter and
+  the native code therefore run the same scheduling code.
+  - **G objects.** Each goroutine has a heap object holding its handle, its
+    `go` record, a run-queue link, its wait fields, and its saved
+    `.panics`, `.unwinding`, and `.rframe`. The globals `.curg`,
+    `.runnext`, and the run queue complete the scheduler state.
+  - **Per-goroutine panic state.** One generated function calls
+    `GoSwitch`. It saves the three panic globals into the current G object
+    before the switch and restores them after, so D-043's code is
+    unchanged and its globals always belong to the running goroutine.
+  - **Policy.** This is gc's single-P order. `go`, and the wakeup of a
+    blocked goroutine, put that goroutine in `.runnext`, and the previous
+    `.runnext` goes to the tail of the queue. A goroutine that blocks or
+    ends hands over to `.runnext`, or else to the head of the queue.
+  - **Deadlock.** If the current goroutine blocks and nothing can run, a
+    new run-time error, `PanicDeadlock`, writes `fatal error: all
+    goroutines are asleep - deadlock!` and a newline, then exits 2. It
+    runs no deferred calls and writes no traceback.
+- **`go` statements.** A `go` statement evaluates its function value and
+  arguments as `defer` does (D-043): the same call forms, the same record,
+  and the same generated thunk. It then creates a G with `GoNew` of the
+  shared entry function. The entry function runs the record. If a panic
+  leaves the record, the entry function writes the panics and ends with
+  `PanicExit`, as `main`'s exit does. Otherwise it marks the G dead and
+  ends with `GoExit` to the next goroutine.
+- **Channels.**
+  - A channel is a heap header holding the element size, capacity, count,
+    buffer, receive and send indices, closed flag, receive queue, and send
+    queue. The buffer is noscan when the element type has no pointers
+    (D-047).
+  - Generated functions make channels, send, receive (also comma-ok and
+    `for range`), close, and run `select`. They follow gc's algorithm: a
+    value goes straight to a waiting receiver or comes straight from a
+    waiting sender, the buffer is a ring, and wait queues are FIFO.
+  - A nil channel blocks forever.
+  - The three channel panics are plain errors (`runtime.plainError`,
+    D-043). They are raised in a program that unwinds; otherwise they are
+    `PanicMsg`.
+  - `len` and `cap` read the header.
+- **`select`.**
+  - Its operands are evaluated once, in source order.
+  - Among the ready cases, one is chosen uniformly with a xorshift
+    generator held in an IR global with a fixed seed. Without a ready case,
+    `default` runs; otherwise the goroutine waits on every case.
+  - `select {}` blocks forever.
+- **GC roots** (amending D-046) are:
+  - the running goroutine's `[%rsp, aether.stacktop)`, as today, with the
+    switch keeping `aether.stacktop` current;
+  - `[saved %rsp, top)` of every other live goroutine, including `main`'s
+    when it is not running;
+  - `.bss`.
+
+  The collector walks the slots below the region's high-water mark and
+  skips free ones.
+- **Memory model.** One goroutine runs at a time, and switches happen only
+  inside calls. Every execution is therefore sequentially consistent, which
+  satisfies *The Go Memory Model* for every program, racy ones included.
+  The optimizer invariant is that every call may read and write all memory:
+  no pass may keep a memory value across a call or move a memory access
+  across one. Each happens-before edge from a channel operation is a call.
+
+**Invariants.**
+1. Only `GoSwitch` and `GoExit` change the running goroutine. Only the
+   generated scheduler reaches them.
+2. `aether.stacklimit` and `aether.stacktop` describe the running
+   goroutine's stack from its first instruction on that stack.
+3. Each live goroutine that is not running keeps every pointer it holds in
+   `[saved %rsp, top)` of its own stack or in heap objects reachable from
+   the roots. Its frames, the six pushed registers, and its G object (which
+   holds its panic globals and its `go` record) are all covered.
+4. Stacks never move. A pointer into a goroutine's stack is stored outside
+   it only in a channel wait record, and only while that goroutine is
+   parked in the operation that made the record.
+5. A slot is freed only after its goroutine has left it for good.
+6. The schedule depends only on the program, so the interpreter and native
+   code agree on every program, including programs whose output depends on
+   the schedule.
+
+**Alternatives considered.**
+- **Growable, copying stacks (gc).** Moving a stack needs every pointer to
+  it found exactly. A conservative collector and frames without pointer
+  maps cannot do that.
+- **Segmented stacks.** Prologues would call a split routine instead of
+  failing, ABI-S0's arguments in the caller's frame would cross segments,
+  and calls at a segment edge thrash (the hot split). That cost buys
+  nothing a 64 MiB slot does not.
+- **One `mmap` per goroutine with a guard page.** Each goroutine would cost
+  two VMAs and two system calls, and the upstream `vm.max_map_count` would
+  stop programs at about 32,000 goroutines.
+- **Scheduler and channels in assembly.** The interpreter would then need a
+  second implementation that agrees with it in every schedule.
+- **gc's runtime.** It needs gc's ABI (R14 as `g`), `.gopclntab`, precise
+  stack maps, and write barriers. D-009's reasons stand.
+- **One OS thread per goroutine, or M:N.** This needs thread-local
+  `aether.stacklimit` and scheduler state, locks, atomics, a stop-the-world
+  handshake for the collector, and real nondeterminism. It is deferred.
+- **Preemption by polls at loop back edges.** A load and a branch in every
+  loop of every program with `go`, for programs that spin waiting on a
+  data race or never block. It is deferred.
+- **A randomized or seeded schedule.** Departing from gc's single-P order
+  gains nothing. Programs that depend on the schedule are not compared with
+  gc anyway.
+
+**Consequences.**
+- A goroutine that loops without a channel operation never yields. If
+  another goroutine must run for the program to finish, it hangs, where gc
+  preempts. This is a divergence; test programs avoid it.
+- At most 131,072 goroutines can be live at once. Each goroutine has at
+  most 64 MiB of stack, where gc allows 1e9 bytes (V-2). A blocked
+  goroutine costs at least one 4 KiB page.
+- An 8 TiB reservation fails under a small `ulimit -v` at the first `go`.
+- A defect that writes below a slot's reserve corrupts the record of the
+  slot below it instead of faulting.
+- A deadlock writes only gc's first line (V-3).
+- Generics still reject channel type arguments (D-045).
+- `sync` and `sync/atomic` move to Phase 11 with imports.
 
 ---
 
