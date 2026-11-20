@@ -58,7 +58,8 @@ go test -timeout 30m ./...
 - When the gate changes, also fuzz:
   `go test ./cmd/aether -run '^$' -fuzz FuzzCheck -fuzztime 60s`. When
   lowering, the IR, or the interpreter changes, also fuzz `FuzzGenerated` the
-  same way.
+  same way. When the runtime's heap or collector, or lowering's choice of
+  noscan allocations, changes, also fuzz `FuzzGC` (D-046, D-047).
   - Save the complete output to a file and record the exit status. Never
     truncate it (`TESTING.md`, fuzz incident FI-1).
 - A new unsupported feature name must be added both to the gate's registry

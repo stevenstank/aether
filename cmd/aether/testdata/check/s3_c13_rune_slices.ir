@@ -543,7 +543,7 @@ b3:
   v188 = const 0 @44:30
   v189 = call .streq, v185, v186, v187, v188 @44:27
   v190 = const 0 @44:45
-  v191 = alloc v190 @44:45
+  v191 = alloc noscan, v190 @44:45
   store s11, v191 @44:45
   v192 = const 0 @44:45
   v193 = const 0 @44:45
@@ -569,7 +569,7 @@ b3:
   v213 = eq v209, v212 @44:102
   println v189, v196, v203, v207, v213 @44:2
   v214 = const 24 @47:9
-  v215 = alloc v214 @47:9
+  v215 = alloc noscan, v214 @47:9
   store s12, v215 @47:9
   v216 = const i32 -1 @47:16
   v217 = const 0 @47:16
@@ -817,7 +817,7 @@ b16:
   v308 = load s38 @57:7
   v309 = const 4 @57:7
   v310 = mul v308, v309 @57:7
-  v311 = alloc v310 @57:7
+  v311 = alloc noscan, v310 @57:7
   v312 = load s36 @57:7
   v313 = load s32 @57:7
   v314 = const 4 @57:7
@@ -898,7 +898,7 @@ b20:
   println v418, v419, v420, v411, v416, v417 @64:2
   v421 = str s40 @67:14
   v422 = const 1 @67:14
-  v423 = alloc v422 @67:7
+  v423 = alloc noscan, v422 @67:7
   move v423, v421, v422 @67:7
   store s52, v423 @67:2
   store s53, v422 @67:2
@@ -956,7 +956,7 @@ b22:
   v472 = load s52 @69:28
   v473 = load s53 @69:28
   v474 = load s54 @69:28
-  v475 = alloc v473 @69:21
+  v475 = alloc noscan, v473 @69:21
   move v475, v472, v473 @69:21
   v476 = call .stringtorunes, v475, v473 @69:14
   v477 = extract 1, v476 @69:14
@@ -997,7 +997,7 @@ b26:
   v446 = load s63 @68:6
   v447 = const 1 @68:6
   v448 = mul v446, v447 @68:6
-  v449 = alloc v448 @68:6
+  v449 = alloc noscan, v448 @68:6
   v450 = load s61 @68:6
   v451 = load s56 @68:6
   v452 = const 1 @68:6
@@ -1028,7 +1028,7 @@ b28:
   v516 = load s70 @69:41
   v517 = load s69 @69:41
   v518 = load s71 @69:41
-  v519 = alloc v517 @69:34
+  v519 = alloc noscan, v517 @69:34
   move v519, v516, v517 @69:34
   store s73, v519 @69:34
   store s74, v517 @69:34
@@ -1067,7 +1067,7 @@ b32:
   v500 = load s72 @69:41
   v501 = const 1 @69:41
   v502 = mul v500, v501 @69:41
-  v503 = alloc v502 @69:41
+  v503 = alloc noscan, v502 @69:41
   v504 = load s70 @69:41
   v505 = load s66 @69:41
   v506 = const 1 @69:41
@@ -1098,7 +1098,7 @@ b34:
   v557 = load s80 @69:77
   v558 = load s79 @69:77
   v559 = load s81 @69:77
-  v560 = alloc v558 @69:70
+  v560 = alloc noscan, v558 @69:70
   move v560, v557, v558 @69:70
   v561 = call .stringtorunes, v560, v558 @69:63
   v562 = extract 1, v561 @69:63
@@ -1127,7 +1127,7 @@ b38:
   v541 = load s82 @69:77
   v542 = const 1 @69:77
   v543 = mul v541, v542 @69:77
-  v544 = alloc v543 @69:77
+  v544 = alloc noscan, v543 @69:77
   v545 = load s80 @69:77
   v546 = load s76 @69:77
   v547 = const 1 @69:77
@@ -1177,7 +1177,7 @@ b3:
   v16 = load s3 @9:8
   v17 = const 4 @9:8
   v18 = mul v16, v17 @9:8
-  v19 = alloc v18 @9:8
+  v19 = alloc noscan, v18 @9:8
   store s4, v19 @9:8
   v20 = const 0 @9:8
   store s2, v20 @9:8
@@ -1456,7 +1456,7 @@ b0:
   store s1, v1 @15:10
   v2 = const 4 @15:10
   v3 = mul v1, v2 @15:10
-  v4 = alloc v3 @15:10
+  v4 = alloc noscan, v3 @15:10
   store s3, v4 @15:10
   v5 = const 0 @15:10
   store s2, v5 @15:10

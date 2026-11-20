@@ -262,7 +262,7 @@ func (l *lowerer) stringRunesFunc(pos ir.Pos) *ir.Func {
 	decode(counted)
 	g.inc(counted, cs)
 	f.Jump(counted, count, pos)
-	g.store(alloc, qs, f.Alloc(alloc, g.bin(alloc, ir.Mul, g.ld(alloc, cs), g.c(alloc, 4)), pos))
+	g.store(alloc, qs, f.AllocNoScan(alloc, g.bin(alloc, ir.Mul, g.ld(alloc, cs), g.c(alloc, 4)), pos)) // runes (D-047)
 	g.store(alloc, is, g.c(alloc, 0))
 	g.store(alloc, ks, g.c(alloc, 0))
 	f.Jump(alloc, fill, pos)
@@ -296,7 +296,7 @@ func (l *lowerer) runesStringFunc(pos ir.Pos) *ir.Func {
 	g.store(entry, ns, n)
 	// n runes take 4n bytes in the slice already, so 4n does not
 	// overflow.
-	g.store(entry, qs, f.Alloc(entry, g.bin(entry, ir.Mul, n, g.c(entry, 4)), pos))
+	g.store(entry, qs, f.AllocNoScan(entry, g.bin(entry, ir.Mul, n, g.c(entry, 4)), pos)) // bytes (D-047)
 	g.store(entry, is, g.c(entry, 0))
 	g.store(entry, offs, g.c(entry, 0))
 	loop, body, end := f.NewBlock(), f.NewBlock(), f.NewBlock()
@@ -322,7 +322,7 @@ func (l *lowerer) runeConversion(call *ast.CallExpr) []*ir.Instr {
 		// reads a negative one as above U+10FFFF.
 		x = l.fn.Conv(l.b, ir.I64, x, pos)
 	}
-	p := l.fn.Alloc(l.b, l.fn.Const(l.b, 4, pos), pos)
+	p := l.fn.AllocNoScan(l.b, l.fn.Const(l.b, 4, pos), pos) // bytes (D-047)
 	n := l.fn.Call(l.b, l.runeFunc(encodeRune, pos), []*ir.Instr{p, x}, pos)
 	return []*ir.Instr{p, n}
 }

@@ -134,10 +134,10 @@ b0:
   v8 = load s1 @29:65
   v9 = conv i64, v8 @29:58
   v10 = const 4 @29:58
-  v11 = alloc v10 @29:58
+  v11 = alloc noscan, v10 @29:58
   v12 = call .encoderune, v11, v9 @29:58
   v13 = add v7, v12 @29:56
-  v14 = alloc v13 @29:56
+  v14 = alloc noscan, v13 @29:56
   v15 = const 0 @29:56
   v16 = padd v14, v15 @29:56
   move v16, v4, v7 @29:56
@@ -224,7 +224,7 @@ b0:
   v14 = const 8 @40:71
   v15 = ldm i64, v13, v14 @40:71
   v16 = add v9, v15 @40:69
-  v17 = alloc v16 @40:69
+  v17 = alloc noscan, v16 @40:69
   v18 = const 0 @40:69
   v19 = padd v17, v18 @40:69
   move v19, v8, v9 @40:69
@@ -590,7 +590,7 @@ b6:
   v194 = ldm i32, v190, v193 @68:52
   v195 = conv i64, v194 @68:45
   v196 = const 4 @68:45
-  v197 = alloc v196 @68:45
+  v197 = alloc noscan, v196 @68:45
   v198 = call .encoderune, v197, v195 @68:45
   v199 = load s4 @68:10
   v200 = load s11 @68:19
@@ -843,7 +843,7 @@ b20:
   v373 = const 16 @80:42
   stm v364, v373, v372 @80:42
   v374 = const 4 @80:56
-  v375 = alloc v374 @80:56
+  v375 = alloc noscan, v374 @80:56
   store s33, v375 @80:56
   v376 = const i32 121 @80:63
   v377 = const 0 @80:63
@@ -1316,7 +1316,7 @@ b3:
   v16 = load s3 @31:47
   v17 = const 4 @31:47
   v18 = mul v16, v17 @31:47
-  v19 = alloc v18 @31:47
+  v19 = alloc noscan, v18 @31:47
   store s4, v19 @31:47
   v20 = const 0 @31:47
   store s2, v20 @31:47
@@ -1595,7 +1595,7 @@ b0:
   store s1, v1 @40:58
   v2 = const 4 @40:58
   v3 = mul v1, v2 @40:58
-  v4 = alloc v3 @40:58
+  v4 = alloc noscan, v3 @40:58
   store s3, v4 @40:58
   v5 = const 0 @40:58
   store s2, v5 @40:58

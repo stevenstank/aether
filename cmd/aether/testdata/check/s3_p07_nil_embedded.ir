@@ -16,7 +16,7 @@ b0:
   v4 = const 8 @18:7
   stm v1, v4, v3 @18:7
   v5 = const 16 @18:20
-  v6 = alloc v5 @18:20
+  v6 = alloc noscan, v5 @18:20
   store s0, v6 @18:20
   v7 = const 1 @18:27
   v8 = const 0 @18:27

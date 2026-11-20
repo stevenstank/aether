@@ -560,7 +560,7 @@ b32:
   v182 = const 24 @80:7
   stm v175, v182, v181 @80:7
   v183 = const 4 @80:20
-  v184 = alloc v183 @80:20
+  v184 = alloc noscan, v183 @80:20
   store s38, v184 @80:20
   v185 = const i16 1 @80:27
   v186 = const 0 @80:27
@@ -770,7 +770,7 @@ b44:
   v326 = const 16 @90:9
   stm v321, v326, v325 @90:9
   v327 = const 8 @90:19
-  v328 = alloc v327 @90:19
+  v328 = alloc noscan, v327 @90:19
   store s56, v328 @90:19
   v329 = const i32 1 @90:20
   v330 = const 0 @90:20
@@ -781,7 +781,7 @@ b44:
   v333 = const 0 @90:19
   stm v321, v333, v328 @90:19
   v334 = const 8 @90:30
-  v335 = alloc v334 @90:30
+  v335 = alloc noscan, v334 @90:30
   store s57, v335 @90:30
   v336 = const i32 5 @90:34
   v337 = const 4 @90:34
@@ -836,7 +836,7 @@ b48:
   v369 = load s60 @91:20
   println v368, v369, v367 @91:2
   v370 = const 32 @92:8
-  v371 = alloc v370 @92:8
+  v371 = alloc noscan, v370 @92:8
   store s62, v371 @92:8
   v372 = const 10 @92:16
   v373 = const 0 @92:16
@@ -897,7 +897,7 @@ b54:
   println v402, v403, v405 @94:2
   v406 = const 6 @96:7
   v407 = const 8 @96:2
-  v408 = alloc v407 @96:2
+  v408 = alloc noscan, v407 @96:2
   store s68, v408 @96:2
   v409 = load s68 @96:2
   v410 = const 0 @96:2
@@ -1091,7 +1091,7 @@ b61:
   v545 = eq v541, v544 @98:24
   println v538, v545 @98:2
   v546 = const 8 @99:10
-  v547 = alloc v546 @99:10
+  v547 = alloc noscan, v546 @99:10
   v548 = const 16 @99:2
   stm v542, v548, v547 @99:2
   v549 = const 16 @100:3

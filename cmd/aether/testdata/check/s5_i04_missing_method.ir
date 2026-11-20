@@ -167,7 +167,7 @@ b8:
 b9:
   v70 = str s0 @25:12
   v71 = const 50 @25:12
-  v72 = alloc v71 @25:12
+  v72 = alloc noscan, v71 @25:12
   v73 = const 0 @25:12
   v74 = padd v72, v73 @25:12
   move v74, v70, v71 @25:12
@@ -190,7 +190,7 @@ b10:
   v89 = add v82, v86 @25:12
   v90 = add v89, v88 @25:12
   v91 = add v90, v80 @25:12
-  v92 = alloc v91 @25:12
+  v92 = alloc noscan, v91 @25:12
   v93 = const 0 @25:12
   v94 = padd v92, v93 @25:12
   move v94, v81, v82 @25:12

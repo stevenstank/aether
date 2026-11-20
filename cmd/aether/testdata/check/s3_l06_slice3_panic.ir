@@ -10,7 +10,7 @@ func main @testdata/check/s3_l06_slice3_panic.go:7:6
   slot s8 tmp ptr @11:15
 b0:
   v0 = const 32 @8:6
-  v1 = alloc v0 @8:6
+  v1 = alloc noscan, v0 @8:6
   store s0, v1 @8:6
   v2 = const u16 6 @9:7
   store s1, v2 @9:2

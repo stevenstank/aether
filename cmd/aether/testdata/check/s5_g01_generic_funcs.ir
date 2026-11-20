@@ -758,7 +758,7 @@ b6:
   v21 = load s5 @49:7
   v22 = const 8 @49:7
   v23 = mul v21, v22 @49:7
-  v24 = alloc v23 @49:7
+  v24 = alloc noscan, v23 @49:7
   store s6, v24 @49:2
   store s7, v20 @49:2
   store s8, v21 @49:2
@@ -886,7 +886,7 @@ b20:
   v77 = load s26 @51:7
   v78 = const 8 @51:7
   v79 = mul v77, v78 @51:7
-  v80 = alloc v79 @51:7
+  v80 = alloc noscan, v79 @51:7
   v81 = load s24 @51:7
   v82 = load s20 @51:7
   v83 = const 8 @51:7
@@ -1090,7 +1090,7 @@ b18:
   v73 = load s27 @60:8
   v74 = const 8 @60:8
   v75 = mul v73, v74 @60:8
-  v76 = alloc v75 @60:8
+  v76 = alloc noscan, v75 @60:8
   v77 = load s25 @60:8
   v78 = load s21 @60:8
   v79 = const 8 @60:8
@@ -1792,13 +1792,13 @@ b0:
   store s0, v0 @93:25
   v1 = load s0 @93:25
   v2 = const 1 @93:25
-  v3 = alloc v2 @93:25
+  v3 = alloc noscan, v2 @93:25
   store s1, v3 @93:25
   v4 = load s1 @93:25
   v5 = const 0 @93:25
   stm v4, v5, v1 @93:25
   v6 = const 1 @94:6
-  v7 = alloc v6 @94:6
+  v7 = alloc noscan, v6 @94:6
   store s2, v7 @94:6
   v8 = load s2 @95:9
   v9 = load s1 @95:9
@@ -2257,7 +2257,7 @@ func main @testdata/check/s5_g01_generic_funcs.go:121:6
   mem m2 tmp 16 align 8 @140:10
 b0:
   v0 = const 24 @122:14
-  v1 = alloc v0 @122:14
+  v1 = alloc noscan, v0 @122:14
   store s0, v1 @122:14
   v2 = const 1 @122:20
   v3 = const 0 @122:20
@@ -2272,7 +2272,7 @@ b0:
   v9 = const 3 @122:14
   v10 = call Sum[int], v1, v8, v9 @122:10
   v11 = const 16 @122:35
-  v12 = alloc v11 @122:35
+  v12 = alloc noscan, v11 @122:35
   store s1, v12 @122:35
   v13 = const f64 0.5 @122:45
   v14 = const 0 @122:45
@@ -2284,7 +2284,7 @@ b0:
   v18 = const 2 @122:35
   v19 = call Sum[float64], v12, v17, v18 @122:31
   v20 = const 2 @122:62
-  v21 = alloc v20 @122:62
+  v21 = alloc noscan, v20 @122:62
   store s2, v21 @122:62
   v22 = const i8 100 @122:69
   v23 = const 0 @122:69
@@ -2296,7 +2296,7 @@ b0:
   v27 = const 2 @122:62
   v28 = call Sum[int8], v21, v26, v27 @122:58
   v29 = const 2 @122:92
-  v30 = alloc v29 @122:92
+  v30 = alloc noscan, v29 @122:92
   store s3, v30 @122:92
   v31 = const u8 200 @122:100
   v32 = const 0 @122:100
@@ -2355,7 +2355,7 @@ b0:
   v73 = extract 1, v71 @123:58
   println v40, v46, v47, v50, v72, v73 @123:2
   v74 = const 24 @124:14
-  v75 = alloc v74 @124:14
+  v75 = alloc noscan, v74 @124:14
   store s5, v75 @124:14
   v76 = const 1 @124:20
   v77 = const 0 @124:20
@@ -2475,7 +2475,7 @@ b6:
   v159 = load s19 @125:30
   println v155, v156, v157, v158, v159, v147, v154 @125:2
   v160 = const 48 @126:18
-  v161 = alloc v160 @126:18
+  v161 = alloc noscan, v160 @126:18
   store s23, v161 @126:18
   v162 = const 1 @126:24
   v163 = const 0 @126:24
@@ -2603,7 +2603,7 @@ b10:
   v246 = const 1 @129:36
   v247 = call Index[string], v234, v243, v244, v245, v246 @129:10
   v248 = const 16 @129:48
-  v249 = alloc v248 @129:48
+  v249 = alloc noscan, v248 @129:48
   store s37, v249 @129:48
   v250 = const 1 @129:53
   v251 = const 0 @129:53
@@ -2622,7 +2622,7 @@ b10:
   stm v257, v260, v259 @129:66
   v261 = call Index[main.P], v249, v254, v255, v257 @129:42
   v262 = const 8 @129:77
-  v263 = alloc v262 @129:77
+  v263 = alloc noscan, v262 @129:77
   store s38, v263 @129:77
   v264 = const f64 0.5 @129:87
   v265 = const 0 @129:87
@@ -2748,7 +2748,7 @@ b18:
   v352 = eq v348, v351 @139:91
   println v334, v340, v343, v346, v352 @139:2
   v353 = const 48 @140:14
-  v354 = alloc v353 @140:14
+  v354 = alloc noscan, v353 @140:14
   store s48, v354 @140:14
   v355 = const 3 @140:19
   v356 = const 0 @140:19
@@ -2786,7 +2786,7 @@ b18:
   store s50, v377 @142:2
   v378 = load s50 @143:7
   v379 = const 16 @143:9
-  v380 = alloc v379 @143:9
+  v380 = alloc noscan, v379 @143:9
   store s51, v380 @143:9
   v381 = const 4 @143:15
   v382 = const 0 @143:15
@@ -3043,7 +3043,7 @@ b38:
   v533 = mul v531, v532 @149:10
   v534 = ldm ptr, v530, v533 @149:10
   v535 = const 8 @149:18
-  v536 = alloc v535 @149:18
+  v536 = alloc noscan, v535 @149:18
   store s89, v536 @149:18
   v537 = const 7 @149:24
   v538 = const 0 @149:24
@@ -3090,7 +3090,7 @@ b42:
   v562 = mul v560, v561 @149:29
   v563 = ldm ptr, v559, v562 @149:29
   v564 = const 16 @149:37
-  v565 = alloc v564 @149:37
+  v565 = alloc noscan, v564 @149:37
   store s98, v565 @149:37
   v566 = const 8 @149:43
   v567 = const 0 @149:43
@@ -3285,7 +3285,7 @@ b0:
   v8 = conv i32, v7 @124:68
   v9 = conv i64, v8 @124:61
   v10 = const 4 @124:61
-  v11 = alloc v10 @124:61
+  v11 = alloc noscan, v10 @124:61
   v12 = call .encoderune, v11, v9 @124:61
   ret v11, v12 @124:54
 

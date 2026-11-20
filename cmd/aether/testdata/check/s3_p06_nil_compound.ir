@@ -19,7 +19,7 @@ func main @testdata/check/s3_p06_nil_compound.go:12:6
   slot s6 tmp i64 @17:2
 b0:
   v0 = const 8 @13:7
-  v1 = alloc v0 @13:7
+  v1 = alloc noscan, v0 @13:7
   store s0, v1 @13:2
   v2 = load s0 @14:3
   store s1, v2 @14:3

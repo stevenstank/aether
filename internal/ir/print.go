@@ -173,6 +173,10 @@ func (in *Instr) String() string {
 		} else {
 			ops = append(ops, "?")
 		}
+	case Alloc:
+		if in.Const == 1 {
+			ops = append(ops, "noscan")
+		}
 	case Call, FuncAddr:
 		if in.Callee != nil {
 			ops = append(ops, in.Callee.Name)

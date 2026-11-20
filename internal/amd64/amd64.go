@@ -72,6 +72,10 @@ const symMemmove = "aether.memmove"
 // address returned in %rax, under the helper interface otherwise.
 const symAlloc = "aether.alloc"
 
+// symAllocNoScan is symAlloc for an object that holds no pointer, whose
+// words the collector does not scan (D-047).
+const symAllocNoScan = "aether.allocnoscan"
+
 const symPanicIndex = "aether.panicindex"
 
 // strSym is the local symbol of the program's string i, in .rodata.
@@ -672,7 +676,11 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		// A call of the runtime: no value stays in a register across it
 		// (clobbers).
 		e.load(in.Args[0], "%rdi")
-		op("call\t%s", symAlloc)
+		if in.Const == 1 {
+			op("call\t%s", symAllocNoScan)
+		} else {
+			op("call\t%s", symAlloc)
+		}
 		e.finish(in, "%rax")
 	case ir.Move:
 		// A call of the runtime (clobbers). Through the scratch registers,

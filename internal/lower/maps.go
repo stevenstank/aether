@@ -324,7 +324,7 @@ func (l *lowerer) mapGrowFunc(pos ir.Pos) *ir.Func {
 		m.loop(func() *ir.Instr { return m.cmp(ir.Lt, n.get(), m.bin(ir.Mul, ncap.get(), m.c(2))) },
 			func() { n.set(m.bin(ir.Mul, n.get(), m.c(2))) })
 		ents := m.v("ents", l.fn.Alloc(l.b, m.bin(ir.Add, m.bin(ir.Mul, ncap.get(), es()), m.c(entFirst)), pos))
-		idx := m.v("idx", l.fn.Alloc(l.b, m.bin(ir.Mul, n.get(), m.c(8)), pos))
+		idx := m.v("idx", l.fn.AllocNoScan(l.b, m.bin(ir.Mul, n.get(), m.c(8)), pos)) // entry numbers (D-047)
 		mask := func() *ir.Instr { return m.bin(ir.Sub, n.get(), m.c(1)) }
 		old := m.v("old", m.ld(ir.Ptr, hdr(), hdrEntries))
 		used := m.v("used", m.ld(ir.I64, hdr(), hdrUsed))

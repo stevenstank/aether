@@ -517,7 +517,7 @@ b10:
   v73 = load s17 @29:7
   v74 = const 8 @29:7
   v75 = mul v73, v74 @29:7
-  v76 = alloc v75 @29:7
+  v76 = alloc noscan, v75 @29:7
   store s18, v76 @29:2
   store s19, v72 @29:2
   store s20, v73 @29:2
@@ -645,7 +645,7 @@ b20:
   v133 = load s35 @32:7
   v134 = const 8 @32:7
   v135 = mul v133, v134 @32:7
-  v136 = alloc v135 @32:7
+  v136 = alloc noscan, v135 @32:7
   v137 = load s33 @32:7
   v138 = load s29 @32:7
   v139 = const 8 @32:7
@@ -755,7 +755,7 @@ b28:
   v226 = load s54 @34:46
   println v221, v222, v223, v224, v225, v226, v220 @34:2
   v227 = const 80 @35:7
-  v228 = alloc v227 @35:7
+  v228 = alloc noscan, v227 @35:7
   store s58, v228 @35:7
   v229 = const 4 @35:13
   v230 = const 0 @35:13
@@ -1201,7 +1201,7 @@ b62:
   v514 = load s137 @41:16
   v515 = sub v513, v514 @41:16
   v516 = const 24 @41:22
-  v517 = alloc v516 @41:22
+  v517 = alloc noscan, v516 @41:22
   store s138, v517 @41:22
   v518 = const -1 @41:28
   v519 = const 0 @41:28
@@ -1375,7 +1375,7 @@ b78:
   v612 = load s171 @42:7
   v613 = const 1 @42:7
   v614 = mul v612, v613 @42:7
-  v615 = alloc v614 @42:7
+  v615 = alloc noscan, v614 @42:7
   store s172, v615 @42:2
   store s173, v611 @42:2
   store s174, v612 @42:2
@@ -1480,7 +1480,7 @@ b88:
   v675 = load s191 @45:26
   v676 = const 1 @45:26
   v677 = mul v675, v676 @45:26
-  v678 = alloc v677 @45:26
+  v678 = alloc noscan, v677 @45:26
   store s192, v674 @45:22
   v679 = const 0 @45:56
   store s193, v679 @45:44
@@ -1495,11 +1495,11 @@ b90:
   v684 = load s193 @45:44
   v685 = const 8 @45:44
   v686 = mul v684, v685 @45:44
-  v687 = alloc v686 @45:44
+  v687 = alloc noscan, v686 @45:44
   v688 = const ptr 0 @45:59
   v689 = eq v687, v688 @45:59
   v690 = const 0 @45:67
-  v691 = alloc v690 @45:67
+  v691 = alloc noscan, v690 @45:67
   store s194, v691 @45:67
   v692 = const 0 @45:67
   v693 = const 0 @45:67
@@ -1702,7 +1702,7 @@ b102:
   v831 = load s218 @49:7
   v832 = const 0 @49:7
   v833 = mul v831, v832 @49:7
-  v834 = alloc v833 @49:7
+  v834 = alloc noscan, v833 @49:7
   store s219, v834 @49:2
   store s220, v830 @49:2
   store s221, v831 @49:2

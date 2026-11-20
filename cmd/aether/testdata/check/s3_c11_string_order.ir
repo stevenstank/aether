@@ -53,9 +53,9 @@ b0:
   store s1, v1 @14:9
   v2 = load s0 @14:49
   v3 = load s1 @14:49
-  v4 = alloc v3 @14:42
+  v4 = alloc noscan, v3 @14:42
   move v4, v2, v3 @14:42
-  v5 = alloc v3 @14:35
+  v5 = alloc noscan, v3 @14:35
   move v5, v4, v3 @14:35
   ret v5, v3 @14:28
 
@@ -1066,7 +1066,7 @@ b69:
   v629 = str s3 @56:33
   v630 = const 1 @56:33
   v631 = add v628, v630 @56:30
-  v632 = alloc v631 @56:30
+  v632 = alloc noscan, v631 @56:30
   v633 = const 0 @56:30
   v634 = padd v632, v633 @56:30
   move v634, v627, v628 @56:30

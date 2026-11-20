@@ -91,7 +91,36 @@ func pointee(t types.Type) (types.Type, bool) {
 
 // alloc appends the allocation of a zero heap object for a value of t.
 func (l *lowerer) alloc(t types.Type, pos ir.Pos) *ir.Instr {
-	return l.fn.Alloc(l.b, l.fn.Const(l.b, sizes.Sizeof(t), pos), pos)
+	return l.allocOf(t, l.fn.Const(l.b, sizes.Sizeof(t), pos), pos)
+}
+
+// allocOf appends the allocation of n bytes for values of t: noscan if t
+// holds no pointer (D-047).
+func (l *lowerer) allocOf(t types.Type, n *ir.Instr, pos ir.Pos) *ir.Instr {
+	if hasPointers(t) {
+		return l.fn.Alloc(l.b, n, pos)
+	}
+	return l.fn.AllocNoScan(l.b, n, pos)
+}
+
+// hasPointers reports whether a value of t may hold a pointer word: a
+// pointer, a string, a slice, a map, a func, an interface, or an array or
+// struct of any of them. A type it does not know holds one.
+func hasPointers(t types.Type) bool {
+	switch u := t.Underlying().(type) {
+	case *types.Basic:
+		return u.Info()&types.IsString != 0 || u.Kind() == types.UnsafePointer
+	case *types.Array:
+		return u.Len() > 0 && hasPointers(u.Elem())
+	case *types.Struct:
+		for f := range u.Fields() {
+			if hasPointers(f.Type()) {
+				return true
+			}
+		}
+		return false
+	}
+	return true
 }
 
 // heapVar returns the storage of the address-taken variable v, whose heap

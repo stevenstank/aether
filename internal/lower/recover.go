@@ -308,7 +308,7 @@ func (l *lowerer) setError(rec func() *ir.Instr, t string, w []*ir.Instr, pos ir
 // buildItoa builds .itoa(v, signed), the decimal digits of v, signed or
 // unsigned, as a new string.
 func (l *lowerer) buildItoa(ps []func() *ir.Instr, pos ir.Pos) {
-	buf := l.keep(l.fn.Alloc(l.b, l.fn.Const(l.b, 20, pos), pos), pos)
+	buf := l.keep(l.fn.AllocNoScan(l.b, l.fn.Const(l.b, 20, pos), pos), pos) // digits (D-047)
 	bs := l.fn.NewSlot("buf", ir.Ptr, pos)
 	l.fn.Store(l.b, bs, buf(), pos)
 	i, u, neg := l.fn.NewSlot("i", ir.I64, pos), l.fn.NewSlot("u", ir.U64, pos), l.fn.NewSlot("neg", ir.Bool, pos)

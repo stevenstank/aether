@@ -41,7 +41,7 @@ func double() i64 @testdata/check/s5_d12_named_defer.go:11:6
   slot s5 tmp bool @14:1
 b0:
   v0 = const 8 @11:16
-  v1 = alloc v0 @11:16
+  v1 = alloc noscan, v0 @11:16
   store s0, v1 @11:16
   v2 = const ptr 0 @11:23
   store s1, v2 @11:23
@@ -220,7 +220,7 @@ func seen() i64 @testdata/check/s5_d12_named_defer.go:23:6
   slot s5 tmp bool @27:1
 b0:
   v0 = const 8 @23:14
-  v1 = alloc v0 @23:14
+  v1 = alloc noscan, v0 @23:14
   store s0, v1 @23:14
   v2 = const ptr 0 @23:21
   store s1, v2 @23:21
@@ -313,7 +313,7 @@ b0:
   v1 = param 1 @29:6
   store s1, v1 @29:6
   v2 = const 16 @29:13
-  v3 = alloc v2 @29:13
+  v3 = alloc noscan, v2 @29:13
   store s2, v3 @29:13
   v4 = const 32 @29:18
   v5 = alloc v4 @29:18
@@ -484,10 +484,10 @@ func bareDefer() (i64, i64) @testdata/check/s5_d12_named_defer.go:37:6
   slot s8 tmp bool @41:1
 b0:
   v0 = const 8 @37:19
-  v1 = alloc v0 @37:19
+  v1 = alloc noscan, v0 @37:19
   store s0, v1 @37:19
   v2 = const 8 @37:22
-  v3 = alloc v2 @37:22
+  v3 = alloc noscan, v2 @37:22
   store s1, v3 @37:22
   v4 = const ptr 0 @37:29
   store s2, v4 @37:29
@@ -657,7 +657,7 @@ b0:
   v5 = const 0 @52:7
   stm v4, v5, v1 @52:7
   v6 = const 8 @52:21
-  v7 = alloc v6 @52:21
+  v7 = alloc noscan, v6 @52:21
   store s2, v7 @52:21
   v8 = const ptr 0 @52:28
   store s3, v8 @52:28
@@ -820,7 +820,7 @@ func viaPointer() i64 @testdata/check/s5_d12_named_defer.go:63:6
   slot s6 tmp bool @67:1
 b0:
   v0 = const 8 @63:20
-  v1 = alloc v0 @63:20
+  v1 = alloc noscan, v0 @63:20
   store s0, v1 @63:20
   v2 = const ptr 0 @63:27
   store s1, v2 @63:27
@@ -980,7 +980,7 @@ b0:
   v48 = call argsAtDefer @76:10
   println v48 @76:2
   v49 = const 8 @77:6
-  v50 = alloc v49 @77:6
+  v50 = alloc noscan, v49 @77:6
   store s8, v50 @77:6
   v51 = load s8 @78:10
   v52 = call T.next, v51 @78:10
@@ -1904,7 +1904,7 @@ b0:
   v10 = const 8 @17:17
   v11 = ldm i64, v9, v10 @17:17
   v12 = add v11, v5 @17:19
-  v13 = alloc v12 @17:19
+  v13 = alloc noscan, v12 @17:19
   v14 = const 0 @17:19
   v15 = padd v13, v14 @17:19
   move v15, v8, v11 @17:19
@@ -1972,7 +1972,7 @@ b0:
   v10 = const 8 @18:17
   v11 = ldm i64, v9, v10 @18:17
   v12 = add v11, v5 @18:19
-  v13 = alloc v12 @18:19
+  v13 = alloc noscan, v12 @18:19
   v14 = const 0 @18:19
   v15 = padd v13, v14 @18:19
   move v15, v8, v11 @18:19
@@ -2105,7 +2105,7 @@ b0:
   v20 = str s11 @32:17
   v21 = const 1 @32:17
   v22 = add v19, v21 @32:15
-  v23 = alloc v22 @32:15
+  v23 = alloc noscan, v22 @32:15
   v24 = const 0 @32:15
   v25 = padd v23, v24 @32:15
   move v25, v16, v19 @32:15
@@ -2450,7 +2450,7 @@ b0:
   v0 = param 0 @81:7
   store s0, v0 @81:7
   v1 = const 8 @81:15
-  v2 = alloc v1 @81:15
+  v2 = alloc noscan, v1 @81:15
   store s1, v2 @81:15
   v3 = const ptr 0 @81:22
   store s2, v3 @81:22

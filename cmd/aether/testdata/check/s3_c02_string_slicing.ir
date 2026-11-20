@@ -729,7 +729,7 @@ b54:
   v351 = load s0 @26:55
   v352 = load s1 @26:55
   v353 = add v350, v352 @26:53
-  v354 = alloc v353 @26:53
+  v354 = alloc noscan, v353 @26:53
   v355 = const 0 @26:53
   v356 = padd v354, v355 @26:53
   move v356, v349, v350 @26:53
@@ -975,7 +975,7 @@ b76:
   v505 = str s5 @33:39
   v506 = const 1 @33:39
   v507 = add v504, v506 @33:38
-  v508 = alloc v507 @33:38
+  v508 = alloc noscan, v507 @33:38
   v509 = const 0 @33:38
   v510 = padd v508, v509 @33:38
   move v510, v501, v504 @33:38

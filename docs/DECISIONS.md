@@ -3660,13 +3660,45 @@ object alive (never the reverse). Every word of every reachable object is
 scanned, pointer-free ones such as byte slices included: a collection
 costs time in proportion to the live bytes (a 32 GiB live object takes
 seconds), until lowering tells the allocator which objects hold no
-pointers. Objects never move, so addresses, and
+pointers (D-047 does). Objects never move, so addresses, and
 map hashes of pointers, stay stable. Pointers kept only one byte past an
 object's end (a slice or string of length and capacity 0 at its end) do
 not keep it alive, which is safe: nothing can be read through them. Any
 future change that keeps a heap pointer only in a register across
 `aether.alloc`, or writes one into a section other than `.bss`, breaks the
 roots; `TestGCRoots` checks the second.
+
+---
+
+## D-047: Allocations that hold no pointer (Phase 9 increment 9.2)
+
+**Status:** Accepted (2026-11-20). A follow-up to D-046, whose collector
+scans every word of every reachable object; written before the code, the
+owner's review pending.
+
+**Context.** Byte slices, strings, rune arrays, and arrays and structs of
+numbers can be large and hold no pointer, yet D-046 scans them at every
+collection (a 1 GiB `[]byte` costs a scan of 1 GiB) and lets their bytes
+keep other objects alive. Lowering knows each allocation's Go type.
+
+**Decision.**
+- **IR.** `Alloc` with `Const` 1 allocates an object that never holds a
+  Ptr (*noscan*), printed `alloc noscan, vN`; the verifier accepts 0 and 1.
+  The interpreter ignores the flag. A pass that drops it is safe.
+- **Lowering.** Noscan where the object is a value of a Go type without
+  pointer words (`hasPointers`: not a string, pointer, slice, map, func,
+  interface, or array or struct holding one): `new`, composite literals,
+  escaping variables, boxed interface values, `make` and `append` of
+  slices; and the bytes of strings, rune arrays, `.itoa`'s digits, and a
+  map's index array. Every other allocation (closures, defer records, map
+  entries, panic records) stays scanned.
+- **Runtime.** `aether.allocnoscan`, `aether.alloc`'s interface, sets bit
+  2 of the header; the collector marks such an object but does not scan
+  its words.
+
+**Consequences.** A wrong noscan flag is a missing root, so `hasPointers`
+errs towards scanning, `TestHasPointers` pins it, and `TestGCStress`
+catches a wrong one (negative controls: every type, or strings, noscan).
 
 ---
 

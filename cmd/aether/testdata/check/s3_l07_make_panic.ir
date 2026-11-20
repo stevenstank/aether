@@ -42,7 +42,7 @@ b6:
   v17 = load s3 @9:14
   v18 = const 8 @9:14
   v19 = mul v17, v18 @9:14
-  v20 = alloc v19 @9:14
+  v20 = alloc noscan, v19 @9:14
   println v16 @9:2
   v21 = const 4 @10:6
   store s0, v21 @10:2
@@ -78,6 +78,6 @@ b12:
   v37 = load s5 @11:14
   v38 = const 8 @11:14
   v39 = mul v37, v38 @11:14
-  v40 = alloc v39 @11:14
+  v40 = alloc noscan, v39 @11:14
   println v36 @11:2
   ret @12:1

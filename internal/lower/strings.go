@@ -43,7 +43,7 @@ func (l *lowerer) concat(ws [][]*ir.Instr, pos ir.Pos) []*ir.Instr {
 	for _, w := range ws[1:] {
 		n = l.fn.Binary(l.b, ir.Add, n, w[1], pos)
 	}
-	p := l.fn.Alloc(l.b, n, pos)
+	p := l.fn.AllocNoScan(l.b, n, pos) // bytes (D-047)
 	off := l.fn.Const(l.b, 0, pos)
 	for i, w := range ws {
 		// With a length of 0, move does nothing, whatever the Ptrs (D-036).
@@ -57,7 +57,7 @@ func (l *lowerer) concat(ws [][]*ir.Instr, pos ir.Pos) []*ir.Instr {
 
 // copyBytes returns the Ptr of a new heap object holding the n bytes at p.
 func (l *lowerer) copyBytes(p, n *ir.Instr, pos ir.Pos) *ir.Instr {
-	q := l.fn.Alloc(l.b, n, pos)
+	q := l.fn.AllocNoScan(l.b, n, pos) // bytes (D-047)
 	l.fn.Move(l.b, q, p, n, pos)
 	return q
 }

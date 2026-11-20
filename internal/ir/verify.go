@@ -579,6 +579,9 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		}
 	case Alloc:
 		want, args = Ptr, []Type{I64}
+		if in.Const != 0 && in.Const != 1 {
+			v.errorf(bi, i, in, "alloc with flag %d", in.Const)
+		}
 	case PAdd:
 		want, args = Ptr, []Type{Ptr, I64}
 	case Move:
@@ -756,7 +759,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			v.errorf(bi, i, in, "target is not a block of this function")
 		}
 	}
-	if in.Op != Const && in.Const != 0 {
+	if in.Op != Const && in.Op != Alloc && in.Const != 0 { // Alloc's is its noscan flag
 		v.errorf(bi, i, in, "%s has a constant operand", in.Op)
 	}
 	if in.Op != Load && in.Op != Store && in.Slot != nil {

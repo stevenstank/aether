@@ -20,7 +20,7 @@ import (
 )
 
 // requireTools skips the test unless executables can be built and run here.
-func requireTools(t *testing.T) {
+func requireTools(t testing.TB) {
 	t.Helper()
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
 		t.Skip("aether build needs a linux/amd64 host")

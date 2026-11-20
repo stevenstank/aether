@@ -55,7 +55,7 @@ b6:
   v15 = load s1 @9:7
   v16 = const 8 @9:7
   v17 = mul v15, v16 @9:7
-  v18 = alloc v17 @9:7
+  v18 = alloc noscan, v17 @9:7
   store s2, v18 @9:2
   store s3, v14 @9:2
   store s4, v15 @9:2

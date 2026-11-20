@@ -462,7 +462,7 @@ b10:
   v30 = load s11 @26:7
   v31 = const 8 @26:7
   v32 = mul v30, v31 @26:7
-  v33 = alloc v32 @26:7
+  v33 = alloc noscan, v32 @26:7
   v34 = load s9 @26:7
   v35 = load s5 @26:7
   v36 = const 8 @26:7
@@ -644,7 +644,7 @@ b28:
   v151 = load s42 @33:6
   v152 = const 8 @33:6
   v153 = mul v151, v152 @33:6
-  v154 = alloc v153 @33:6
+  v154 = alloc noscan, v153 @33:6
   v155 = load s40 @33:6
   v156 = load s34 @33:6
   v157 = const 8 @33:6
@@ -775,7 +775,7 @@ b40:
   v230 = load s60 @35:6
   v231 = const 8 @35:6
   v232 = mul v230, v231 @35:6
-  v233 = alloc v232 @35:6
+  v233 = alloc noscan, v232 @35:6
   v234 = load s58 @35:6
   v235 = load s52 @35:6
   v236 = const 8 @35:6
@@ -898,7 +898,7 @@ b52:
   v302 = load s78 @36:6
   v303 = const 8 @36:6
   v304 = mul v302, v303 @36:6
-  v305 = alloc v304 @36:6
+  v305 = alloc noscan, v304 @36:6
   v306 = load s76 @36:6
   v307 = load s70 @36:6
   v308 = const 8 @36:6
@@ -1147,7 +1147,7 @@ b72:
   v454 = load s111 @42:10
   v455 = const 1 @42:10
   v456 = mul v454, v455 @42:10
-  v457 = alloc v456 @42:10
+  v457 = alloc noscan, v456 @42:10
   store s112, v457 @42:3
   store s113, v453 @42:3
   store s114, v454 @42:3
@@ -1230,7 +1230,7 @@ b78:
   v482 = load s125 @43:23
   v483 = const 1 @43:23
   v484 = mul v482, v483 @43:23
-  v485 = alloc v484 @43:23
+  v485 = alloc noscan, v484 @43:23
   v486 = load s123 @43:23
   v487 = load s119 @43:23
   v488 = const 1 @43:23
@@ -1517,7 +1517,7 @@ b101:
   v689 = load s164 @48:7
   v690 = const 0 @48:7
   v691 = mul v689, v690 @48:7
-  v692 = alloc v691 @48:7
+  v692 = alloc noscan, v691 @48:7
   v693 = load s162 @48:7
   v694 = load s159 @48:7
   v695 = const 0 @48:7
@@ -1590,7 +1590,7 @@ b108:
   v728 = load s174 @51:6
   v729 = const 8 @51:6
   v730 = mul v728, v729 @51:6
-  v731 = alloc v730 @51:6
+  v731 = alloc noscan, v730 @51:6
   v732 = load s172 @51:6
   v733 = load s169 @51:6
   v734 = const 8 @51:6
@@ -1633,7 +1633,7 @@ b114:
   v762 = load s184 @52:6
   v763 = const 8 @52:6
   v764 = mul v762, v763 @52:6
-  v765 = alloc v764 @52:6
+  v765 = alloc noscan, v764 @52:6
   v766 = load s182 @52:6
   v767 = load s176 @52:6
   v768 = const 8 @52:6
@@ -1752,7 +1752,7 @@ b122:
   v817 = load s196 @53:32
   v818 = const 1 @53:32
   v819 = mul v817, v818 @53:32
-  v820 = alloc v819 @53:32
+  v820 = alloc noscan, v819 @53:32
   v821 = load s194 @53:32
   v822 = load s188 @53:32
   v823 = const 1 @53:32

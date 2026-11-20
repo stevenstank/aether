@@ -167,7 +167,7 @@ b2:
   v11 = load s0 @32:8
   v12 = load s1 @32:8
   v13 = add v10, v12 @32:5
-  v14 = alloc v13 @32:5
+  v14 = alloc noscan, v13 @32:5
   v15 = const 0 @32:5
   v16 = padd v14, v15 @32:5
   move v16, v9, v10 @32:5

@@ -19,7 +19,7 @@ b0:
   v4 = const ptr 0 @29:39
   v5 = const 0 @29:39
   v6 = add v3, v5 @29:37
-  v7 = alloc v6 @29:37
+  v7 = alloc noscan, v6 @29:37
   v8 = const 0 @29:37
   v9 = padd v7, v8 @29:37
   move v9, v2, v3 @29:37
@@ -2874,7 +2874,7 @@ b107:
   stm v2022, v2023, v2021 @43:2
   v2024 = const 1 @44:7
   v2025 = const 8 @44:2
-  v2026 = alloc v2025 @44:2
+  v2026 = alloc noscan, v2025 @44:2
   store s35, v2026 @44:2
   v2027 = load s35 @44:2
   v2028 = const 0 @44:2
@@ -3806,7 +3806,7 @@ b148:
   v2729 = extract 0, v2728 @52:17
   v2730 = extract 1, v2728 @52:17
   v2731 = const 1 @52:34
-  v2732 = alloc v2731 @52:34
+  v2732 = alloc noscan, v2731 @52:34
   store s56, v2732 @52:34
   v2733 = const 97 @52:46
   v2734 = load s54 @52:51
@@ -3816,10 +3816,10 @@ b148:
   stm v2732, v2737, v2736 @52:41
   v2738 = const 1 @52:34
   v2739 = const 1 @52:34
-  v2740 = alloc v2738 @52:27
+  v2740 = alloc noscan, v2738 @52:27
   move v2740, v2732, v2738 @52:27
   v2741 = add v2730, v2738 @52:25
-  v2742 = alloc v2741 @52:25
+  v2742 = alloc noscan, v2741 @52:25
   v2743 = const 0 @52:25
   v2744 = padd v2742, v2743 @52:25
   move v2744, v2729, v2730 @52:25
@@ -3864,7 +3864,7 @@ b152:
   v2764 = load s54 @53:12
   store s59, v2764 @53:11
   v2765 = const 2 @53:24
-  v2766 = alloc v2765 @53:24
+  v2766 = alloc noscan, v2765 @53:24
   store s60, v2766 @53:24
   v2767 = const u8 110 @53:31
   v2768 = const 0 @53:31
@@ -3877,7 +3877,7 @@ b152:
   stm v2766, v2773, v2772 @53:36
   v2774 = const 2 @53:24
   v2775 = const 2 @53:24
-  v2776 = alloc v2774 @53:17
+  v2776 = alloc noscan, v2774 @53:17
   move v2776, v2766, v2774 @53:17
   store s61, v2776 @53:3
   store s62, v2774 @53:3
@@ -4479,7 +4479,7 @@ b200:
   v3208 = load s93 @58:17
   v3209 = load s94 @58:17
   v3210 = add v3209, v3207 @58:34
-  v3211 = alloc v3210 @58:34
+  v3211 = alloc noscan, v3210 @58:34
   v3212 = const 0 @58:34
   v3213 = padd v3211, v3212 @58:34
   move v3213, v3208, v3209 @58:34

@@ -1312,7 +1312,7 @@ b10:
   v346 = const 16 @135:7
   stm v339, v346, v345 @135:7
   v347 = const 24 @135:2
-  v348 = alloc v347 @135:2
+  v348 = alloc noscan, v347 @135:2
   store s18, v348 @135:2
   v349 = const 0 @135:2
   v350 = ldm f64, v339, v349 @135:2

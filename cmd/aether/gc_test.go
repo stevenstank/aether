@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"debug/elf"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/stevenstank/aether/internal/interp"
 )
 
 // gcStressEnv makes the collector run every few KiB and overwrite what it
@@ -284,4 +287,35 @@ func TestGCRSSHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("maxrss %d\n", cmd.ProcessState.SysUsage().(*syscall.Rusage).Maxrss<<10)
+}
+
+// FuzzGC is the collector's allocation fuzzing (Phase 9 increment 9.3):
+// the allocation program of each seed (generateAllocs), built by aether
+// build and run under GC stress, must give the interpreter's output. The
+// interpreter never frees (D-010), so it is an oracle for the collector
+// that needs no gc build per input.
+func FuzzGC(f *testing.F) {
+	for seed := uint64(1); seed <= 4; seed++ {
+		f.Add(seed)
+	}
+	requireTools(f)
+	dir := f.TempDir()
+	f.Fuzz(func(t *testing.T, seed uint64) {
+		src := []byte(generateAllocs(seed))
+		want, ds, err := interpret("alloc.go", src)
+		if errors.Is(err, interp.ErrSteps) {
+			t.Skip("longer than the interpreter's step budget: no oracle")
+		}
+		if len(ds) > 0 || err != nil {
+			t.Fatalf("not interpreted: %v %v\n%s", ds, err, src)
+		}
+		exe := filepath.Join(dir, fmt.Sprintf("alc%d", seed))
+		if ds, err := build([]source{{"alloc.go", src}}, buildOptions{out: exe}, io.Discard); len(ds) > 0 || err != nil {
+			t.Fatalf("not built: %v %v", ds, err)
+		}
+		defer os.Remove(exe)
+		if got := runExeEnv(t, exe, gcStressEnv); got != want {
+			t.Errorf("under GC stress, differs from the interpreter:\n%s\n%s", diffResults(got, want), src)
+		}
+	})
 }

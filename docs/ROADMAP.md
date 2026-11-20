@@ -1024,6 +1024,20 @@ repeated in each phase below:
     stay below 64 MiB of peak resident memory, with gc's output. Measured
     through a fresh helper process, whose own peak is included: at most
     7 MiB on 2026-11-20. Without collection they would need gigabytes.
+- **Increment 9.2 (done; owner review pending):** allocations of
+  pointer-free types are not scanned (D-047): the noscan flag on `Alloc`,
+  set by lowering from the Go type, and `aether.allocnoscan`. A program
+  keeping a 1 GiB `[]byte` live while allocating 2 GB of small objects
+  ran in 0.05 s instead of 0.40 s (one run each, 2026-11-20, this host).
+  `TestHasPointers`, `TestAllocNoScan`; `TestGCStress` with negative
+  controls (every type noscan, strings noscan), each detected.
+- **Increment 9.3 (done; owner review pending):** allocation fuzzing,
+  `FuzzGC`: the allocation program of each fuzzed seed, built by `aether
+  build` and run under `AETHER_GCSTRESS=1`, must give the interpreter's
+  output (the interpreter never frees, so it is the oracle, with no gc
+  build per input); a program longer than the interpreter's step budget is
+  skipped. A 60 s run made 1,112 executions on 2026-11-20. Negative
+  control: strings noscan was found within 2 s.
 
 ## Phase 10: Concurrency
 

@@ -285,9 +285,9 @@ b8:
   v87 = const 8 @32:57
   v88 = add v86, v87 @32:57
   v89 = ldm i64, v83, v88 @32:57
-  v90 = alloc v89 @32:50
+  v90 = alloc noscan, v89 @32:50
   move v90, v82, v89 @32:50
-  v91 = alloc v89 @32:43
+  v91 = alloc noscan, v89 @32:43
   move v91, v90, v89 @32:43
   v92 = call classify, v91, v89 @32:34
   v93 = load s5 @32:11
@@ -307,7 +307,7 @@ b9:
   v146 = load s15 @40:26
   v147 = load s16 @40:26
   v148 = add v145, v147 @40:24
-  v149 = alloc v148 @40:24
+  v149 = alloc noscan, v148 @40:24
   v150 = const 0 @40:24
   v151 = padd v149, v150 @40:24
   move v151, v144, v145 @40:24

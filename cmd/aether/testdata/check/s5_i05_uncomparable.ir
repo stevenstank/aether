@@ -55,7 +55,7 @@ func main @testdata/check/s5_i05_uncomparable.go:8:6
   mem m0 tmp 8 align 8 @11:6
 b0:
   v0 = const 8 @9:17
-  v1 = alloc v0 @9:17
+  v1 = alloc noscan, v0 @9:17
   store s0, v1 @9:17
   v2 = const 1 @9:23
   v3 = const 0 @9:23
@@ -83,7 +83,7 @@ b0:
   v16 = const true @9:27
   store s6, v16 @9:27
   v17 = const 1 @9:27
-  v18 = alloc v17 @9:27
+  v18 = alloc noscan, v17 @9:27
   store s7, v18 @9:27
   v19 = load s6 @9:27
   v20 = const 0 @9:27
@@ -157,7 +157,7 @@ b6:
   v52 = const 8 @10:12
   v53 = ldm i64, v48, v52 @10:12
   v54 = add v47, v53 @10:12
-  v55 = alloc v54 @10:12
+  v55 = alloc noscan, v54 @10:12
   v56 = const 0 @10:12
   v57 = padd v55, v56 @10:12
   move v57, v46, v47 @10:12
@@ -249,7 +249,7 @@ b13:
   v110 = const 8 @12:12
   v111 = ldm i64, v106, v110 @12:12
   v112 = add v105, v111 @12:12
-  v113 = alloc v112 @12:12
+  v113 = alloc noscan, v112 @12:12
   v114 = const 0 @12:12
   v115 = padd v113, v114 @12:12
   move v115, v104, v105 @12:12
@@ -261,7 +261,7 @@ b14:
   v127 = load s30 @12:12
   println v127 @12:2
   v128 = const 8 @13:6
-  v129 = alloc v128 @13:6
+  v129 = alloc noscan, v128 @13:6
   store s31, v129 @13:6
   v130 = const 1 @13:12
   v131 = const 0 @13:12
@@ -353,7 +353,7 @@ b20:
   v175 = const 8 @15:12
   v176 = ldm i64, v171, v175 @15:12
   v177 = add v170, v176 @15:12
-  v178 = alloc v177 @15:12
+  v178 = alloc noscan, v177 @15:12
   v179 = const 0 @15:12
   v180 = padd v178, v179 @15:12
   move v180, v169, v170 @15:12

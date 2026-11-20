@@ -339,7 +339,7 @@ func (l *lowerer) toIface(w []*ir.Instr, from, to types.Type, pos ir.Pos) []*ir.
 		data = l.scalar(nil, w)
 	} else {
 		get := l.spillWords(w, pos)
-		p := l.fn.Alloc(l.b, l.fn.Const(l.b, sizes.Sizeof(from), pos), pos)
+		p := l.alloc(from, pos)
 		box := l.keep(p, pos)
 		l.storePlace(place{base: box, t: from}, get(), pos)
 		data = box()

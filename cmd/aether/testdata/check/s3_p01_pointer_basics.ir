@@ -120,7 +120,7 @@ b0:
   store s0, v0 @18:13
   v1 = load s0 @18:13
   v2 = const 8 @18:13
-  v3 = alloc v2 @18:13
+  v3 = alloc noscan, v2 @18:13
   store s1, v3 @18:13
   v4 = load s1 @18:13
   v5 = const 0 @18:13
@@ -145,7 +145,7 @@ b0:
   v1 = load s0 @24:13
   v2 = conv i16, v1 @24:7
   v3 = const 2 @24:2
-  v4 = alloc v3 @24:2
+  v4 = alloc noscan, v3 @24:2
   store s1, v4 @24:2
   v5 = load s1 @24:2
   v6 = const 0 @24:2
@@ -215,7 +215,7 @@ func main @testdata/check/s3_p01_pointer_basics.go:28:6
 b0:
   v0 = const 1 @29:7
   v1 = const 8 @29:2
-  v2 = alloc v1 @29:2
+  v2 = alloc noscan, v1 @29:2
   store s0, v2 @29:2
   v3 = load s0 @29:2
   v4 = const 0 @29:2
@@ -282,7 +282,7 @@ b6:
   println v40, v41, v33, v36, v39 @34:2
   v42 = const 20 @35:7
   v43 = const 8 @35:2
-  v44 = alloc v43 @35:2
+  v44 = alloc noscan, v43 @35:2
   store s9, v44 @35:2
   v45 = load s9 @35:2
   v46 = const 0 @35:2
@@ -369,7 +369,7 @@ b14:
   v97 = load s17 @42:10
   println v97, v90, v93, v96 @42:2
   v98 = const 8 @43:7
-  v99 = alloc v98 @43:7
+  v99 = alloc noscan, v98 @43:7
   v100 = const 8 @43:2
   v101 = alloc v100 @43:2
   store s19, v101 @43:2
@@ -477,7 +477,7 @@ b28:
   v159 = load s29 @48:10
   println v159, v155, v158 @48:2
   v160 = const 8 @49:7
-  v161 = alloc v160 @49:7
+  v161 = alloc noscan, v160 @49:7
   store s32, v161 @49:2
   v162 = load s32 @50:3
   store s33, v162 @50:3
@@ -603,7 +603,7 @@ b42:
   println v231, v232, v233, v230 @55:2
   v234 = const true @56:8
   v235 = const 1 @56:2
-  v236 = alloc v235 @56:2
+  v236 = alloc noscan, v235 @56:2
   store s49, v236 @56:2
   v237 = load s49 @56:2
   v238 = const 0 @56:2
@@ -642,7 +642,7 @@ b46:
   println v256 @59:2
   v257 = const u8 250 @60:7
   v258 = const 1 @60:2
-  v259 = alloc v258 @60:2
+  v259 = alloc noscan, v258 @60:2
   store s54, v259 @60:2
   v260 = load s54 @60:2
   v261 = const 0 @60:2

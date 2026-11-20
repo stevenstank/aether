@@ -777,7 +777,7 @@ b22:
   v251 = const 16 @73:17
   stm v246, v251, v250 @73:17
   v252 = const 24 @73:2
-  v253 = alloc v252 @73:2
+  v253 = alloc noscan, v252 @73:2
   store s37, v253 @73:2
   v254 = const 0 @73:2
   v255 = ldm i64, v246, v254 @73:2

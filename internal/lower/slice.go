@@ -326,7 +326,7 @@ func (l *lowerer) makeSlice(call *ast.CallExpr) []*ir.Instr {
 		l.guard(l.fn.Compare(l.b, ir.Gt, l.toU64(n(), pos), l.toU64(c(), pos), pos), ir.PanicMakeCap, pos)
 	}
 	nv, cv := l.toI64(n(), pos), l.toI64(c(), pos)
-	p := l.fn.Alloc(l.b, l.fn.Binary(l.b, ir.Mul, cv, l.fn.Const(l.b, size, pos), pos), pos)
+	p := l.allocOf(sliceElem(l.pkg.Info.Types[call].Type), l.fn.Binary(l.b, ir.Mul, cv, l.fn.Const(l.b, size, pos), pos), pos)
 	return []*ir.Instr{p, nv, cv}
 }
 
@@ -384,7 +384,7 @@ func (l *lowerer) appendSlice(call *ast.CallExpr) []*ir.Instr {
 		raise(func() *ir.Instr { return l.fn.Binary(l.b, ir.Add, load(capS), load(capS), pos) })
 		raise(func() *ir.Instr { return c(4) })
 	}
-	np := l.fn.Alloc(l.b, l.fn.Binary(l.b, ir.Mul, load(m), c(size), pos), pos)
+	np := l.allocOf(et, l.fn.Binary(l.b, ir.Mul, load(m), c(size), pos), pos)
 	l.fn.Move(l.b, np, load(ptrS), l.fn.Binary(l.b, ir.Mul, s[1](), c(size), pos), pos)
 	l.fn.Store(l.b, ptrS, np, pos)
 	l.fn.Store(l.b, capS, load(m), pos)

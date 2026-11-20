@@ -88,7 +88,7 @@ b2:
   v23 = mul v21, v22 @13:11
   store s7, v23 @13:9
   v24 = const 8 @13:9
-  v25 = alloc v24 @13:9
+  v25 = alloc noscan, v24 @13:9
   store s8, v25 @13:9
   v26 = load s7 @13:9
   v27 = const 0 @13:9

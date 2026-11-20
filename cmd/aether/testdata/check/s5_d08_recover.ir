@@ -750,7 +750,7 @@ b2:
   v30 = load s0 @55:9
   store s7, v30 @55:9
   v31 = const 8 @55:9
-  v32 = alloc v31 @55:9
+  v32 = alloc noscan, v31 @55:9
   store s8, v32 @55:9
   v33 = load s7 @55:9
   v34 = const 0 @55:9
@@ -992,7 +992,7 @@ b2:
   v19 = load s0 @72:9
   store s6, v19 @72:9
   v20 = const 8 @72:9
-  v21 = alloc v20 @72:9
+  v21 = alloc noscan, v20 @72:9
   store s7, v21 @72:9
   v22 = load s6 @72:9
   v23 = const 0 @72:9
@@ -2761,7 +2761,7 @@ b0:
   store s0, v0 @3:1
   store s1, v1 @3:1
   v2 = const 20 @3:1
-  v3 = alloc v2 @3:1
+  v3 = alloc noscan, v2 @3:1
   store s2, v3 @3:1
   store s3, v3 @3:1
   v4 = const 20 @3:1
@@ -3109,7 +3109,7 @@ b11:
   v135 = add v130, v132 @3:1
   v136 = add v135, v134 @3:1
   v137 = add v136, v128 @3:1
-  v138 = alloc v137 @3:1
+  v138 = alloc noscan, v137 @3:1
   v139 = const 0 @3:1
   v140 = padd v138, v139 @3:1
   move v140, v129, v130 @3:1
@@ -3163,7 +3163,7 @@ b14:
   v98 = const 1 @3:1
   v99 = add v94, v96 @3:1
   v100 = add v99, v98 @3:1
-  v101 = alloc v100 @3:1
+  v101 = alloc noscan, v100 @3:1
   v102 = const 0 @3:1
   v103 = padd v101, v102 @3:1
   move v103, v93, v94 @3:1
@@ -3275,7 +3275,7 @@ b20:
   v248 = add v243, v245 @3:1
   v249 = add v248, v247 @3:1
   v250 = add v249, v241 @3:1
-  v251 = alloc v250 @3:1
+  v251 = alloc noscan, v250 @3:1
   v252 = const 0 @3:1
   v253 = padd v251, v252 @3:1
   move v253, v242, v243 @3:1
@@ -3329,7 +3329,7 @@ b23:
   v211 = const 1 @3:1
   v212 = add v207, v209 @3:1
   v213 = add v212, v211 @3:1
-  v214 = alloc v213 @3:1
+  v214 = alloc noscan, v213 @3:1
   v215 = const 0 @3:1
   v216 = padd v214, v215 @3:1
   move v216, v206, v207 @3:1
@@ -3408,7 +3408,7 @@ b27:
   v340 = add v335, v337 @3:1
   v341 = add v340, v339 @3:1
   v342 = add v341, v333 @3:1
-  v343 = alloc v342 @3:1
+  v343 = alloc noscan, v342 @3:1
   v344 = const 0 @3:1
   v345 = padd v343, v344 @3:1
   move v345, v334, v335 @3:1
@@ -3462,7 +3462,7 @@ b30:
   v303 = const 1 @3:1
   v304 = add v299, v301 @3:1
   v305 = add v304, v303 @3:1
-  v306 = alloc v305 @3:1
+  v306 = alloc noscan, v305 @3:1
   v307 = const 0 @3:1
   v308 = padd v306, v307 @3:1
   move v308, v298, v299 @3:1
@@ -3544,7 +3544,7 @@ b34:
   v435 = add v434, v431 @3:1
   v436 = add v435, v425 @3:1
   v437 = add v436, v433 @3:1
-  v438 = alloc v437 @3:1
+  v438 = alloc noscan, v437 @3:1
   v439 = const 0 @3:1
   v440 = padd v438, v439 @3:1
   move v440, v426, v427 @3:1
@@ -3601,7 +3601,7 @@ b37:
   v395 = const 2 @3:1
   v396 = add v391, v393 @3:1
   v397 = add v396, v395 @3:1
-  v398 = alloc v397 @3:1
+  v398 = alloc noscan, v397 @3:1
   v399 = const 0 @3:1
   v400 = padd v398, v399 @3:1
   move v400, v390, v391 @3:1
@@ -3680,7 +3680,7 @@ b41:
   v529 = add v524, v526 @3:1
   v530 = add v529, v528 @3:1
   v531 = add v530, v522 @3:1
-  v532 = alloc v531 @3:1
+  v532 = alloc noscan, v531 @3:1
   v533 = const 0 @3:1
   v534 = padd v532, v533 @3:1
   move v534, v523, v524 @3:1
@@ -3734,7 +3734,7 @@ b44:
   v492 = const 1 @3:1
   v493 = add v488, v490 @3:1
   v494 = add v493, v492 @3:1
-  v495 = alloc v494 @3:1
+  v495 = alloc noscan, v494 @3:1
   v496 = const 0 @3:1
   v497 = padd v495, v496 @3:1
   move v497, v487, v488 @3:1
@@ -3813,7 +3813,7 @@ b48:
   v621 = add v616, v618 @3:1
   v622 = add v621, v620 @3:1
   v623 = add v622, v614 @3:1
-  v624 = alloc v623 @3:1
+  v624 = alloc noscan, v623 @3:1
   v625 = const 0 @3:1
   v626 = padd v624, v625 @3:1
   move v626, v615, v616 @3:1
@@ -3867,7 +3867,7 @@ b51:
   v584 = const 1 @3:1
   v585 = add v580, v582 @3:1
   v586 = add v585, v584 @3:1
-  v587 = alloc v586 @3:1
+  v587 = alloc noscan, v586 @3:1
   v588 = const 0 @3:1
   v589 = padd v587, v588 @3:1
   move v589, v579, v580 @3:1
@@ -3949,7 +3949,7 @@ b55:
   v716 = add v715, v712 @3:1
   v717 = add v716, v706 @3:1
   v718 = add v717, v714 @3:1
-  v719 = alloc v718 @3:1
+  v719 = alloc noscan, v718 @3:1
   v720 = const 0 @3:1
   v721 = padd v719, v720 @3:1
   move v721, v707, v708 @3:1
@@ -4006,7 +4006,7 @@ b58:
   v676 = const 2 @3:1
   v677 = add v672, v674 @3:1
   v678 = add v677, v676 @3:1
-  v679 = alloc v678 @3:1
+  v679 = alloc noscan, v678 @3:1
   v680 = const 0 @3:1
   v681 = padd v679, v680 @3:1
   move v681, v671, v672 @3:1
@@ -4088,7 +4088,7 @@ b62:
   v813 = add v812, v809 @3:1
   v814 = add v813, v803 @3:1
   v815 = add v814, v811 @3:1
-  v816 = alloc v815 @3:1
+  v816 = alloc noscan, v815 @3:1
   v817 = const 0 @3:1
   v818 = padd v816, v817 @3:1
   move v818, v804, v805 @3:1
@@ -4145,7 +4145,7 @@ b65:
   v773 = const 3 @3:1
   v774 = add v769, v771 @3:1
   v775 = add v774, v773 @3:1
-  v776 = alloc v775 @3:1
+  v776 = alloc noscan, v775 @3:1
   v777 = const 0 @3:1
   v778 = padd v776, v777 @3:1
   move v778, v768, v769 @3:1
@@ -4572,7 +4572,7 @@ b3:
 b4:
   v22 = str s12 @15:59
   v23 = const 53 @15:59
-  v24 = alloc v23 @15:59
+  v24 = alloc noscan, v23 @15:59
   v25 = const 0 @15:59
   v26 = padd v24, v25 @15:59
   move v26, v22, v23 @15:59
@@ -4596,7 +4596,7 @@ b5:
   v35 = const 12 @15:59
   v36 = add v29, v33 @15:59
   v37 = add v36, v35 @15:59
-  v38 = alloc v37 @15:59
+  v38 = alloc noscan, v37 @15:59
   v39 = const 0 @15:59
   v40 = padd v38, v39 @15:59
   move v40, v28, v29 @15:59
@@ -4831,7 +4831,7 @@ b3:
 b4:
   v31 = str s12 @23:31
   v32 = const 53 @23:31
-  v33 = alloc v32 @23:31
+  v33 = alloc noscan, v32 @23:31
   v34 = const 0 @23:31
   v35 = padd v33, v34 @23:31
   move v35, v31, v32 @23:31
@@ -4855,7 +4855,7 @@ b5:
   v44 = const 12 @23:31
   v45 = add v38, v42 @23:31
   v46 = add v45, v44 @23:31
-  v47 = alloc v46 @23:31
+  v47 = alloc noscan, v46 @23:31
   v48 = const 0 @23:31
   v49 = padd v47, v48 @23:31
   move v49, v37, v38 @23:31
@@ -5033,7 +5033,7 @@ b3:
 b4:
   v22 = str s12 @35:30
   v23 = const 53 @35:30
-  v24 = alloc v23 @35:30
+  v24 = alloc noscan, v23 @35:30
   v25 = const 0 @35:30
   v26 = padd v24, v25 @35:30
   move v26, v22, v23 @35:30
@@ -5057,7 +5057,7 @@ b5:
   v35 = const 12 @35:30
   v36 = add v29, v33 @35:30
   v37 = add v36, v35 @35:30
-  v38 = alloc v37 @35:30
+  v38 = alloc noscan, v37 @35:30
   v39 = const 0 @35:30
   v40 = padd v38, v39 @35:30
   move v40, v28, v29 @35:30
@@ -5234,7 +5234,7 @@ b3:
 b4:
   v22 = str s12 @42:44
   v23 = const 53 @42:44
-  v24 = alloc v23 @42:44
+  v24 = alloc noscan, v23 @42:44
   v25 = const 0 @42:44
   v26 = padd v24, v25 @42:44
   move v26, v22, v23 @42:44
@@ -5258,7 +5258,7 @@ b5:
   v35 = const 12 @42:44
   v36 = add v29, v33 @42:44
   v37 = add v36, v35 @42:44
-  v38 = alloc v37 @42:44
+  v38 = alloc noscan, v37 @42:44
   v39 = const 0 @42:44
   v40 = padd v38, v39 @42:44
   move v40, v28, v29 @42:44
@@ -5373,7 +5373,7 @@ b3:
 b4:
   v22 = str s12 @47:43
   v23 = const 53 @47:43
-  v24 = alloc v23 @47:43
+  v24 = alloc noscan, v23 @47:43
   v25 = const 0 @47:43
   v26 = padd v24, v25 @47:43
   move v26, v22, v23 @47:43
@@ -5397,7 +5397,7 @@ b5:
   v35 = const 12 @47:43
   v36 = add v29, v33 @47:43
   v37 = add v36, v35 @47:43
-  v38 = alloc v37 @47:43
+  v38 = alloc noscan, v37 @47:43
   v39 = const 0 @47:43
   v40 = padd v38, v39 @47:43
   move v40, v28, v29 @47:43
@@ -5573,7 +5573,7 @@ b3:
 b4:
   v20 = str s24 @53:42
   v21 = const 50 @53:42
-  v22 = alloc v21 @53:42
+  v22 = alloc noscan, v21 @53:42
   v23 = const 0 @53:42
   v24 = padd v22, v23 @53:42
   move v24, v20, v21 @53:42
@@ -5597,7 +5597,7 @@ b5:
   v33 = const 9 @53:42
   v34 = add v27, v31 @53:42
   v35 = add v34, v33 @53:42
-  v36 = alloc v35 @53:42
+  v36 = alloc noscan, v35 @53:42
   v37 = const 0 @53:42
   v38 = padd v36, v37 @53:42
   move v38, v26, v27 @53:42
@@ -5748,7 +5748,7 @@ b3:
 b4:
   v22 = str s12 @61:51
   v23 = const 53 @61:51
-  v24 = alloc v23 @61:51
+  v24 = alloc noscan, v23 @61:51
   v25 = const 0 @61:51
   v26 = padd v24, v25 @61:51
   move v26, v22, v23 @61:51
@@ -5772,7 +5772,7 @@ b5:
   v35 = const 12 @61:51
   v36 = add v29, v33 @61:51
   v37 = add v36, v35 @61:51
-  v38 = alloc v37 @61:51
+  v38 = alloc noscan, v37 @61:51
   v39 = const 0 @61:51
   v40 = padd v38, v39 @61:51
   move v40, v28, v29 @61:51
@@ -6109,7 +6109,7 @@ b3:
 b4:
   v22 = str s12 @63:52
   v23 = const 53 @63:52
-  v24 = alloc v23 @63:52
+  v24 = alloc noscan, v23 @63:52
   v25 = const 0 @63:52
   v26 = padd v24, v25 @63:52
   move v26, v22, v23 @63:52
@@ -6133,7 +6133,7 @@ b5:
   v35 = const 12 @63:52
   v36 = add v29, v33 @63:52
   v37 = add v36, v35 @63:52
-  v38 = alloc v37 @63:52
+  v38 = alloc noscan, v37 @63:52
   v39 = const 0 @63:52
   v40 = padd v38, v39 @63:52
   move v40, v28, v29 @63:52

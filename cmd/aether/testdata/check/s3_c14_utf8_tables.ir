@@ -178,7 +178,7 @@ b2:
   v5 = load s0 @19:7
   v6 = const 1 @19:7
   v7 = mul v5, v6 @19:7
-  v8 = alloc v7 @19:7
+  v8 = alloc noscan, v7 @19:7
   store s1, v8 @19:2
   store s2, v4 @19:2
   store s3, v5 @19:2
@@ -198,7 +198,7 @@ b4:
   jump b7 @22:3
 b5:
   v93 = const 10 @31:11
-  v94 = alloc v93 @31:11
+  v94 = alloc noscan, v93 @31:11
   store s22, v94 @31:11
   v95 = const u8 0 @31:18
   v96 = const 0 @31:18
@@ -236,7 +236,7 @@ b5:
   store s24, v115 @31:2
   store s25, v116 @31:2
   v117 = const 64 @32:11
-  v118 = alloc v117 @32:11
+  v118 = alloc noscan, v117 @32:11
   store s26, v118 @32:11
   v119 = const 224 @32:17
   v120 = const 0 @32:17
@@ -382,7 +382,7 @@ b16:
   v66 = load s20 @24:33
   v67 = const 0 @24:33
   v68 = sub v66, v67 @24:33
-  v69 = alloc v65 @24:25
+  v69 = alloc noscan, v65 @24:25
   move v69, v62, v65 @24:25
   v70 = call .stringtorunes, v69, v65 @24:18
   v71 = extract 1, v70 @24:18
@@ -638,7 +638,7 @@ b44:
   v263 = load s66 @39:34
   v264 = const 0 @39:34
   v265 = sub v263, v264 @39:34
-  v266 = alloc v262 @39:26
+  v266 = alloc noscan, v262 @39:26
   move v266, v259, v262 @39:26
   v267 = call .stringtorunes, v266, v262 @39:19
   v268 = extract 1, v267 @39:19
@@ -649,7 +649,7 @@ b44:
   v273 = load s1 @39:62
   v274 = load s2 @39:62
   v275 = load s3 @39:62
-  v276 = alloc v274 @39:55
+  v276 = alloc noscan, v274 @39:55
   move v276, v273, v274 @39:55
   v277 = call .stringtorunes, v276, v274 @39:48
   v278 = extract 1, v277 @39:48
@@ -668,7 +668,7 @@ b46:
   v300 = conv i32, v299 @46:15
   v301 = conv i64, v300 @46:8
   v302 = const 4 @46:8
-  v303 = alloc v302 @46:8
+  v303 = alloc noscan, v302 @46:8
   v304 = call .encoderune, v303, v301 @46:8
   store s71, v303 @46:3
   store s72, v304 @46:3
@@ -849,7 +849,7 @@ b3:
   v16 = load s3 @24:18
   v17 = const 4 @24:18
   v18 = mul v16, v17 @24:18
-  v19 = alloc v18 @24:18
+  v19 = alloc noscan, v18 @24:18
   store s4, v19 @24:18
   v20 = const 0 @24:18
   store s2, v20 @24:18

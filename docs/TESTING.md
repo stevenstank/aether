@@ -562,7 +562,11 @@ hangs until the run timeout; marking only through pointers to an object's
 start makes allocation programs differ from gc. On 2026-11-20,
 allocation programs of seeds 1001 to 1300, built by `aether build`, all
 gave gc's output under stress. The interpreter never frees, so these run
-natively only, and `FuzzGenerated` does not reach them.
+natively only, and `FuzzGenerated` does not reach them; `FuzzGC`
+(increment 9.3) fuzzes them instead: each input is a seed of
+`generateAllocs`, whose program is built by `aether build`, run under
+stress, and compared with the interpreter, which never frees and so needs
+no gc build; a program over the interpreter's step budget is skipped.
 
 `TestLayoutAgainstGc` checks the layout of arrays and structs (D-034): a
 gc-built program prints `unsafe.Sizeof`, `Alignof`, and `Offsetof` of 18

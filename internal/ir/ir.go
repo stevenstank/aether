@@ -300,9 +300,10 @@ const (
 	LdM
 	StM
 	// Alloc produces the Ptr of a new heap object of args[0] bytes, an I64,
-	// all zero (D-035). Heap objects are never freed (D-010). It is an
-	// effect: a call of the runtime. If the heap is exhausted, the program
-	// ends with a fatal error.
+	// all zero (D-035). The native heap is collected (D-046); with Const 1,
+	// the object never holds a Ptr, and the collector does not look for
+	// any in it (noscan, D-047). It is an effect: a call of the runtime. If
+	// the heap is exhausted, the program ends with a fatal error.
 	Alloc
 	// PAdd produces args[0], a Ptr into an object, plus args[1] bytes, an
 	// I64 (D-035). Precondition: the result lies in the same object or just
@@ -554,7 +555,7 @@ type Instr struct {
 	ID      int // value number, unique in the function; -1 if no value
 	Args    []*Instr
 	Slot    *Slot    // for Load and Store
-	Const   int64    // for Const
+	Const   int64    // for Const; for Alloc, 1 if noscan
 	Index   int      // for Param, Extract, and Panic
 	Callee  *Func    // for Call and FuncAddr
 	Sig     *Sig     // for CallInd
@@ -798,6 +799,12 @@ func (f *Func) LdM(b *Block, t Type, p, off *Instr, pos Pos) *Instr {
 // Alloc appends the allocation of a heap object of n bytes.
 func (f *Func) Alloc(b *Block, n *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: Alloc, Type: Ptr, Args: []*Instr{n}, Pos: pos})
+}
+
+// AllocNoScan appends the allocation of a heap object of n bytes that will
+// never hold a Ptr (D-047).
+func (f *Func) AllocNoScan(b *Block, n *Instr, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Alloc, Type: Ptr, Args: []*Instr{n}, Const: 1, Pos: pos})
 }
 
 // PAdd appends p plus i bytes.

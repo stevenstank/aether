@@ -413,7 +413,7 @@ b1:
 b2:
   v11 = str s4 @14:3
   v12 = const 30 @14:3
-  v13 = alloc v12 @14:3
+  v13 = alloc noscan, v12 @14:3
   v14 = const 0 @14:3
   v15 = padd v13, v14 @14:3
   move v15, v11, v12 @14:3
@@ -811,7 +811,7 @@ b5:
   v26 = load s3 @14:3
   v27 = const 8 @14:3
   v28 = mul v26, v27 @14:3
-  v29 = alloc v28 @14:3
+  v29 = alloc noscan, v28 @14:3
   store s5, v29 @14:3
   v30 = load s0 @14:3
   v31 = const 8 @14:3

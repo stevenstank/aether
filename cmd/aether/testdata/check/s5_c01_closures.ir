@@ -47,7 +47,7 @@ b0:
   store s0, v0 @16:14
   v1 = load s0 @17:7
   v2 = const 8 @17:2
-  v3 = alloc v2 @17:2
+  v3 = alloc noscan, v2 @17:2
   store s1, v3 @17:2
   v4 = load s1 @17:2
   v5 = const 0 @17:2
@@ -77,7 +77,7 @@ b0:
   v0 = param 0 @26:12
   store s0, v0 @26:12
   v1 = const 24 @26:12
-  v2 = alloc v1 @26:12
+  v2 = alloc noscan, v1 @26:12
   store s1, v2 @26:12
   v3 = load s0 @26:12
   v4 = const 0 @26:12
@@ -583,7 +583,7 @@ b26:
   println v143, v144, v142 @63:2
   v145 = const 1 @66:7
   v146 = const 8 @66:2
-  v147 = alloc v146 @66:2
+  v147 = alloc noscan, v146 @66:2
   store s33, v147 @66:2
   v148 = load s33 @66:2
   v149 = const 0 @66:2
@@ -607,7 +607,7 @@ b26:
   v162 = const 8 @68:16
   stm v159, v162, v161 @68:16
   v163 = const 16 @68:2
-  v164 = alloc v163 @68:2
+  v164 = alloc noscan, v163 @68:2
   store s35, v164 @68:2
   v165 = const 0 @68:2
   v166 = ldm i64, v159, v165 @68:2
@@ -656,7 +656,7 @@ b26:
   v199 = const 24 @69:2
   stm v198, v199, v197 @69:2
   v200 = const 16 @70:8
-  v201 = alloc v200 @70:8
+  v201 = alloc noscan, v200 @70:8
   store s37, v201 @70:8
   v202 = const 1 @70:14
   v203 = const 0 @70:14
@@ -826,7 +826,7 @@ b32:
   println v320, v321, v322, v323, v307, v310, v316 @81:2
   v324 = const 0 @84:11
   v325 = const 8 @84:2
-  v326 = alloc v325 @84:2
+  v326 = alloc noscan, v325 @84:2
   store s56, v326 @84:2
   v327 = load s56 @84:2
   v328 = const 0 @84:2
@@ -969,7 +969,7 @@ b46:
   v409 = load s76 @109:12
   v410 = mul v408, v409 @109:10
   v411 = const 8 @109:3
-  v412 = alloc v411 @109:3
+  v412 = alloc noscan, v411 @109:3
   store s77, v412 @109:3
   v413 = load s77 @109:3
   v414 = const 0 @109:3
@@ -1195,7 +1195,7 @@ b70:
   println v543, v544, v545, v542 @112:2
   v546 = const 0 @114:9
   v547 = const 8 @114:2
-  v548 = alloc v547 @114:2
+  v548 = alloc noscan, v547 @114:2
   store s105, v548 @114:2
   v549 = load s105 @114:2
   v550 = const 0 @114:2
@@ -1587,7 +1587,7 @@ b0:
   v29 = const 8 @73:3
   v30 = ldm i64, v28, v29 @73:3
   v31 = add v30, v24 @73:5
-  v32 = alloc v31 @73:5
+  v32 = alloc noscan, v31 @73:5
   v33 = const 0 @73:5
   v34 = padd v32, v33 @73:5
   move v34, v27, v30 @73:5
@@ -1618,7 +1618,7 @@ b0:
   v55 = const 24 @75:3
   v56 = ldm i64, v54, v55 @75:3
   v57 = add v56, v50 @75:10
-  v58 = alloc v57 @75:10
+  v58 = alloc noscan, v57 @75:10
   v59 = const 0 @75:10
   v60 = padd v58, v59 @75:10
   move v60, v53, v56 @75:10
@@ -1711,7 +1711,7 @@ b6:
   v96 = load s13 @76:8
   v97 = const 8 @76:8
   v98 = mul v96, v97 @76:8
-  v99 = alloc v98 @76:8
+  v99 = alloc noscan, v98 @76:8
   v100 = load s11 @76:8
   v101 = load s7 @76:8
   v102 = const 8 @76:8
@@ -1739,7 +1739,7 @@ b0:
   store s2, v4 @85:8
   v5 = load s1 @85:13
   v6 = const 8 @85:13
-  v7 = alloc v6 @85:13
+  v7 = alloc noscan, v6 @85:13
   store s3, v7 @85:13
   v8 = load s3 @85:13
   v9 = const 0 @85:13
@@ -1750,7 +1750,7 @@ b0:
   v13 = const 10 @86:16
   v14 = mul v12, v13 @86:14
   v15 = const 8 @86:3
-  v16 = alloc v15 @86:3
+  v16 = alloc noscan, v15 @86:3
   store s4, v16 @86:3
   v17 = load s4 @86:3
   v18 = const 0 @86:3

@@ -11,8 +11,10 @@
 # objects, their size class's size (16 to 4096 bytes); for the first page of
 # a large object, the bytes of its run of pages; for the other pages of the
 # run, minus their distance from the first. Every object starts with an
-# 8-byte header: 0 free, 1 allocated, 3 allocated and marked. The address
-# returned is just after it. Free small objects are on their class's free
+# 8-byte header: 0 free; otherwise bit 0 (allocated), bit 1 (marked), and
+# bit 2 (noscan: aether.allocnoscan's objects, which hold no pointer and
+# whose words are not scanned, D-047). The address returned is just after
+# it. Free small objects are on their class's free
 # list, linked through the word after the header; free pages are all zero.
 #
 # The collector is conservative, non-moving, mark-sweep (D-046). A
@@ -27,9 +29,9 @@
 # collections are frequent and freed small objects are filled with
 # 0xdeadbeefdeadbeef.
 #
-# aether.alloc follows the helper interface: it preserves %rbx, %rbp, and
-# %r12-%r15, requires %rsp 16-byte aligned at the call, and uses at most
-# 256 bytes below %rsp.
+# aether.alloc and aether.allocnoscan follow the helper interface: they
+# preserve %rbx, %rbp, and %r12-%r15, require %rsp 16-byte aligned at the
+# call, and use at most 256 bytes below %rsp.
 
 	.set	.Lheapsize, 68719476736	# 64 GiB
 	.set	.Lpage, 8192
@@ -41,9 +43,18 @@
 	.set	.Lstressmin, 8192
 
 	.text
+	.globl	aether.allocnoscan
+	.type	aether.allocnoscan, @function
+aether.allocnoscan:
+	pushq	$5			# the header: allocated, noscan
+	jmp	.Lalloc
+	.size	aether.allocnoscan, .-aether.allocnoscan
+
 	.globl	aether.alloc
 	.type	aether.alloc, @function
 aether.alloc:
+	pushq	$1			# the header: allocated
+.Lalloc:
 	testq	%rdi, %rdi
 	jz	.Lzero
 	movabsq	$.Lheapsize, %rax
@@ -79,7 +90,8 @@ aether.alloc:
 	call	.Lrefill
 5:	movq	8(%r8), %r9
 	movq	%r9, (%rdx,%rcx,8)
-	movq	$1, (%r8)
+	popq	%r9
+	movq	%r9, (%r8)
 	addq	%rsi, .Lallocated(%rip)
 	leaq	8(%r8), %rdi
 	leaq	-8(%rsi), %rcx
@@ -111,11 +123,13 @@ aether.alloc:
 	jmp	1b
 2:	shlq	$13, %rax
 	addq	.Lbase(%rip), %rax
-	movq	$1, (%rax)
+	popq	%r9
+	movq	%r9, (%rax)
 	addq	$8, %rax
 	ret
 
 .Lzero:
+	addq	$8, %rsp		# the header
 	leaq	aether.zerobase(%rip), %rax
 	ret
 
@@ -285,6 +299,8 @@ aether.alloc:
 	je	2f
 	subq	$8, %r14
 	movq	(%r14), %r12
+	testq	$4, (%r12)
+	jnz	1b			# noscan
 	movq	%r12, %rax
 	subq	%r15, %rax
 	shrq	$13, %rax
@@ -345,9 +361,11 @@ aether.alloc:
 	cmpq	$.Lpage, %rdx
 	ja	9f			# the page's tail
 	addq	%rax, %r8
-2:	cmpq	$1, (%r8)
+2:	movq	(%r8), %rax
+	andl	$3, %eax
+	cmpl	$1, %eax
 	jne	9f			# free, or marked
-	movq	$3, (%r8)
+	orq	$2, (%r8)
 	movq	%r8, (%r14)
 	addq	$8, %r14
 9:	ret
@@ -385,14 +403,14 @@ aether.alloc:
 	cmpq	%r10, %rdi
 	ja	4f
 	movq	(%r9), %rcx
-	cmpq	$3, %rcx
-	jne	3f
-	movq	$1, (%r9)
+	testq	%rcx, %rcx
+	jz	5f			# free
+	testq	$2, %rcx
+	jz	3f
+	andq	$-3, (%r9)		# live: the mark cleared
 	addq	%rsi, %r11
 	jmp	5f
-3:	cmpq	$1, %rcx
-	jne	5f
-	movq	$0, (%r9)		# dead
+3:	movq	$0, (%r9)		# dead
 	cmpq	$0, aether.gcstress(%rip)
 	je	5f
 	leaq	8(%r9), %rdi
@@ -443,9 +461,9 @@ aether.alloc:
 .Lswlarge:
 	movq	%rsi, %rcx
 	shrq	$13, %rcx		# its pages
-	cmpq	$3, (%r8)
-	jne	13f
-	movq	$1, (%r8)
+	testq	$2, (%r8)
+	jz	13f
+	andq	$-3, (%r8)
 	addq	%rsi, %r14
 	pushq	%rcx
 	call	.Lflush
