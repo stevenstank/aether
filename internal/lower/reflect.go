@@ -18,14 +18,15 @@ import (
 //	56 the descriptor of a map's key type
 //	64 an array's length, a struct's fields, an interface's methods
 //	72 a struct's field records: each its name, its type's descriptor,
-//	   its offset, and its flags (1 exported, 2 embedded)
+//	   its offset, its flags (1 exported, 2 embedded), and the path of
+//	   its package if it is not exported (empty otherwise)
 //	80 a map entry's size, 88 the element's offset in it (maps.go)
 //
 // The descriptors of the element, key, and field types are made with it,
 // so reflect reaches every type a value holds.
 const (
 	reflectDescSize = 96
-	fieldRecSize    = 40
+	fieldRecSize    = 56
 )
 
 // reflectKind returns reflect's Kind of t.
@@ -124,6 +125,11 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 				flags |= 2
 			}
 			word(fa, r+32, c(flags))
+			if !f.Exported() {
+				path := f.Pkg().Path()
+				word(fa, r+40, l.fn.Str(b, l.prog.Intern(path), pos))
+				word(fa, r+48, c(int64(len(path))))
+			}
 		}
 	}
 }

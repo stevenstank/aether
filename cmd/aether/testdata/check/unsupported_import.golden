@@ -1,1 +1,1 @@
-testdata/check/unsupported_import.go:5:8: unsupported: import "example.com/lib" is not supported in subset S1 [import]
+testdata/check/unsupported_import.go:6:8: unsupported: import "example.com/lib" is not supported in subset S1 [import]

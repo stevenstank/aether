@@ -1383,6 +1383,11 @@ exist before the build.
    - `var x int = 1.0`
    - `package foo`
 
+   These were Phase 3's. Each variant that later became supported is
+   replaced in `TestMilestone1Rejections` by a construct still
+   `unsupported` (in Phase 11, `import "fmt"` by an import that no module
+   provides).
+
    Each must:
    - print an `unsupported` diagnostic naming the construct and its
      `file:line:col` position

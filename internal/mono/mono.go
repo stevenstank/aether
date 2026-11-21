@@ -342,6 +342,12 @@ func (m *mono) instance(n ast.Node, obj types.Object, args []types.Type) *instan
 		names[i] = typeName(a, true)
 	}
 	name := obj.Name() + "[" + strings.Join(names, ",") + "]"
+	if _, isType := obj.(*types.TypeName); isType && obj.Parent() != m.pkg.Types.Scope() {
+		// A generic type declared in a function, which the gate rejects
+		// too: never made.
+		m.rejectAt(n, gate.FeatLocalType, "instance of the local generic type "+obj.Name())
+		return &instance{name: name, obj: obj, args: args}
+	}
 	if in := m.insts[name]; in != nil {
 		for i, a := range in.args {
 			if !types.Identical(a, args[i]) && pathName(a) != pathName(args[i]) {
@@ -541,10 +547,17 @@ func (m *mono) value(n ast.Node, v reflect.Value, e env) reflect.Value {
 }
 
 // rewrite returns the replacement of n in a copy under e, or nil: a type
-// expression for a type parameter, an identifier for an instance, and a
-// non-constant form of a constant conversion to a type parameter.
+// expression for a type parameter, an identifier for an instance, a
+// non-constant form of a constant conversion to a type parameter, and a
+// local generic type's declaration itself.
 func (m *mono) rewrite(n ast.Node, e env) ast.Node {
 	switch n := n.(type) {
+	case *ast.TypeSpec:
+		// A generic type declared in a function, kept as it is: the gate
+		// rejects it, and its instances are rejected in ref.
+		if n.TypeParams != nil {
+			return n
+		}
 	case *ast.Ident:
 		if tn, ok := m.info.Uses[n].(*types.TypeName); ok {
 			if tp, ok := tn.Type().(*types.TypeParam); ok {
@@ -642,7 +655,7 @@ func (m *mono) ref(n ast.Node, id *ast.Ident, in types.Instance, e env) ast.Node
 			return nil
 		}
 	case *types.TypeName:
-		if m.types[obj] == nil {
+		if m.types[obj] == nil && obj.Parent() == m.pkg.Types.Scope() {
 			m.internal(n, "instance of %s, not a generic type", obj.Name())
 			return nil
 		}

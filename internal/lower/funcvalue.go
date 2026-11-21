@@ -232,6 +232,7 @@ func (l *lowerer) methodExpr(e *ast.SelectorExpr, sel *types.Selection) *ir.Inst
 		x := ps[1]
 		var deref, addr func() place
 		if xPtr {
+			l.wrapNilCheck(xt, sel, x, pos)
 			deref = func() place { return l.through(x(), n, pos) }
 		} else if isAggregate(n) {
 			// The caller's copy of the operand, this call's own.

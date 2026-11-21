@@ -59,12 +59,13 @@ string s57 "(*runtime.PanicNilError) "
 string s58 "interface conversion: "
 string s59 "hash of unhashable type: "
 string s60 "assignment to entry in nil map"
-string s61 "runtime.errorString"
-string s62 "runtime.boundsError"
-string s63 "runtime.plainError"
-string s64 "maps.unhashableTypeError"
-string s65 "*runtime.TypeAssertionError"
-string s66 "*runtime.PanicNilError"
+string s61 "value method "
+string s62 "runtime.errorString"
+string s63 "runtime.boundsError"
+string s64 "runtime.plainError"
+string s65 "maps.unhashableTypeError"
+string s66 "*runtime.TypeAssertionError"
+string s67 "*runtime.PanicNilError"
 global g0 .unwinding bool @testdata/check/s5_d08_recover.go:3:1
 global g1 .panics ptr @testdata/check/s5_d08_recover.go:3:1
 global g2 .rframe bool @testdata/check/s5_d08_recover.go:3:1
@@ -2952,6 +2953,9 @@ func .materialize(ptr) @testdata/check/s5_d08_recover.go:3:1
   slot s111 tmp ptr @3:1
   slot s112 tmp i64 @3:1
   slot s113 tmp ptr @3:1
+  slot s114 tmp ptr @3:1
+  slot s115 tmp i64 @3:1
+  slot s116 tmp ptr @3:1
 b0:
   v0 = param 0 @3:1
   store s0, v0 @3:1
@@ -4422,29 +4426,9 @@ b84:
   v1026 = load s0 @3:1
   v1027 = const 64 @3:1
   v1028 = ldm i64, v1026, v1027 @3:1
-  store s111, v1025 @3:1
-  store s112, v1028 @3:1
-  v1029 = const 16 @3:1
-  v1030 = alloc v1029 @3:1
-  store s113, v1030 @3:1
-  v1031 = load s111 @3:1
-  v1032 = load s112 @3:1
-  v1033 = const 0 @3:1
-  stm v1030, v1033, v1031 @3:1
-  v1034 = const 8 @3:1
-  stm v1030, v1034, v1032 @3:1
-  v1035 = load s0 @3:1
-  v1036 = const 8 @3:1
-  v1037 = addr gm0 @3:1
-  stm v1035, v1036, v1037 @3:1
-  v1038 = load s0 @3:1
-  v1039 = const 16 @3:1
-  stm v1038, v1039, v1030 @3:1
-  v1040 = load s0 @3:1
-  v1041 = const 24 @3:1
-  v1042 = const 0 @3:1
-  stm v1040, v1041, v1042 @3:1
-  ret @3:1
+  v1029 = const 13 @3:1
+  v1030 = ge v1028, v1029 @3:1
+  branch v1030, b87, b88 @3:1
 b85:
   v1003 = load s0 @3:1
   v1004 = const 56 @3:1
@@ -4477,6 +4461,80 @@ b85:
   ret @3:1
 b86:
   jump b84 @3:1
+b87:
+  v1031 = str s61 @3:1
+  v1032 = const 13 @3:1
+  v1033 = load s0 @3:1
+  v1034 = const 56 @3:1
+  v1035 = ldm ptr, v1033, v1034 @3:1
+  v1036 = load s0 @3:1
+  v1037 = const 64 @3:1
+  v1038 = ldm i64, v1036, v1037 @3:1
+  v1039 = const 13 @3:1
+  v1040 = call .streq, v1035, v1039, v1031, v1032 @3:1
+  branch v1040, b89, b90 @3:1
+b88:
+  v1061 = load s0 @3:1
+  v1062 = const 56 @3:1
+  v1063 = ldm ptr, v1061, v1062 @3:1
+  v1064 = load s0 @3:1
+  v1065 = const 64 @3:1
+  v1066 = ldm i64, v1064, v1065 @3:1
+  store s114, v1063 @3:1
+  store s115, v1066 @3:1
+  v1067 = const 16 @3:1
+  v1068 = alloc v1067 @3:1
+  store s116, v1068 @3:1
+  v1069 = load s114 @3:1
+  v1070 = load s115 @3:1
+  v1071 = const 0 @3:1
+  stm v1068, v1071, v1069 @3:1
+  v1072 = const 8 @3:1
+  stm v1068, v1072, v1070 @3:1
+  v1073 = load s0 @3:1
+  v1074 = const 8 @3:1
+  v1075 = addr gm0 @3:1
+  stm v1073, v1074, v1075 @3:1
+  v1076 = load s0 @3:1
+  v1077 = const 16 @3:1
+  stm v1076, v1077, v1068 @3:1
+  v1078 = load s0 @3:1
+  v1079 = const 24 @3:1
+  v1080 = const 0 @3:1
+  stm v1078, v1079, v1080 @3:1
+  ret @3:1
+b89:
+  v1041 = load s0 @3:1
+  v1042 = const 56 @3:1
+  v1043 = ldm ptr, v1041, v1042 @3:1
+  v1044 = load s0 @3:1
+  v1045 = const 64 @3:1
+  v1046 = ldm i64, v1044, v1045 @3:1
+  store s111, v1043 @3:1
+  store s112, v1046 @3:1
+  v1047 = const 16 @3:1
+  v1048 = alloc v1047 @3:1
+  store s113, v1048 @3:1
+  v1049 = load s111 @3:1
+  v1050 = load s112 @3:1
+  v1051 = const 0 @3:1
+  stm v1048, v1051, v1049 @3:1
+  v1052 = const 8 @3:1
+  stm v1048, v1052, v1050 @3:1
+  v1053 = load s0 @3:1
+  v1054 = const 8 @3:1
+  v1055 = addr gm2 @3:1
+  stm v1053, v1054, v1055 @3:1
+  v1056 = load s0 @3:1
+  v1057 = const 16 @3:1
+  stm v1056, v1057, v1048 @3:1
+  v1058 = load s0 @3:1
+  v1059 = const 24 @3:1
+  v1060 = const 0 @3:1
+  stm v1058, v1059, v1060 @3:1
+  ret @3:1
+b90:
+  jump b88 @3:1
 
 func .gorecover(bool) (ptr, ptr) @testdata/check/s5_d08_recover.go:3:1
   slot s0 tmp bool @3:1
@@ -7044,7 +7102,7 @@ b0:
   stm v39, v40, v41 @3:1
   v42 = addr gm0 @3:1
   v43 = const 0 @3:1
-  v44 = str s61 @3:1
+  v44 = str s62 @3:1
   stm v42, v43, v44 @3:1
   v45 = const 8 @3:1
   v46 = const 19 @3:1
@@ -7054,7 +7112,7 @@ b0:
   stm v42, v47, v48 @3:1
   v49 = addr gm1 @3:1
   v50 = const 0 @3:1
-  v51 = str s62 @3:1
+  v51 = str s63 @3:1
   stm v49, v50, v51 @3:1
   v52 = const 8 @3:1
   v53 = const 19 @3:1
@@ -7064,7 +7122,7 @@ b0:
   stm v49, v54, v55 @3:1
   v56 = addr gm2 @3:1
   v57 = const 0 @3:1
-  v58 = str s63 @3:1
+  v58 = str s64 @3:1
   stm v56, v57, v58 @3:1
   v59 = const 8 @3:1
   v60 = const 18 @3:1
@@ -7074,7 +7132,7 @@ b0:
   stm v56, v61, v62 @3:1
   v63 = addr gm3 @3:1
   v64 = const 0 @3:1
-  v65 = str s64 @3:1
+  v65 = str s65 @3:1
   stm v63, v64, v65 @3:1
   v66 = const 8 @3:1
   v67 = const 24 @3:1
@@ -7084,7 +7142,7 @@ b0:
   stm v63, v68, v69 @3:1
   v70 = addr gm4 @3:1
   v71 = const 0 @3:1
-  v72 = str s65 @3:1
+  v72 = str s66 @3:1
   stm v70, v71, v72 @3:1
   v73 = const 8 @3:1
   v74 = const 27 @3:1
@@ -7094,7 +7152,7 @@ b0:
   stm v70, v75, v76 @3:1
   v77 = addr gm5 @3:1
   v78 = const 0 @3:1
-  v79 = str s66 @3:1
+  v79 = str s67 @3:1
   stm v77, v78, v79 @3:1
   v80 = const 8 @3:1
   v81 = const 22 @3:1

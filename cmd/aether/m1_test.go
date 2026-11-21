@@ -290,7 +290,7 @@ func checkELF(t *testing.T, out, ref string) {
 		}
 	}
 	slices.Sort(defined)
-	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.alloc", "aether.allocnoscan", "aether.g0", "aether.gcstress", "aether.gcur", "aether.goexit", "aether.gonew", "aether.goswitch", "aether.gregion", "aether.gused", "aether.mainstack", "aether.memmove", "aether.panicbounds", "aether.panicdivide", "aether.panicexit", "aether.panicfatal", "aether.panicgrowlen", "aether.panicindex", "aether.panicindexu", "aether.panicmakecap", "aether.panicmakelen", "aether.panicmsg", "aether.panicnil", "aether.panicshift", "aether.pow10", "aether.printbool", "aether.printfloat32", "aether.printfloat64", "aether.printint", "aether.printnl", "aether.printsp", "aether.printstr", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.stacktop", "aether.write", "aether.zerobase", "main.init", "main.main"}
+	want := []string{"__bss_start", "_edata", "_end", "_start", "aether.alloc", "aether.allocnoscan", "aether.argc", "aether.arglen", "aether.argptr", "aether.exit", "aether.g0", "aether.gc", "aether.gcstress", "aether.gcur", "aether.goexit", "aether.gonew", "aether.goswitch", "aether.gregion", "aether.gused", "aether.mainstack", "aether.memmove", "aether.panicbounds", "aether.panicdivide", "aether.panicexit", "aether.panicfatal", "aether.panicgrowlen", "aether.panicindex", "aether.panicindexu", "aether.panicmakecap", "aether.panicmakelen", "aether.panicmsg", "aether.panicnil", "aether.panicshift", "aether.pow10", "aether.printbool", "aether.printfloat32", "aether.printfloat64", "aether.printint", "aether.printnl", "aether.printsp", "aether.printstr", "aether.printuint", "aether.stacklimit", "aether.stackoverflow", "aether.stacktop", "aether.sysread", "aether.syswrite", "aether.write", "aether.zerobase", "main.init", "main.main"}
 	if !slices.Equal(defined, want) {
 		t.Errorf("nm: defined symbols %v, want %v", defined, want)
 	}
@@ -375,11 +375,14 @@ func TestMilestone1Rejections(t *testing.T) {
 		feature   string
 	}{
 		{"defer", main("defer recover()"), 3, "defer"},
-		{"import", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(1) }\n", 3, "import"},
-		{"fallthrough", main("x := 1\nswitch x {\ncase 1:\n\tfallthrough\ndefault:\n}\nprintln(x)"), 3, "fallthrough"},
+		// Each variant stays unsupported as the subset grows: one that
+		// becomes supported is replaced (in Phase 11: import "fmt",
+		// fallthrough, a range over a string, and a complex type).
+		{"import", "package main\n\nimport \"example.com/lib\"\n\nfunc main() { lib.F() }\n", 3, "import"},
+		{"type alias", "package main\n\ntype A = int\n\nfunc main() { var a A; println(a) }\n", 3, "package-level-declaration"},
 		{"generic function", "package main\n\nfunc f[T any](x T) T { return x }\n\nfunc main() {}\n", 3, "generic-uninstantiated"},
-		{"range over a string", main("for i := range \"hi\" {\n\tprintln(i)\n}"), 3, "for-range"},
-		{"complex type", main("var c complex64\nprintln(c == 0)"), 3, "non-int-type"},
+		{"range over a function", main("for x := range func(yield func(int) bool) { yield(1) } {\n\tprintln(x)\n}"), 3, "for-range"},
+		{"complex arithmetic", main("var c complex64 = 1\nprintln(real(c + c))"), 3, "complex-arithmetic"},
 		{"package name", "package foo\n\nfunc main() {}\n", 3, "package-name"},
 	}
 	for _, f := range []string{"s1_n01_constant_overflow", "s1_n02_typed_constant_overflow", "s1_n03_unused_variable",

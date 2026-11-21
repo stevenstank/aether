@@ -1142,7 +1142,7 @@ func (l *lowerer) assign(s *ast.AssignStmt) {
 		if l.branches(s.Rhs) {
 			get = l.spill(x, pos)
 		}
-		y := l.expr(s.Rhs[0])
+		y := l.count(s.Rhs[0])
 		l.store(v, []*ir.Instr{l.arith(op, get(), y, s.Rhs[0], l.pos(s, s.TokPos))}, pos)
 	default:
 		l.fail(s, "unexpected assignment %s", s.Tok)
@@ -1919,6 +1919,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 				return l.fn.Compare(l.b, op, l.value(s)[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos)
 			}
 		}
+		if op, ok := binaryOps[e.Op]; ok && (op == ir.Shl || op == ir.Shr) && l.untypedConst(e.Y) {
+			return l.arith(op, l.scalar(e.X, l.value(e.X)), l.count(e.Y), e.Y, pos)
+		}
 		if op, ok := binaryOps[e.Op]; ok {
 			xy := l.values([]ast.Expr{e.X, e.Y}, nil)
 			x, y := l.scalar(e.X, xy[0]), l.scalar(e.Y, xy[1])
@@ -2301,17 +2304,50 @@ func (l *lowerer) retValues(n ast.Node, vals [][]*ir.Instr, pos ir.Pos) {
 // compoundPlace lowers "x op= y" where x is a field or element: the
 // operands of x's index expressions have been evaluated; then y is, and
 // then x's bounds checks, its load, the operation, and its store follow
-// (spec §Assignment statements), as gc orders them.
+// (spec §Assignment statements), as gc orders them. For / and %, a
+// map's element is read without inserting it, and inserted only after
+// the operation, which may panic (go.dev/issue/22881); gc inserts it
+// first for every other operation, a shift's panic included.
 func (l *lowerer) compoundPlace(op ir.Op, p place, s *ast.AssignStmt) {
 	pos := l.pos(s.Lhs[0], s.Lhs[0].Pos())
-	y := l.expr(s.Rhs[0])
+	y := l.count(s.Rhs[0])
 	get := func() *ir.Instr { return y }
 	if len(p.checks) > 0 {
 		get = l.spill(y, pos)
 	}
+	if len(p.checks) == 1 && p.checks[0].lookup != nil && (op == ir.Div || op == ir.Rem) {
+		x := l.scalar(s.Lhs[0], l.loadPlace(place{base: p.checks[0].lookup, t: p.t}, pos))
+		l.storePlace(p, []*ir.Instr{l.arith(op, x, get(), s.Rhs[0], l.pos(s, s.TokPos))}, pos)
+		return
+	}
 	p = l.checkAll(p)
 	x := l.scalar(s.Lhs[0], l.loadPlace(p, pos))
 	l.storePlace(p, []*ir.Instr{l.arith(op, x, get(), s.Rhs[0], l.pos(s, s.TokPos))}, pos)
+}
+
+// untypedConst reports whether e is a constant that keeps an untyped type:
+// in the subset, a shift's count, which must only be representable as a
+// uint (spec §Operators), so its type may be untyped float or complex, or
+// an untyped integer above int64's range.
+func (l *lowerer) untypedConst(e ast.Expr) bool {
+	tv := l.pkg.Info.Types[e]
+	b, ok := tv.Type.(*types.Basic)
+	return tv.Value != nil && ok && b.Info()&types.IsUntyped != 0
+}
+
+// count lowers e, the right operand of a binary operation or of a
+// compound assignment: an untyped constant shift count is the U64 of its
+// value, as gc's shift by a uint constant.
+func (l *lowerer) count(e ast.Expr) *ir.Instr {
+	if !l.untypedConst(e) {
+		return l.expr(e)
+	}
+	pos := l.pos(e, e.Pos())
+	n, exact := constant.Uint64Val(constant.ToInt(l.pkg.Info.Types[e].Value))
+	if !exact {
+		l.fail(e, "shift count %s is not representable as uint", l.pkg.Info.Types[e].Value)
+	}
+	return l.fn.TypedConst(l.b, ir.U64, int64(n), pos)
 }
 
 // int64Val returns the value of an integer constant, or of a float

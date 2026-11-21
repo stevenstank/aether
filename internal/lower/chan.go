@@ -846,7 +846,7 @@ func (l *lowerer) chanRange(s *ast.RangeStmt) {
 		if s.Tok == token.DEFINE {
 			l.store(l.defineVar(l.ident(s.Key)), w, xpos)
 		} else {
-			get := l.spillWords(w, xpos)
+			get := l.spillWords(l.assignTo(w, t, s.Key, xpos), xpos)
 			v := l.lvalue(s.Key)
 			l.store(v, get(), xpos)
 		}
@@ -985,17 +985,18 @@ func (l *lowerer) selectAssign(as *ast.AssignStmt, p place, ok func() *ir.Instr)
 		}
 		xpos := l.pos(x, x.Pos())
 		var w []*ir.Instr
+		from := p.t
 		if k == 0 {
 			w = l.recvWords(p, x)
 		} else {
-			w = []*ir.Instr{ok()}
+			w, from = []*ir.Instr{ok()}, types.Typ[types.Bool]
 		}
 		if as.Tok == token.DEFINE {
 			l.store(l.defineVar(l.ident(x)), w, xpos)
 			continue
 		}
 		targets = append(targets, x)
-		vals = append(vals, l.spillWords(w, xpos))
+		vals = append(vals, l.spillWords(l.assignTo(w, from, x, xpos), xpos))
 	}
 	vs := make([]variable, len(targets))
 	for k, x := range targets {

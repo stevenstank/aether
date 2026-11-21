@@ -53,7 +53,7 @@ var controls = []control{
 		old: `if e.Op == token.LAND {`, new: `if e.Op == token.LAND || e.Op == token.LOR {`,
 		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`gen\d{4}: interpreter`, `gen\d{4}: native`}},
 	{name: "4.1 continue skips the post statement", file: "internal/lower/lower.go",
-		old: `lp := &target{next: next, exit: exit}`, new: `lp := &target{next: head, exit: exit}`,
+		old: `lp := &target{next: next, exit: exit, stmt: s}`, new: `lp := &target{next: head, exit: exit, stmt: s}`,
 		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`: not run: \[\] interp: step budget exhausted`},
 		interpOnly: true},
 
@@ -137,8 +137,8 @@ var controls = []control{
 
 	// 4.6
 	{name: "4.6 initialization order reversed", file: "internal/lower/lower.go",
-		old: `for _, init := range order {`, new: `for i := range order {
-		init := order[len(order)-1-i]`,
+		old: `for _, init := range u.Info.InitOrder {`, new: `for i := range u.Info.InitOrder {
+			init := u.Info.InitOrder[len(u.Info.InitOrder)-1-i]`,
 		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`s2_g02_init_order: interpreter`, `gen\d{4}: interpreter`, `gen\d{4}: native`}},
 	{name: "4.6 globals share one word", file: "internal/amd64/amd64.go",
 		old: `%s:\n\t.zero\t8\n", sym, sym, sym)`, new: `%s:\n\t.zero\t0\n", sym, sym, sym)`,

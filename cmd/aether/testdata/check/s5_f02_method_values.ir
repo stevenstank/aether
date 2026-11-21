@@ -2,6 +2,7 @@ string s0 "c"
 string s1 "o"
 string s2 "outer"
 string s3 " "
+string s4 "value method main.Counter.Get called using nil *Counter pointer"
 global g0 bound ptr @testdata/check/s5_f02_method_values.go:51:5
 mem gm0 global 24 align 8 @testdata/check/s5_f02_method_values.go:50:5
 mem gm1 .v.m.Counter.Get 8 align 8 @testdata/check/s5_f02_method_values.go:16:18
@@ -1911,31 +1912,44 @@ b0:
   store s0, v0 @94:21
   store s1, v1 @94:21
   v2 = load s1 @94:21
-  store s2, v2 @94:21
   v3 = const ptr 0 @94:21
   v4 = eq v2, v3 @94:21
   branch v4, b1, b2 @94:21
 b1:
-  panic nil @94:21
+  v5 = str s4 @94:21
+  v6 = const 63 @94:21
+  v7 = alloc noscan, v6 @94:21
+  v8 = const 0 @94:21
+  v9 = padd v7, v8 @94:21
+  move v9, v5, v6 @94:21
+  panic msg, v7, v6 @94:21
 b2:
-  v5 = load s2 @94:21
-  v6 = const 0 @94:21
-  v7 = ldm i64, v5, v6 @94:21
-  v8 = addr m0 @94:21
-  v9 = const 0 @94:21
-  stm v8, v9, v7 @94:21
-  v10 = load s2 @94:21
-  v11 = const 8 @94:21
-  v12 = ldm ptr, v10, v11 @94:21
-  v13 = const 8 @94:21
-  stm v8, v13, v12 @94:21
-  v14 = load s2 @94:21
-  v15 = const 16 @94:21
-  v16 = ldm i64, v14, v15 @94:21
-  v17 = const 16 @94:21
-  stm v8, v17, v16 @94:21
-  v18 = call Counter.Get, v8 @94:21
-  ret v18 @94:21
+  v10 = load s1 @94:21
+  store s2, v10 @94:21
+  v11 = const ptr 0 @94:21
+  v12 = eq v10, v11 @94:21
+  branch v12, b3, b4 @94:21
+b3:
+  panic nil @94:21
+b4:
+  v13 = load s2 @94:21
+  v14 = const 0 @94:21
+  v15 = ldm i64, v13, v14 @94:21
+  v16 = addr m0 @94:21
+  v17 = const 0 @94:21
+  stm v16, v17, v15 @94:21
+  v18 = load s2 @94:21
+  v19 = const 8 @94:21
+  v20 = ldm ptr, v18, v19 @94:21
+  v21 = const 8 @94:21
+  stm v16, v21, v20 @94:21
+  v22 = load s2 @94:21
+  v23 = const 16 @94:21
+  v24 = ldm i64, v22, v23 @94:21
+  v25 = const 16 @94:21
+  stm v16, v25, v24 @94:21
+  v26 = call Counter.Get, v16 @94:21
+  ret v26 @94:21
 
 func .m.Vec.Sum(ptr, ptr) i64 @testdata/check/s5_f02_method_values.go:32:14
   slot s0 tmp ptr @96:14

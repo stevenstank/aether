@@ -1,6 +1,9 @@
 package main
 
-import "reflect"
+import (
+	"reflect"
+	"strings"
+)
 
 type Point struct {
 	X, Y int
@@ -51,6 +54,9 @@ func main() {
 	println(reflect.ValueOf(3.5).Float(), reflect.ValueOf(uint8(7)).Uint(), reflect.ValueOf(true).Bool(), reflect.ValueOf("hey").Index(1).Uint(), reflect.ValueOf(complex64(2+3i)).Complex() == 2+3i)
 	println(reflect.TypeOf([3]int{}).Len(), reflect.TypeOf(int16(0)).Bits(), reflect.ValueOf([]byte("ab")).Bytes()[1], reflect.TypeOf(nil) == nil, reflect.ValueOf(nil).IsValid())
 	println(reflect.ValueOf(p).String(), reflect.ValueOf(42).Interface().(int))
+	// The package path of unexported fields (go.dev/issue/10332).
+	bt := reflect.TypeOf(strings.Builder{})
+	println(t.Field(0).PkgPath, t.Field(2).PkgPath, t.Field(2).IsExported(), t.Field(0).IsExported(), bt.Field(0).Name, bt.Field(0).PkgPath)
 	b := Blanks{count(), count(), &[2]int{count(), 0}, count()}
 	println(reflect.ValueOf(blank).Field(1).Int(), b.x, b.y, calls, reflect.ValueOf(b).Field(1).Int(), reflect.ValueOf(b).Field(2).IsNil())
 }

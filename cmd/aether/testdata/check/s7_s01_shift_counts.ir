@@ -1,0 +1,243 @@
+func main @testdata/check/s7_s01_shift_counts.go:13:6
+  slot s0 x i64 @14:2
+  slot s1 tmp i64 @15:10
+  slot s2 tmp i64 @15:17
+  slot s3 tmp i64 @15:28
+  slot s4 tmp i64 @15:35
+  slot s5 tmp i64 @15:45
+  slot s6 tmp i64 @16:10
+  slot s7 tmp u64 @16:16
+  slot s8 tmp i64 @16:16
+  slot s9 tmp i64 @16:10
+  slot s10 tmp i64 @16:22
+  slot s11 tmp u64 @16:32
+  slot s12 tmp i64 @16:32
+  slot s13 tmp i64 @16:22
+  slot s14 tmp i64 @16:38
+  slot s15 tmp u64 @16:44
+  slot s16 tmp i64 @16:44
+  slot s17 y i64 @17:2
+  slot s18 tmp ptr @20:7
+  slot s19 p ptr @20:2
+  slot s20 tmp ptr @21:2
+  slot s21 tmp u64 @21:2
+  slot s22 tmp ptr @22:7
+  slot s23 a ptr @22:2
+  slot s24 a i64 @22:2
+  slot s25 a i64 @22:2
+  slot s26 tmp ptr @23:2
+  slot s27 tmp i64 @23:2
+  slot s28 tmp i64 @23:3
+  slot s29 tmp u64 @23:2
+  slot s30 tmp i64 @24:10
+  slot s31 tmp ptr @24:13
+  slot s32 tmp i64 @24:13
+  slot s33 tmp ptr @24:18
+  slot s34 tmp i64 @24:18
+  slot s35 tmp i64 @24:19
+b0:
+  v0 = const 1 @14:7
+  store s0, v0 @14:2
+  v1 = load s0 @15:10
+  v2 = const u64 1 @15:13
+  v3 = shl v1, v2 @15:11
+  store s1, v3 @15:10
+  v4 = load s0 @15:17
+  v5 = const u64 1 @15:20
+  v6 = shl v4, v5 @15:18
+  store s2, v6 @15:17
+  v7 = load s0 @15:28
+  v8 = const u64 0 @15:31
+  v9 = shl v7, v8 @15:29
+  store s3, v9 @15:28
+  v10 = load s0 @15:35
+  v11 = const u64 18446744073709551615 @15:38
+  v12 = shr v10, v11 @15:36
+  store s4, v12 @15:35
+  v13 = load s0 @15:45
+  v14 = const u64 18446744073709551615 @15:48
+  v15 = shl v13, v14 @15:46
+  store s5, v15 @15:45
+  v16 = load s0 @15:56
+  v17 = const u64 18446744073709551615 @15:59
+  v18 = shl v16, v17 @15:57
+  v19 = load s1 @15:10
+  v20 = load s2 @15:17
+  v21 = load s3 @15:28
+  v22 = load s4 @15:35
+  v23 = load s5 @15:45
+  println v19, v20, v21, v22, v23, v18 @15:2
+  v24 = load s0 @16:10
+  store s6, v24 @16:10
+  v25 = const u64 1 @16:14
+  v26 = load s0 @16:18
+  v27 = const 0 @16:16
+  v28 = lt v26, v27 @16:16
+  store s7, v25 @16:16
+  store s8, v26 @16:16
+  branch v28, b1, b2 @16:16
+b1:
+  panic shift @16:16
+b2:
+  v29 = load s7 @16:16
+  v30 = load s8 @16:16
+  v31 = conv u64, v30 @16:16
+  v32 = shl v29, v31 @16:16
+  v33 = load s6 @16:10
+  v34 = shl v33, v32 @16:11
+  store s9, v34 @16:10
+  v35 = load s0 @16:22
+  store s10, v35 @16:22
+  v36 = const u64 1 @16:26
+  v37 = load s0 @16:34
+  v38 = const 0 @16:32
+  v39 = lt v37, v38 @16:32
+  store s11, v36 @16:32
+  store s12, v37 @16:32
+  branch v39, b3, b4 @16:32
+b3:
+  panic shift @16:32
+b4:
+  v40 = load s11 @16:32
+  v41 = load s12 @16:32
+  v42 = conv u64, v41 @16:32
+  v43 = shl v40, v42 @16:32
+  v44 = load s10 @16:22
+  v45 = shl v44, v43 @16:23
+  store s13, v45 @16:22
+  v46 = load s0 @16:38
+  store s14, v46 @16:38
+  v47 = const u64 0 @16:42
+  v48 = load s0 @16:46
+  v49 = const 0 @16:44
+  v50 = lt v48, v49 @16:44
+  store s15, v47 @16:44
+  store s16, v48 @16:44
+  branch v50, b5, b6 @16:44
+b5:
+  panic shift @16:44
+b6:
+  v51 = load s15 @16:44
+  v52 = load s16 @16:44
+  v53 = conv u64, v52 @16:44
+  v54 = shl v51, v53 @16:44
+  v55 = load s14 @16:38
+  v56 = shl v55, v54 @16:39
+  v57 = load s9 @16:10
+  v58 = load s13 @16:22
+  println v57, v58, v56 @16:2
+  v59 = const 3 @17:7
+  store s17, v59 @17:2
+  v60 = load s17 @18:2
+  v61 = const u64 2 @18:8
+  v62 = shl v60, v61 @18:4
+  store s17, v62 @18:2
+  v63 = load s17 @19:2
+  v64 = const u64 1 @19:8
+  v65 = shr v63, v64 @19:4
+  store s17, v65 @19:2
+  v66 = const 8 @20:7
+  v67 = alloc noscan, v66 @20:7
+  store s18, v67 @20:7
+  v68 = const 5 @20:10
+  v69 = const 0 @20:10
+  stm v67, v69, v68 @20:10
+  store s19, v67 @20:2
+  v70 = load s19 @21:2
+  store s20, v70 @21:2
+  v71 = const u64 3 @21:10
+  store s21, v71 @21:2
+  v72 = const ptr 0 @21:2
+  v73 = eq v70, v72 @21:2
+  branch v73, b7, b8 @21:2
+b7:
+  panic nil @21:2
+b8:
+  v74 = load s20 @21:2
+  v75 = const 0 @21:2
+  v76 = ldm i64, v74, v75 @21:2
+  v77 = load s21 @21:2
+  v78 = shl v76, v77 @21:6
+  v79 = load s20 @21:2
+  v80 = const 0 @21:2
+  stm v79, v80, v78 @21:2
+  v81 = const 8 @22:7
+  v82 = alloc noscan, v81 @22:7
+  store s22, v82 @22:7
+  v83 = const 7 @22:13
+  v84 = const 0 @22:13
+  stm v82, v84, v83 @22:13
+  v85 = const 1 @22:7
+  v86 = const 1 @22:7
+  store s23, v82 @22:2
+  store s24, v85 @22:2
+  store s25, v86 @22:2
+  v87 = load s23 @23:2
+  v88 = load s24 @23:2
+  v89 = load s25 @23:2
+  store s26, v87 @23:2
+  store s27, v88 @23:2
+  v90 = const 0 @23:4
+  store s28, v90 @23:3
+  v91 = const u64 18446744073709551615 @23:11
+  store s29, v91 @23:2
+  v92 = conv u64, v90 @23:3
+  v93 = conv u64, v88 @23:3
+  v94 = ge v92, v93 @23:3
+  branch v94, b9, b10 @23:3
+b9:
+  v95 = load s28 @23:3
+  v96 = load s27 @23:2
+  panic index, v95, v96 @23:3
+b10:
+  v97 = load s26 @23:2
+  v98 = load s28 @23:3
+  v99 = const 8 @23:2
+  v100 = mul v98, v99 @23:2
+  v101 = ldm i64, v97, v100 @23:2
+  v102 = load s29 @23:2
+  v103 = shr v101, v102 @23:7
+  v104 = load s26 @23:2
+  v105 = load s28 @23:3
+  v106 = const 8 @23:2
+  v107 = mul v105, v106 @23:2
+  stm v104, v107, v103 @23:2
+  v108 = load s17 @24:10
+  store s30, v108 @24:10
+  v109 = load s19 @24:13
+  store s31, v109 @24:13
+  v110 = const ptr 0 @24:13
+  v111 = eq v109, v110 @24:13
+  branch v111, b11, b12 @24:13
+b11:
+  panic nil @24:13
+b12:
+  v112 = load s31 @24:13
+  v113 = const 0 @24:13
+  v114 = ldm i64, v112, v113 @24:13
+  store s32, v114 @24:13
+  v115 = load s23 @24:18
+  v116 = load s24 @24:18
+  v117 = load s25 @24:18
+  store s33, v115 @24:18
+  store s34, v116 @24:18
+  v118 = const 0 @24:20
+  store s35, v118 @24:19
+  v119 = conv u64, v118 @24:19
+  v120 = conv u64, v116 @24:19
+  v121 = ge v119, v120 @24:19
+  branch v121, b13, b14 @24:19
+b13:
+  v122 = load s35 @24:19
+  v123 = load s34 @24:18
+  panic index, v122, v123 @24:19
+b14:
+  v124 = load s33 @24:18
+  v125 = load s35 @24:19
+  v126 = const 8 @24:18
+  v127 = mul v125, v126 @24:18
+  v128 = ldm i64, v124, v127 @24:18
+  v129 = load s30 @24:10
+  v130 = load s32 @24:13
+  println v129, v130, v128 @24:2
+  ret @25:1

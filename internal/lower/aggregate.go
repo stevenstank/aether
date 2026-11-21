@@ -97,6 +97,9 @@ type place struct {
 // nv produces if it is set (a slice's length).
 type check struct {
 	assign func() // a map's element, located by its assignment (D-042)
+	// lookup is the address of the map's element for reading, without
+	// inserting it: the element, or the zero value (mapaccess).
+	lookup func() *ir.Instr
 	ptr    func() *ir.Instr
 	idx    func() *ir.Instr
 	n      int64

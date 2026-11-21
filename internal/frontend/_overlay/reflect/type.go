@@ -93,10 +93,11 @@ type rtype struct {
 
 // fieldRec is a struct field's record in its type's descriptor.
 type fieldRec struct {
-	name   string
-	typ    *rtype
-	offset uintptr
-	flags  int // 1 exported, 2 embedded
+	name    string
+	typ     *rtype
+	offset  uintptr
+	flags   int    // 1 exported, 2 embedded
+	pkgPath string // of an unexported field
 }
 
 func (t *rtype) String() string   { return t.str }
@@ -149,7 +150,7 @@ func (t *rtype) NumField() int {
 // A StructField describes a single field in a struct.
 type StructField struct {
 	Name      string
-	PkgPath   string // empty for an exported field; Aether does not record it otherwise
+	PkgPath   string // the package path of an unexported field; empty for an exported one
 	Type      Type
 	Offset    uintptr
 	Index     []int
@@ -164,7 +165,7 @@ func (t *rtype) Field(i int) StructField {
 	r := t.field(i)
 	f := StructField{Name: r.name, Type: r.typ, Offset: r.offset, Index: []int{i}, Anonymous: r.flags&2 != 0}
 	if r.flags&1 == 0 {
-		f.PkgPath = "?"
+		f.PkgPath = r.pkgPath
 	}
 	return f
 }

@@ -4381,6 +4381,30 @@ packages.
   in Go: an array in words the collector scans, as `Interface`'s copies,
   with gc's panics for its arguments.
 
+**Phase 11 validation fixes (2026-11-21).** `TestGorootRun`, with `fmt`
+compiled, reached six programs that had been rejected before; each found a
+bug, fixed with a regression test:
+- `m[k] /= y` and `%=` inserted the element before a division by zero
+  panicked; the element is now read without inserting it and inserted after
+  the operation, as gc's order (issue 22881). gc inserts it first for the
+  other operations, a shift's panic included, and so does Aether (`s5_k10`).
+- A nil `*T` calling `T`'s own value method through an itab or method
+  expression wrapper panics with gc's `runtime.panicwrap` message, a
+  `runtime.plainError` (issue 19040; `s5_i07`); a promoted method's wrapper
+  dereferences, as gc's. gc devirtualizes some interface calls, skipping
+  the wrapper and so its message; Aether always uses the wrapper.
+- `reflect`'s `PkgPath` of an unexported field is its package's path, kept
+  in the field record (issue 10332; `TestStdPrograms` `reflect`).
+- An untyped constant shift count (float, complex, or an integer above
+  int64's range) is lowered as a `uint` constant; it had its untyped type's
+  default (`shift3.go`; `s7_s01`).
+- A range's key and value, and a select case's value and ok, assigned with
+  `=` to interface variables are converted to the variables' type
+  (`typeparam/mdempsky/18.go`; `s5_i08`).
+- An instance of a generic type declared in a function, which the gate
+  rejects, is `unsupported` (`local-type-declaration`) in monomorphization,
+  not `internal` (`typeparam/nested.go`; `TestInstantiate`).
+
 ---
 
 ## Phase 0 research notes

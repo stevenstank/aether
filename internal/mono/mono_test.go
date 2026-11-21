@@ -115,6 +115,12 @@ func main() {
 		{"only from uninstantiated code", "package main\n\nfunc F[T any]() {}\n\nfunc G[T any]() { F[T]() }\n\nfunc main() {}\n", "p.go:3:6 generic-uninstantiated, p.go:5:6 generic-uninstantiated"},
 		{"generic alias", "package main\n\ntype A[T any] = []T\n\nfunc main() { var a A[int]; println(len(a)) }\n", "p.go:3:6 package-level-declaration"},
 		{"channel argument", "package main\n\nfunc F[T any](x T) {}\n\nfunc main() { F[chan int](nil) }\n", "p.go:3:17 generic-instance"},
+		// The gate rejects the declarations; the instances that copies
+		// name are rejected here (GOROOT typeparam/nested.go).
+		{"local generic type argument", "package main\n\nfunc F[T any]() { var x T; println(x) }\n\nfunc main() {\n\ttype U[_ any] int\n\ttype X[A any] U[X[A]]\n\tF[X[int]]()\n}\n",
+			"p.go:3:25 local-type-declaration"},
+		{"local generic type", "package main\n\nfunc F[T any]() {}\n\nfunc main() {\n\tF[int]()\n\ttype U[_ any] int\n\ttype V U[int]\n\tvar u U[bool]\n\tprintln(u, V(0))\n}\n",
+			"p.go:8:9 local-type-declaration, p.go:9:8 local-type-declaration"},
 		{"tagged struct argument", "package main\n\nfunc F[T any](x T) {}\n\nfunc main() { F(struct{ a int `t` }{}) }\n", "p.go:3:17 generic-instance"},
 	} {
 		_, _, ds := instantiate(t, c.src)

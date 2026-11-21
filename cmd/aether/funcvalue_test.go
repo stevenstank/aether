@@ -38,11 +38,10 @@ func TestFuncValuePrograms(t *testing.T) {
 }
 
 // TestNilMethodExpression pins, without gc, what the method expression
-// (*T).M of a method with a value receiver does with a nil pointer: it
-// panics with the nil dereference of any value receiver reached through a
-// nil pointer, in the interpreter and under both backends. gc's wrapper
-// panics with "value method main.T.Get called using nil *T pointer" instead,
-// also with exit status 2 (V-7).
+// (*T).M of a method with a value receiver does with a nil pointer, in the
+// interpreter and under both backends: it panics as gc's wrapper does,
+// with "value method main.T.Get called using nil *T pointer" and exit
+// status 2 (V-7, resolved in Phase 11; s5_i07 compares it with gc).
 func TestNilMethodExpression(t *testing.T) {
 	src := []byte(`package main
 
@@ -61,7 +60,7 @@ func main() {
 	println(get(p))
 }
 `)
-	want := "3 3\nbefore\npanic: runtime error: invalid memory address or nil pointer dereference\n"
+	want := "3 3\nbefore\npanic: value method main.T.Get called using nil *T pointer\n"
 	got, ds, err := interpret("nilexpr.go", src)
 	if len(ds) > 0 || err != nil {
 		t.Fatalf("not interpreted: %v %v", ds, err)

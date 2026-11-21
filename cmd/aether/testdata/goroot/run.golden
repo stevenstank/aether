@@ -1,44 +1,44 @@
 235.go pass
-abi/convF_criteria.go unsupported stdlib-package
-abi/convT64_criteria.go unsupported stdlib-package
+abi/convF_criteria.go pass
+abi/convT64_criteria.go pass
 abi/defer_aggregate.go pass
 abi/defer_recover_results.go pass
-abi/double_nested_addressed_struct.go unsupported stdlib-package
-abi/double_nested_struct.go unsupported stdlib-package
-abi/f_ret_z_not.go unsupported stdlib-package
-abi/fibish.go unsupported stdlib-package
-abi/fibish_closure.go unsupported stdlib-package
+abi/double_nested_addressed_struct.go pass
+abi/double_nested_struct.go pass
+abi/f_ret_z_not.go pass
+abi/fibish.go pass
+abi/fibish_closure.go pass
 abi/fuzz_trailing_zero_field.go pass
 abi/idata.go unsupported stdlib-package
-abi/leaf.go unsupported stdlib-package
-abi/leaf2.go unsupported stdlib-package
-abi/many_int_input.go unsupported stdlib-package
-abi/many_intstar_input.go unsupported stdlib-package
+abi/leaf.go pass
+abi/leaf2.go pass
+abi/many_int_input.go pass
+abi/many_intstar_input.go pass
 abi/map.go unsupported stdlib-package
 abi/method_wrapper.go pass
 abi/more_intstar_input.go pass
-abi/named_results.go unsupported stdlib-package
-abi/named_return_stuff.go unsupported stdlib-package
+abi/named_results.go pass
+abi/named_return_stuff.go pass
 abi/open_defer_1.go pass
 abi/part_live.go pass
 abi/part_live_2.go pass
 abi/reg_not_ssa.go pass
 abi/result_regalloc.go pass
-abi/return_stuff.go unsupported stdlib-package
-abi/s_sif_sif.go unsupported stdlib-package
-abi/spills3.go unsupported stdlib-package
-abi/spills4.go unsupported stdlib-package
+abi/return_stuff.go pass
+abi/s_sif_sif.go pass
+abi/spills3.go pass
+abi/spills4.go pass
 abi/store_reg_args.go pass
-abi/struct_3_string_input.go unsupported stdlib-package
-abi/struct_lower_1.go unsupported stdlib-package
-abi/too_big_to_ssa.go unsupported stdlib-package
-abi/uglyfib.go unsupported stdlib-package
+abi/struct_3_string_input.go pass
+abi/struct_lower_1.go pass
+abi/too_big_to_ssa.go pass
+abi/uglyfib.go pass
 abi/wrapdefer_largetmp.go pass
 abi/zombie_struct_select.go pass
 alias1.go pass
 align.go pass
 append.go unsupported stdlib-package
-armimm.go unsupported stdlib-package
+armimm.go pass
 atomicload.go pass
 bigalg.go unsupported println-argument-type
 bigmap.go pass
@@ -74,22 +74,22 @@ cmp.go unsupported stdlib-package
 complit.go pass
 compos.go pass
 const.go unsupported stdlib-package
-const3.go unsupported stdlib-package
+const3.go pass
 const4.go pass
 const7.go unsupported stdlib-package
 const8.go pass
 convT2X.go unsupported println-argument-type
 convert.go pass
 convert4.go unsupported conversion
-copy.go unsupported stdlib-package
+copy.go pass
 ddd.go unsupported non-int-type
 decl.go pass
-defer.go unsupported stdlib-package
+defer.go unsupported variadic-call
 deferfin.go unsupported stdlib-package
 defernil.go pass
 deferprint.go unsupported println-argument-type
 devirtualization_nil_panics.go unsupported stdlib-package
-divide.go unsupported stdlib-package
+divide.go pass
 divmod.go pass
 dwarf/linedirectives.go unsupported directive
 env.go unsupported stdlib-package
@@ -114,7 +114,7 @@ fixedbugs/bug021.go pass
 fixedbugs/bug023.go pass
 fixedbugs/bug024.go pass
 fixedbugs/bug026.go pass
-fixedbugs/bug027.go unsupported stdlib-package
+fixedbugs/bug027.go pass
 fixedbugs/bug028.go pass
 fixedbugs/bug031.go pass
 fixedbugs/bug045.go pass
@@ -131,7 +131,7 @@ fixedbugs/bug060.go pass
 fixedbugs/bug061.go pass
 fixedbugs/bug065.go pass
 fixedbugs/bug067.go pass
-fixedbugs/bug070.go unsupported stdlib-package
+fixedbugs/bug070.go pass
 fixedbugs/bug075.go pass
 fixedbugs/bug078.go pass
 fixedbugs/bug082.go pass
@@ -156,13 +156,13 @@ fixedbugs/bug147.go unsupported stdlib-package
 fixedbugs/bug148.go pass
 fixedbugs/bug1515.go pass
 fixedbugs/bug152.go pass
-fixedbugs/bug154.go unsupported stdlib-package
+fixedbugs/bug154.go pass
 fixedbugs/bug159.go pass
 fixedbugs/bug168.go pass
 fixedbugs/bug177.go unsupported stdlib-package
 fixedbugs/bug178.go pass
 fixedbugs/bug180.go pass
-fixedbugs/bug184.go unsupported stdlib-package
+fixedbugs/bug184.go unsupported variadic-call
 fixedbugs/bug185.go pass
 fixedbugs/bug187.go pass
 fixedbugs/bug194.go pass
@@ -174,14 +174,14 @@ fixedbugs/bug202.go pass
 fixedbugs/bug203.go pass
 fixedbugs/bug204.go pass
 fixedbugs/bug206.go unsupported stdlib-package
-fixedbugs/bug207.go unsupported stdlib-package
+fixedbugs/bug207.go pass
 fixedbugs/bug221.go pass
 fixedbugs/bug225.go pass
 fixedbugs/bug227.go pass
 fixedbugs/bug230.go pass
 fixedbugs/bug234.go pass
 fixedbugs/bug236.go pass
-fixedbugs/bug237.go unsupported stdlib-package
+fixedbugs/bug237.go pass
 fixedbugs/bug242.go pass
 fixedbugs/bug243.go pass
 fixedbugs/bug244.go pass
@@ -191,8 +191,8 @@ fixedbugs/bug253.go pass
 fixedbugs/bug254.go pass
 fixedbugs/bug257.go unsupported stdlib-package
 fixedbugs/bug258.go unsupported function-without-body
-fixedbugs/bug259.go unsupported stdlib-package
-fixedbugs/bug260.go unsupported stdlib-package
+fixedbugs/bug259.go pass
+fixedbugs/bug260.go pass
 fixedbugs/bug261.go pass
 fixedbugs/bug262.go unsupported println-argument-type
 fixedbugs/bug263.go pass
@@ -200,7 +200,7 @@ fixedbugs/bug264.go pass
 fixedbugs/bug265.go pass
 fixedbugs/bug266.go pass
 fixedbugs/bug269.go pass
-fixedbugs/bug271.go unsupported stdlib-package
+fixedbugs/bug271.go unsupported variadic-call
 fixedbugs/bug272.go pass
 fixedbugs/bug273.go pass
 fixedbugs/bug276.go pass
@@ -221,7 +221,7 @@ fixedbugs/bug312.go unsupported println-argument-type
 fixedbugs/bug314.go pass
 fixedbugs/bug317.go pass
 fixedbugs/bug320.go pass
-fixedbugs/bug321.go unsupported stdlib-package
+fixedbugs/bug321.go pass
 fixedbugs/bug327.go pass
 fixedbugs/bug328.go unsupported println-argument-type
 fixedbugs/bug329.go unsupported println-argument-type
@@ -237,7 +237,7 @@ fixedbugs/bug348.go unsupported stdlib-package
 fixedbugs/bug352.go pass
 fixedbugs/bug355.go pass
 fixedbugs/bug356.go pass
-fixedbugs/bug364.go unsupported stdlib-package
+fixedbugs/bug364.go unsupported variadic-call
 fixedbugs/bug366.go pass
 fixedbugs/bug368.go pass
 fixedbugs/bug369.go unsupported stdlib-package
@@ -246,7 +246,7 @@ fixedbugs/bug372.go pass
 fixedbugs/bug375.go pass
 fixedbugs/bug378.go pass
 fixedbugs/bug401.go pass
-fixedbugs/bug402.go unsupported stdlib-package
+fixedbugs/bug402.go pass
 fixedbugs/bug405.go pass
 fixedbugs/bug406.go pass
 fixedbugs/bug409.go pass
@@ -269,10 +269,10 @@ fixedbugs/bug455.go pass
 fixedbugs/bug456.go pass
 fixedbugs/bug457.go pass
 fixedbugs/bug461.go unsupported stdlib-package
-fixedbugs/bug470.go unsupported stdlib-package
+fixedbugs/bug470.go pass
 fixedbugs/bug473.go pass
 fixedbugs/bug474.go pass
-fixedbugs/bug483.go unsupported stdlib-package
+fixedbugs/bug483.go pass
 fixedbugs/bug484.go pass
 fixedbugs/bug485.go pass
 fixedbugs/bug491.go unsupported println-argument-type
@@ -290,55 +290,55 @@ fixedbugs/gcc65755.go pass
 fixedbugs/issue10135.go pass
 fixedbugs/issue10253.go pass
 fixedbugs/issue10320.go pass
-fixedbugs/issue10332.go unsupported stdlib-package
+fixedbugs/issue10332.go pass
 fixedbugs/issue10353.go pass
 fixedbugs/issue10486.go unsupported stdlib-package
 fixedbugs/issue10607.go unsupported stdlib-package
-fixedbugs/issue10925.go unsupported stdlib-package
+fixedbugs/issue10925.go pass
 fixedbugs/issue11256.go unsupported stdlib-package
 fixedbugs/issue11286.go pass
 fixedbugs/issue11326b.go pass
 fixedbugs/issue11369.go pass
 fixedbugs/issue11771.go unsupported stdlib-package
-fixedbugs/issue11945.go unsupported stdlib-package
-fixedbugs/issue11987.go unsupported stdlib-package
+fixedbugs/issue11945.go pass
+fixedbugs/issue11987.go pass
 fixedbugs/issue12108.go pass
-fixedbugs/issue12133.go unsupported stdlib-package
-fixedbugs/issue12226.go unsupported stdlib-package
+fixedbugs/issue12133.go pass
+fixedbugs/issue12226.go pass
 fixedbugs/issue12411.go pass
 fixedbugs/issue12577.go pass
 fixedbugs/issue12621.go pass
 fixedbugs/issue1304.go pass
 fixedbugs/issue13160.go unsupported stdlib-package
-fixedbugs/issue13162.go unsupported stdlib-package
+fixedbugs/issue13162.go pass
 fixedbugs/issue13169.go pass
-fixedbugs/issue13171.go unsupported stdlib-package
+fixedbugs/issue13171.go pass
 fixedbugs/issue13268.go unsupported stdlib-package
 fixedbugs/issue13684.go pass
-fixedbugs/issue14553.go unsupported stdlib-package
-fixedbugs/issue14591.go unsupported stdlib-package
+fixedbugs/issue14553.go pass
+fixedbugs/issue14591.go pass
 fixedbugs/issue14636.go unsupported stdlib-package
 fixedbugs/issue14646.go unsupported stdlib-package
-fixedbugs/issue14651.go unsupported stdlib-package
-fixedbugs/issue14725.go unsupported stdlib-package
+fixedbugs/issue14651.go pass
+fixedbugs/issue14725.go pass
 fixedbugs/issue15002.go unsupported stdlib-package
 fixedbugs/issue15039.go pass
 fixedbugs/issue15042.go pass
-fixedbugs/issue15175.go unsupported stdlib-package
+fixedbugs/issue15175.go pass
 fixedbugs/issue15252.go pass
 fixedbugs/issue15277.go unsupported stdlib-package
 fixedbugs/issue15281.go unsupported stdlib-package
 fixedbugs/issue15303.go pass
-fixedbugs/issue15329.go unsupported stdlib-package
+fixedbugs/issue15329.go pass
 fixedbugs/issue15439.go unsupported stdlib-package
 fixedbugs/issue15528.go unsupported stdlib-package
 fixedbugs/issue15550.go pass
 fixedbugs/issue15902.go pass
 fixedbugs/issue15975.go pass
-fixedbugs/issue15992.go unsupported stdlib-package
+fixedbugs/issue15992.go unsupported builtin
 fixedbugs/issue16016.go unsupported stdlib-package
 fixedbugs/issue16037_run.go unsupported stdlib-package
-fixedbugs/issue16095.go unsupported stdlib-package
+fixedbugs/issue16095.go pass
 fixedbugs/issue16130.go unsupported stdlib-package
 fixedbugs/issue16249.go pass
 fixedbugs/issue16331.go unsupported stdlib-package
@@ -349,29 +349,29 @@ fixedbugs/issue16948.go pass
 fixedbugs/issue16985.go pass
 fixedbugs/issue17039.go pass
 fixedbugs/issue17381.go unsupported stdlib-package
-fixedbugs/issue17640.go unsupported stdlib-package
+fixedbugs/issue17640.go pass
 fixedbugs/issue17752.go pass
 fixedbugs/issue18149.go unsupported directive
 fixedbugs/issue18410.go pass
 fixedbugs/issue18595.go pass
 fixedbugs/issue18636.go unsupported stdlib-package
-fixedbugs/issue18661.go unsupported stdlib-package
+fixedbugs/issue18661.go pass
 fixedbugs/issue18725.go pass
 fixedbugs/issue18808.go pass
 fixedbugs/issue18906.go pass
 fixedbugs/issue18994.go pass
-fixedbugs/issue19040.go unsupported stdlib-package
+fixedbugs/issue19040.go pass
 fixedbugs/issue19078.go pass
 fixedbugs/issue19113.go unsupported stdlib-package
 fixedbugs/issue19182.go unsupported stdlib-package
 fixedbugs/issue19201.go unsupported stdlib-package
 fixedbugs/issue19246.go pass
-fixedbugs/issue19275.go unsupported stdlib-package
-fixedbugs/issue19359.go unsupported stdlib-package
+fixedbugs/issue19275.go pass
+fixedbugs/issue19359.go pass
 fixedbugs/issue19658.go unsupported stdlib-package
 fixedbugs/issue19710.go unsupported defer
 fixedbugs/issue19799.go unsupported stdlib-package
-fixedbugs/issue19911.go unsupported stdlib-package
+fixedbugs/issue19911.go pass
 fixedbugs/issue20029.go pass
 fixedbugs/issue20530.go pass
 fixedbugs/issue20811.go pass
@@ -380,20 +380,20 @@ fixedbugs/issue21221.go pass
 fixedbugs/issue21317.go unsupported stdlib-package
 fixedbugs/issue21576.go unsupported stdlib-package
 fixedbugs/issue21687.go pass
-fixedbugs/issue21808.go unsupported stdlib-package
+fixedbugs/issue21808.go pass
 fixedbugs/issue21879.go unsupported stdlib-package
 fixedbugs/issue21887.go pass
-fixedbugs/issue21963.go unsupported stdlib-package
+fixedbugs/issue21963.go pass
 fixedbugs/issue22083.go unsupported stdlib-package
 fixedbugs/issue22326.go pass
 fixedbugs/issue22605.go unsupported stdlib-package
 fixedbugs/issue22660.go unsupported stdlib-package
 fixedbugs/issue22662.go unsupported directive
 fixedbugs/issue22662b.go unsupported stdlib-package
-fixedbugs/issue22683.go unsupported stdlib-package
+fixedbugs/issue22683.go pass
 fixedbugs/issue22781.go unsupported stdlib-package
-fixedbugs/issue22881.go unsupported stdlib-package
-fixedbugs/issue23017.go unsupported stdlib-package
+fixedbugs/issue22881.go pass
+fixedbugs/issue23017.go pass
 fixedbugs/issue23188.go pass
 fixedbugs/issue23305.go pass
 fixedbugs/issue23489.go unsupported package-level-declaration
@@ -403,7 +403,7 @@ fixedbugs/issue23545.go pass
 fixedbugs/issue23546.go pass
 fixedbugs/issue23719.go pass
 fixedbugs/issue23734.go pass
-fixedbugs/issue23812.go unsupported stdlib-package
+fixedbugs/issue23812.go pass
 fixedbugs/issue23814.go pass
 fixedbugs/issue23837.go pass
 fixedbugs/issue24187.go skip
@@ -413,12 +413,12 @@ fixedbugs/issue24488.go unsupported stdlib-package
 fixedbugs/issue24491a.go unsupported directive
 fixedbugs/issue24491b.go unsupported directive
 fixedbugs/issue24503.go pass
-fixedbugs/issue24547.go unsupported stdlib-package
+fixedbugs/issue24547.go pass
 fixedbugs/issue24763.go pass
-fixedbugs/issue24799.go unsupported stdlib-package
-fixedbugs/issue24817.go unsupported stdlib-package
+fixedbugs/issue24799.go pass
+fixedbugs/issue24817.go pass
 fixedbugs/issue24937.go pass
-fixedbugs/issue25322.go unsupported stdlib-package
+fixedbugs/issue25322.go pass
 fixedbugs/issue25776.go pass
 fixedbugs/issue25897a.go unsupported stdlib-package
 fixedbugs/issue25897b.go unsupported stdlib-package
@@ -443,17 +443,17 @@ fixedbugs/issue27695.go unsupported stdlib-package
 fixedbugs/issue27695b.go unsupported stdlib-package
 fixedbugs/issue27695c.go unsupported stdlib-package
 fixedbugs/issue27718.go pass
-fixedbugs/issue27829.go unsupported stdlib-package
+fixedbugs/issue27829.go pass
 fixedbugs/issue27961.go pass
-fixedbugs/issue28390.go unsupported stdlib-package
+fixedbugs/issue28390.go pass
 fixedbugs/issue28748.go unsupported stdlib-package
-fixedbugs/issue28797.go unsupported stdlib-package
+fixedbugs/issue28797.go pass
 fixedbugs/issue29013a.go pass
 fixedbugs/issue29013b.go pass
 fixedbugs/issue29190.go pass
-fixedbugs/issue29264.go unsupported stdlib-package
+fixedbugs/issue29264.go pass
 fixedbugs/issue29304.go pass
-fixedbugs/issue29312.go unsupported stdlib-package
+fixedbugs/issue29312.go pass
 fixedbugs/issue29362.go pass
 fixedbugs/issue29362b.go pass
 fixedbugs/issue29402.go pass
@@ -463,19 +463,19 @@ fixedbugs/issue29943.go pass
 fixedbugs/issue30041.go unsupported stdlib-package
 fixedbugs/issue30116.go unsupported stdlib-package
 fixedbugs/issue30116u.go unsupported stdlib-package
-fixedbugs/issue30243.go unsupported stdlib-package
+fixedbugs/issue30243.go pass
 fixedbugs/issue30476.go unsupported stdlib-package
-fixedbugs/issue30566a.go unsupported stdlib-package
-fixedbugs/issue30566b.go unsupported stdlib-package
+fixedbugs/issue30566a.go pass
+fixedbugs/issue30566b.go pass
 fixedbugs/issue30606.go unsupported stdlib-package
 fixedbugs/issue30606b.go unsupported stdlib-package
 fixedbugs/issue30709.go pass
-fixedbugs/issue30956.go unsupported stdlib-package
+fixedbugs/issue30956.go pass
 fixedbugs/issue30977.go pass
 fixedbugs/issue31419.go unsupported println-argument-type
-fixedbugs/issue31546.go bug exit 2
+fixedbugs/issue31546.go pass
 fixedbugs/issue31782.go pass
-fixedbugs/issue31987.go unsupported stdlib-package
+fixedbugs/issue31987.go pass
 fixedbugs/issue32175.go pass
 fixedbugs/issue32187.go unsupported stdlib-package
 fixedbugs/issue32288.go pass
@@ -499,11 +499,11 @@ fixedbugs/issue39541.go unsupported stdlib-package
 fixedbugs/issue39651.go pass
 fixedbugs/issue40152.go pass
 fixedbugs/issue40367.go pass
-fixedbugs/issue40629.go unsupported stdlib-package
+fixedbugs/issue40629.go pass
 fixedbugs/issue4066.go pass
 fixedbugs/issue4085b.go pass
 fixedbugs/issue40954.go unsupported directive
-fixedbugs/issue41239.go unsupported stdlib-package
+fixedbugs/issue41239.go pass
 fixedbugs/issue4167.go unsupported non-int-type
 fixedbugs/issue41780.go pass
 fixedbugs/issue41872.go pass
@@ -518,10 +518,10 @@ fixedbugs/issue43292.go pass
 fixedbugs/issue43444.go pass
 fixedbugs/issue43480.go pass
 fixedbugs/issue4353.go pass
-fixedbugs/issue43570.go unsupported stdlib-package
-fixedbugs/issue43619.go unsupported stdlib-package
+fixedbugs/issue43570.go pass
+fixedbugs/issue43619.go pass
 fixedbugs/issue43835.go pass
-fixedbugs/issue43908.go unsupported stdlib-package
+fixedbugs/issue43908.go pass
 fixedbugs/issue43942.go unsupported stdlib-package
 fixedbugs/issue4396a.go pass
 fixedbugs/issue4396b.go pass
@@ -532,12 +532,12 @@ fixedbugs/issue4495.go pass
 fixedbugs/issue45045.go unsupported stdlib-package
 fixedbugs/issue45175.go pass
 fixedbugs/issue4518.go pass
-fixedbugs/issue45242.go unsupported stdlib-package
+fixedbugs/issue45242.go pass
 fixedbugs/issue4562.go unsupported stdlib-package
 fixedbugs/issue4585.go pass
-fixedbugs/issue45851.go unsupported stdlib-package
+fixedbugs/issue45851.go pass
 fixedbugs/issue4618.go unsupported stdlib-package
-fixedbugs/issue4620.go unsupported stdlib-package
+fixedbugs/issue4620.go pass
 fixedbugs/issue46304.go pass
 fixedbugs/issue4667.go unsupported stdlib-package
 fixedbugs/issue46725.go unsupported stdlib-package
@@ -546,10 +546,10 @@ fixedbugs/issue4748.go pass
 fixedbugs/issue4752.go pass
 fixedbugs/issue47771.go pass
 fixedbugs/issue4785.go pass
-fixedbugs/issue48289.go unsupported stdlib-package
+fixedbugs/issue48289.go pass
 fixedbugs/issue48357.go unsupported stdlib-package
-fixedbugs/issue48473.go unsupported stdlib-package
-fixedbugs/issue48476.go unsupported stdlib-package
+fixedbugs/issue48473.go pass
+fixedbugs/issue48476.go pass
 fixedbugs/issue48536.go unsupported println-argument-type
 fixedbugs/issue48898.go unsupported blank-identifier
 fixedbugs/issue49100.go pass
@@ -557,7 +557,7 @@ fixedbugs/issue49100b.go pass
 fixedbugs/issue49110.go unsupported stdlib-package
 fixedbugs/issue49145.go pass
 fixedbugs/issue49512.go pass
-fixedbugs/issue49665.go unsupported stdlib-package
+fixedbugs/issue49665.go pass
 fixedbugs/issue50190.go unsupported package-level-declaration
 fixedbugs/issue5056.go pass
 fixedbugs/issue50671.go pass
@@ -582,11 +582,11 @@ fixedbugs/issue53619.go pass
 fixedbugs/issue53635.go pass
 fixedbugs/issue53653.go pass
 fixedbugs/issue53702.go pass
-fixedbugs/issue5373.go unsupported stdlib-package
+fixedbugs/issue5373.go pass
 fixedbugs/issue54220.go pass
 fixedbugs/issue54343.go unsupported stdlib-package
 fixedbugs/issue54348.go pass
-fixedbugs/issue54467.go unsupported stdlib-package
+fixedbugs/issue54467.go unsupported conversion
 fixedbugs/issue54542.go unsupported stdlib-package
 fixedbugs/issue54632.go pass
 fixedbugs/issue5493.go unsupported stdlib-package
@@ -602,7 +602,7 @@ fixedbugs/issue57309.go pass
 fixedbugs/issue5753.go pass
 fixedbugs/issue57823.go unsupported stdlib-package
 fixedbugs/issue5793.go unsupported builtin
-fixedbugs/issue5809.go unsupported stdlib-package
+fixedbugs/issue5809.go pass
 fixedbugs/issue5820.go pass
 fixedbugs/issue58300.go unsupported stdlib-package
 fixedbugs/issue58300b.go unsupported stdlib-package
@@ -618,7 +618,7 @@ fixedbugs/issue5963.go unsupported stdlib-package
 fixedbugs/issue59680.go unsupported stdlib-package
 fixedbugs/issue6055.go pass
 fixedbugs/issue60601.go unsupported generic-instance
-fixedbugs/issue62203.go unsupported stdlib-package
+fixedbugs/issue62203.go pass
 fixedbugs/issue62360.go unsupported stdlib-package
 fixedbugs/issue6269.go pass
 fixedbugs/issue63657.go pass
@@ -626,7 +626,7 @@ fixedbugs/issue64565.go unsupported builtin
 fixedbugs/issue64715.go pass
 fixedbugs/issue65417.go unsupported generic-instance
 fixedbugs/issue65962.go unsupported generic-instance
-fixedbugs/issue66066.go unsupported stdlib-package
+fixedbugs/issue66066.go pass
 fixedbugs/issue66066b.go pass
 fixedbugs/issue66261.go pass
 fixedbugs/issue66575.go pass
@@ -634,7 +634,7 @@ fixedbugs/issue66585.go pass
 fixedbugs/issue67160.go pass
 fixedbugs/issue67190.go pass
 fixedbugs/issue67255.go pass
-fixedbugs/issue68227.go unsupported stdlib-package
+fixedbugs/issue68227.go pass
 fixedbugs/issue68322.go pass
 fixedbugs/issue6866.go pass
 fixedbugs/issue68809.go pass
@@ -647,13 +647,13 @@ fixedbugs/issue70156.go pass
 fixedbugs/issue70189.go pass
 fixedbugs/issue7044.go unsupported stdlib-package
 fixedbugs/issue70481.go pass
-fixedbugs/issue7050.go unsupported stdlib-package
+fixedbugs/issue7050.go pass
 fixedbugs/issue7083.go unsupported stdlib-package
 fixedbugs/issue71675.go unsupported for-range
 fixedbugs/issue71759.go pass
 fixedbugs/issue71857.go pass
 fixedbugs/issue71932.go pass
-fixedbugs/issue72063.go unsupported stdlib-package
+fixedbugs/issue72063.go unsupported local-type-declaration
 fixedbugs/issue72844.go pass
 fixedbugs/issue72860.go pass
 fixedbugs/issue73476.go pass
@@ -666,22 +666,22 @@ fixedbugs/issue73916b.go pass
 fixedbugs/issue73917.go pass
 fixedbugs/issue73920.go pass
 fixedbugs/issue7419.go pass
-fixedbugs/issue74379.go unsupported stdlib-package
-fixedbugs/issue74379b.go unsupported stdlib-package
-fixedbugs/issue74379c.go unsupported stdlib-package
+fixedbugs/issue74379.go pass
+fixedbugs/issue74379b.go pass
+fixedbugs/issue74379c.go pass
 fixedbugs/issue74935.go pass
-fixedbugs/issue75327.go unsupported stdlib-package
+fixedbugs/issue75327.go pass
 fixedbugs/issue7550.go pass
 fixedbugs/issue75569.go pass
 fixedbugs/issue76008.go unsupported stdlib-package
-fixedbugs/issue76709.go unsupported stdlib-package
+fixedbugs/issue76709.go pass
 fixedbugs/issue7690.go unsupported stdlib-package
 fixedbugs/issue7740.go unsupported stdlib-package
 fixedbugs/issue77613.go pass
 fixedbugs/issue77779.go pass
-fixedbugs/issue7863.go unsupported stdlib-package
+fixedbugs/issue7863.go pass
 fixedbugs/issue7944.go pass
-fixedbugs/issue7995.go unsupported stdlib-package
+fixedbugs/issue7995.go pass
 fixedbugs/issue8004.go unsupported stdlib-package
 fixedbugs/issue8011.go pass
 fixedbugs/issue8036.go pass
@@ -690,13 +690,13 @@ fixedbugs/issue8047.go pass
 fixedbugs/issue8047b.go pass
 fixedbugs/issue8048.go pass
 fixedbugs/issue8132.go pass
-fixedbugs/issue8139.go unsupported stdlib-package
+fixedbugs/issue8139.go pass
 fixedbugs/issue8155.go pass
 fixedbugs/issue8158.go unsupported stdlib-package
 fixedbugs/issue8325.go pass
 fixedbugs/issue8336.go pass
 fixedbugs/issue8347.go pass
-fixedbugs/issue8606.go unsupported stdlib-package
+fixedbugs/issue8606.go pass
 fixedbugs/issue8606b.go unsupported stdlib-package
 fixedbugs/issue8613.go pass
 fixedbugs/issue8620.go pass
@@ -711,7 +711,7 @@ fixedbugs/issue9691.go pass
 fixedbugs/issue9738.go pass
 fixedbugs/issue9862_run.go unsupported stdlib-package
 float_lit.go pass
-float_lit2.go unsupported stdlib-package
+float_lit2.go pass
 floatcmp.go pass
 for.go pass
 func.go pass
@@ -756,7 +756,7 @@ ken/cplx0.go unsupported println-argument-type
 ken/cplx1.go unsupported println-argument-type
 ken/cplx2.go unsupported println-argument-type
 ken/cplx3.go unsupported complex-arithmetic
-ken/cplx4.go unsupported stdlib-package
+ken/cplx4.go unsupported complex-arithmetic
 ken/cplx5.go unsupported complex-arithmetic
 ken/divconst.go unsupported stdlib-package
 ken/divmod.go pass
@@ -773,7 +773,7 @@ ken/ptrfun.go pass
 ken/ptrvar.go pass
 ken/range.go pass
 ken/rob1.go pass
-ken/rob2.go unsupported stdlib-package
+ken/rob2.go pass
 ken/robfor.go pass
 ken/robfunc.go pass
 ken/shift.go pass
@@ -791,11 +791,11 @@ linkmain_run.go unsupported stdlib-package
 linkobj.go unsupported stdlib-package
 linkx_run.go unsupported stdlib-package
 literal.go pass
-literal2.go unsupported stdlib-package
+literal2.go pass
 makeslice.go pass
 mallocfin.go unsupported stdlib-package
-map.go unsupported stdlib-package
-mapclear.go unsupported stdlib-package
+map.go pass
+mapclear.go pass
 maplinear.go unsupported stdlib-package
 method.go unsupported non-int-type
 method3.go pass
@@ -828,58 +828,58 @@ reflectmethod5.go unsupported stdlib-package
 reflectmethod6.go unsupported stdlib-package
 reflectmethod7.go unsupported stdlib-package
 rename.go unsupported stdlib-package
-reorder.go unsupported stdlib-package
+reorder.go pass
 reorder2.go pass
-shift3.go unsupported stdlib-package
+shift3.go pass
 sigchld.go unsupported stdlib-package
 simassign.go pass
 sizeof.go pass
 slicecap.go pass
 stack.go pass
 stackobj.go unsupported stdlib-package
-stackobj2.go unsupported stdlib-package
+stackobj2.go pass
 stackobj3.go unsupported stdlib-package
 strcopy.go unsupported stdlib-package
 string_lit.go pass
-stringrange.go unsupported stdlib-package
+stringrange.go pass
 struct0.go pass
 switch.go unsupported non-int-type
 tinyfin.go unsupported stdlib-package
 turing.go pass
 typeparam/absdiff.go unsupported generic-uninstantiated
-typeparam/absdiff2.go unsupported stdlib-package
-typeparam/absdiff3.go unsupported stdlib-package
-typeparam/adder.go unsupported stdlib-package
+typeparam/absdiff2.go unsupported complex-arithmetic
+typeparam/absdiff3.go unsupported complex-arithmetic
+typeparam/adder.go pass
 typeparam/append.go unsupported generic-instance
 typeparam/boundmethod.go unsupported stdlib-package
 typeparam/chans.go unsupported stdlib-package
-typeparam/combine.go unsupported stdlib-package
-typeparam/cons.go unsupported stdlib-package
+typeparam/combine.go pass
+typeparam/cons.go unsupported generic-uninstantiated
 typeparam/devirtualize1.go pass
 typeparam/devirtualize2.go pass
-typeparam/dictionaryCapture.go unsupported stdlib-package
+typeparam/dictionaryCapture.go pass
 typeparam/dottype.go unsupported generic-instance
 typeparam/double.go unsupported stdlib-package
 typeparam/eface.go pass
 typeparam/equal.go unsupported generic-instance
-typeparam/fact.go unsupported stdlib-package
+typeparam/fact.go pass
 typeparam/genembed.go unsupported directive
-typeparam/genembed2.go unsupported stdlib-package
-typeparam/graph.go unsupported stdlib-package
-typeparam/ifaceconv.go unsupported stdlib-package
-typeparam/index.go unsupported stdlib-package
-typeparam/index2.go unsupported stdlib-package
+typeparam/genembed2.go unsupported generic-instance
+typeparam/graph.go pass
+typeparam/ifaceconv.go pass
+typeparam/index.go pass
+typeparam/index2.go pass
 typeparam/interfacearg.go pass
 typeparam/issue23536.go pass
 typeparam/issue376214.go pass
 typeparam/issue42758.go pass
 typeparam/issue44688.go unsupported generic-instance
 typeparam/issue45722.go unsupported stdlib-package
-typeparam/issue45817.go unsupported stdlib-package
+typeparam/issue45817.go pass
 typeparam/issue46472.go pass
 typeparam/issue46591.go unsupported generic-instance
 typeparam/issue47258.go unsupported directive
-typeparam/issue47272.go unsupported stdlib-package
+typeparam/issue47272.go pass
 typeparam/issue47514.go pass
 typeparam/issue47514b.go pass
 typeparam/issue47676.go pass
@@ -887,10 +887,10 @@ typeparam/issue47684.go pass
 typeparam/issue47684b.go pass
 typeparam/issue47684c.go pass
 typeparam/issue47708.go pass
-typeparam/issue47713.go unsupported stdlib-package
-typeparam/issue47716.go unsupported stdlib-package
+typeparam/issue47713.go pass
+typeparam/issue47716.go pass
 typeparam/issue47723.go pass
-typeparam/issue47740.go unsupported stdlib-package
+typeparam/issue47740.go unsupported generic-uninstantiated
 typeparam/issue47740b.go pass
 typeparam/issue47775b.go pass
 typeparam/issue47877.go pass
@@ -899,16 +899,16 @@ typeparam/issue47925.go pass
 typeparam/issue47925b.go pass
 typeparam/issue47925c.go pass
 typeparam/issue47925d.go pass
-typeparam/issue48013.go unsupported stdlib-package
-typeparam/issue48016.go unsupported stdlib-package
+typeparam/issue48013.go unsupported generic-uninstantiated
+typeparam/issue48016.go pass
 typeparam/issue48030.go pass
-typeparam/issue48042.go unsupported stdlib-package
+typeparam/issue48042.go pass
 typeparam/issue48047.go pass
 typeparam/issue48049.go pass
 typeparam/issue48137.go unsupported generic-instance
 typeparam/issue48225.go pass
 typeparam/issue48253.go unsupported generic-instance
-typeparam/issue48276a.go unsupported stdlib-package
+typeparam/issue48276a.go pass
 typeparam/issue48276b.go pass
 typeparam/issue48317.go unsupported stdlib-package
 typeparam/issue48318.go unsupported stdlib-package
@@ -918,37 +918,37 @@ typeparam/issue48453.go pass
 typeparam/issue48598.go pass
 typeparam/issue48602.go pass
 typeparam/issue48617.go pass
-typeparam/issue48645a.go unsupported stdlib-package
+typeparam/issue48645a.go pass
 typeparam/issue48645b.go pass
 typeparam/issue48838.go pass
 typeparam/issue49049.go pass
 typeparam/issue49295.go unsupported conversion
 typeparam/issue49309.go pass
 typeparam/issue49421.go pass
-typeparam/issue49547.go unsupported stdlib-package
+typeparam/issue49547.go pass
 typeparam/issue49659b.go pass
-typeparam/issue50002.go unsupported stdlib-package
-typeparam/issue50109.go unsupported stdlib-package
+typeparam/issue50002.go unsupported generic-instance
+typeparam/issue50109.go pass
 typeparam/issue50109b.go pass
-typeparam/issue50193.go unsupported stdlib-package
+typeparam/issue50193.go pass
 typeparam/issue50264.go pass
 typeparam/issue50417.go pass
 typeparam/issue50417b.go pass
-typeparam/issue50419.go unsupported stdlib-package
-typeparam/issue50642.go unsupported stdlib-package
-typeparam/issue50690a.go unsupported stdlib-package
-typeparam/issue50690b.go unsupported stdlib-package
-typeparam/issue50690c.go unsupported stdlib-package
+typeparam/issue50419.go pass
+typeparam/issue50642.go pass
+typeparam/issue50690a.go unsupported non-int-type
+typeparam/issue50690b.go unsupported generic-uninstantiated
+typeparam/issue50690c.go unsupported generic-uninstantiated
 typeparam/issue50833.go pass
 typeparam/issue51236.go unsupported generic-uninstantiated
-typeparam/issue51303.go unsupported stdlib-package
-typeparam/issue51521.go unsupported stdlib-package
+typeparam/issue51303.go pass
+typeparam/issue51521.go pass
 typeparam/issue51522a.go pass
 typeparam/issue51522b.go unsupported non-int-type
 typeparam/issue51700.go unsupported generic-instance
 typeparam/issue52026.go pass
 typeparam/issue52228.go unsupported generic-instance
-typeparam/issue53087.go unsupported stdlib-package
+typeparam/issue53087.go pass
 typeparam/issue53419.go pass
 typeparam/issue53477.go pass
 typeparam/issue54135.go pass
@@ -957,45 +957,45 @@ typeparam/issue54456.go unsupported local-type-declaration
 typeparam/issue54535.go pass
 typeparam/issue54537.go pass
 typeparam/issue58513.go unsupported stdlib-package
-typeparam/list.go unsupported stdlib-package
-typeparam/list2.go unsupported stdlib-package
+typeparam/list.go pass
+typeparam/list2.go pass
 typeparam/lockable.go pass
 typeparam/map.go unsupported stdlib-package
-typeparam/maps.go unsupported stdlib-package
+typeparam/maps.go pass
 typeparam/mdempsky/13.go unsupported non-int-type
 typeparam/mdempsky/14.go unsupported package-level-declaration
 typeparam/mdempsky/16.go unsupported stdlib-package
 typeparam/mdempsky/17.go unsupported stdlib-package
-typeparam/mdempsky/18.go unsupported stdlib-package
+typeparam/mdempsky/18.go pass
 typeparam/mdempsky/19.go pass
 typeparam/mdempsky/20.go pass
 typeparam/mdempsky/21.go pass
-typeparam/metrics.go unsupported stdlib-package
-typeparam/min.go unsupported stdlib-package
-typeparam/nested.go unsupported stdlib-package
-typeparam/ordered.go unsupported stdlib-package
+typeparam/metrics.go pass
+typeparam/min.go pass
+typeparam/nested.go unsupported local-type-declaration
+typeparam/ordered.go pass
 typeparam/orderedmap.go unsupported stdlib-package
-typeparam/pair.go unsupported stdlib-package
-typeparam/sets.go unsupported stdlib-package
-typeparam/settable.go unsupported stdlib-package
+typeparam/pair.go pass
+typeparam/sets.go pass
+typeparam/settable.go pass
 typeparam/shape1.go pass
-typeparam/slices.go unsupported stdlib-package
-typeparam/smallest.go unsupported stdlib-package
-typeparam/stringable.go unsupported stdlib-package
+typeparam/slices.go pass
+typeparam/smallest.go pass
+typeparam/stringable.go pass
 typeparam/stringer.go unsupported stdlib-package
-typeparam/struct.go unsupported stdlib-package
-typeparam/subdict.go unsupported stdlib-package
-typeparam/sum.go unsupported stdlib-package
+typeparam/struct.go unsupported generic-instance
+typeparam/subdict.go pass
+typeparam/sum.go pass
 typeparam/typeswitch1.go unsupported generic-instance
-typeparam/typeswitch2.go unsupported stdlib-package
+typeparam/typeswitch2.go unsupported generic-instance
 typeparam/typeswitch3.go unsupported generic-instance
 typeparam/typeswitch4.go unsupported generic-instance
 typeparam/typeswitch5.go pass
 typeparam/typeswitch6.go pass
 typeparam/typeswitch7.go pass
-typeparam/value.go unsupported stdlib-package
+typeparam/value.go pass
 typeswitch.go pass
-typeswitch1.go unsupported stdlib-package
+typeswitch1.go pass
 uintptrescapes3.go unsupported directive
 unsafe_slice_data.go unsupported stdlib-package
 unsafe_string.go pass
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 560 pass (55.7%), 444 unsupported, 1 bug
+# 1008 tests, 3 skipped, 1005 run: 715 pass (71.1%), 290 unsupported, 0 bug

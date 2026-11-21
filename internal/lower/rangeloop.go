@@ -28,6 +28,9 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 	xt := l.pkg.Info.Types[s.X].Type
 	key, val := rangeVar(s.Key), rangeVar(s.Value)
 	it := ir.I64 // the hidden index's IR type
+	// The types of the key and the value, which an assignment converts
+	// to its targets' (spec §For statements with range clause).
+	keyT, valT := types.Type(types.Typ[types.Int]), types.Type(nil)
 	var n func() *ir.Instr
 	var elem func(i func() *ir.Instr) place // the element at index i
 	var ptr func() *ir.Instr                // a string's bytes
@@ -36,6 +39,7 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 		if u.Info()&types.IsString != 0 {
 			w := l.value(s.X)
 			ptr, n = l.keep(w[0], pos), l.keep(w[1], pos)
+			valT = types.Universe.Lookup("rune").Type()
 			break
 		}
 		// An integer: the key's type, which is the operand's, or int
@@ -44,12 +48,12 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 		if key != nil && s.Tok == token.DEFINE {
 			kt = l.pkg.Info.Defs[key.(*ast.Ident)].Type()
 		}
-		it = l.irType(s.X, kt)
+		it, keyT = l.irType(s.X, kt), kt
 		n = l.keep(l.scalar(s.X, l.valueFor(s.X, kt)), pos)
 	case *types.Slice:
 		w := l.value(s.X)
 		base, length := l.keep(w[0], pos), l.keep(w[1], pos)
-		n = length
+		n, valT = length, u.Elem()
 		elem = func(i func() *ir.Instr) place {
 			return l.indexed(place{base: base, t: u.Elem()}, i, sizes.Sizeof(u.Elem()), u.Elem(), pos)
 		}
@@ -63,7 +67,7 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 			l.fail(s, "range over %s", xt)
 		}
 		length := a.Len()
-		n = func() *ir.Instr { return l.fn.Const(l.b, length, pos) }
+		n, valT = func() *ir.Instr { return l.fn.Const(l.b, length, pos) }, a.Elem()
 		var arr func() place
 		switch {
 		case val == nil:
@@ -97,14 +101,14 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 
 	var targets []ast.Expr
 	var vals []func() []*ir.Instr
-	add := func(x ast.Expr, w []*ir.Instr) {
+	add := func(x ast.Expr, w []*ir.Instr, from types.Type) {
 		xpos := l.pos(x, x.Pos())
 		if s.Tok == token.DEFINE {
 			l.store(l.defineVar(l.ident(x)), w, xpos)
 			return
 		}
 		targets = append(targets, x)
-		vals = append(vals, l.spillWords(w, xpos))
+		vals = append(vals, l.spillWords(l.assignTo(w, from, x, xpos), xpos))
 	}
 	var r *ir.Instr // a string's rune
 	if ptr != nil {
@@ -114,7 +118,7 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 		r = l.fn.Conv(l.b, ir.I32, r, pos)
 	}
 	if key != nil {
-		add(key, []*ir.Instr{l.fn.Load(l.b, hi, pos)})
+		add(key, []*ir.Instr{l.fn.Load(l.b, hi, pos)}, keyT)
 	}
 	if val != nil {
 		// The index is loaded where the element's address is computed,
@@ -129,7 +133,7 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 		default:
 			w = l.loadPlace(elem(idx), pos)
 		}
-		add(val, w)
+		add(val, w, valT)
 	}
 	// As an assignment: the targets' operands, then the stores.
 	vs := make([]variable, len(targets))

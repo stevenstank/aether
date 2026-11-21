@@ -602,7 +602,10 @@ func (l *lowerer) mapTarget(e *ast.IndexExpr) place {
 	assign := func() {
 		l.fn.Store(l.b, elem, l.fn.Call(l.b, f, append([]*ir.Instr{getM()}, getK()...), pos), pos)
 	}
-	return place{base: func() *ir.Instr { return l.fn.Load(l.b, elem, pos) }, t: mt.elem, checks: []check{{assign: assign, pos: pos}}}
+	lookup := func() *ir.Instr {
+		return l.fn.Call(l.b, l.mapFunc(mt, mapAccess, pos), append([]*ir.Instr{getM()}, getK()...), pos)
+	}
+	return place{base: func() *ir.Instr { return l.fn.Load(l.b, elem, pos) }, t: mt.elem, checks: []check{{assign: assign, lookup: lookup, pos: pos}}}
 }
 
 // mapLit lowers a map literal: a new map, then each key and element, in
@@ -789,7 +792,7 @@ func (l *lowerer) mapRange(s *ast.RangeStmt) {
 			continue
 		}
 		targets = append(targets, x)
-		vals = append(vals, l.spillWords(l.loadPlace(parts[k], xpos), xpos))
+		vals = append(vals, l.spillWords(l.assignTo(l.loadPlace(parts[k], xpos), parts[k].t, x, xpos), xpos))
 	}
 	// As an assignment: the targets' operands, then the stores.
 	vs := make([]variable, len(targets))

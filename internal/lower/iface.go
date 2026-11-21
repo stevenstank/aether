@@ -192,6 +192,7 @@ func (l *lowerer) ifaceMethod(d *tdesc, sel *types.Selection, pos ir.Pos) *ir.Fu
 		var r []*ir.Instr
 		if isDirect(t) {
 			et, _ := pointee(t)
+			l.wrapNilCheck(t, sel, data, pos)
 			r = l.recvOf(nil, sel, true, func() []*ir.Instr { return []*ir.Instr{data()} },
 				func() place { return l.through(data(), et, pos) }, nil, pos)
 		} else {
@@ -207,6 +208,43 @@ func (l *lowerer) ifaceMethod(d *tdesc, sel *types.Selection, pos ir.Pos) *ir.Fu
 		}
 		l.forward(f, nil, append(l.keepAll(r, pos), ps[2:]...), pos)
 	})
+}
+
+// wrapNilCheck panics, as gc's runtime.panicwrap does, if p(), the receiver
+// of the wrapper from *T, of type pt, to sel's method, is nil and the
+// method is T's own with a value receiver: gc generates that check for
+// such a wrapper only, not for a promoted method, whose nil pointer is
+// dereferenced (go.dev/issue/19040). The message names T as gc's function
+// names do, with [...] for type arguments, after the package's path.
+func (l *lowerer) wrapNilCheck(pt types.Type, sel *types.Selection, p func() *ir.Instr, pos ir.Pos) {
+	et, ok := pointee(pt)
+	named, isNamed := types.Unalias(et).(*types.Named)
+	recv := sel.Obj().Type().(*types.Signature).Recv().Type()
+	if !ok || !isNamed || len(sel.Index()) != 1 || !types.Identical(recv, named) || named.Obj().Pkg() == nil {
+		return
+	}
+	name := named.Obj().Name()
+	if i := strings.IndexByte(name, '['); i >= 0 {
+		name = name[:i] + "[...]"
+	} else if named.TypeArgs().Len() > 0 {
+		name += "[...]"
+	}
+	msg := "value method " + named.Obj().Pkg().Path() + "." + name + "." + sel.Obj().Name() + " called using nil *" + name + " pointer"
+	notNil := l.when(l.fn.Compare(l.b, ir.Eq, p(), l.nilPtr(pos), pos), pos)
+	l.panicMsg([][]*ir.Instr{l.strWords(msg, pos)}, pos)
+	l.b = notNil
+}
+
+// assignTo returns w, a value of type from, as a value of the type of the
+// assignment target x: converted to it if it is an interface type and from
+// is not (spec §Assignability). Values of any other assignable types have
+// the same words.
+func (l *lowerer) assignTo(w []*ir.Instr, from types.Type, x ast.Expr, pos ir.Pos) []*ir.Instr {
+	to := l.pkg.Info.Types[x].Type
+	if !isIface(to) || types.Identical(from, to) {
+		return w
+	}
+	return l.toIface(w, from, to, pos)
 }
 
 // strWords returns the words of the constant string s.

@@ -57,20 +57,21 @@ string s55 "(main.Pair[struct { main.a int; B int },func(int) bool]) "
 string s56 "(main.Pair[interface { Get(int) uint8 },error]) "
 string s57 "(main.Vec[int]) "
 string s58 "hash of unhashable type: "
-string s59 "Get"
-string s60 "runtime.errorString"
-string s61 "runtime.boundsError"
-string s62 "runtime.plainError"
-string s63 "maps.unhashableTypeError"
-string s64 "*runtime.TypeAssertionError"
-string s65 "*runtime.PanicNilError"
-string s66 "main.Vec[float64]"
-string s67 "main.Pair[main.Pair[string,float64],main.Pair[int,bool]]"
-string s68 "*main.Stack[int]"
-string s69 "main.List[*main.P]"
-string s70 "main.Stack[[]map[string]main.P]"
-string s71 "main.Pair[struct { main.a int; B int },func(int) bool]"
-string s72 "main.Pair[interface { Get(int) uint8 },error]"
+string s59 "value method "
+string s60 "Get"
+string s61 "runtime.errorString"
+string s62 "runtime.boundsError"
+string s63 "runtime.plainError"
+string s64 "maps.unhashableTypeError"
+string s65 "*runtime.TypeAssertionError"
+string s66 "*runtime.PanicNilError"
+string s67 "main.Vec[float64]"
+string s68 "main.Pair[main.Pair[string,float64],main.Pair[int,bool]]"
+string s69 "*main.Stack[int]"
+string s70 "main.List[*main.P]"
+string s71 "main.Stack[[]map[string]main.P]"
+string s72 "main.Pair[struct { main.a int; B int },func(int) bool]"
+string s73 "main.Pair[interface { Get(int) uint8 },error]"
 global g0 .unwinding bool @testdata/check/s5_g02_generic_types.go:3:1
 global g1 .panics ptr @testdata/check/s5_g02_generic_types.go:3:1
 global g2 .rframe bool @testdata/check/s5_g02_generic_types.go:3:1
@@ -6618,6 +6619,9 @@ func .materialize(ptr) @testdata/check/s5_g02_generic_types.go:3:1
   slot s111 tmp ptr @3:1
   slot s112 tmp i64 @3:1
   slot s113 tmp ptr @3:1
+  slot s114 tmp ptr @3:1
+  slot s115 tmp i64 @3:1
+  slot s116 tmp ptr @3:1
 b0:
   v0 = param 0 @3:1
   store s0, v0 @3:1
@@ -8088,29 +8092,9 @@ b84:
   v1026 = load s0 @3:1
   v1027 = const 64 @3:1
   v1028 = ldm i64, v1026, v1027 @3:1
-  store s111, v1025 @3:1
-  store s112, v1028 @3:1
-  v1029 = const 16 @3:1
-  v1030 = alloc v1029 @3:1
-  store s113, v1030 @3:1
-  v1031 = load s111 @3:1
-  v1032 = load s112 @3:1
-  v1033 = const 0 @3:1
-  stm v1030, v1033, v1031 @3:1
-  v1034 = const 8 @3:1
-  stm v1030, v1034, v1032 @3:1
-  v1035 = load s0 @3:1
-  v1036 = const 8 @3:1
-  v1037 = addr gm0 @3:1
-  stm v1035, v1036, v1037 @3:1
-  v1038 = load s0 @3:1
-  v1039 = const 16 @3:1
-  stm v1038, v1039, v1030 @3:1
-  v1040 = load s0 @3:1
-  v1041 = const 24 @3:1
-  v1042 = const 0 @3:1
-  stm v1040, v1041, v1042 @3:1
-  ret @3:1
+  v1029 = const 13 @3:1
+  v1030 = ge v1028, v1029 @3:1
+  branch v1030, b87, b88 @3:1
 b85:
   v1003 = load s0 @3:1
   v1004 = const 56 @3:1
@@ -8143,6 +8127,80 @@ b85:
   ret @3:1
 b86:
   jump b84 @3:1
+b87:
+  v1031 = str s59 @3:1
+  v1032 = const 13 @3:1
+  v1033 = load s0 @3:1
+  v1034 = const 56 @3:1
+  v1035 = ldm ptr, v1033, v1034 @3:1
+  v1036 = load s0 @3:1
+  v1037 = const 64 @3:1
+  v1038 = ldm i64, v1036, v1037 @3:1
+  v1039 = const 13 @3:1
+  v1040 = call .streq, v1035, v1039, v1031, v1032 @3:1
+  branch v1040, b89, b90 @3:1
+b88:
+  v1061 = load s0 @3:1
+  v1062 = const 56 @3:1
+  v1063 = ldm ptr, v1061, v1062 @3:1
+  v1064 = load s0 @3:1
+  v1065 = const 64 @3:1
+  v1066 = ldm i64, v1064, v1065 @3:1
+  store s114, v1063 @3:1
+  store s115, v1066 @3:1
+  v1067 = const 16 @3:1
+  v1068 = alloc v1067 @3:1
+  store s116, v1068 @3:1
+  v1069 = load s114 @3:1
+  v1070 = load s115 @3:1
+  v1071 = const 0 @3:1
+  stm v1068, v1071, v1069 @3:1
+  v1072 = const 8 @3:1
+  stm v1068, v1072, v1070 @3:1
+  v1073 = load s0 @3:1
+  v1074 = const 8 @3:1
+  v1075 = addr gm0 @3:1
+  stm v1073, v1074, v1075 @3:1
+  v1076 = load s0 @3:1
+  v1077 = const 16 @3:1
+  stm v1076, v1077, v1068 @3:1
+  v1078 = load s0 @3:1
+  v1079 = const 24 @3:1
+  v1080 = const 0 @3:1
+  stm v1078, v1079, v1080 @3:1
+  ret @3:1
+b89:
+  v1041 = load s0 @3:1
+  v1042 = const 56 @3:1
+  v1043 = ldm ptr, v1041, v1042 @3:1
+  v1044 = load s0 @3:1
+  v1045 = const 64 @3:1
+  v1046 = ldm i64, v1044, v1045 @3:1
+  store s111, v1043 @3:1
+  store s112, v1046 @3:1
+  v1047 = const 16 @3:1
+  v1048 = alloc v1047 @3:1
+  store s113, v1048 @3:1
+  v1049 = load s111 @3:1
+  v1050 = load s112 @3:1
+  v1051 = const 0 @3:1
+  stm v1048, v1051, v1049 @3:1
+  v1052 = const 8 @3:1
+  stm v1048, v1052, v1050 @3:1
+  v1053 = load s0 @3:1
+  v1054 = const 8 @3:1
+  v1055 = addr gm2 @3:1
+  stm v1053, v1054, v1055 @3:1
+  v1056 = load s0 @3:1
+  v1057 = const 16 @3:1
+  stm v1056, v1057, v1048 @3:1
+  v1058 = load s0 @3:1
+  v1059 = const 24 @3:1
+  v1060 = const 0 @3:1
+  stm v1058, v1059, v1060 @3:1
+  ret @3:1
+b90:
+  jump b88 @3:1
 
 func .gorecover(bool) (ptr, ptr) @testdata/check/s5_g02_generic_types.go:3:1
   slot s0 tmp bool @3:1
@@ -11512,7 +11570,7 @@ b0:
   v4 = eq v2, v3 @155:26
   branch v4, b1, b2 @155:26
 b1:
-  v5 = str s59 @155:26
+  v5 = str s60 @155:26
   v6 = const 3 @155:26
   ret v5, v6 @155:26
 b2:
@@ -11521,7 +11579,7 @@ b2:
   v9 = eq v7, v8 @155:26
   branch v9, b3, b4 @155:26
 b3:
-  v10 = str s59 @155:26
+  v10 = str s60 @155:26
   v11 = const 3 @155:26
   ret v10, v11 @155:26
 b4:
@@ -11530,7 +11588,7 @@ b4:
   v14 = eq v12, v13 @155:26
   branch v14, b5, b6 @155:26
 b5:
-  v15 = str s59 @155:26
+  v15 = str s60 @155:26
   v16 = const 3 @155:26
   ret v15, v16 @155:26
 b6:
@@ -11539,7 +11597,7 @@ b6:
   v19 = eq v17, v18 @155:26
   branch v19, b7, b8 @155:26
 b7:
-  v20 = str s59 @155:26
+  v20 = str s60 @155:26
   v21 = const 3 @155:26
   ret v20, v21 @155:26
 b8:
@@ -11548,7 +11606,7 @@ b8:
   v24 = eq v22, v23 @155:26
   branch v24, b9, b10 @155:26
 b9:
-  v25 = str s59 @155:26
+  v25 = str s60 @155:26
   v26 = const 3 @155:26
   ret v25, v26 @155:26
 b10:
@@ -11557,7 +11615,7 @@ b10:
   v29 = eq v27, v28 @155:26
   branch v29, b11, b12 @155:26
 b11:
-  v30 = str s59 @155:26
+  v30 = str s60 @155:26
   v31 = const 3 @155:26
   ret v30, v31 @155:26
 b12:
@@ -11566,7 +11624,7 @@ b12:
   v34 = eq v32, v33 @155:26
   branch v34, b13, b14 @155:26
 b13:
-  v35 = str s59 @155:26
+  v35 = str s60 @155:26
   v36 = const 3 @155:26
   ret v35, v36 @155:26
 b14:
@@ -11575,7 +11633,7 @@ b14:
   v39 = eq v37, v38 @155:26
   branch v39, b15, b16 @155:26
 b15:
-  v40 = str s59 @155:26
+  v40 = str s60 @155:26
   v41 = const 3 @155:26
   ret v40, v41 @155:26
 b16:
@@ -11584,7 +11642,7 @@ b16:
   v44 = eq v42, v43 @155:26
   branch v44, b17, b18 @155:26
 b17:
-  v45 = str s59 @155:26
+  v45 = str s60 @155:26
   v46 = const 3 @155:26
   ret v45, v46 @155:26
 b18:
@@ -11593,7 +11651,7 @@ b18:
   v49 = eq v47, v48 @155:26
   branch v49, b19, b20 @155:26
 b19:
-  v50 = str s59 @155:26
+  v50 = str s60 @155:26
   v51 = const 3 @155:26
   ret v50, v51 @155:26
 b20:
@@ -11602,7 +11660,7 @@ b20:
   v54 = eq v52, v53 @155:26
   branch v54, b21, b22 @155:26
 b21:
-  v55 = str s59 @155:26
+  v55 = str s60 @155:26
   v56 = const 3 @155:26
   ret v55, v56 @155:26
 b22:
@@ -11611,7 +11669,7 @@ b22:
   v59 = eq v57, v58 @155:26
   branch v59, b23, b24 @155:26
 b23:
-  v60 = str s59 @155:26
+  v60 = str s60 @155:26
   v61 = const 3 @155:26
   ret v60, v61 @155:26
 b24:
@@ -11620,7 +11678,7 @@ b24:
   v64 = eq v62, v63 @155:26
   branch v64, b25, b26 @155:26
 b25:
-  v65 = str s59 @155:26
+  v65 = str s60 @155:26
   v66 = const 3 @155:26
   ret v65, v66 @155:26
 b26:
@@ -11629,7 +11687,7 @@ b26:
   v69 = eq v67, v68 @155:26
   branch v69, b27, b28 @155:26
 b27:
-  v70 = str s59 @155:26
+  v70 = str s60 @155:26
   v71 = const 3 @155:26
   ret v70, v71 @155:26
 b28:
@@ -11948,7 +12006,7 @@ b0:
   stm v6, v7, v8 @3:1
   v9 = addr gm0 @3:1
   v10 = const 0 @3:1
-  v11 = str s60 @3:1
+  v11 = str s61 @3:1
   stm v9, v10, v11 @3:1
   v12 = const 8 @3:1
   v13 = const 19 @3:1
@@ -11958,7 +12016,7 @@ b0:
   stm v9, v14, v15 @3:1
   v16 = addr gm1 @3:1
   v17 = const 0 @3:1
-  v18 = str s61 @3:1
+  v18 = str s62 @3:1
   stm v16, v17, v18 @3:1
   v19 = const 8 @3:1
   v20 = const 19 @3:1
@@ -11968,7 +12026,7 @@ b0:
   stm v16, v21, v22 @3:1
   v23 = addr gm2 @3:1
   v24 = const 0 @3:1
-  v25 = str s62 @3:1
+  v25 = str s63 @3:1
   stm v23, v24, v25 @3:1
   v26 = const 8 @3:1
   v27 = const 18 @3:1
@@ -11978,7 +12036,7 @@ b0:
   stm v23, v28, v29 @3:1
   v30 = addr gm3 @3:1
   v31 = const 0 @3:1
-  v32 = str s63 @3:1
+  v32 = str s64 @3:1
   stm v30, v31, v32 @3:1
   v33 = const 8 @3:1
   v34 = const 24 @3:1
@@ -11988,7 +12046,7 @@ b0:
   stm v30, v35, v36 @3:1
   v37 = addr gm4 @3:1
   v38 = const 0 @3:1
-  v39 = str s64 @3:1
+  v39 = str s65 @3:1
   stm v37, v38, v39 @3:1
   v40 = const 8 @3:1
   v41 = const 27 @3:1
@@ -11998,7 +12056,7 @@ b0:
   stm v37, v42, v43 @3:1
   v44 = addr gm5 @3:1
   v45 = const 0 @3:1
-  v46 = str s65 @3:1
+  v46 = str s66 @3:1
   stm v44, v45, v46 @3:1
   v47 = const 8 @3:1
   v48 = const 22 @3:1
@@ -12008,7 +12066,7 @@ b0:
   stm v44, v49, v50 @3:1
   v51 = addr gm8 @3:1
   v52 = const 0 @3:1
-  v53 = str s66 @3:1
+  v53 = str s67 @3:1
   stm v51, v52, v53 @3:1
   v54 = const 8 @3:1
   v55 = const 17 @3:1
@@ -12018,7 +12076,7 @@ b0:
   stm v51, v56, v57 @3:1
   v58 = addr gm12 @3:1
   v59 = const 0 @3:1
-  v60 = str s67 @3:1
+  v60 = str s68 @3:1
   stm v58, v59, v60 @3:1
   v61 = const 8 @3:1
   v62 = const 56 @3:1
@@ -12028,7 +12086,7 @@ b0:
   stm v58, v63, v64 @3:1
   v65 = addr gm13 @3:1
   v66 = const 0 @3:1
-  v67 = str s68 @3:1
+  v67 = str s69 @3:1
   stm v65, v66, v67 @3:1
   v68 = const 8 @3:1
   v69 = const 16 @3:1
@@ -12038,7 +12096,7 @@ b0:
   stm v65, v70, v71 @3:1
   v72 = addr gm14 @3:1
   v73 = const 0 @3:1
-  v74 = str s69 @3:1
+  v74 = str s70 @3:1
   stm v72, v73, v74 @3:1
   v75 = const 8 @3:1
   v76 = const 18 @3:1
@@ -12048,21 +12106,21 @@ b0:
   stm v72, v77, v78 @3:1
   v79 = addr gm15 @3:1
   v80 = const 0 @3:1
-  v81 = str s70 @3:1
+  v81 = str s71 @3:1
   stm v79, v80, v81 @3:1
   v82 = const 8 @3:1
   v83 = const 31 @3:1
   stm v79, v82, v83 @3:1
   v84 = addr gm16 @3:1
   v85 = const 0 @3:1
-  v86 = str s71 @3:1
+  v86 = str s72 @3:1
   stm v84, v85, v86 @3:1
   v87 = const 8 @3:1
   v88 = const 54 @3:1
   stm v84, v87, v88 @3:1
   v89 = addr gm17 @3:1
   v90 = const 0 @3:1
-  v91 = str s72 @3:1
+  v91 = str s73 @3:1
   stm v89, v90, v91 @3:1
   v92 = const 8 @3:1
   v93 = const 45 @3:1

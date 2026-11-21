@@ -11,6 +11,7 @@ string s9 "*main.T"
 string s10 ", not *main.T"
 string s11 ", not *main.T (types from different scopes)"
 string s12 ", not *main.T (types from different packages)"
+string s13 "value method main.T.Name called using nil *T pointer"
 mem gm0 .t0 32 align 8 @testdata/check/s5_i03_assert_panic.go:14:6
 mem gm1 .it0 16 align 8 @testdata/check/s5_i03_assert_panic.go:15:16
 mem gm2 .t1 32 align 8 @testdata/check/s5_i03_assert_panic.go:14:6
@@ -459,23 +460,36 @@ b0:
   store s0, v0 @18:12
   store s1, v1 @18:12
   v2 = load s1 @18:12
-  store s2, v2 @18:12
   v3 = const ptr 0 @18:12
   v4 = eq v2, v3 @18:12
   branch v4, b1, b2 @18:12
 b1:
-  panic nil @18:12
+  v5 = str s13 @18:12
+  v6 = const 52 @18:12
+  v7 = alloc noscan, v6 @18:12
+  v8 = const 0 @18:12
+  v9 = padd v7, v8 @18:12
+  move v9, v5, v6 @18:12
+  panic msg, v7, v6 @18:12
 b2:
-  v5 = load s2 @18:12
-  v6 = const 0 @18:12
-  v7 = ldm i64, v5, v6 @18:12
-  v8 = addr m0 @18:12
-  v9 = const 0 @18:12
-  stm v8, v9, v7 @18:12
-  v10 = call T.Name, v8 @18:12
-  v11 = extract 0, v10 @18:12
-  v12 = extract 1, v10 @18:12
-  ret v11, v12 @18:12
+  v10 = load s1 @18:12
+  store s2, v10 @18:12
+  v11 = const ptr 0 @18:12
+  v12 = eq v10, v11 @18:12
+  branch v12, b3, b4 @18:12
+b3:
+  panic nil @18:12
+b4:
+  v13 = load s2 @18:12
+  v14 = const 0 @18:12
+  v15 = ldm i64, v13, v14 @18:12
+  v16 = addr m0 @18:12
+  v17 = const 0 @18:12
+  stm v16, v17, v15 @18:12
+  v18 = call T.Name, v16 @18:12
+  v19 = extract 0, v18 @18:12
+  v20 = extract 1, v18 @18:12
+  ret v19, v20 @18:12
 
 func .samepath1(ptr) bool @testdata/check/s5_i03_assert_panic.go:18:12
   slot s0 tmp ptr @18:12

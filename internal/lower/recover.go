@@ -274,6 +274,7 @@ func (l *lowerer) classifyMsg(rec func() *ir.Instr, pos ir.Pos) {
 		{"interface conversion: ", "*runtime.TypeAssertionError", false},
 		{"hash of unhashable type: ", "maps.unhashableTypeError", false},
 		{"assignment to entry in nil map", "runtime.plainError", true},
+		{"value method ", "runtime.plainError", false}, // panicwrap (iface.go)
 	} {
 		n := int64(len(c.prefix))
 		cmp := ir.Ge

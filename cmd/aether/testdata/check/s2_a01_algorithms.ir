@@ -384,8 +384,8 @@ b4:
   v18 = eq v16, v17 @95:10
   branch v18, b6, b7 @95:3
 b5:
-  v41 = load s3 @101:9
-  ret v41 @101:2
+  v40 = load s3 @101:9
+  ret v40 @101:2
 b6:
   v19 = load s3 @96:8
   v20 = load s0 @96:12
@@ -422,10 +422,9 @@ b11:
   v36 = rem v34, v35 @98:13
   store s0, v36 @98:3
   v37 = load s1 @99:3
-  v38 = const 1 @99:9
-  v39 = conv u64, v38 @99:5
-  v40 = shr v37, v39 @99:5
-  store s1, v40 @99:3
+  v38 = const u64 1 @99:9
+  v39 = shr v37, v38 @99:5
+  store s1, v39 @99:3
   jump b3 @100:2
 
 func main @testdata/check/s2_a01_algorithms.go:104:6
