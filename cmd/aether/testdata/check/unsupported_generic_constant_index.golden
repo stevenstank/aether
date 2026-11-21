@@ -1,0 +1,1 @@
+testdata/check/unsupported_generic_constant_index.go:11:11: unsupported: generic code whose instance does not type-check (invalid argument: index 1 out of bounds [0:1]) is not supported in subset S1 [generic-instance]

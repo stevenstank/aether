@@ -625,7 +625,7 @@ fixedbugs/issue63657.go pass
 fixedbugs/issue64565.go unsupported builtin
 fixedbugs/issue64715.go pass
 fixedbugs/issue65417.go unsupported generic-instance
-fixedbugs/issue65962.go unsupported generic-instance
+fixedbugs/issue65962.go pass
 fixedbugs/issue66066.go pass
 fixedbugs/issue66066b.go pass
 fixedbugs/issue66261.go pass
@@ -700,9 +700,9 @@ fixedbugs/issue8606.go pass
 fixedbugs/issue8606b.go unsupported stdlib-package
 fixedbugs/issue8613.go pass
 fixedbugs/issue8620.go pass
-fixedbugs/issue8947.go unsupported non-int-type
+fixedbugs/issue8947.go pass
 fixedbugs/issue8961.go pass
-fixedbugs/issue9006.go unsupported non-int-type
+fixedbugs/issue9006.go pass
 fixedbugs/issue9110.go unsupported stdlib-package
 fixedbugs/issue9321.go unsupported stdlib-package
 fixedbugs/issue9355.go unsupported stdlib-package
@@ -843,7 +843,7 @@ strcopy.go unsupported stdlib-package
 string_lit.go pass
 stringrange.go pass
 struct0.go pass
-switch.go unsupported non-int-type
+switch.go pass
 tinyfin.go unsupported stdlib-package
 turing.go pass
 typeparam/absdiff.go unsupported generic-uninstantiated
@@ -927,7 +927,7 @@ typeparam/issue49309.go pass
 typeparam/issue49421.go pass
 typeparam/issue49547.go pass
 typeparam/issue49659b.go pass
-typeparam/issue50002.go unsupported generic-instance
+typeparam/issue50002.go pass
 typeparam/issue50109.go pass
 typeparam/issue50109b.go pass
 typeparam/issue50193.go pass
@@ -944,10 +944,10 @@ typeparam/issue51236.go unsupported generic-uninstantiated
 typeparam/issue51303.go pass
 typeparam/issue51521.go pass
 typeparam/issue51522a.go pass
-typeparam/issue51522b.go unsupported non-int-type
-typeparam/issue51700.go unsupported generic-instance
+typeparam/issue51522b.go pass
+typeparam/issue51700.go pass
 typeparam/issue52026.go pass
-typeparam/issue52228.go unsupported generic-instance
+typeparam/issue52228.go pass
 typeparam/issue53087.go pass
 typeparam/issue53419.go pass
 typeparam/issue53477.go pass
@@ -986,10 +986,10 @@ typeparam/stringer.go unsupported stdlib-package
 typeparam/struct.go unsupported package-level-declaration
 typeparam/subdict.go pass
 typeparam/sum.go pass
-typeparam/typeswitch1.go unsupported generic-instance
-typeparam/typeswitch2.go unsupported generic-instance
-typeparam/typeswitch3.go unsupported generic-instance
-typeparam/typeswitch4.go unsupported generic-instance
+typeparam/typeswitch1.go pass
+typeparam/typeswitch2.go pass
+typeparam/typeswitch3.go pass
+typeparam/typeswitch4.go pass
 typeparam/typeswitch5.go pass
 typeparam/typeswitch6.go pass
 typeparam/typeswitch7.go pass
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 720 pass (71.6%), 285 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 732 pass (72.8%), 273 unsupported, 0 bug

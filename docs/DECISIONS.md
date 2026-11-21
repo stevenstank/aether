@@ -3579,7 +3579,11 @@ in type arguments, unexported field and method names are qualified.
   as `[1]X{X(c)}[0]`, which has the same value and is not a constant.
 - **Checks.** Each type expression written for an argument must denote
   that type after the second type check (a local declaration could shadow
-  its name); the second type check must succeed; at most 1000 instances.
+  its name); the second type check must succeed, but for the errors of
+  type tests that the type arguments make redundant or impossible
+  (duplicate type switch cases, impossible assertions), which Go does not
+  report in generic code and which have a defined meaning (reliability
+  R.3); at most 1000 instances.
   Each failure is `unsupported` (`generic-instance`), as are type
   arguments that cannot be written at package level (a type declared in a
   function, a struct with tags, a channel), generic aliases, and a

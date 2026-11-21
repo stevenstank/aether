@@ -1288,6 +1288,20 @@ causes with regression tests.
     of strings, builtins of a call's results. Tests: `s5_g05`, `s5_d14`,
     `TestStdPrograms` (`reflect`), gate tests. `TestGorootRun`: 720 of
     1,005 pass, 0 bugs.
+  - **R.3** Triage of instance type tests and switch comparisons. *Done
+    2026-11-22, owner review pending:* a copy whose type switch case
+    duplicates an earlier one, or whose type assertion or case can never
+    succeed, failed the second type check, though gc accepts the generic
+    code (`typeparam/typeswitch1.go` to `typeswitch4.go`, `issue50002.go`,
+    `issue51700.go`, `issue52228.go`, `issue65962.go`); mono now accepts
+    those errors, and lowering tests an impossible assertion as false
+    without an itab. A `switch` on an array or struct, and case values of
+    interface type with a tag that is not, were rejected (`switch.go`,
+    `issue8947.go`, `issue9006.go`, `issue51522b.go`); both are lowered
+    now. Other instance errors, such as a constant index out of range,
+    stay `unsupported`. Tests: `s5_g06`, `s7_w01`,
+    `unsupported_generic_constant_index`, gate tests. `TestGorootRun`:
+    732 of 1,005 pass, 0 bugs.
 
 ---
 

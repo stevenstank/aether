@@ -768,9 +768,10 @@ and multiple results, as the other types; each lives in memory laid out as
   not fit the stack overflows it, as any frame does (V-2); gc instead moves large
   variables to the heap.
 
-Still `unsupported`: `switch` on an array or struct value (`non-int-type`);
-`==` and `!=` of ones that hold strings are supported since increment 7.3
-(§Strings at run time); printing
+A `switch` on an array or struct value compares it with each case value as
+`==` does (Reliability R.3, `s7_w01_switch_compare`); `==` and `!=` of ones
+that hold strings are supported since increment 7.3 (§Strings at run
+time). Still `unsupported`: printing
 one (`println-argument-type`); slicing an array (`slice-expression`); `for
 range` (`for-range`); slice and map literals (`composite-literal`); `cap`
 (`builtin`); methods; parenthesized assignment targets
@@ -1137,10 +1138,15 @@ the copies. Instantiated types have gc's names, such as
 - Type arguments must be types that can be written at package level: not
   a type declared in a function, a struct with field tags, or a channel
   (`generic-instance`); a copy must type-check, which rejects for example
-  a type switch whose cases become duplicates for some type argument, and
-  a type argument's name must not be shadowed where it is used
+  an index that becomes a constant out of range for some type argument,
+  and a type argument's name must not be shadowed where it is used
   (`generic-instance`); at most 1000 instances. Generic type aliases are
   rejected (`package-level-declaration`).
+- A type test that some type argument makes redundant or impossible is
+  accepted, as in gc: a type switch case of a type an earlier case lists
+  never matches, and a type assertion or type switch case of a concrete
+  type that does not implement the operand's interface never succeeds,
+  its assertion panicking with gc's message (`s5_g06`).
 - The generic type's underlying type is checked as a type declaration's
   is: an array, a struct, or an interface.
 - An interface that can only be a constraint (one with a type set, such
@@ -1269,7 +1275,9 @@ D-049. These supersede the 11.4 rule that standard-library imports are
   (Reliability R.2), but not as func values or with the results of a
   call; and
   expression switches on an interface value, with case values assignable
-  to its type or `nil`.
+  to its type or `nil`; and case values of interface type with any other
+  tag, or without one, the tag (or `true`) converted to the case value's
+  type (Reliability R.3, `s7_w01_switch_compare`).
 - `unsupported`: an import of `runtime` (until 11.6, below), so every
   package that imports it (`fmt`, `os`, `strings`, `sort`, ...); a body-less
   function reached outside the overlays' intrinsics; a `//go:linkname`
@@ -1482,7 +1490,7 @@ and `os`; the rest of the subset applies to what it reaches.
 | Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys, `for range` | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity, For statements with range clause | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 and V-8 | `s5_k01_map_basics` to `s5_k09_map_range`; generated map programs; `TestMapPrograms`, `TestMapRangeOrder`, `TestPanicPrefix`; gate tests |
 | Defer, panic, and recover: `defer` of calls of functions, variadic ones included, methods, func values, literals, interface methods, `print`, `println`, `close`, and `delete`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`, `s5_d14_defer_builtins_variadic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Named results: variables zero at entry, bare `return`, set by deferred calls and by recovering functions | Function declarations, Return statements, Defer statements | S5 / 8.7 | Supported (native), with divergences V-3 to V-5 | `s5_n01_named_results`, `s5_d12_named_defer`, `s5_d13_named_recover`; generated named-result programs; `TestNamedResultPrograms`, `TestDeferPrograms`; gate tests |
-| Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values, instance types embedded in structs | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g05_generic_embedded`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
+| Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values, instance types embedded in structs, type tests a type argument makes redundant or impossible | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g06_generic_instance_tests`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
 | Goroutines and channels: `go`, channel types, `make`, send, receive, comma-ok, `close`, `len`, `cap`, comparison, `for range`, nil channels, deadlock detection, `select` | Go statements, Channel types, Send statements, Receive operator, Close, For statements with range clause, Select statements | Phase 10 / 10.2, 10.3 | Supported (native), with divergences V-2, V-3, V-5, and V-10 | `s6_g01_channels` to `s6_g09_select_deadlock`; generated goroutine and channel programs; `TestChanPrograms`, `TestScheduleOrder`, `TestSelectChoice`, `TestGoNilFuncArgs`, `TestGCMemoryBound`, `TestPanicPrefix`, `TestGoroutineGC`, `TestGCStress`; gate tests |
 | Garbage collection of the heap: unreachable objects freed and their memory reused, with a bound on memory use | Memory model (allocation), Run-time panics | Phase 9 | Supported (native), with divergence V-5 | `TestGCStress` (every corpus program, generated allocation programs, and every generator, under stress), `TestGCMemoryBound` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |
@@ -1492,7 +1500,7 @@ and `os`; the rest of the subset applies to what it reaches.
 | `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
 | `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
-| `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`; gate tests |
+| `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`, `s7_w01_switch_compare`; gate tests |
 | `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdin`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysRead`, `TestSysReadNative`, `TestSysOps` |
 | Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |
 | `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer`, `Add`, `String`, `StringData`, `Slice`, `SliceData`); `strings`, `bytes`, `sync.Pool` | Package unsafe; the packages' documentation | Phase 11 / 11.7 | Supported (native) | `TestStdPrograms` (`strings`, `unsafe`, `unsafepanic`); `TestStdRejects` |

@@ -17,6 +17,18 @@ import (
 // to yes with the words of the value as a t, made by bind in yes, or to no.
 func (l *lowerer) ifaceTest(xt, t types.Type, tab, data func() *ir.Instr, yes, no *ir.Block, pos ir.Pos) (bind func() []*ir.Instr) {
 	if !isIface(t) {
+		bind = func() []*ir.Instr {
+			if isDirect(t) {
+				return []*ir.Instr{data()}
+			}
+			return l.loadPlace(l.valuePlace(data(), t, pos), pos)
+		}
+		if !types.Implements(t, xt.Underlying().(*types.Interface)) {
+			// An instance's impossible test (mono's deleteInstanceErrors):
+			// no value of static type xt has the dynamic type t.
+			l.fn.Branch(l.b, l.fn.BoolConst(l.b, false, pos), yes, no, pos)
+			return bind
+		}
 		var want *ir.Instr
 		if isEmptyIface(xt) {
 			want = l.addr(l.desc(t).mem, pos)
@@ -24,12 +36,7 @@ func (l *lowerer) ifaceTest(xt, t types.Type, tab, data func() *ir.Instr, yes, n
 			want = l.addr(l.itab(t, xt, pos).mem, pos)
 		}
 		l.fn.Branch(l.b, l.fn.Compare(l.b, ir.Eq, tab(), want, pos), yes, no, pos)
-		return func() []*ir.Instr {
-			if isDirect(t) {
-				return []*ir.Instr{data()}
-			}
-			return l.loadPlace(l.valuePlace(data(), t, pos), pos)
-		}
+		return bind
 	}
 	zero := l.fn.TypedConst(l.b, ir.Ptr, 0, pos)
 	if isEmptyIface(t) || types.Identical(t.Underlying(), xt.Underlying()) {

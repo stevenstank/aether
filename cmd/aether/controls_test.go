@@ -154,7 +154,7 @@ var controls = []control{
 				dest, t.broken`,
 		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`s2_s01_switch: `, `gen\d{4}: `}},
 	{name: "4.7 tag evaluated for each case value", file: "internal/lower/lower.go",
-		old: `tag = l.spill(l.expr(s.Tag), l.pos(s.Tag, s.Tag.Pos()))`,
+		old: `tag = l.spill(l.expr(s.Tag), pos)`,
 		new: `tag = func() *ir.Instr { return l.expr(s.Tag) }`,
 		pkg: "./cmd/aether", run: "^TestDifferentialAgainstGc$", want: []string{`s2_s01_switch: interpreter`, `s2_s01_switch: native`}},
 	{name: "4.7 default taken in source order", file: "internal/lower/lower.go",

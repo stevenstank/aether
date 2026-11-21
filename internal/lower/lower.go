@@ -909,7 +909,9 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 // one matched (Go spec, Switch statements). Without a tag, each case value
 // is itself the condition. If none matches, the default clause runs, wherever
 // it appears, or the statement ends. go/types has converted every case value
-// to the tag's type.
+// to the tag's type, but for a case value of interface type with a tag that
+// is not, to which the tag, or true without one, is converted instead. An
+// array or struct tag is a temporary compared with each value as == does.
 //
 // The tests are at their case values, and the jump that ends each clause at
 // the next clause's case keyword, or the closing brace. The statement ends unreachably if it has a default
@@ -922,22 +924,35 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 	var strTag func() []*ir.Instr // a string tag's words (D-037)
 	var ifaceTag func() []*ir.Instr
 	var tagType types.Type
+	var aggTag *place
+	// A tag that is not an interface, as words, for a case value that is.
+	tagWords := func() []*ir.Instr { return []*ir.Instr{l.fn.BoolConst(l.b, true, l.pos(s, s.Switch))} }
 	sliceTag := false
 	if s.Tag != nil {
+		pos := l.pos(s.Tag, s.Tag.Pos())
 		switch tt := l.pkg.Info.Types[s.Tag].Type; {
 		case isIface(tt):
 			// Compared with each case value converted to its type (D-049).
-			ifaceTag, tagType = l.spillWords(l.value(s.Tag), l.pos(s.Tag, s.Tag.Pos())), tt
+			ifaceTag = l.spillWords(l.value(s.Tag), pos)
 		case isString(tt):
-			strTag = l.spillWords(l.value(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
+			strTag = l.spillWords(l.value(s.Tag), pos)
+			tagWords = strTag
 		case isSlice(tt):
 			// A slice is comparable only with nil, so every case value is
 			// nil and the tag's Ptr decides (D-036).
-			tag = l.spill(l.value(s.Tag)[0], l.pos(s.Tag, s.Tag.Pos()))
+			tag = l.spill(l.value(s.Tag)[0], pos)
 			sliceTag = true
+		case isAggregate(tt):
+			p := l.valuePlace(l.scalar(s.Tag, l.value(s.Tag)), tt, pos)
+			aggTag = &p
+			tagWords = func() []*ir.Instr { return []*ir.Instr{p.base()} }
 		default:
-			tag = l.spill(l.expr(s.Tag), l.pos(s.Tag, s.Tag.Pos()))
+			tag = l.spill(l.expr(s.Tag), pos)
+			tagWords = func() []*ir.Instr { return []*ir.Instr{tag()} }
 		}
+		tagType = l.pkg.Info.Types[s.Tag].Type
+	} else {
+		tagType = types.Typ[types.Bool]
 	}
 	exit := l.fn.NewBlock()
 	bodies := make([]*ir.Block, len(s.Body.List))
@@ -953,7 +968,13 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 		for _, e := range cc.List {
 			pos := l.pos(e, e.Pos())
 			var cond *ir.Instr
+			et := l.pkg.Info.Types[e].Type
 			switch {
+			case ifaceTag == nil && isIface(et) && !l.pkg.Info.Types[e].IsNil():
+				v := l.value(e)
+				cond = l.ifaceEqual(l.toIface(tagWords(), tagType, et, pos), v, et, pos)
+			case aggTag != nil:
+				cond = l.equal(*aggTag, l.valuePlace(l.scalar(e, l.value(e)), tagType, pos), pos)
 			case ifaceTag != nil && l.pkg.Info.Types[e].IsNil():
 				cond = l.fn.Compare(l.b, ir.Eq, ifaceTag()[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos)
 			case ifaceTag != nil:
@@ -970,13 +991,13 @@ func (l *lowerer) switchStmt(s *ast.SwitchStmt) {
 			default:
 				cond = l.expr(e)
 			}
-			if tag != nil {
+			if tag != nil && !isIface(et) {
 				t := tag()
 				if cond.Type != t.Type {
 					l.fail(e, "case value of type %s for a tag of type %s", cond.Type, t.Type)
 				}
 				cond = l.compare(ir.Eq, t, cond, pos)
-			} else if cond.Type != ir.Bool {
+			} else if tag == nil && cond.Type != ir.Bool {
 				l.fail(e, "case condition of type %s", cond.Type)
 			}
 			next := l.fn.NewBlock()

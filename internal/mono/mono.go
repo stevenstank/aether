@@ -157,6 +157,7 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 	// The copies leave out constraints, which may be all a file uses of
 	// an import, such as cmp.Ordered.
 	ds = slices.DeleteFunc(ds, func(d diag.Diagnostic) bool { return strings.HasSuffix(d.Message, " imported and not used") })
+	ds = deleteInstanceErrors(ds)
 	if len(ds) > 0 {
 		// The first error only: the others often follow from it.
 		m.reject(ds[0].Pos, gate.FeatGenericInstance, "generic code whose instance does not type-check ("+ds[0].Message+")")
@@ -176,6 +177,32 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 		return nil, nil, m.ds
 	}
 	return out, m.wants, nil
+}
+
+// deleteInstanceErrors deletes from ds, the type checker's errors in the
+// instances, those Go does not report in generic code because they depend
+// on the type arguments, and whose meaning in the instance is defined
+// all the same: a type switch case of a type an earlier case already
+// lists (and the error's "previous case" note), which never matches, as
+// the first matching case is chosen; and a type assertion or type switch
+// case of a type the operand's dynamic type can never have, which never
+// succeeds. The type checker records the types of both as it does
+// without the error.
+func deleteInstanceErrors(ds []diag.Diagnostic) []diag.Diagnostic {
+	var out []diag.Diagnostic
+	for i := 0; i < len(ds); i++ {
+		msg := ds[i].Message
+		switch {
+		case strings.HasPrefix(msg, "duplicate case ") && strings.HasSuffix(msg, " in type switch"):
+			if i+1 < len(ds) && ds[i+1].Message == "previous case" {
+				i++
+			}
+		case strings.HasPrefix(msg, "impossible type assertion: "), strings.HasPrefix(msg, "impossible type switch case: "):
+		default:
+			out = append(out, ds[i])
+		}
+	}
+	return out
 }
 
 func (m *mono) reject(pos diag.Pos, feature, what string) {

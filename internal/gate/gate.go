@@ -697,13 +697,11 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.stmt(s.Init)
 		}
 		// An interface tag (D-049) is compared with each case value
-		// converted to its type, which must be assignable to it, or nil.
+		// converted to its type, which must be assignable to it, or nil;
+		// any other tag, an array or struct included, with a case value
+		// of interface type converted to that type (reliability R.3).
 		var ifaceTag types.Type
 		if s.Tag != nil {
-			if tv, ok := c.info.Types[s.Tag]; ok && isAggregate(tv.Type) {
-				c.reject(s.Tag, FeatNonIntType, fmt.Sprintf("switch on a value of type %s", tv.Type))
-				return
-			}
 			if tv := c.info.Types[s.Tag]; isInterface(tv.Type) {
 				ifaceTag = tv.Type
 			}
@@ -712,8 +710,7 @@ func (c *checker) stmt(s ast.Stmt) {
 		for _, cc := range s.Body.List {
 			cc := cc.(*ast.CaseClause)
 			for _, e := range cc.List {
-				if tv, ok := c.info.Types[e]; ok && ifaceTag != nil && !tv.IsNil() && !types.AssignableTo(tv.Type, ifaceTag) ||
-					ifaceTag == nil && isInterface(tv.Type) {
+				if tv, ok := c.info.Types[e]; ok && ifaceTag != nil && !tv.IsNil() && !types.AssignableTo(tv.Type, ifaceTag) {
 					c.reject(e, FeatNonIntType, fmt.Sprintf("case value of type %s", tv.Type))
 					continue
 				}
