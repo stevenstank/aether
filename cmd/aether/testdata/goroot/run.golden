@@ -162,7 +162,7 @@ fixedbugs/bug168.go pass
 fixedbugs/bug177.go unsupported stdlib-package
 fixedbugs/bug178.go pass
 fixedbugs/bug180.go pass
-fixedbugs/bug184.go unsupported variadic-call
+fixedbugs/bug184.go pass
 fixedbugs/bug185.go pass
 fixedbugs/bug187.go pass
 fixedbugs/bug194.go pass
@@ -200,7 +200,7 @@ fixedbugs/bug264.go pass
 fixedbugs/bug265.go pass
 fixedbugs/bug266.go pass
 fixedbugs/bug269.go pass
-fixedbugs/bug271.go unsupported variadic-call
+fixedbugs/bug271.go pass
 fixedbugs/bug272.go pass
 fixedbugs/bug273.go pass
 fixedbugs/bug276.go pass
@@ -504,7 +504,7 @@ fixedbugs/issue4066.go pass
 fixedbugs/issue4085b.go pass
 fixedbugs/issue40954.go unsupported directive
 fixedbugs/issue41239.go pass
-fixedbugs/issue4167.go unsupported non-int-type
+fixedbugs/issue4167.go pass
 fixedbugs/issue41780.go pass
 fixedbugs/issue41872.go pass
 fixedbugs/issue42032.go unsupported directive
@@ -936,7 +936,7 @@ typeparam/issue50417.go pass
 typeparam/issue50417b.go pass
 typeparam/issue50419.go pass
 typeparam/issue50642.go pass
-typeparam/issue50690a.go unsupported non-int-type
+typeparam/issue50690a.go pass
 typeparam/issue50690b.go unsupported generic-uninstantiated
 typeparam/issue50690c.go unsupported generic-uninstantiated
 typeparam/issue50833.go pass
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 732 pass (72.8%), 273 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 736 pass (73.2%), 269 unsupported, 0 bug

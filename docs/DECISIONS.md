@@ -4221,7 +4221,10 @@ packages.
   `fallthrough`, variadic functions, and interface switch tags. A variadic
   call's extra arguments become a slice literal of the parameter's type,
   built after every argument is evaluated; variadic methods, func values,
-  and `go`/`defer` of variadic calls stay `unsupported`.
+  and `go`/`defer` of variadic calls stay `unsupported`. (Reliability R.2
+  and R.4 lifted these: the variadic parameter is a slice in the
+  signature, so the convention is unchanged; each call site makes the
+  slice, from arguments or a call's results.)
 
 **Implementation notes (increment 11.6, 2026-11-20).**
 - `runtime`, `os`, `sync`, and `sync/atomic` are replaced packages, as

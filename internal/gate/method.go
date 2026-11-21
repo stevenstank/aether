@@ -32,10 +32,6 @@ func (c *checker) method(d *ast.FuncDecl) {
 // pointer, the call takes that variable's address, which is checked as &x
 // is: never of a variable declared in a for statement's init (D-035).
 func (c *checker) methodCall(call *ast.CallExpr, x ast.Expr, sel *types.Selection) bool {
-	if call.Ellipsis.IsValid() {
-		c.reject(call, FeatVariadic, "variadic call")
-		return false
-	}
 	if frontend.TakesAddress(sel) {
 		c.address(x)
 	} else {

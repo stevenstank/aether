@@ -115,7 +115,7 @@ func (l *lowerer) funcLit(e *ast.FuncLit) *ir.Instr {
 // queues the lowering of its body.
 func (l *lowerer) litFunc(e *ast.FuncLit, pos ir.Pos) *ir.Func {
 	sig, ok := l.pkg.Info.Types[e].Type.(*types.Signature)
-	if !ok || sig.Variadic() {
+	if !ok {
 		l.fail(e, "unexpected signature for a function literal")
 	}
 	f := l.prog.NewFunc(litName(l.lits[e]), l.fn.File, pos)

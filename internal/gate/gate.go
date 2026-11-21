@@ -374,11 +374,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		ok = c.typeExpr(d.Recv.List[0].Type)
 	}
 	for _, field := range d.Type.Params.List {
-		t := field.Type
-		if el, isVariadic := t.(*ast.Ellipsis); isVariadic && d.Recv == nil {
-			t = el.Elt // a variadic function, but not method (D-049)
-		}
-		ok = c.typeExpr(t) && ok
+		ok = c.typeExpr(elemOfVariadic(field.Type)) && ok
 	}
 	// An empty result list, "func f() ()", means no result. Precheck has
 	// rejected it on main and init.
@@ -862,8 +858,8 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 	case *ast.InterfaceType:
 		return c.ifaceTypeExpr(t) && c.sized(e)
 	case *ast.FuncType:
-		// A func type (D-039): its parameter and result types, of which a
-		// variadic ...T is rejected.
+		// A func type (D-039): its parameter and result types, a variadic
+		// ...T's T (R.4).
 		if t.TypeParams != nil {
 			break
 		}
@@ -873,7 +869,7 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 				continue
 			}
 			for _, f := range fl.List {
-				c.typeExpr(f.Type)
+				c.typeExpr(elemOfVariadic(f.Type))
 			}
 		}
 		if len(c.ds) == mark {
@@ -883,6 +879,16 @@ func (c *checker) typeExpr(e ast.Expr) bool {
 	}
 	c.reject(e, FeatNonIntType, "type "+types.ExprString(e))
 	return false
+}
+
+// elemOfVariadic returns the type expression of a parameter, T for the
+// ...T of a variadic function (D-049), method, func type, or interface
+// method (R.4), whose type is []T.
+func elemOfVariadic(t ast.Expr) ast.Expr {
+	if el, ok := t.(*ast.Ellipsis); ok {
+		return el.Elt
+	}
+	return t
 }
 
 // maxAggregate bounds the size of an array or struct type, so that the
@@ -1258,12 +1264,8 @@ func (c *checker) call(call *ast.CallExpr) bool {
 			if packageLevel(obj) {
 				// A function with an unsupported signature is rejected
 				// at its declaration. A variadic one is called with its
-				// arguments (D-049) or a slice and ..., not with the
-				// results of a call.
-				if obj.Type().(*types.Signature).Variadic() && c.multiValue(call.Args) {
-					c.reject(call, FeatVariadic, "variadic call with the results of a call")
-					return false
-				}
+				// arguments (D-049), the results of a call (reliability
+				// R.4), or a slice and ....
 				if !c.multiValue(call.Args) {
 					for _, a := range call.Args {
 						c.expr(a)
@@ -1274,13 +1276,10 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		}
 	}
 	if tv, ok := c.info.Types[call.Fun]; ok && !tv.IsType() && !tv.IsBuiltin() {
-		if sig, ok := tv.Type.Underlying().(*types.Signature); ok {
+		if _, ok := tv.Type.Underlying().(*types.Signature); ok {
 			// A call of a func value (D-039), whose type, when its value is
-			// checked, must be supported.
-			if call.Ellipsis.IsValid() || sig.Variadic() {
-				c.reject(call, FeatVariadic, "variadic call")
-				return false
-			}
+			// checked, must be supported; a variadic one as a variadic
+			// function's (R.4).
 			mark := len(c.ds)
 			c.expr(call.Fun)
 			if len(c.ds) > mark {
@@ -1773,9 +1772,9 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	case *types.Interface:
 		return c.ifaceType(t, seen)
 	case *types.Signature:
-		// A func type (D-039), not variadic, of supported parameters and
-		// results.
-		if t.Variadic() || t.Recv() != nil || t.TypeParams().Len() > 0 {
+		// A func type (D-039), variadic too (R.4), of supported
+		// parameters and results.
+		if t.Recv() != nil || t.TypeParams().Len() > 0 {
 			return false
 		}
 		for _, tuple := range []*types.Tuple{t.Params(), t.Results()} {

@@ -1302,6 +1302,15 @@ causes with regression tests.
     stay `unsupported`. Tests: `s5_g06`, `s7_w01`,
     `unsupported_generic_constant_index`, gate tests. `TestGorootRun`:
     732 of 1,005 pass, 0 bugs.
+  - **R.4** Variadic calls. *Done 2026-11-22, owner review pending:* a
+    call of a variadic function as a statement with `s...`, accepted by
+    the gate, was an internal error in lowering; fixed. A variadic call
+    with the results of a call (`fixedbugs/bug184.go`, `bug271.go`), and
+    variadic methods, interface methods, func types, func values, and
+    function literals (`issue4167.go`, `typeparam/issue50690a.go`), were
+    `unsupported`, lifted as D-049's other variadic limits were in R.2.
+    `ddd.go` stays `unsupported` for its interface embedded in a struct.
+    Tests: `s7_l03`, gate tests.
 
 ---
 

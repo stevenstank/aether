@@ -264,19 +264,12 @@ func (l *lowerer) keepAll(ws []*ir.Instr, pos ir.Pos) []func() *ir.Instr {
 // holds, with the closure as the first argument.
 func (l *lowerer) valueCall(call *ast.CallExpr, sig *types.Signature) *ir.Instr {
 	pos := l.pos(call, call.Pos())
-	if sig.Variadic() {
-		l.fail(call, "call of a variadic func value")
-	}
 	fv := l.expr(call.Fun)
 	get := func() *ir.Instr { return fv }
 	if l.branches(call.Args) {
 		get = l.spill(fv, pos)
 	}
-	var ts []types.Type
-	for v := range sig.Params().Variables() {
-		ts = append(ts, v.Type())
-	}
-	args := flatten(l.valuesOrResults(call.Args, ts))
+	args := flatten(l.args(call, sig))
 	fv = get()
 	out := l.guard(l.fn.Compare(l.b, ir.Eq, fv, l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos), ir.PanicNil, pos, append([]*ir.Instr{fv}, args...)...)
 	fv, args = out[0], out[1:]

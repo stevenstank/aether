@@ -378,7 +378,8 @@ func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 }
 
 // callRecord evaluates the function value of call, unless it is a call of
-// a builtin (print, println, close, delete) or of a variadic function, and
+// a builtin (print, println, close, delete) or of a variadic function of
+// the program, and
 // its arguments, as a defer or go statement s does, and copies them into a
 // new record: the link (left zero), the code address of a function named
 // name, generated for s, which makes the call from the record, then the
@@ -411,17 +412,15 @@ func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir
 	case "":
 		sig = l.pkg.Info.Types[call.Fun].Type.Underlying().(*types.Signature)
 		if sig.Variadic() {
-			// A function of the program, not a func value, which is
-			// never variadic (D-039).
+			// A variadic function of the program is called directly; a
+			// method or func value as any other.
 			if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 				if obj, ok := l.pkg.Info.Uses[id].(*types.Func); ok {
 					direct = l.funcs[obj]
 				}
 			}
-			if direct == nil {
-				l.fail(s, "variadic call of a func value in a defer or go statement")
-			}
-		} else {
+		}
+		if direct == nil {
 			fv = l.spill(l.expr(call.Fun), pos)
 		}
 		for v := range sig.Params().Variables() {
@@ -430,11 +429,11 @@ func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir
 	default:
 		l.fail(s, "call of builtin %s in a defer or go statement", builtin)
 	}
-	if call.Ellipsis.IsValid() && direct == nil {
+	if call.Ellipsis.IsValid() && (sig == nil || !sig.Variadic()) {
 		l.fail(s, "unexpected variadic call")
 	}
 	var vals [][]*ir.Instr
-	if direct != nil {
+	if sig != nil && sig.Variadic() {
 		// The elements after the fixed arguments make the slice now, as
 		// every argument is evaluated now.
 		vals = l.variadicArgs(call, ts)

@@ -469,11 +469,7 @@ func (l *lowerer) ifaceCall(call *ast.CallExpr, se *ast.SelectorExpr, sel *types
 		get = l.spillWords(w, pos)
 	}
 	sig := sel.Obj().Type().(*types.Signature)
-	var ts []types.Type
-	for v := range sig.Params().Variables() {
-		ts = append(ts, v.Type())
-	}
-	args := flatten(l.valuesOrResults(call.Args, ts))
+	args := flatten(l.args(call, sig))
 	w = get()
 	out := l.guard(l.fn.Compare(l.b, ir.Eq, w[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos), ir.PanicNil, pos, append(slices.Clone(w), args...)...)
 	return l.dispatch(call, sel.Recv(), sel.Obj().Name(), sig, out[0], out[1], out[2:], pos)

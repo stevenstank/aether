@@ -40,6 +40,7 @@ import (
 	"go/types"
 	"maps"
 	"math"
+	"slices"
 
 	"github.com/stevenstank/aether/internal/diag"
 	"github.com/stevenstank/aether/internal/frontend"
@@ -263,7 +264,7 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 		l.fail(fd, "no function object for %s", fd.Name.Name)
 	}
 	sig := obj.Type().(*types.Signature)
-	if sig.Variadic() && fd.Recv != nil || (fd.Recv != nil) != (sig.Recv() != nil) {
+	if (fd.Recv != nil) != (sig.Recv() != nil) {
 		l.fail(fd, "unexpected signature for %s", fd.Name.Name)
 	}
 	file := frontend.Position(l.pkg.Fset, fd.Name.Pos()).File
@@ -435,17 +436,73 @@ func (l *lowerer) generic(n ast.Node) bool {
 	return obj != nil && obj.Pkg().Path() != "main" && frontend.Generic(l.pkg.Info, n)
 }
 
+// args evaluates the arguments of call, of a function, method, or func
+// value of the signature sig.
+func (l *lowerer) args(call *ast.CallExpr, sig *types.Signature) [][]*ir.Instr {
+	var ts []types.Type
+	for v := range sig.Params().Variables() {
+		ts = append(ts, v.Type())
+	}
+	if sig.Variadic() {
+		return l.variadicArgs(call, ts)
+	}
+	if call.Ellipsis.IsValid() {
+		l.fail(call, "unexpected call with ...")
+	}
+	return l.valuesOrResults(call.Args, ts)
+}
+
+// resultTuple returns the results of the call that is the only argument
+// of args, if it has more than one.
+func (l *lowerer) resultTuple(args []ast.Expr) (*types.Tuple, bool) {
+	if len(args) != 1 {
+		return nil, false
+	}
+	tup, ok := l.pkg.Info.Types[args[0]].Type.(*types.Tuple)
+	return tup, ok && tup.Len() > 1
+}
+
 // variadicArgs evaluates the arguments of a call of a variadic function
 // whose parameters are of types ts (D-049): with ..., the last is the
 // slice; otherwise the arguments after the fixed ones are the elements of
 // a new slice, nil if there are none. Every argument is evaluated, left to
-// right, before the slice is made.
+// right, before the slice is made. The arguments may be the results of a
+// call, each converted to its parameter's type or the element type.
 func (l *lowerer) variadicArgs(call *ast.CallExpr, ts []types.Type) [][]*ir.Instr {
 	if call.Ellipsis.IsValid() {
 		return l.values(call.Args, ts)
 	}
 	n := len(ts) - 1
 	pos := l.pos(call, call.Pos())
+	if tup, ok := l.resultTuple(call.Args); ok {
+		et := sliceElem(ts[n])
+		rts := slices.Clone(ts[:n])
+		for range tup.Len() - n {
+			rts = append(rts, et)
+		}
+		vals := l.valuesOrResults(call.Args, rts)
+		gets := make([]func() []*ir.Instr, len(vals))
+		for i, w := range vals {
+			gets[i] = l.spillWords(w, pos)
+		}
+		out := make([][]*ir.Instr, n, n+1)
+		k := int64(len(vals) - n)
+		if k == 0 {
+			for i := range out {
+				out[i] = gets[i]()
+			}
+			return append(out, []*ir.Instr{l.fn.TypedConst(l.b, ir.Ptr, 0, pos), l.fn.Const(l.b, 0, pos), l.fn.Const(l.b, 0, pos)})
+		}
+		arr := types.NewArray(et, k)
+		base := l.keep(l.alloc(arr, pos), pos)
+		for i := range k {
+			l.storePlace(place{base: base, c: i * sizes.Sizeof(et), t: et}, gets[n+int(i)](), pos)
+		}
+		for i := range out {
+			out[i] = gets[i]()
+		}
+		return append(out, []*ir.Instr{base(), l.fn.Const(l.b, k, pos), l.fn.Const(l.b, k, pos)})
+	}
 	vals := l.values(call.Args[:n], ts[:n])
 	extra := call.Args[n:]
 	if len(extra) == 0 {
@@ -1199,7 +1256,7 @@ func (l *lowerer) exprStmt(s *ast.ExprStmt) {
 		l.mapBuiltin(call) // D-042
 		return
 	}
-	if !ok || call.Ellipsis.IsValid() {
+	if !ok {
 		l.fail(s, "unexpected expression statement")
 	}
 	if id, ok := call.Fun.(*ast.Ident); ok {
@@ -1258,19 +1315,7 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 	}
 	f := l.funcs[obj]
 	sig := obj.Type().(*types.Signature)
-	var ts []types.Type
-	for v := range sig.Params().Variables() {
-		ts = append(ts, v.Type())
-	}
-	var vals [][]*ir.Instr
-	if sig.Variadic() {
-		vals = l.variadicArgs(call, ts)
-	} else {
-		if call.Ellipsis.IsValid() {
-			l.fail(call, "unexpected call with ...")
-		}
-		vals = l.valuesOrResults(call.Args, ts)
-	}
+	vals := l.args(call, sig)
 	args := append(recv(), flatten(vals)...)
 	// A new object for each array or struct result, passed after the
 	// arguments (D-034).

@@ -949,7 +949,8 @@ method expressions are func values (§Func values).
 ## Func values (Phase 8 increment 8.2)
 
 The gate also accepts func values (D-039):
-- **Types** `func(params) results`, not variadic, of supported types, for
+- **Types** `func(params) results`, variadic too (Reliability R.4), of
+  supported types, for
   variables, package-level variables, parameters, results, struct fields,
   and array and slice elements. The zero value is `nil`; a func value
   compares with `nil` by `==` and `!=`, and with nothing else, as in Go.
@@ -969,7 +970,7 @@ The gate also accepts func values (D-039):
   method main.T.M called using nil *T pointer`, a `runtime.Error` (V-7,
   resolved in Phase 11); a promoted method's dereferences nil.
 
-Still `unsupported`: variadic func types; `print` and `println` of a func
+Still `unsupported`: `print` and `println` of a func
 value (`println-argument-type`), which gc prints as an address.
 
 ## Closures (Phase 8 increment 8.3)
@@ -1067,8 +1068,8 @@ The gate also accepts (D-043):
 - **`defer`** of a call of a function, method, func value, function
   literal, or interface method, or of `print`, `println`, `close`, or
   `delete` (Reliability R.2), with arguments as for the call, `f(g())`
-  included, and a variadic function's elements made into its slice at the
-  statement. The function value (a method's
+  included, and a variadic function's, method's, or func value's elements
+  made into its slice at the statement. The function value (a method's
   receiver included) and the arguments are evaluated at the statement;
   the call runs when the function returns, or when a panic passes through
   it, last deferred first. A nil interface's method panics at the
@@ -1270,10 +1271,11 @@ D-049. These supersede the 11.4 rule that standard-library imports are
   all its methods. An unsupported construct elsewhere is not reported.
 - **Language features the compiled packages need**, now supported
   everywhere: `iota` and constants without a value; `min` and `max` of
-  integers; `fallthrough`; variadic functions (not methods), called with
-  arguments or with a slice and `...`, in `go` and `defer` statements too
-  (Reliability R.2), but not as func values or with the results of a
-  call; and
+  integers; `fallthrough`; variadic functions, called with arguments or
+  with a slice and `...`, in `go` and `defer` statements too (Reliability
+  R.2), and, since Reliability R.4, with the results of a call, and
+  variadic methods, interface methods, func types, func values, and
+  function literals (`s7_l03_variadic_values`); and
   expression switches on an interface value, with case values assignable
   to its type or `nil`; and case values of interface type with any other
   tag, or without one, the tag (or `true`) converted to the case value's
@@ -1500,7 +1502,7 @@ and `os`; the rest of the subset applies to what it reaches.
 | `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
 | `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
-| `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`, `s7_w01_switch_compare`; gate tests |
+| `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, methods, and func values, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`, `s7_l03_variadic_values`, `s7_w01_switch_compare`; gate tests |
 | `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdin`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysRead`, `TestSysReadNative`, `TestSysOps` |
 | Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |
 | `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer`, `Add`, `String`, `StringData`, `Slice`, `SliceData`); `strings`, `bytes`, `sync.Pool` | Package unsafe; the packages' documentation | Phase 11 / 11.7 | Supported (native) | `TestStdPrograms` (`strings`, `unsafe`, `unsafepanic`); `TestStdRejects` |

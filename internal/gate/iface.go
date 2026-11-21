@@ -25,7 +25,7 @@ func (c *checker) ifaceType(t *types.Interface, seen map[*types.Named]bool) bool
 	}
 	for m := range t.Methods() {
 		sig := m.Type().(*types.Signature)
-		if sig.Variadic() || sig.TypeParams().Len() > 0 {
+		if sig.TypeParams().Len() > 0 {
 			return false
 		}
 		for _, tuple := range []*types.Tuple{sig.Params(), sig.Results()} {
@@ -56,7 +56,7 @@ func (c *checker) ifaceTypeExpr(t *ast.InterfaceType) bool {
 				continue
 			}
 			for _, p := range fl.List {
-				c.typeExpr(p.Type)
+				c.typeExpr(elemOfVariadic(p.Type))
 			}
 		}
 	}
