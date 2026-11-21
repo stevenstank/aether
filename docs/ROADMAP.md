@@ -1126,7 +1126,7 @@ repeated in each phase below:
     past gathering baseline coverage of its 2,673 cached inputs (993 in
     300 s), so it ran no new inputs: open.
 
-## Phase 11: Packages, standard library, conformance (in progress)
+## Phase 11: Packages, standard library, conformance (done 2026-11-21; owner review pending)
 
 - **Scope:**
   - multi-file and multi-package compilation
@@ -1233,8 +1233,50 @@ repeated in each phase below:
     pending:* `fmt` from GOROOT; `os.Stdin` and `File.Read` over a new
     `sys` kind, `read`; `internal/fmtsort` sorting indices;
     `reflect.MakeSlice`. Tests: `TestStdPrograms` (`fmt`), `TestStdin`, `TestSysRead`,
-    `TestSysReadNative`, `TestSysOps`. `TestGorootRun` not yet rerun for
-    11.8.
+    `TestSysReadNative`, `TestSysOps`.
+- **Final validation (2026-11-21):** `TestGorootRun` gives 715 of 1,005
+  `run` tests passing (71.1%), 290 `unsupported`, 0 bugs, identical on a
+  rerun: the acceptance criterion. It found six bugs in existing scope,
+  fixed with regression tests (D-049: map `/=` and `%=` order, nil
+  value-method wrappers, `reflect` `PkgPath`, untyped shift counts, `=`
+  into interface variables from range and select, local generic types). The
+  full suite, `go vet`, `FuzzCheck` and `FuzzGC` (60 s), and
+  `FuzzGenerated` (35 minutes with 8 workers, after fuzz incident FI-2)
+  passed.
+
+---
+
+## Reliability campaign (in progress)
+
+Validation of the compiler and runtime that exist, after Phase 11: no new
+language features. It looks for bugs in supported programs and fixes their
+causes with regression tests.
+
+- **Scope:**
+  - fuzzing for longer, with a fixed worker count (`tools/fuzz.sh`, FI-2);
+  - more differential testing against gc, of edge cases and feature
+    interactions;
+  - collector stress (`AETHER_GCSTRESS`) and concurrency stress;
+  - larger programs that combine the supported features
+    (`TestReliability`);
+  - triage of the `unsupported` GOROOT tests, for bugs in existing scope,
+    misclassified tests, and cheap wins;
+  - reproducible bug reports, regression tests, root-cause fixes, and
+    retesting.
+- **Increments:**
+  - **R.1** The harness and first programs. *Done 2026-11-21, owner
+    review pending:* `TestReliability` runs each program of
+    `testdata/reliability` in the interpreter and natively, with and
+    without `-O0` and `AETHER_GCSTRESS`, against gc (`-reliability.runs`
+    repeats native runs); 13 programs. `TestGorootTriage`
+    (`-goroot.triage=FILE`) reports each `unsupported` GOROOT test with
+    its first diagnostic, grouped by cause. `tools/fuzz.sh`. It found
+    that a type argument the copy of generic code cannot write was
+    rejected at each use of the type parameter in the generic code,
+    instead of once at the instance (`TestInstantiate`,
+    `unsupported_generic_local_type_arg`; `typeparam/nested.go` now
+    stops at its first such instance). `TestGorootRun`: 715 of 1,005
+    pass, 0 bugs.
 
 ---
 

@@ -826,6 +826,24 @@ The rerun on the same tree passed (2,805,662 executions). The race explains a
 failure at the end with no input and no other message, as FI-1 had; whether
 FI-1's lost message was this one cannot be known.
 
+#### Fuzz incident FI-2 (2026-11-21, cause found)
+
+During Phase 11 validation, `FuzzGenerated` runs of 25 and 30 minutes with
+one worker per CPU (16) failed with exit status 1 after a worker died;
+the engine discards worker stderr. A temporary `debug.SetCrashOutput`
+hook showed `panic: deadlocked!`: Go's fuzz worker (go1.26.1,
+`internal/fuzz/worker.go`) panics if one call of the fuzz function takes
+over 10 s. Each `FuzzGenerated` input takes about 1.7 s alone; 16 workers
+pushed the load average to about 41, and some inputs past 10 s. Both
+recorded inputs passed on replay. A 35-minute run with `-parallel 8` was
+clean. The same runs also showed that a 60 s `FuzzGenerated` run ends
+during baseline coverage (207 of 2,673 inputs) and mutates nothing.
+
+`tools/fuzz.sh TARGET DURATION [WORKERS]` runs a target with half the CPUs
+by default, saves the complete output, and reports the exit status, the
+cached corpus size before and after, and whether the run mutated inputs;
+a run that never left baseline coverage exits 3.
+
 ### Regression tests
 
 Each discovered bug adds a minimized program under a regression directory,

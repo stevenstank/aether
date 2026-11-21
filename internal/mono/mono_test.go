@@ -114,14 +114,18 @@ func main() {
 		{"uninstantiated type", "package main\n\ntype B[T any] struct{ v T }\n\nfunc (b B[T]) M() {}\n\nfunc main() {}\n", "p.go:3:6 generic-uninstantiated"},
 		{"only from uninstantiated code", "package main\n\nfunc F[T any]() {}\n\nfunc G[T any]() { F[T]() }\n\nfunc main() {}\n", "p.go:3:6 generic-uninstantiated, p.go:5:6 generic-uninstantiated"},
 		{"generic alias", "package main\n\ntype A[T any] = []T\n\nfunc main() { var a A[int]; println(len(a)) }\n", "p.go:3:6 package-level-declaration"},
-		{"channel argument", "package main\n\nfunc F[T any](x T) {}\n\nfunc main() { F[chan int](nil) }\n", "p.go:3:17 generic-instance"},
+		{"channel argument", "package main\n\nfunc F[T any](x T) {}\n\nfunc main() { F[chan int](nil) }\n", "p.go:5:15 generic-instance"},
 		// The gate rejects the declarations; the instances that copies
 		// name are rejected here (GOROOT typeparam/nested.go).
 		{"local generic type argument", "package main\n\nfunc F[T any]() { var x T; println(x) }\n\nfunc main() {\n\ttype U[_ any] int\n\ttype X[A any] U[X[A]]\n\tF[X[int]]()\n}\n",
-			"p.go:3:25 local-type-declaration"},
+			"p.go:8:2 local-type-declaration"},
 		{"local generic type", "package main\n\nfunc F[T any]() {}\n\nfunc main() {\n\tF[int]()\n\ttype U[_ any] int\n\ttype V U[int]\n\tvar u U[bool]\n\tprintln(u, V(0))\n}\n",
 			"p.go:8:9 local-type-declaration, p.go:9:8 local-type-declaration"},
-		{"tagged struct argument", "package main\n\nfunc F[T any](x T) {}\n\nfunc main() { F(struct{ a int `t` }{}) }\n", "p.go:3:17 generic-instance"},
+		{"tagged struct argument", "package main\n\nfunc F[T any](x T) {}\n\nfunc main() { F(struct{ a int `t` }{}) }\n", "p.go:5:15 generic-instance"},
+		// Rejected where the instance is used, once, not at each use of
+		// the type parameter in the generic code.
+		{"local type argument of a generic type", "package main\n\ntype S[T any] struct{ a []T; b map[int]T }\n\nfunc (s S[T]) M() T { var x T; return x }\n\nfunc main() {\n\ttype L int\n\tvar s S[*L]\n\tprintln(s.M() == nil)\n}\n",
+			"p.go:9:8 generic-instance"},
 	} {
 		_, _, ds := instantiate(t, c.src)
 		var got []string

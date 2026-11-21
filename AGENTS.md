@@ -55,13 +55,15 @@ go test -timeout 30m ./...
 - Regenerate goldens only intentionally, with
   `go test ./cmd/aether -run 'TestCheckCorpus|TestLowerCorpus' -update`, and
   review the diff.
-- When the gate changes, also fuzz:
-  `go test ./cmd/aether -run '^$' -fuzz FuzzCheck -fuzztime 60s`. When
-  lowering, the IR, or the interpreter changes, also fuzz `FuzzGenerated` the
-  same way. When the runtime's heap or collector, or lowering's choice of
-  noscan allocations, changes, also fuzz `FuzzGC` (D-046, D-047).
-  - Save the complete output to a file and record the exit status. Never
-    truncate it (`TESTING.md`, fuzz incident FI-1).
+- When the gate changes, also fuzz: `tools/fuzz.sh FuzzCheck 60s`. When
+  lowering, the IR, or the interpreter changes, also fuzz `FuzzGenerated`,
+  long enough to finish baseline coverage and mutate (`tools/fuzz.sh
+  FuzzGenerated 35m`; 60 s does not). When the runtime's heap or collector,
+  or lowering's choice of noscan allocations, changes, also fuzz `FuzzGC`
+  (D-046, D-047).
+  - `tools/fuzz.sh` saves the complete output and reports the exit status
+    and whether inputs were mutated. Never truncate fuzz output, and never
+    run one worker per CPU (`TESTING.md`, fuzz incidents FI-1 and FI-2).
 - A new unsupported feature name must be added both to the gate's registry
   (`featureNames` in `internal/gate/gate.go`) and to the `SEMANTICS.md`
   feature table. `TestFeatureTableMatchesGate` enforces this.

@@ -2338,6 +2338,56 @@ b0:
   stm v60, v61, v59 @56:59
   ret @56:59
 
+func Pair[string,float64].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
+  slot s0 p ptr @58:7
+  slot s1 result ptr @58:21
+  mem m0 tmp 32 align 8 @58:53
+b0:
+  v0 = param 0 @58:7
+  store s0, v0 @58:7
+  v1 = param 1 @58:21
+  store s1, v1 @58:21
+  v2 = const false @58:44
+  gstore g2, v2 @58:44
+  v3 = str s0 @58:69
+  v4 = const 7 @58:69
+  v5 = addr m0 @58:53
+  v6 = const 0 @58:69
+  stm v5, v6, v3 @58:69
+  v7 = const 8 @58:69
+  stm v5, v7, v4 @58:69
+  v8 = load s0 @58:80
+  v9 = const 0 @58:80
+  v10 = ldm ptr, v8, v9 @58:80
+  v11 = load s0 @58:80
+  v12 = const 8 @58:80
+  v13 = ldm i64, v11, v12 @58:80
+  v14 = const 16 @58:80
+  stm v5, v14, v10 @58:80
+  v15 = const 24 @58:80
+  stm v5, v15, v13 @58:80
+  v16 = const 0 @58:46
+  v17 = ldm ptr, v5, v16 @58:46
+  v18 = load s1 @58:46
+  v19 = const 0 @58:46
+  stm v18, v19, v17 @58:46
+  v20 = const 8 @58:46
+  v21 = ldm i64, v5, v20 @58:46
+  v22 = load s1 @58:46
+  v23 = const 8 @58:46
+  stm v22, v23, v21 @58:46
+  v24 = const 16 @58:46
+  v25 = ldm ptr, v5, v24 @58:46
+  v26 = load s1 @58:46
+  v27 = const 16 @58:46
+  stm v26, v27, v25 @58:46
+  v28 = const 24 @58:46
+  v29 = ldm i64, v5, v28 @58:46
+  v30 = load s1 @58:46
+  v31 = const 24 @58:46
+  stm v30, v31, v29 @58:46
+  ret @58:46
+
 func Pair[int,bool].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
   slot s0 p ptr @58:7
   slot s1 result ptr @58:21
@@ -2528,7 +2578,57 @@ b0:
   stm v30, v31, v29 @58:46
   ret @58:46
 
-func Pair[string,float64].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
+func Pair[string,string].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
+  slot s0 p ptr @58:7
+  slot s1 result ptr @58:21
+  mem m0 tmp 32 align 8 @58:53
+b0:
+  v0 = param 0 @58:7
+  store s0, v0 @58:7
+  v1 = param 1 @58:21
+  store s1, v1 @58:21
+  v2 = const false @58:44
+  gstore g2, v2 @58:44
+  v3 = str s0 @58:69
+  v4 = const 7 @58:69
+  v5 = addr m0 @58:53
+  v6 = const 0 @58:69
+  stm v5, v6, v3 @58:69
+  v7 = const 8 @58:69
+  stm v5, v7, v4 @58:69
+  v8 = load s0 @58:80
+  v9 = const 0 @58:80
+  v10 = ldm ptr, v8, v9 @58:80
+  v11 = load s0 @58:80
+  v12 = const 8 @58:80
+  v13 = ldm i64, v11, v12 @58:80
+  v14 = const 16 @58:80
+  stm v5, v14, v10 @58:80
+  v15 = const 24 @58:80
+  stm v5, v15, v13 @58:80
+  v16 = const 0 @58:46
+  v17 = ldm ptr, v5, v16 @58:46
+  v18 = load s1 @58:46
+  v19 = const 0 @58:46
+  stm v18, v19, v17 @58:46
+  v20 = const 8 @58:46
+  v21 = ldm i64, v5, v20 @58:46
+  v22 = load s1 @58:46
+  v23 = const 8 @58:46
+  stm v22, v23, v21 @58:46
+  v24 = const 16 @58:46
+  v25 = ldm ptr, v5, v24 @58:46
+  v26 = load s1 @58:46
+  v27 = const 16 @58:46
+  stm v26, v27, v25 @58:46
+  v28 = const 24 @58:46
+  v29 = ldm i64, v5, v28 @58:46
+  v30 = load s1 @58:46
+  v31 = const 24 @58:46
+  stm v30, v31, v29 @58:46
+  ret @58:46
+
+func Pair[string,int].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
   slot s0 p ptr @58:7
   slot s1 result ptr @58:21
   mem m0 tmp 32 align 8 @58:53
@@ -2652,56 +2752,6 @@ b0:
   stm v48, v49, v47 @58:46
   ret @58:46
 
-func Pair[string,int].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
-  slot s0 p ptr @58:7
-  slot s1 result ptr @58:21
-  mem m0 tmp 32 align 8 @58:53
-b0:
-  v0 = param 0 @58:7
-  store s0, v0 @58:7
-  v1 = param 1 @58:21
-  store s1, v1 @58:21
-  v2 = const false @58:44
-  gstore g2, v2 @58:44
-  v3 = str s0 @58:69
-  v4 = const 7 @58:69
-  v5 = addr m0 @58:53
-  v6 = const 0 @58:69
-  stm v5, v6, v3 @58:69
-  v7 = const 8 @58:69
-  stm v5, v7, v4 @58:69
-  v8 = load s0 @58:80
-  v9 = const 0 @58:80
-  v10 = ldm ptr, v8, v9 @58:80
-  v11 = load s0 @58:80
-  v12 = const 8 @58:80
-  v13 = ldm i64, v11, v12 @58:80
-  v14 = const 16 @58:80
-  stm v5, v14, v10 @58:80
-  v15 = const 24 @58:80
-  stm v5, v15, v13 @58:80
-  v16 = const 0 @58:46
-  v17 = ldm ptr, v5, v16 @58:46
-  v18 = load s1 @58:46
-  v19 = const 0 @58:46
-  stm v18, v19, v17 @58:46
-  v20 = const 8 @58:46
-  v21 = ldm i64, v5, v20 @58:46
-  v22 = load s1 @58:46
-  v23 = const 8 @58:46
-  stm v22, v23, v21 @58:46
-  v24 = const 16 @58:46
-  v25 = ldm ptr, v5, v24 @58:46
-  v26 = load s1 @58:46
-  v27 = const 16 @58:46
-  stm v26, v27, v25 @58:46
-  v28 = const 24 @58:46
-  v29 = ldm i64, v5, v28 @58:46
-  v30 = load s1 @58:46
-  v31 = const 24 @58:46
-  stm v30, v31, v29 @58:46
-  ret @58:46
-
 func Pair[string,struct { main.a int; B int }].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
   slot s0 p ptr @58:7
   slot s1 result ptr @58:21
@@ -2753,56 +2803,6 @@ b0:
   ret @58:46
 
 func Pair[string,interface { Get(int) uint8 }].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
-  slot s0 p ptr @58:7
-  slot s1 result ptr @58:21
-  mem m0 tmp 32 align 8 @58:53
-b0:
-  v0 = param 0 @58:7
-  store s0, v0 @58:7
-  v1 = param 1 @58:21
-  store s1, v1 @58:21
-  v2 = const false @58:44
-  gstore g2, v2 @58:44
-  v3 = str s0 @58:69
-  v4 = const 7 @58:69
-  v5 = addr m0 @58:53
-  v6 = const 0 @58:69
-  stm v5, v6, v3 @58:69
-  v7 = const 8 @58:69
-  stm v5, v7, v4 @58:69
-  v8 = load s0 @58:80
-  v9 = const 0 @58:80
-  v10 = ldm ptr, v8, v9 @58:80
-  v11 = load s0 @58:80
-  v12 = const 8 @58:80
-  v13 = ldm i64, v11, v12 @58:80
-  v14 = const 16 @58:80
-  stm v5, v14, v10 @58:80
-  v15 = const 24 @58:80
-  stm v5, v15, v13 @58:80
-  v16 = const 0 @58:46
-  v17 = ldm ptr, v5, v16 @58:46
-  v18 = load s1 @58:46
-  v19 = const 0 @58:46
-  stm v18, v19, v17 @58:46
-  v20 = const 8 @58:46
-  v21 = ldm i64, v5, v20 @58:46
-  v22 = load s1 @58:46
-  v23 = const 8 @58:46
-  stm v22, v23, v21 @58:46
-  v24 = const 16 @58:46
-  v25 = ldm ptr, v5, v24 @58:46
-  v26 = load s1 @58:46
-  v27 = const 16 @58:46
-  stm v26, v27, v25 @58:46
-  v28 = const 24 @58:46
-  v29 = ldm i64, v5, v28 @58:46
-  v30 = load s1 @58:46
-  v31 = const 24 @58:46
-  stm v30, v31, v29 @58:46
-  ret @58:46
-
-func Pair[string,string].Swap(ptr, ptr) @testdata/check/s5_g02_generic_types.go:58:21
   slot s0 p ptr @58:7
   slot s1 result ptr @58:21
   mem m0 tmp 32 align 8 @58:53

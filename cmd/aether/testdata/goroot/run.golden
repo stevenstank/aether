@@ -972,7 +972,7 @@ typeparam/mdempsky/20.go pass
 typeparam/mdempsky/21.go pass
 typeparam/metrics.go pass
 typeparam/min.go pass
-typeparam/nested.go unsupported local-type-declaration
+typeparam/nested.go unsupported generic-instance
 typeparam/ordered.go pass
 typeparam/orderedmap.go unsupported stdlib-package
 typeparam/pair.go pass

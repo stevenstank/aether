@@ -67,6 +67,7 @@ type mono struct {
 	written []written
 	ds      []diag.Diagnostic
 	seen    map[diag.Pos]bool
+	rejects int             // rejections made, seen or not
 	wants   []frontend.Want // of other packages' generic code
 }
 
@@ -178,6 +179,7 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 }
 
 func (m *mono) reject(pos diag.Pos, feature, what string) {
+	m.rejects++
 	if m.seen[pos] {
 		return // one diagnostic per position, however many instances
 	}
@@ -346,6 +348,16 @@ func (m *mono) instance(n ast.Node, obj types.Object, args []types.Type) *instan
 		// A generic type declared in a function, which the gate rejects
 		// too: never made.
 		m.rejectAt(n, gate.FeatLocalType, "instance of the local generic type "+obj.Name())
+		return &instance{name: name, obj: obj, args: args}
+	}
+	// A type argument the copy could not write is rejected here, where the
+	// instance is used, not at each place in the copy that writes it: the
+	// instance is never made.
+	rejects := m.rejects
+	for _, a := range args {
+		m.typeExpr1(n, a, n.Pos())
+	}
+	if m.rejects > rejects {
 		return &instance{name: name, obj: obj, args: args}
 	}
 	if in := m.insts[name]; in != nil {
