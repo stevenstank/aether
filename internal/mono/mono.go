@@ -579,6 +579,9 @@ func (m *mono) rewrite(n ast.Node, e env) ast.Node {
 		if in, ok := m.info.Instances[n]; ok {
 			return m.ref(n, n, in, e)
 		}
+		if v, ok := m.info.Uses[n].(*types.Var); ok && v.Embedded() {
+			return m.embeddedRef(n, v, e)
+		}
 	case *ast.IndexExpr:
 		return m.refIndexed(n, n.X, e)
 	case *ast.IndexListExpr:
@@ -597,6 +600,29 @@ func (m *mono) rewrite(n ast.Node, e env) ast.Node {
 				return &ast.IndexExpr{X: lit, Lbrack: end, Index: &ast.BasicLit{ValuePos: end, Kind: token.INT, Value: "0"}, Rbrack: end}
 			}
 		}
+	}
+	return nil
+}
+
+// embeddedRef returns the replacement of id, a selector's or a struct
+// literal key's reference to the embedded field v, when v's type is an
+// instance: the copy names that field as it names the instance, E[int],
+// not E. Lowering gives the field gc's name back (FieldName).
+func (m *mono) embeddedRef(id *ast.Ident, v *types.Var, e env) ast.Node {
+	t := m.subst(id, v.Type(), e)
+	if p, ok := t.(*types.Pointer); ok {
+		t = p.Elem()
+	}
+	// Embedded by an alias, the field has the alias's name, which the
+	// copy keeps.
+	if named, ok := types.Unalias(t).(*types.Named); !ok || named.TypeArgs().Len() == 0 || named.Obj().Name() != v.Name() {
+		return nil
+	}
+	switch x := m.typeExpr1(id, t, id.Pos()).(type) {
+	case *ast.Ident:
+		return &ast.Ident{NamePos: id.Pos(), Name: x.Name}
+	case *ast.SelectorExpr:
+		return &ast.Ident{NamePos: id.Pos(), Name: x.Sel.Name}
 	}
 	return nil
 }

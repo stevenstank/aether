@@ -68,3 +68,10 @@ func Levels() []Pair[string, Level] {
 func Kinds(n int) []base.Kind {
 	return Map([]int{n, n + 1}, func(i int) base.Kind { return base.Kind(i) })
 }
+
+// Tagged embeds an instance, a field other packages select by the name
+// Pair.
+type Tagged struct {
+	Pair[string, int]
+	N int
+}

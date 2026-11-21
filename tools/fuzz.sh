@@ -3,10 +3,10 @@
 #
 # Runs one fuzz target of cmd/aether (FuzzCheck, FuzzGenerated, FuzzGC) for
 # DURATION (a go test -fuzztime value) with WORKERS fuzzing processes, by
-# default half the CPUs. Go's fuzzer kills a worker whose input runs over
-# 10 s; with one worker per CPU, FuzzGenerated's inputs (about 1.7 s each
-# alone) can pass that limit and kill the run (TESTING.md, fuzz incident
-# FI-2), so the default leaves CPUs free.
+# default 3/8 of the CPUs. Go's fuzzer kills a worker whose input runs over
+# 10 s; each worker process keeps about 3 CPUs busy, and with half the
+# CPUs or more as workers FuzzGenerated's inputs (about 2 s each alone)
+# passed that limit and killed the run (TESTING.md, fuzz incident FI-2).
 #
 # The complete output goes to $FUZZOUT/TARGET.out (default directory:
 # ${TMPDIR:-/tmp}/aether-fuzz), never truncated (FI-1). The script then
@@ -20,7 +20,7 @@ if [ $# -lt 2 ] || [ $# -gt 3 ]; then
 	exit 2
 fi
 target=$1 duration=$2
-workers=${3:-$(( $(nproc) / 2 ))}
+workers=${3:-$(( $(nproc) * 3 / 8 ))}
 [ "$workers" -ge 1 ] || workers=1
 out=${FUZZOUT:-${TMPDIR:-/tmp}/aether-fuzz}
 mkdir -p "$out" || exit 2

@@ -183,7 +183,7 @@ func TestAccepted(t *testing.T) {
 		"rune conversions":     "type P struct{ r []rune }\nfunc main() { s := \"x\"; r := []rune(s); var u8 uint8 = 1; p := P{[]int32(\"y\")}; println(string(r), string(r[0]), string(s[0]), string(u8), string(p.r), len([]rune(\"\"))) }",
 	}
 	// Defer and panic (D-043).
-	files["defer forms"] = "type T struct{ x int }\nfunc (t T) m(a int) { println(t.x, a) }\ntype I interface{ m(int) }\nfunc f() (int, string) { return 1, \"a\" }\nfunc g(int, string) {}\nfunc main() { var i I = T{}; v := func() {}; defer g(f()); defer T{}.m(1); defer i.m(2); defer v(); defer func() { println() }(); defer print(f()); defer println(\"x\", 1) }"
+	files["defer forms"] = "type T struct{ x int }\nfunc (t T) m(a int) { println(t.x, a) }\ntype I interface{ m(int) }\nfunc f() (int, string) { return 1, \"a\" }\nfunc g(int, string) {}\nfunc main() { var i I = T{}; v := func() {}; defer g(f()); defer T{}.m(1); defer i.m(2); defer v(); defer func() { println() }(); defer print(f()); defer println(\"x\", 1); c := make(chan int); defer close(c); m := map[string]int{}; defer delete(m, \"k\"); defer h(1, 2); defer h(); go h(3); defer h([]int{4}...) }\nfunc h(xs ...int) {}"
 	files["recover"] = "func main() { defer func() { r := recover(); if e, ok := r.(error); ok { println(e.Error()) }; recover() }(); println(recover() == nil) }"
 	files["panic values"] = "type E struct{}\nfunc main() { var e any = E{}; if e == nil { panic(nil) }; if e != nil { panic(e) }; panic(\"x\" + \"y\") }"
 	for name, src := range files {
@@ -331,8 +331,10 @@ func TestRejectedFileLevel(t *testing.T) {
 		{"parameter of an unsupported type", "package main\n\nfunc f(b struct{ error }) {}\n\nfunc main() { f(struct{ error }{}) }\n", []string{"composite-literal", "non-int-type"}},
 		{"variadic function", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { f(1, 2); f(); f([]int{1}...) }\n", nil},
 		{"variadic method", "package main\n\ntype T int\n\nfunc (T) f(xs ...int) {}\n\nfunc main() { T(0).f(1) }\n", []string{"non-int-type"}},
-		{"variadic defer", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { defer f(1) }\n", []string{"variadic-call"}},
-		{"variadic go", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { go f(1) }\n", []string{"variadic-call"}},
+		{"variadic defer of results", "package main\n\nfunc f(xs ...int) {}\n\nfunc g() (int, int) { return 1, 2 }\n\nfunc main() { defer f(g()) }\n", []string{"variadic-call"}},
+		{"variadic go of results", "package main\n\nfunc f(xs ...int) {}\n\nfunc g() (int, int) { return 1, 2 }\n\nfunc main() { go f(g()) }\n", []string{"variadic-call"}},
+		{"defer of copy", "package main\n\nfunc main() { s := []int{1}; defer copy(s, s) }\n", []string{"defer"}},
+		{"go of close", "package main\n\nfunc main() { c := make(chan int); go close(c) }\n", []string{"go"}},
 		{"variadic func value", "package main\n\nfunc f(xs ...int) {}\n\nfunc main() { g := f; g(1) }\n", []string{"non-int-type", "variadic-call"}},
 		{"variadic with results", "package main\n\nfunc f(xs ...int) {}\n\nfunc two() (int, int) { return 1, 2 }\n\nfunc main() { f(two()) }\n", []string{"variadic-call"}},
 		{"function without body", "package main\n\nfunc f()\n\nfunc main() { f() }\n", []string{"function-without-body"}},

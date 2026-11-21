@@ -29,6 +29,16 @@ type Blanks struct {
 	y    int
 }
 
+// An embedded field of an instance type is named after the generic type.
+type Box[T any] struct{ v T }
+
+type Ref[T any] struct{ p *T }
+
+type Boxed struct {
+	Box[int]
+	*Ref[string]
+}
+
 func main() {
 	p := Point{1, 2, "a", []string{"x", "y"}}
 	v := reflect.ValueOf(p)
@@ -58,5 +68,7 @@ func main() {
 	bt := reflect.TypeOf(strings.Builder{})
 	println(t.Field(0).PkgPath, t.Field(2).PkgPath, t.Field(2).IsExported(), t.Field(0).IsExported(), bt.Field(0).Name, bt.Field(0).PkgPath)
 	b := Blanks{count(), count(), &[2]int{count(), 0}, count()}
+	et := reflect.TypeOf(Boxed{})
+	println(et.Field(0).Name, et.Field(0).Anonymous, et.Field(1).Name, et.Field(1).Type.String(), et.Field(0).Type.String())
 	println(reflect.ValueOf(blank).Field(1).Int(), b.x, b.y, calls, reflect.ValueOf(b).Field(1).Int(), reflect.ValueOf(b).Field(2).IsNil())
 }

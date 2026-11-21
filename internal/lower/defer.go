@@ -367,7 +367,7 @@ func (l *lowerer) endProgram(pos ir.Pos) {
 // pushed on the function's list.
 func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 	pos := l.pos(s, s.Defer)
-	if s.Call.Ellipsis.IsValid() || l.dfr == nil {
+	if l.dfr == nil {
 		l.fail(s, "unexpected defer statement")
 	}
 	ps := l.panics()
@@ -378,15 +378,13 @@ func (l *lowerer) deferStmt(s *ast.DeferStmt) {
 }
 
 // callRecord evaluates the function value of call, unless it is a call of
-// print or println, and its arguments, as a defer or go statement s does,
-// and copies them into a new record: the link (left zero), the code
-// address of a function named name, generated for s, which makes the call
-// from the record, then the func value and the arguments. It returns the
-// record and the func value, or nil for print and println.
+// a builtin (print, println, close, delete) or of a variadic function, and
+// its arguments, as a defer or go statement s does, and copies them into a
+// new record: the link (left zero), the code address of a function named
+// name, generated for s, which makes the call from the record, then the
+// func value and the arguments, a variadic function's last one the slice
+// of its elements. It returns the record and the func value, or nil.
 func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir.Pos) (rec, fv func() *ir.Instr) {
-	if call.Ellipsis.IsValid() {
-		l.fail(s, "unexpected variadic call")
-	}
 	builtin := ""
 	if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
 		if b, ok := l.pkg.Info.Uses[id].(*types.Builtin); ok {
@@ -394,6 +392,7 @@ func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir
 		}
 	}
 	var sig *types.Signature
+	var direct *ir.Func // a variadic function, called directly
 	var ts []types.Type // the Go type of each argument; nil for print's
 	n := len(call.Args)
 	switch builtin {
@@ -404,19 +403,44 @@ func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir
 			}
 		}
 		ts = make([]types.Type, n)
+	case "close":
+		ts = []types.Type{l.pkg.Info.Types[call.Args[0]].Type}
+	case "delete":
+		mt := l.pkg.Info.Types[call.Args[0]].Type
+		ts = []types.Type{mt, l.mapType(mt).key}
 	case "":
 		sig = l.pkg.Info.Types[call.Fun].Type.Underlying().(*types.Signature)
 		if sig.Variadic() {
-			l.fail(s, "variadic call in a defer or go statement")
+			// A function of the program, not a func value, which is
+			// never variadic (D-039).
+			if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
+				if obj, ok := l.pkg.Info.Uses[id].(*types.Func); ok {
+					direct = l.funcs[obj]
+				}
+			}
+			if direct == nil {
+				l.fail(s, "variadic call of a func value in a defer or go statement")
+			}
+		} else {
+			fv = l.spill(l.expr(call.Fun), pos)
 		}
-		fv = l.spill(l.expr(call.Fun), pos)
 		for v := range sig.Params().Variables() {
 			ts = append(ts, v.Type())
 		}
 	default:
 		l.fail(s, "call of builtin %s in a defer or go statement", builtin)
 	}
-	vals := l.valuesOrResults(call.Args, ts)
+	if call.Ellipsis.IsValid() && direct == nil {
+		l.fail(s, "unexpected variadic call")
+	}
+	var vals [][]*ir.Instr
+	if direct != nil {
+		// The elements after the fixed arguments make the slice now, as
+		// every argument is evaluated now.
+		vals = l.variadicArgs(call, ts)
+	} else {
+		vals = l.valuesOrResults(call.Args, ts)
+	}
 	// The layout after the link, the code, and the func value: 8 bytes
 	// for each word, or an array's or struct's size rounded up to 8.
 	type field struct {
@@ -453,7 +477,15 @@ func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir
 			l.fn.Print(l.b, args, pos)
 		case "println":
 			l.fn.Println(l.b, args, pos)
+		case "close":
+			l.fn.Call(l.b, l.chanFunc("closechan"), args, pos)
+		case "delete":
+			l.fn.Call(l.b, l.mapFunc(l.mapType(ts[0]), mapDelete, pos), args, pos)
 		default:
+			if direct != nil {
+				l.directCall(sig, direct, args, pos)
+				break
+			}
 			l.deferredCall(sig, l.fn.LdM(l.b, ir.Ptr, p[0](), l.fn.Const(l.b, 16, pos), pos), args, pos)
 		}
 		l.fn.Ret(l.b, pos)
@@ -477,6 +509,17 @@ func (l *lowerer) callRecord(s ast.Node, call *ast.CallExpr, name string, pos ir
 	}
 	l.fn.StM(l.b, rec(), l.fn.Const(l.b, 8, pos), l.fn.FuncAddr(l.b, code, pos), pos)
 	return rec, fv
+}
+
+// directCall calls f, a function of type sig, with args, its results
+// discarded, as deferredCall calls a func value.
+func (l *lowerer) directCall(sig *types.Signature, f *ir.Func, args []*ir.Instr, pos ir.Pos) {
+	for r := range sig.Results().Variables() {
+		if isAggregate(r.Type()) {
+			args = append(args, l.addr(l.newMem("tmp", r.Type(), pos), pos))
+		}
+	}
+	l.fn.Call(l.b, f, args, pos)
 }
 
 // deferredCall calls the func value fv of type sig with args, as a call of

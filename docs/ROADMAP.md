@@ -1277,6 +1277,17 @@ causes with regression tests.
     `unsupported_generic_local_type_arg`; `typeparam/nested.go` now
     stops at its first such instance). `TestGorootRun`: 715 of 1,005
     pass, 0 bugs.
+  - **R.2** Triage of generic and builtin rejections. *Done 2026-11-21,
+    owner review pending:* an embedded field of an instance type, `E[int]`,
+    was named `E[int]` in the copy, so `s.E` and `S{E: ...}` were rejected
+    (`typeparam/genembed2.go`, `issue48253.go`); it is now selected and
+    keyed as `E`, and reflect names it `E`. `defer` of `close` and
+    `delete`, and `defer` and `go` of variadic functions. Out of scope:
+    tagged struct type arguments (`issue46591.go`), interfaces embedded in
+    structs (`issue44688.go`), aliases (`struct.go`), `new(expr)`, `max`
+    of strings, builtins of a call's results. Tests: `s5_g05`, `s5_d14`,
+    `TestStdPrograms` (`reflect`), gate tests. `TestGorootRun`: 720 of
+    1,005 pass, 0 bugs.
 
 ---
 

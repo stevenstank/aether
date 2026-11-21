@@ -839,8 +839,14 @@ recorded inputs passed on replay. A 35-minute run with `-parallel 8` was
 clean. The same runs also showed that a 60 s `FuzzGenerated` run ends
 during baseline coverage (207 of 2,673 inputs) and mutates nothing.
 
-`tools/fuzz.sh TARGET DURATION [WORKERS]` runs a target with half the CPUs
-by default, saves the complete output, and reports the exit status, the
+Recurrence (2026-11-21, Reliability R.2): two 35-minute runs with 8
+workers on the 16 CPUs died the same way, the second, with the hook again,
+at `panic: deadlocked!` during baseline coverage, at a peak load average of
+25.5: each worker process keeps about 3 CPUs busy. Both recorded inputs
+passed on replay in about 2 s.
+
+`tools/fuzz.sh TARGET DURATION [WORKERS]` runs a target with 3/8 of the
+CPUs by default, saves the complete output, and reports the exit status, the
 cached corpus size before and after, and whether the run mutated inputs;
 a run that never left baseline coverage exits 3.
 

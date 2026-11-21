@@ -84,7 +84,7 @@ convert4.go unsupported conversion
 copy.go pass
 ddd.go unsupported non-int-type
 decl.go pass
-defer.go unsupported variadic-call
+defer.go pass
 deferfin.go unsupported stdlib-package
 defernil.go pass
 deferprint.go unsupported println-argument-type
@@ -237,7 +237,7 @@ fixedbugs/bug348.go unsupported stdlib-package
 fixedbugs/bug352.go pass
 fixedbugs/bug355.go pass
 fixedbugs/bug356.go pass
-fixedbugs/bug364.go unsupported variadic-call
+fixedbugs/bug364.go pass
 fixedbugs/bug366.go pass
 fixedbugs/bug368.go pass
 fixedbugs/bug369.go unsupported stdlib-package
@@ -369,7 +369,7 @@ fixedbugs/issue19246.go pass
 fixedbugs/issue19275.go pass
 fixedbugs/issue19359.go pass
 fixedbugs/issue19658.go unsupported stdlib-package
-fixedbugs/issue19710.go unsupported defer
+fixedbugs/issue19710.go pass
 fixedbugs/issue19799.go unsupported stdlib-package
 fixedbugs/issue19911.go pass
 fixedbugs/issue20029.go pass
@@ -864,7 +864,7 @@ typeparam/eface.go pass
 typeparam/equal.go unsupported generic-instance
 typeparam/fact.go pass
 typeparam/genembed.go unsupported directive
-typeparam/genembed2.go unsupported generic-instance
+typeparam/genembed2.go pass
 typeparam/graph.go pass
 typeparam/ifaceconv.go pass
 typeparam/index.go pass
@@ -873,7 +873,7 @@ typeparam/interfacearg.go pass
 typeparam/issue23536.go pass
 typeparam/issue376214.go pass
 typeparam/issue42758.go pass
-typeparam/issue44688.go unsupported generic-instance
+typeparam/issue44688.go unsupported non-int-type
 typeparam/issue45722.go unsupported stdlib-package
 typeparam/issue45817.go pass
 typeparam/issue46472.go pass
@@ -907,7 +907,7 @@ typeparam/issue48047.go pass
 typeparam/issue48049.go pass
 typeparam/issue48137.go unsupported generic-instance
 typeparam/issue48225.go pass
-typeparam/issue48253.go unsupported generic-instance
+typeparam/issue48253.go pass
 typeparam/issue48276a.go pass
 typeparam/issue48276b.go pass
 typeparam/issue48317.go unsupported stdlib-package
@@ -983,7 +983,7 @@ typeparam/slices.go pass
 typeparam/smallest.go pass
 typeparam/stringable.go pass
 typeparam/stringer.go unsupported stdlib-package
-typeparam/struct.go unsupported generic-instance
+typeparam/struct.go unsupported package-level-declaration
 typeparam/subdict.go pass
 typeparam/sum.go pass
 typeparam/typeswitch1.go unsupported generic-instance
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 715 pass (71.1%), 290 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 720 pass (71.6%), 285 unsupported, 0 bug

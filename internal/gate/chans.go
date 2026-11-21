@@ -48,7 +48,8 @@ func (c *checker) chanBuiltin(call *ast.CallExpr, name string) bool {
 	return true
 }
 
-// goStmt checks a go statement: the calls a defer statement allows.
+// goStmt checks a go statement: the calls a defer statement allows,
+// except of close and delete.
 func (c *checker) goStmt(s *ast.GoStmt) {
 	if id, ok := ast.Unparen(s.Call.Fun).(*ast.Ident); ok {
 		if b, ok := c.info.Uses[id].(*types.Builtin); ok {
@@ -59,10 +60,6 @@ func (c *checker) goStmt(s *ast.GoStmt) {
 			c.reject(s, "go", "go of builtin "+b.Name())
 			return
 		}
-	}
-	if c.variadic(s.Call) {
-		c.reject(s.Call, FeatVariadic, "variadic call in a go statement")
-		return
 	}
 	c.call(s.Call)
 }

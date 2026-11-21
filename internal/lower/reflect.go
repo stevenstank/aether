@@ -3,6 +3,7 @@ package lower
 import (
 	"fmt"
 	"go/types"
+	"strings"
 
 	"github.com/stevenstank/aether/internal/ir"
 )
@@ -113,8 +114,9 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 		offs := sizes.Offsetsof(fields)
 		for i, f := range fields {
 			r := fieldRecSize * int64(i)
-			word(fa, r, l.fn.Str(b, l.prog.Intern(f.Name()), pos))
-			word(fa, r+8, c(int64(len(f.Name()))))
+			name := fieldName(f)
+			word(fa, r, l.fn.Str(b, l.prog.Intern(name), pos))
+			word(fa, r+8, c(int64(len(name))))
 			word(fa, r+16, l.fn.Addr(b, d.fieldDescs[i].mem, pos))
 			word(fa, r+24, c(offs[i]))
 			flags := int64(0)
@@ -132,4 +134,15 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 			}
 		}
 	}
+}
+
+// fieldName returns f's name as gc gives it. Monomorphization names an
+// embedded field of an instance type as it names the instance, E[int];
+// its name is E.
+func fieldName(f *types.Var) string {
+	name := f.Name()
+	if f.Embedded() {
+		name, _, _ = strings.Cut(name, "[")
+	}
+	return name
 }

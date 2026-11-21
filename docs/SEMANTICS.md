@@ -1064,8 +1064,10 @@ address.
 
 The gate also accepts (D-043):
 - **`defer`** of a call of a function, method, func value, function
-  literal, or interface method, or of `print` or `println`, with arguments
-  as for the call, `f(g())` included. The function value (a method's
+  literal, or interface method, or of `print`, `println`, `close`, or
+  `delete` (Reliability R.2), with arguments as for the call, `f(g())`
+  included, and a variadic function's elements made into its slice at the
+  statement. The function value (a method's
   receiver included) and the arguments are evaluated at the statement;
   the call runs when the function returns, or when a panic passes through
   it, last deferred first. A nil interface's method panics at the
@@ -1096,8 +1098,8 @@ The gate also accepts (D-043):
   and one panicked again with the same value once, with ` [recovered,
   repanicked]`.
 
-Still `unsupported`: deferring a builtin other than `print` and `println`,
-`recover` included (`defer`).
+Still `unsupported`: deferring a builtin other than `print`, `println`,
+`close`, and `delete`, `panic`, `recover`, and `copy` included (`defer`).
 
 ## Named results (Phase 8 increment 8.7)
 
@@ -1263,8 +1265,9 @@ D-049. These supersede the 11.4 rule that standard-library imports are
 - **Language features the compiled packages need**, now supported
   everywhere: `iota` and constants without a value; `min` and `max` of
   integers; `fallthrough`; variadic functions (not methods), called with
-  arguments or with a slice and `...`, but not in `go` or `defer`
-  statements, as func values, or with the results of a call; and
+  arguments or with a slice and `...`, in `go` and `defer` statements too
+  (Reliability R.2), but not as func values or with the results of a
+  call; and
   expression switches on an interface value, with case values assignable
   to its type or `nil`.
 - `unsupported`: an import of `runtime` (until 11.6, below), so every
@@ -1477,9 +1480,9 @@ and `os`; the rest of the subset applies to what it reaches.
 | Closures: function literals capturing the variables around them by reference, nested, returned, stored, and called at once | Function literals | S5 / 8.3 | Supported (native), with divergences V-3 to V-5 | `s5_c01_closures`, `s5_c02_closure_panic`; generated closure programs; `TestClosurePrograms`; gate tests |
 | Interfaces: types, conversions, method calls, method values and expressions, comparisons, type assertions, type switches | Interface types, Conversions, Type assertions, Type switches, Comparison operators | S5 / 8.4 | Supported (native), with divergences V-3 to V-5 | `s5_i01_interfaces` to `s5_i06_nil_interface_call`; generated interface programs; `TestInterfacePrograms`, `TestGcName`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Maps: types, `make`, literals, `m[k]`, comma-ok reads, assignments with `op=`, `++`, `--`, `delete`, `len`, `clear`, nil comparisons, interface keys, `for range` | Map types, Making slices, maps and channels, Composite literals, Index expressions, Deletion of map elements, Clear, Length and capacity, For statements with range clause | S5 / 8.5 | Supported (native), with divergences V-3 to V-5 and V-8 | `s5_k01_map_basics` to `s5_k09_map_range`; generated map programs; `TestMapPrograms`, `TestMapRangeOrder`, `TestPanicPrefix`; gate tests |
-| Defer, panic, and recover: `defer` of calls of functions, methods, func values, literals, interface methods, `print`, and `println`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
+| Defer, panic, and recover: `defer` of calls of functions, variadic ones included, methods, func values, literals, interface methods, `print`, `println`, `close`, and `delete`; `panic(v)`; unwinding through deferred calls, run-time errors included; `recover`, with run-time errors as gc's `error` values | Defer statements, Handling panics, Run-time panics | S5 / 8.6 | Supported (native), with divergences V-3 to V-5 and V-9 | `s5_d01_defer_basics` to `s5_d11_repanic`, `s5_d14_defer_builtins_variadic`; `TestDeferPrograms`, `TestPanicMsg`, `TestPanicPrefix`; gate tests |
 | Named results: variables zero at entry, bare `return`, set by deferred calls and by recovering functions | Function declarations, Return statements, Defer statements | S5 / 8.7 | Supported (native), with divergences V-3 to V-5 | `s5_n01_named_results`, `s5_d12_named_defer`, `s5_d13_named_recover`; generated named-result programs; `TestNamedResultPrograms`, `TestDeferPrograms`; gate tests |
-| Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g04_generic_panic`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
+| Generics: generic functions and types, methods of generic types, explicit and inferred instantiation, constraints with type sets, instantiated functions as values, instance types embedded in structs | Type parameter declarations, Instantiations, Type inference | S5 / 8.8 | Supported (native), with divergences V-3 to V-5 | `s5_g01_generic_funcs` to `s5_g05_generic_embedded`; generated generic programs; `TestGenericPrograms`, `TestInstantiate`; gate tests |
 | Goroutines and channels: `go`, channel types, `make`, send, receive, comma-ok, `close`, `len`, `cap`, comparison, `for range`, nil channels, deadlock detection, `select` | Go statements, Channel types, Send statements, Receive operator, Close, For statements with range clause, Select statements | Phase 10 / 10.2, 10.3 | Supported (native), with divergences V-2, V-3, V-5, and V-10 | `s6_g01_channels` to `s6_g09_select_deadlock`; generated goroutine and channel programs; `TestChanPrograms`, `TestScheduleOrder`, `TestSelectChoice`, `TestGoNilFuncArgs`, `TestGCMemoryBound`, `TestPanicPrefix`, `TestGoroutineGC`, `TestGCStress`; gate tests |
 | Garbage collection of the heap: unreachable objects freed and their memory reused, with a bound on memory use | Memory model (allocation), Run-time panics | Phase 9 | Supported (native), with divergence V-5 | `TestGCStress` (every corpus program, generated allocation programs, and every generator, under stress), `TestGCMemoryBound` |
 | Unbounded recursion: stack overflow (V-2) | — | S2 / 4.2 | Supported (native), with divergence V-2 | `TestStackOverflowAgainstGc`, `TestStackOverflow`, `TestNativeStackOverflow`, `TestStackBoundary` |

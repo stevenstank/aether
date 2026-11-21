@@ -7,6 +7,12 @@ import (
 	"example.com/pk/gen"
 )
 
+// wrap embeds another package's instance.
+type wrap struct {
+	gen.Stack[int]
+	n int
+}
+
 func double[T gen.Number](xs []T) T {
 	return gen.Sum(xs...) * 2
 }
@@ -33,4 +39,11 @@ func main() {
 	ks := gen.Kinds(7)
 	println(len(ks), int(ks[1]), ks[0].String())
 	println(gen.Sum(base.Kind(2), base.Kind(3)).String())
+	t := gen.Tagged{Pair: gen.Pair[string, int]{"a", 1}, N: 2}
+	t.Pair.Val++
+	println(t.Pair.Key, t.Val, t.Key, t.N)
+	var w wrap
+	w.Push(4)
+	w.Stack.Push(5)
+	println(w.Len(), w.Stack.Len(), w.n)
 }
