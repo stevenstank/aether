@@ -70,7 +70,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 	l.unwinds = programDefers(pkg)
 	l.countG = reached(pkg, "runtime.NumGoroutine")
 	for _, u := range program.Packages {
-		l.reflect = l.reflect || u.Types.Path() == "reflect"
+		l.reflect = l.reflect || u.Types.Path() == "reflect" || u.Types.Path() == "internal/reflectlite"
 	}
 	for _, vs := range l.captures {
 		for _, v := range vs {
@@ -220,8 +220,9 @@ type lowerer struct {
 	// countG is whether the scheduler counts goroutines, for
 	// runtime.NumGoroutine (intrinsic.go).
 	countG bool
-	// reflect is whether the program has package reflect, whose type
-	// descriptors describe their types in full (reflect.go).
+	// reflect is whether the program has package reflect or
+	// internal/reflectlite, whose type descriptors describe their types
+	// in full (reflect.go).
 	reflect bool
 
 	wantRecover bool     // the program unwinds and calls recover

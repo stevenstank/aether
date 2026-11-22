@@ -1358,9 +1358,11 @@ package's generic code is `unsupported`.
   `errors` with `Unwrap`, `Is`, and `Join` (Aether's `wrap.go` and
   `join.go`; `Is` reads comparability from the type descriptor, an
   intrinsic). `iter` is Aether's: `Seq` and `Seq2`.
-- `unsupported`: `errors.As`, `sort.Slice` and the others using
-  reflection (`internal/reflectlite` is Aether's, without bodies) until
-  Aether has reflection; `iter.Pull` and `iter.Pull2` (`stdlib-package`);
+- `sort.Slice`, `sort.SliceStable`, and `sort.SliceIsSorted` (Reliability
+  R.6): `internal/reflectlite` is Aether's, `ValueOf`, `Len`, and
+  `Swapper` over the type descriptors, which are then full as with
+  `reflect`. A non-slice argument panics with gc's message.
+- `unsupported`: `errors.As` until Aether has reflection; `iter.Pull` and `iter.Pull2` (`stdlib-package`);
   everything ranging over an iterator (`slices.Collect`, `maps.Keys`, ...,
   `for-range`); `sort.Reverse` (a struct embedding an interface).
 

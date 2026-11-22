@@ -52,7 +52,7 @@ var patches = map[string]patch{
 	// gc's runtime, and packages that depend on its internals (11.6).
 	"runtime": {replace: true}, "os": {replace: true}, "sync": {replace: true}, "sync/atomic": {replace: true},
 	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)
-	"internal/reflectlite": {replace: true}, // until Aether has reflection (11.8)
+	"internal/reflectlite": {replace: true}, // ValueOf, Len, and Swapper, for sort (R.6)
 }
 
 // Intrinsics are the functions of overlay files declared without a body

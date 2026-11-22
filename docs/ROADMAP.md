@@ -1324,6 +1324,15 @@ causes with regression tests.
     references to their arguments under a panic); 18 programs. All
     match gc in every mode, five native runs each; no bugs found.
     `sort.Slice` is `unsupported` (`reflectlite.Swapper` has no body).
+  - **R.6** `sort.Slice`, `SliceStable`, and `SliceIsSorted`. *Done
+    2026-11-22, owner review pending:* an existing-scope gap (`sort` is
+    supported; `reflectlite`'s bodies were missing). Aether's
+    `internal/reflectlite` has `ValueOf`, `Len`, and `Swapper` in Go over
+    the type descriptors, which a program with it has in full, as one
+    with `reflect`. Reliability program `sorting` (19 programs): elements
+    of many sizes, with pointers, sorted while the collector runs, and
+    gc's panics for a non-slice. GOROOT unchanged (736/1005): no test
+    was blocked only by `sort.Slice`.
 
 ---
 

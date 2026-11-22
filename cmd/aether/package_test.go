@@ -339,8 +339,8 @@ func TestStdRejects(t *testing.T) {
 		// Another package's generic code (11.7).
 		{"type argument of main", "package main\nimport \"slices\"\ntype T int\nfunc main() { slices.Sort([]T{2, 1}) }\n",
 			diag.Unsupported, "p.go:4:22: unsupported: type argument main.T, which package slices cannot name, is not supported in subset S1 [generic-instance]"},
-		{"reflection in sort", "package main\nimport \"sort\"\nfunc main() { sort.Slice([]int{1}, func(i, j int) bool { return false }) }\n",
-			diag.Unsupported, "$AETHER/internal/reflectlite/reflectlite.go:11:1: unsupported: function ValueOf without a body"},
+		{"sort.Reverse", "package main\nimport \"sort\"\nfunc main() { sort.Sort(sort.Reverse(sort.IntSlice{2, 1})) }\n",
+			diag.Unsupported, "$GOROOT/src/sort/sort.go:90:14: unsupported: type struct{Interface}"},
 		{"iter.Pull", "package main\nimport \"iter\"\nfunc main() { next, stop := iter.Pull(iter.Seq[int](nil)); _, _ = next, stop }\n",
 			diag.Unsupported, "p.go:3:34: unsupported: iter.Pull, which Aether's package iter does not have,"},
 		{"range over func in slices", "package main\nimport \"slices\"\nfunc main() { println(len(slices.Collect(slices.Values([]int{1})))) }\n",

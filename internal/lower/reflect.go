@@ -9,7 +9,7 @@ import (
 )
 
 // Type descriptors for package reflect (D-049, increment 11.8). In a
-// program with package reflect, a descriptor (iface.go) continues with the
+// program with package reflect or internal/reflectlite (R.6), a descriptor (iface.go) continues with the
 // words reflect's rtype reads (the overlay's reflect/type.go):
 //
 //	32 the kind, as reflect numbers them

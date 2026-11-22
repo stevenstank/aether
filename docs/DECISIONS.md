@@ -4296,7 +4296,10 @@ packages.
 - `iter` and `internal/reflectlite` are replaced packages: `iter` has
   `Seq` and `Seq2` (gc's `Pull` uses its runtime's coroutines), and
   `reflectlite` declares without bodies what `sort` uses, so `sort.Slice`
-  is `unsupported` until Aether has reflection. `maps.go` is Aether's,
+  is `unsupported` until Aether has reflection. (Reliability R.6: Aether's
+  `reflectlite` is written in Go over the type descriptors, like its
+  `reflect`, and a program with it has full descriptors; `sort.Slice`,
+  `SliceStable`, and `SliceIsSorted` are supported.) `maps.go` is Aether's,
   since gc's `Clone` is a `//go:linkname` of its runtime's. In `errors`,
   `Unwrap`, `Is`, and `Join` are compiled; `Is` reads whether the target's
   dynamic type is comparable from its descriptor (the intrinsic
