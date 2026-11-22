@@ -1311,6 +1311,19 @@ causes with regression tests.
     `unsupported`, lifted as D-049's other variadic limits were in R.2.
     `ddd.go` stays `unsupported` for its interface embedded in a struct.
     Tests: `s7_l03`, gate tests.
+  - **R.5** Reliability programs, second batch. *Done 2026-11-22, owner
+    review pending:* five programs combining R.2 to R.4's forms with
+    goroutines, panics, and allocation: `eventbus` (embedded generic
+    bases, variadic subscribers, overlapping generic type switches),
+    `grid` (struct and array switches and map keys, interface case
+    values, an uncomparable comparison), `logger` (variadic methods,
+    interfaces, func values, deferred variadic calls), `numeric`
+    (generic arithmetic, promoted methods of embedded instances,
+    impossible assertions, overflow and division panics), and `jobs`
+    (variadic func values over channels, defer records the only
+    references to their arguments under a panic); 18 programs. All
+    match gc in every mode, five native runs each; no bugs found.
+    `sort.Slice` is `unsupported` (`reflectlite.Swapper` has no body).
 
 ---
 
