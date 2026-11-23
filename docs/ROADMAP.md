@@ -1246,7 +1246,7 @@ repeated in each phase below:
 
 ---
 
-## Reliability campaign (in progress)
+## Reliability campaign (closed 2026-11-24, owner review pending)
 
 Validation of the compiler and runtime that exist, after Phase 11: no new
 language features. It looks for bugs in supported programs and fixes their
@@ -1333,6 +1333,20 @@ causes with regression tests.
     of many sizes, with pointers, sorted while the collector runs, and
     gc's panics for a non-slice. GOROOT unchanged (736/1005): no test
     was blocked only by `sort.Slice`.
+    Follow-up: std program `sortonly` covers full descriptors from
+    `reflectlite` alone, in a program without `reflect`.
+- **Final validation (2026-11-24):** `TestGorootRun` 736 of 1,005 pass
+  (73.2%), 269 `unsupported`, 0 bugs. Every remaining cause is out of
+  scope or a builtin form ruled out in R.2; `unsafe.Sizeof` of a type
+  parameter (`issue60601.go`, `issue65417.go`) is constant in the copy
+  and stays `unsupported`. 19 reliability programs match gc in every
+  mode. The full suite found one bug, in a test tool: the profile
+  instrumenter did not recognize the quoted labels of instances
+  (D-045), so the sample of `TestBenchInstrumentOnlyInserts` and
+  `TestBenchInstrumentedRuns` failed once the campaign's corpus files
+  moved it onto generic methods; fixed. The full suite, `go vet`,
+  `FuzzCheck` (60 s), `FuzzGenerated` (35 minutes), and `FuzzGC`
+  (10 minutes), 6 workers each, passed.
 
 ---
 

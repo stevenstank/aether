@@ -68,7 +68,7 @@ type regionStat struct {
 
 var (
 	reBlock    = regexp.MustCompile(`^\.L(\d+)\.b(\d+):$`)
-	reLabel    = regexp.MustCompile(`^(\.L[\w.]+|\d+|main\.[\w.]+):$`)
+	reLabel    = regexp.MustCompile(`^(\.L[\w.]+|\d+|main\.[\w.]+|"main\.[^"]*"):$`) // quoted for instances (D-045)
 	reMainMain = regexp.MustCompile(`main\.main\b`)
 	reStackQ   = regexp.MustCompile(`(aether\.mainstack:\n\t\.quad\t)(\d+)`)
 	// reObject is an ldm or stm operand (amd64 memOperand): a displacement
@@ -237,7 +237,7 @@ func instrument(asm []byte, prog *ir.Program) (instrumented, error) {
 	}
 	for _, line := range strings.Split(string(asm), "\n") {
 		if m := funcType.FindStringSubmatch(line); m != nil {
-			cur = m[1]
+			cur = strings.Trim(m[1], `"`) // an instance's name is quoted (D-045)
 			irOp = "prologue"
 		}
 		if strings.HasPrefix(line, "\t# ") {
