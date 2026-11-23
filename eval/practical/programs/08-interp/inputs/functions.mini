@@ -1,0 +1,69 @@
+fn fib(n) {
+    if n < 2 { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+print "fib(20) =", fib(20);
+
+fn makeCounter(step) {
+    let count = 0;
+    return fn() {
+        count += step;
+        return count;
+    };
+}
+let c1 = makeCounter(1);
+let c2 = makeCounter(10);
+c1(); c1(); c2();
+print "counters:", c1(), c2();
+
+fn map(xs, f) {
+    let out = [];
+    for x in xs { push(out, f(x)); }
+    return out;
+}
+fn filter(xs, keep) {
+    let out = [];
+    for x in xs { if keep(x) { push(out, x); } }
+    return out;
+}
+fn reduce(xs, acc, f) {
+    for x in xs { acc = f(acc, x); }
+    return acc;
+}
+let nums = range(20);
+let squares = map(nums, fn(x) { return x * x; });
+let evens = filter(squares, fn(x) { return x % 2 == 0; });
+print evens;
+print "sum:", reduce(evens, 0, fn(a, b) { return a + b; });
+
+// quicksort on lists
+fn qsort(xs) {
+    if len(xs) <= 1 { return xs; }
+    let pivot = xs[0];
+    let less = [];
+    let more = [];
+    for x in range(len(xs) - 1) {
+        let v = xs[x + 1];
+        if v < pivot { push(less, v); } else { push(more, v); }
+    }
+    return qsort(less) + [pivot] + qsort(more);
+}
+print qsort([33, 4, 15, 8, 42, 16, 23, 4, -1]);
+print qsort(split("pear,apple,fig,banana,cherry", ","));
+
+// maps
+let ages = {"ann": 31, "bob": 25, 3: "three"};
+ages["cid"] = 40;
+ages["bob"] += 1;
+print ages, len(ages), ages["zed"], keys(ages);
+for k in ages { print k, "->", ages[k]; }
+
+// word count
+let text = "the cat and the hat and the bat";
+let counts = {};
+for w in split(text, " ") {
+    if counts[w] == nil { counts[w] = 0; }
+    counts[w] += 1;
+}
+print counts;
+print join(map(range(5), str), "-"), int("  42 "), int("x"), int(true);

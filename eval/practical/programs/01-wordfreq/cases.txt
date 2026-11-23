@@ -1,0 +1,12 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+prose          | prose.txt      |
+prose-top5     | prose.txt      | -n 5 -min 4
+unicode        | unicode.txt    | -n 20
+empty          | empty.txt      |
+no-newline     | nonewline.txt  |
+top-zero       | prose.txt      | -n 0
+bad-n          | prose.txt      | -n abc
+negative-min   | prose.txt      | -min -3
+missing-value  | prose.txt      | -n
+unknown-flag   | prose.txt      | --verbose
+large          | gen-words.txt  | -n 25

@@ -1,0 +1,11 @@
+directed
+a b
+b c
+c d
+d b
+d e
+e f
+f e
+g a
+x y 4
+y x 2

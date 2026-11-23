@@ -1,0 +1,12 @@
+small          | small.log     |
+small-1worker  | small.log     | -workers 1 -batch 1
+malformed      | malformed.log |
+malformed-abort| malformed.log | -maxerr 3
+bad-flag       | small.log     | -workers 0
+unknown-flag   | small.log     | -verbose 1
+stray-arg      | small.log     | extra
+empty          | -             |
+large-w1       | gen-access.log | -workers 1
+large-w4       | gen-access.log | -workers 4
+large-w16      | gen-access.log | -workers 16 -batch 37 -maxerr 1000
+large-abort    | gen-access.log | -workers 8 -maxerr 10

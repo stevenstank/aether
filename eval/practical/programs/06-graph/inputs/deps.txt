@@ -1,0 +1,13 @@
+directed
+# build dependencies: X Y means X must be built before Y
+stdlib   runtime
+runtime  reflect
+stdlib   fmt
+reflect  fmt
+fmt      log
+fmt      json
+reflect  json
+json     server
+log      server
+config   server
+stdlib   config

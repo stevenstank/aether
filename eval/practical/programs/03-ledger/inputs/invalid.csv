@@ -1,0 +1,19 @@
+Date,Account,Kind,Amount,To
+# comments are allowed
+2026-02-30,alice,deposit,10
+2024-02-29,alice,deposit,10
+2023-02-29,alice,deposit,10
+2026-13-01,alice,deposit,10
+2026-1-01,alice,deposit,10
+2026-04-01,,deposit,10
+2026-04-01,alice,refund,10
+2026-04-01,alice,deposit,-5
+2026-04-01,alice,deposit,1.234
+2026-04-01,alice,deposit,abc
+2026-04-01,alice,deposit,0
+2026-04-01,alice,transfer,5
+2026-04-01,alice,transfer,5,alice
+2026-04-01,alice
+2026-04-02,bob,withdraw,0.01
+2026-04-03,alice,deposit,2000000000
+2026-04-04,alice,  WITHDRAW , 3.5

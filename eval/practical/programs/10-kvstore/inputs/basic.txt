@@ -1,0 +1,25 @@
+# basic commands
+PING
+SET greeting "hello, world"
+GET greeting
+GET missing
+SET user:1 alice
+SET user:2 bob
+SET user:10 carol
+set user:3 "dave \"the brave\""
+SCAN user:
+SCAN user: user:2
+SCAN user: "" 2
+SCAN nope
+INCR visits
+INCR visits 41
+INCR greeting
+INCR visits 9223372036854775807
+INCR visits notanumber
+DEL user:2 user:99 visits
+DBSIZE
+STATS
+CHECKPOINT
+GET
+FLY away
+SET "unterminated

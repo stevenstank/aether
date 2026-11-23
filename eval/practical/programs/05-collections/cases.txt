@@ -1,0 +1,7 @@
+default     | - |
+small       | - | 1000 7
+seeded      | - | 50000 12345
+large       | - | 1000000 99
+bad-ops     | - | five
+too-few     | - | 3
+bad-seed    | - | 100 x

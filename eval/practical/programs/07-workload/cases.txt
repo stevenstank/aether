@@ -1,0 +1,12 @@
+all          | - |
+sieve        | - | sieve
+trees        | - | trees
+matmul       | - | matmul
+nbody        | - | nbody
+maps         | - | maps
+sort         | - | sort
+strings      | - | strings
+scale2       | - | -scale 2 sieve matmul maps sort
+scale3-trees | - | -scale 3 trees
+bad-kernel   | - | sieve warp
+bad-scale    | - | -scale 0

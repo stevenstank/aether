@@ -1,0 +1,10 @@
+2026-03-01T10:15:02Z INFO checkout 35 200 /cart
+not a log line at all
+2026-03-01T10:15:02Z INFO checkout 35 200
+2026-03-01 10:15:02 INFO checkout 35 200 /cart
+2026-03-01T10:15:02Z TRACE checkout 35 200 /cart
+2026-03-01T10:15:02Z INFO checkout -1 200 /cart
+2026-03-01T10:15:02Z INFO checkout 35 700 /cart
+2026-03-01T10:15:02Z INFO checkout 3x5 200 /cart
+2026-02-30T10:15:02Z INFO checkout 35 200 /cart
+2026-03-01T10:20:00Z INFO auth 7 200 /login

@@ -1,0 +1,24 @@
+// arithmetic, strings, control flow
+let x = 7;
+let y = 3;
+print x + y, x - y, x * y, x / y, x % y, -x / y, -x % y;
+print "con" + "cat", "ab" * 3, len("héllo");
+print 1 < 2, 2 <= 1, "a" < "b", 1 == 1, [1, 2] == [1, 2], nil == nil;
+print true and false, true or false, not nil, 0 or "default", 5 and 6;
+
+let i = 0;
+let total = 0;
+while i < 10 {
+    i += 1;
+    if i % 2 == 0 { continue; }
+    if i > 7 { break; }
+    total += i;
+}
+print "odd sum below 8:", total;
+
+if x > 10 { print "big"; } else if x > 5 { print "medium"; } else { print "small"; }
+
+for c in "añb" { print "char", c; }
+for n in range(3) { print "n", n; }
+fn print_me() { return 1; }
+print type(1), type("s"), type([]), type({}), type(nil), type(print_me), type(len);

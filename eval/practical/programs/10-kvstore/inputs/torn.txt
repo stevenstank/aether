@@ -1,0 +1,6 @@
+SET k1 v1
+SET k2 "a somewhat longer value"
+STATS
+TEAR 3
+CHECKPOINT
+CORRUPT 100000

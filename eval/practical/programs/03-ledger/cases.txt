@@ -1,0 +1,6 @@
+basic      | basic.csv     |
+invalid    | invalid.csv   |
+bad-quote  | badquote.csv  |
+empty      | empty.csv     |
+no-header  | noheader.csv  |
+large      | gen-ledger.csv |

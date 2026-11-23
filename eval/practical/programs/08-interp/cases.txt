@@ -1,0 +1,15 @@
+basics         | basics.mini         |
+functions      | functions.mini      |
+primes         | primes.mini         |
+runtime-error  | runtime-error.mini  |
+type-error     | type-error.mini     |
+index-error    | index-error.mini    |
+undefined      | undefined.mini      |
+recursion      | recursion.mini      |
+syntax-error   | syntax-error.mini   |
+lex-error      | lex-error.mini      |
+user-error     | user-error.mini     |
+break-outside  | break-outside.mini  |
+empty          | -                   |
+file-arg       | -                   | inputs/basics.mini
+missing-file   | -                   | inputs/does-not-exist.mini

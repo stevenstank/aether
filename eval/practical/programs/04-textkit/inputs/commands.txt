@@ -1,0 +1,32 @@
+reverse Hello, 世界!
+reverse
+palindrome A man, a plan, a canal: Panama
+palindrome Ésope reste ici et se repose
+palindrome hello
+anagrams listen silent enlist google inlets banana Tinsel
+anagrams one two three
+distance kitten sitting
+distance flaw lawn
+distance Straße Strasse
+distance "" abc
+lcs AGGTAB GXTXAYB
+lcs αβγδε βδεζ
+find aba abababa
+find 世界 你好世界世界
+find zzz abc
+rle aaabccddddde
+rle 🙂🙂🙂x
+unrle 3ab4c
+unrle 12z
+unrle 3
+unrle a0b
+caesar 3 Hello, World!
+caesar -29 Khoor, Zruog!
+caesar x hi
+wrap 20 The quick brown fox jumps over the lazy dog and keeps running far away
+wrap 5 supercalifragilistic is long
+wrap 0 nothing
+title hello wORLD from jean-luc picard
+stats Hello, 世界 123!
+frobnicate now
+distance onlyone

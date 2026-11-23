@@ -1,0 +1,39 @@
+SET a 1
+SET b 2
+BEGIN
+SET a 10
+DEL b
+SET c 30
+GET a
+CHECKPOINT
+ROLLBACK
+GET a
+GET b
+GET c
+BEGIN
+INCR a 5
+BEGIN
+SET d 4
+ROLLBACK
+BEGIN
+SET e 5
+COMMIT
+other: SET a 999
+other: GET a
+COMMIT
+other: SET a 999
+GET a
+GET d
+GET e
+COMMIT
+ROLLBACK
+alice: BEGIN
+alice: SET shared x
+bob: SET shared y
+bob: GET shared
+alice: COMMIT
+bob: SET shared y
+GET shared
+DBSIZE
+STATS
+CHECKPOINT

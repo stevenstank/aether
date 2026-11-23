@@ -1,0 +1,11 @@
+# sample access log
+2026-03-01T10:15:02Z INFO checkout 35 200 /cart
+2026-03-01T10:15:09Z INFO checkout 41 200 /cart
+2026-03-01T10:16:00Z WARN search 250 200 /search
+2026-03-01T10:59:59Z ERROR payments 1200 503 /pay
+2026-03-01T11:00:00Z INFO payments 80 200 /pay
+2026-03-01T11:30:00+02:00 DEBUG search 12 200 /search
+2026-03-01T11:45:10Z INFO checkout 30 201 /order
+
+2026-03-01T12:01:00Z INFO search 18 404 /search
+2026-03-01T12:02:00Z INFO auth 5 200 /login

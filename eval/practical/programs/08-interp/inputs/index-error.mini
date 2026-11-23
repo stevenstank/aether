@@ -1,0 +1,2 @@
+let xs = range(3);
+xs[3] = 1;

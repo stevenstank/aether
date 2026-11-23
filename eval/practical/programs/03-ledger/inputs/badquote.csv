@@ -1,0 +1,3 @@
+date,account,kind,amount
+2026-01-01,alice,deposit,"10
+2026-01-02,bob,deposit,5

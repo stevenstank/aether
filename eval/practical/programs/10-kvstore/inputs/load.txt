@@ -1,0 +1,15 @@
+SET counter:total 0
+LOAD 8 500
+GET counter:load0
+GET counter:load7
+SCAN counter: "" 20
+CHECKPOINT
+alice: BEGIN
+alice: INCR counter:total 1000
+alice: COMMIT
+GET counter:total
+LOAD 0 5
+LOAD 64 100
+DBSIZE
+CHECKPOINT
+STATS

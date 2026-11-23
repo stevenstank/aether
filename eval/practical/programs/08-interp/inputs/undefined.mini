@@ -1,0 +1,3 @@
+let a = 1;
+if a { let inner = 2; }
+print inner;

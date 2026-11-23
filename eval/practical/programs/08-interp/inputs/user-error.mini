@@ -1,0 +1,5 @@
+fn check(x) {
+    if x > 3 { error("value " + str(x) + " too large"); }
+    return x;
+}
+for i in range(10) { print check(i); }

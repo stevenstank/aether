@@ -1,0 +1,29 @@
+roads-stats      | roads.txt     | stats
+roads-path       | roads.txt     | path Amsel Eich
+roads-path-same  | roads.txt     | path Dorn Dorn
+roads-unreach    | roads.txt     | path Amsel Hain
+roads-unknown    | roads.txt     | path Amsel Zeta
+roads-hops       | roads.txt     | hops Amsel
+roads-mst        | roads.txt     | mst
+roads-topo       | roads.txt     | topo
+deps-topo        | deps.txt      | topo
+deps-scc         | deps.txt      | scc
+deps-mst         | deps.txt      | mst
+cyclic-topo      | cyclic.txt    | topo
+cyclic-scc       | cyclic.txt    | scc
+cyclic-far       | cyclic.txt    | far g
+negative-path    | negative.txt  | path p r
+negative-hops    | negative.txt  | hops p
+malformed        | malformed.txt | stats
+bad-weight       | badweight.txt | stats
+no-command       | roads.txt     |
+bad-command      | roads.txt     | color
+missing-node     | roads.txt     | path Amsel
+empty            | -             | stats
+large-stats      | gen-graph.txt | stats
+large-far        | gen-graph.txt | far n0
+large-path       | gen-graph.txt | path n0 n4999
+large-scc        | gen-graph.txt | scc
+large-hops       | gen-graph.txt | hops n17
+large-mst        | gen-ugraph.txt | mst
+large-topo       | gen-dag.txt   | topo

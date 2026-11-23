@@ -1,0 +1,47 @@
+// sieve and some heavier loops
+let n = 30000;
+let composite = [];
+for i in range(n + 1) { push(composite, false); }
+let count = 0;
+let last = 0;
+let i = 2;
+while i <= n {
+    if not composite[i] {
+        count += 1;
+        last = i;
+        let j = i * i;
+        while j <= n {
+            composite[j] = true;
+            j += i;
+        }
+    }
+    i += 1;
+}
+print "primes up to", n, ":", count, "largest", last;
+
+fn collatz(n) {
+    let steps = 0;
+    while n != 1 {
+        if n % 2 == 0 { n = n / 2; } else { n = 3 * n + 1; }
+        steps += 1;
+    }
+    return steps;
+}
+let best = 0;
+let arg = 0;
+for k in range(20000) {
+    let s = collatz(k + 1);
+    if s > best { best = s; arg = k + 1; }
+}
+print "longest collatz below 20000:", arg, best;
+
+let memo = {};
+fn ways(n) {
+    if n < 0 { return 0; }
+    if n == 0 { return 1; }
+    if memo[n] != nil { return memo[n]; }
+    let r = ways(n - 1) + ways(n - 2) + ways(n - 3);
+    memo[n] = r;
+    return r;
+}
+print "ways(60) =", ways(60);

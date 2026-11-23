@@ -1,0 +1,7 @@
+let xs = [1, 2, 3];
+print "before";
+print xs[-1], xs[0];
+fn risky(d) { return 100 / d; }
+print risky(5);
+print risky(0);
+print "unreachable";

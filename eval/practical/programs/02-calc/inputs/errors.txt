@@ -1,0 +1,15 @@
+1 / 0
+5 % 0
+undefined_var + 1
+3 +
+(4 + 5
+4 + 5)
+sqrt(-1)
+sqrt(1, 2)
+nosuch(3)
+min()
+2 $ 3
+1..2 + 3
+pi = 3
+ok = 7
+ok * 6

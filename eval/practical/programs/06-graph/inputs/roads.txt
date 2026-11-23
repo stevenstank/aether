@@ -1,0 +1,13 @@
+undirected
+# city road network, weights in km
+Amsel   Birke   7
+Amsel   Celle   9
+Amsel   Fohr    14
+Birke   Celle   10
+Birke   Dorn    15
+Celle   Dorn    11
+Celle   Fohr    2
+Dorn    Eich    6
+Eich    Fohr    9
+Gans    Hain    3   # separate island
+Insel

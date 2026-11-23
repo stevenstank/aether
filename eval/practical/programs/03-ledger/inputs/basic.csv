@@ -1,0 +1,13 @@
+date,account,kind,amount,to
+2026-01-03,alice,deposit,1500.00
+2026-01-03,bob,deposit,320.5
+2026-01-05,alice,withdraw,200
+2026-01-09,alice,transfer,250.25,carol
+2026-01-15,bob,withdraw,400.00
+2026-01-31,carol,withdraw,50.25
+2026-02-01,bob,deposit,1200
+2026-02-14,carol,transfer,100,dave
+2026-02-28,alice,deposit,12345678.99
+2026-03-01,dave,withdraw,100
+2026-02-10,"smith, j",deposit,"1,000"
+2026-02-11,"smith, j",deposit,99.9
