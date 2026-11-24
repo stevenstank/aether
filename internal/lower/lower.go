@@ -69,6 +69,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 	l.lits, l.captures = literals(pkg)
 	l.unwinds = programDefers(pkg)
 	l.countG = reached(pkg, "runtime.NumGoroutine")
+	l.implements = reached(pkg, "internal/reflectlite.implements")
 	for _, u := range program.Packages {
 		l.reflect = l.reflect || u.Types.Path() == "reflect" || u.Types.Path() == "internal/reflectlite"
 	}
@@ -220,6 +221,10 @@ type lowerer struct {
 	// countG is whether the scheduler counts goroutines, for
 	// runtime.NumGoroutine (intrinsic.go).
 	countG bool
+	// implements is whether the program reaches internal/reflectlite's
+	// implements, whose interface descriptors then give their .findK
+	// and defined types' their underlying types (reflect.go, D-050).
+	implements bool
 	// reflect is whether the program has package reflect or
 	// internal/reflectlite, whose type descriptors describe their types
 	// in full (reflect.go).
@@ -541,8 +546,12 @@ func (l *lowerer) minMax(e *ast.CallExpr, isMin bool) *ir.Instr {
 	}
 	for _, v := range vals[1:] {
 		x := v()
-		if x.Type != res.Type || x.Type.IsFloat() {
+		if x.Type != res.Type {
 			l.fail(e, "%s of operands of types %s and %s", ast.Unparen(e.Fun), x.Type, res.Type)
+		}
+		if x.Type.IsFloat() {
+			l.fn.Store(l.b, res, l.fn.Call(l.b, l.floatMinMaxFunc(x.Type, isMin, pos), []*ir.Instr{l.fn.Load(l.b, res, pos), v()}, pos), pos)
+			continue
 		}
 		set, join := l.fn.NewBlock(), l.fn.NewBlock()
 		l.fn.Branch(l.b, l.compare(op, x, l.fn.Load(l.b, res, pos), pos), set, join, pos)
@@ -552,6 +561,116 @@ func (l *lowerer) minMax(e *ast.CallExpr, isMin bool) *ir.Instr {
 		l.b = join
 	}
 	return l.fn.Load(l.b, res, pos)
+}
+
+// floatMinMaxFunc returns the program's function .fminN or .fmaxN, made on
+// its first use, of N-bit floats x and y (floatMinMax). A function of its
+// own holds the memory object that converts between floats and their bits,
+// so that a function using min or max has none (D-034's frame bound).
+func (l *lowerer) floatMinMaxFunc(t ir.Type, isMin bool, pos ir.Pos) *ir.Func {
+	name := "fmax"
+	if isMin {
+		name = "fmin"
+	}
+	if t == ir.F32 {
+		name += "32"
+	} else {
+		name += "64"
+	}
+	return l.wrapper(name, []ir.Type{t, t}, []ir.Type{t}, pos, func(w *ir.Func) {
+		ps := l.enter(w, pos)
+		res := l.fn.NewSlot("x", t, pos)
+		l.fn.Store(l.b, res, ps[0](), pos)
+		l.floatMinMax(res, ps[1], isMin, pos)
+		l.fn.Ret(l.b, pos, l.fn.Load(l.b, res, pos))
+		prune(l.fn)
+	})
+}
+
+// floatMinMax sets res, holding x, to min(x, y) or max(x, y) of floats
+// exactly as gc computes them on amd64 (its Min64F and Max64F rules):
+// min is bits(m2) | bits(m), where m = MINSD(x, y), m2 = MINSD(m, x), and
+// MINSD(a, b) = a < b ? a : b; max is -min(-x, -y), negation flipping the
+// sign bit. Without NaNs this is the specification's min and max, with
+// min(-0, +0) = -0 and max(-0, +0) = +0; a NaN operand gives a NaN whose
+// sign and payload are gc's (D-049, Batch 1).
+func (l *lowerer) floatMinMax(res *ir.Slot, y func() *ir.Instr, isMin bool, pos ir.Pos) {
+	t := res.Type
+	it, size := ir.U64, int64(8)
+	sign := uint64(1) << 63
+	if t == ir.F32 {
+		it, size, sign = ir.U32, 4, 1<<31
+	}
+	m := l.fn.NewMem("fbits", size, size, pos)
+	zero := func() *ir.Instr { return l.fn.Const(l.b, 0, pos) }
+	toBits := func(v *ir.Instr) *ir.Instr {
+		a := l.fn.Addr(l.b, m, pos)
+		l.fn.StM(l.b, a, zero(), v, pos)
+		return l.fn.LdM(l.b, it, a, zero(), pos)
+	}
+	toFloat := func(v *ir.Instr) *ir.Instr {
+		a := l.fn.Addr(l.b, m, pos)
+		l.fn.StM(l.b, a, zero(), v, pos)
+		return l.fn.LdM(l.b, t, a, zero(), pos)
+	}
+	flip := func(v *ir.Instr) *ir.Instr {
+		if isMin {
+			return v
+		}
+		return l.fn.Binary(l.b, ir.Xor, v, l.fn.TypedConst(l.b, it, int64(sign), pos), pos)
+	}
+	xs, ys := l.fn.NewSlot("fx", it, pos), l.fn.NewSlot("fy", it, pos)
+	l.fn.Store(l.b, xs, flip(toBits(l.fn.Load(l.b, res, pos))), pos)
+	l.fn.Store(l.b, ys, flip(toBits(y())), pos)
+	ld := func(s *ir.Slot) *ir.Instr { return l.fn.Load(l.b, s, pos) }
+	// minsd stores in dst MINSD(a, b) of the bits in a and b.
+	minsd := func(dst, a, b *ir.Slot) {
+		takeA, takeB, join := l.fn.NewBlock(), l.fn.NewBlock(), l.fn.NewBlock()
+		l.fn.Branch(l.b, l.fn.Float(l.b, ir.FLt, pos, toFloat(ld(a)), toFloat(ld(b))), takeA, takeB, pos)
+		l.b = takeA
+		l.fn.Store(l.b, dst, ld(a), pos)
+		l.fn.Jump(l.b, join, pos)
+		l.b = takeB
+		l.fn.Store(l.b, dst, ld(b), pos)
+		l.fn.Jump(l.b, join, pos)
+		l.b = join
+	}
+	ms, m2s := l.fn.NewSlot("fm", it, pos), l.fn.NewSlot("fm2", it, pos)
+	minsd(ms, xs, ys)
+	minsd(m2s, ms, xs)
+	r := flip(l.fn.Binary(l.b, ir.Or, ld(m2s), ld(ms), pos))
+	l.fn.Store(l.b, res, toFloat(r), pos)
+}
+
+// stringMinMax lowers min or max of strings: the arguments, left to right,
+// then a fold by .strcmp keeping the first of equal strings, as gc does.
+func (l *lowerer) stringMinMax(e *ast.CallExpr, isMin bool) []*ir.Instr {
+	pos := l.pos(e, e.Pos())
+	vals := make([]func() []*ir.Instr, len(e.Args))
+	for i, a := range e.Args {
+		vals[i] = l.spillWords(l.value(a), pos)
+	}
+	p, n := l.fn.NewSlot("minmaxp", ir.Ptr, pos), l.fn.NewSlot("minmaxn", ir.I64, pos)
+	w := vals[0]()
+	l.fn.Store(l.b, p, w[0], pos)
+	l.fn.Store(l.b, n, w[1], pos)
+	op := ir.Gt
+	if isMin {
+		op = ir.Lt
+	}
+	for _, v := range vals[1:] {
+		y := v()
+		c := l.fn.Call(l.b, l.strcmpFunc(pos), []*ir.Instr{y[0], y[1], l.fn.Load(l.b, p, pos), l.fn.Load(l.b, n, pos)}, pos)
+		set, join := l.fn.NewBlock(), l.fn.NewBlock()
+		l.fn.Branch(l.b, l.fn.Compare(l.b, op, c, l.fn.Const(l.b, 0, pos), pos), set, join, pos)
+		l.b = set
+		y = v()
+		l.fn.Store(l.b, p, y[0], pos)
+		l.fn.Store(l.b, n, y[1], pos)
+		l.fn.Jump(l.b, join, pos)
+		l.b = join
+	}
+	return []*ir.Instr{l.fn.Load(l.b, p, pos), l.fn.Load(l.b, n, pos)}
 }
 
 // qualify returns name, of obj or a function or global for it, qualified
@@ -2054,6 +2173,11 @@ func (l *lowerer) value(e ast.Expr) []*ir.Instr {
 	case *ast.CallExpr:
 		if l.pkg.Info.Types[e.Fun].IsType() {
 			return l.stringConversion(e)
+		}
+		if id, ok := ast.Unparen(e.Fun).(*ast.Ident); ok {
+			if b, _ := l.pkg.Info.Uses[id].(*types.Builtin); b != nil && (b.Name() == "min" || b.Name() == "max") {
+				return l.stringMinMax(e, b.Name() == "min")
+			}
 		}
 		vals := l.results(e, l.call(e))
 		if len(vals) != 1 {

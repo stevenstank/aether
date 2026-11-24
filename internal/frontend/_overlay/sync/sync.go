@@ -1,5 +1,6 @@
 // Package sync is Aether's replacement of gc's sync package (D-049,
-// increment 11.6): Mutex, RWMutex, WaitGroup, and Once. Aether runs every
+// increment 11.6): Mutex, RWMutex, WaitGroup, Once, Pool, and (Batch 1)
+// Map, OnceFunc, OnceValue, and OnceValues. Aether runs every
 // goroutine on one thread and switches only when one blocks or yields
 // (D-048), so plain memory operations are atomic here; goroutines wait on
 // channels.

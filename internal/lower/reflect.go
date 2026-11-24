@@ -22,11 +22,21 @@ import (
 //	   its offset, its flags (1 exported, 2 embedded), and the path of
 //	   its package if it is not exported (empty otherwise)
 //	80 a map entry's size, 88 the element's offset in it (maps.go)
+//	96 for a non-empty interface, the code address of its .findK
+//	   (iface.go): given a descriptor twice, the itab of its type and the
+//	   interface, or 0 if the type does not implement it
+//	104 for a defined type, the descriptor of its underlying type (its
+//	   own for a predeclared one); 0 for a type literal
+//
+// 96 and 104 are written only in a program that reaches
+// internal/reflectlite's implements, for Type.Implements, AssignableTo,
+// and Value.Set (D-050). A channel's word 64 is its direction, as gc
+// numbers them (1 receive, 2 send, 3 both).
 //
 // The descriptors of the element, key, and field types are made with it,
 // so reflect reaches every type a value holds.
 const (
-	reflectDescSize = 96
+	reflectDescSize = 112
 	fieldRecSize    = 56
 )
 
@@ -78,6 +88,27 @@ func (l *lowerer) reflectDesc(d *tdesc, pos ir.Pos) {
 			d.fieldDescs = append(d.fieldDescs, l.desc(f.Type()))
 		}
 	}
+	if !l.implements {
+		return
+	}
+	switch {
+	case isIface(d.t):
+		if !isEmptyIface(d.t) {
+			d.find = l.findFunc(d.t, pos)
+		}
+	case isDefined(d.t):
+		d.under = l.desc(d.t.Underlying())
+	}
+}
+
+// isDefined reports whether t is a defined type, which reflect says has a
+// name: a named type or a predeclared one.
+func isDefined(t types.Type) bool {
+	switch types.Unalias(t).(type) {
+	case *types.Named, *types.Basic:
+		return true
+	}
+	return false
 }
 
 // initReflectDesc writes, in Init's entry block b, the words of the
@@ -94,9 +125,17 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 	if d.key != nil {
 		word(a, 56, l.fn.Addr(b, d.key.mem, pos))
 	}
+	if d.find != nil {
+		word(a, 96, l.fn.FuncAddr(b, d.find, pos))
+	}
+	if d.under != nil {
+		word(a, 104, l.fn.Addr(b, d.under.mem, pos))
+	}
 	switch u := d.t.Underlying().(type) {
 	case *types.Array:
 		word(a, 64, c(u.Len()))
+	case *types.Chan:
+		word(a, 64, c(map[types.ChanDir]int64{types.RecvOnly: 1, types.SendOnly: 2, types.SendRecv: 3}[u.Dir()]))
 	case *types.Interface:
 		word(a, 64, c(int64(u.NumMethods())))
 	case *types.Map:

@@ -66,6 +66,10 @@ type tdesc struct {
 	elem, key  *tdesc
 	fields     *ir.Mem
 	fieldDescs []*tdesc
+	// With internal/reflectlite's implements (reflect.go, D-050): an
+	// interface's .findK, and a defined type's underlying type.
+	find  *ir.Func
+	under *tdesc
 }
 
 // itabT is the itab of a type and an interface.

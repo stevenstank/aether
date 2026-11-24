@@ -1232,8 +1232,9 @@ func (c *checker) call(call *ast.CallExpr) bool {
 				}
 				return true
 			}
-			// min and max of integers (D-049).
-			if (obj.Name() == "min" || obj.Name() == "max") && !call.Ellipsis.IsValid() && isInteger(c.info.Types[call].Type) {
+			// min and max of integers (D-049), and of floats and strings
+			// (Batch 1).
+			if (obj.Name() == "min" || obj.Name() == "max") && !call.Ellipsis.IsValid() && isOrdered(c.info.Types[call].Type) {
 				for _, a := range call.Args {
 					c.expr(a)
 				}
@@ -1878,6 +1879,13 @@ func isRuneSlice(t types.Type) bool {
 func isInteger(t types.Type) bool {
 	b, ok := t.Underlying().(*types.Basic)
 	return ok && b.Info()&types.IsInteger != 0
+}
+
+// isOrdered reports whether t is an integer, float, or string type, the
+// operand types of min and max.
+func isOrdered(t types.Type) bool {
+	b, ok := t.Underlying().(*types.Basic)
+	return ok && b.Info()&(types.IsInteger|types.IsFloat|types.IsString) != 0
 }
 
 // isString reports whether t is string or untyped string.

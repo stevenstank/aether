@@ -320,8 +320,13 @@ func TestStdRejects(t *testing.T) {
 			diag.Unsupported, "p.go:3:23: unsupported: runtime.Goexit, which Aether's package runtime does not have, is not supported in subset S1 [stdlib-package]"},
 		{"os method", "package main\nimport \"os\"\nfunc main() { os.Stdout.Close() }\n",
 			diag.Unsupported, "p.go:3:25: unsupported: os.File.Close, which Aether's package os does not have,"},
-		{"sync type", "package main\nimport \"sync\"\nvar m sync.Map\nfunc main() {}\n",
-			diag.Unsupported, "p.go:3:12: unsupported: sync.Map, which Aether's package sync does not have,"},
+		{"sync type", "package main\nimport \"sync\"\nvar c sync.Cond\nfunc main() {}\n",
+			diag.Unsupported, "p.go:3:12: unsupported: sync.Cond, which Aether's package sync does not have,"},
+		// Declared for type checking, but unsupported if reached (Batch 1).
+		{"runtime.Callers", "package main\nimport \"runtime\"\nfunc main() { pc := make([]uintptr, 4); println(runtime.Callers(0, pc)) }\n",
+			diag.Unsupported, "$AETHER/runtime/extern.go:55:1: unsupported: function Callers without a body (implemented outside Go)"},
+		{"runtime.Caller", "package main\nimport \"runtime\"\nfunc main() { _, file, _, _ := runtime.Caller(0); println(file) }\n",
+			diag.Unsupported, "$AETHER/runtime/extern.go:63:1: unsupported: function Caller without a body (implemented outside Go)"},
 		{"unexported", "package main\nimport \"sync\"\nfunc main() { var m sync.Mutex; println(m.locked) }\n",
 			diag.Invalid, "p.go:3:43: invalid: m.locked undefined"},
 		{"still invalid", "package main\nimport \"os\"\nfunc main() { os.Exit(\"1\") }\n",
@@ -334,8 +339,10 @@ func TestStdRejects(t *testing.T) {
 			diag.Unsupported, "p.go:3:21: unsupported: type struct{error}"},
 		{"println of unsafe.Pointer", "package main\nimport \"unsafe\"\nfunc main() { println(unsafe.Pointer(nil)) }\n",
 			diag.Unsupported, "p.go:3:30: unsupported: println argument of type unsafe.Pointer"},
-		{"errors.As", "package main\nimport \"errors\"\ntype E struct{}\nfunc (*E) Error() string { return \"\" }\nfunc main() { var e *E; println(errors.As(errors.New(\"x\"), &e)) }\n",
-			diag.Unsupported, "$AETHER/errors/wrap.go:60:1: unsupported: function As without a body"},
+		// errors.As is gc's (Batch 1); AsType of main's type is another
+		// package's generic code instantiated with it (11.7).
+		{"errors.AsType", "package main\nimport \"errors\"\ntype E struct{}\nfunc (*E) Error() string { return \"\" }\nfunc main() { _, ok := errors.AsType[*E](errors.New(\"x\")); println(ok) }\n",
+			diag.Unsupported, "p.go:5:24: unsupported: type argument main.E, which package errors cannot name"},
 		// Another package's generic code (11.7).
 		{"type argument of main", "package main\nimport \"slices\"\ntype T int\nfunc main() { slices.Sort([]T{2, 1}) }\n",
 			diag.Unsupported, "p.go:4:22: unsupported: type argument main.T, which package slices cannot name, is not supported in subset S1 [generic-instance]"},

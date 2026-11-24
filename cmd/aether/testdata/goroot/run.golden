@@ -9,7 +9,7 @@ abi/f_ret_z_not.go pass
 abi/fibish.go pass
 abi/fibish_closure.go pass
 abi/fuzz_trailing_zero_field.go pass
-abi/idata.go unsupported stdlib-package
+abi/idata.go unsupported generic-instance
 abi/leaf.go pass
 abi/leaf2.go pass
 abi/many_int_input.go pass
@@ -189,7 +189,7 @@ fixedbugs/bug246.go unsupported println-argument-type
 fixedbugs/bug247.go pass
 fixedbugs/bug253.go pass
 fixedbugs/bug254.go pass
-fixedbugs/bug257.go unsupported stdlib-package
+fixedbugs/bug257.go unsupported directive
 fixedbugs/bug258.go unsupported function-without-body
 fixedbugs/bug259.go pass
 fixedbugs/bug260.go pass
@@ -268,7 +268,7 @@ fixedbugs/bug454.go pass
 fixedbugs/bug455.go pass
 fixedbugs/bug456.go pass
 fixedbugs/bug457.go pass
-fixedbugs/bug461.go unsupported stdlib-package
+fixedbugs/bug461.go pass
 fixedbugs/bug470.go pass
 fixedbugs/bug473.go pass
 fixedbugs/bug474.go pass
@@ -292,7 +292,7 @@ fixedbugs/issue10253.go pass
 fixedbugs/issue10320.go pass
 fixedbugs/issue10332.go pass
 fixedbugs/issue10353.go pass
-fixedbugs/issue10486.go unsupported stdlib-package
+fixedbugs/issue10486.go unsupported function-without-body
 fixedbugs/issue10607.go unsupported stdlib-package
 fixedbugs/issue10925.go pass
 fixedbugs/issue11256.go unsupported stdlib-package
@@ -318,7 +318,7 @@ fixedbugs/issue13684.go pass
 fixedbugs/issue14553.go pass
 fixedbugs/issue14591.go pass
 fixedbugs/issue14636.go unsupported stdlib-package
-fixedbugs/issue14646.go unsupported stdlib-package
+fixedbugs/issue14646.go unsupported function-without-body
 fixedbugs/issue14651.go pass
 fixedbugs/issue14725.go pass
 fixedbugs/issue15002.go unsupported stdlib-package
@@ -364,13 +364,13 @@ fixedbugs/issue19040.go pass
 fixedbugs/issue19078.go pass
 fixedbugs/issue19113.go unsupported stdlib-package
 fixedbugs/issue19182.go unsupported stdlib-package
-fixedbugs/issue19201.go unsupported stdlib-package
+fixedbugs/issue19201.go pass
 fixedbugs/issue19246.go pass
 fixedbugs/issue19275.go pass
 fixedbugs/issue19359.go pass
 fixedbugs/issue19658.go unsupported stdlib-package
 fixedbugs/issue19710.go pass
-fixedbugs/issue19799.go unsupported stdlib-package
+fixedbugs/issue19799.go unsupported function-without-body
 fixedbugs/issue19911.go pass
 fixedbugs/issue20029.go pass
 fixedbugs/issue20530.go pass
@@ -381,7 +381,7 @@ fixedbugs/issue21317.go unsupported stdlib-package
 fixedbugs/issue21576.go unsupported stdlib-package
 fixedbugs/issue21687.go pass
 fixedbugs/issue21808.go pass
-fixedbugs/issue21879.go unsupported stdlib-package
+fixedbugs/issue21879.go unsupported function-without-body
 fixedbugs/issue21887.go pass
 fixedbugs/issue21963.go pass
 fixedbugs/issue22083.go unsupported stdlib-package
@@ -485,7 +485,7 @@ fixedbugs/issue33062.go pass
 fixedbugs/issue33275_run.go unsupported stdlib-package
 fixedbugs/issue33555.go unsupported stdlib-package
 fixedbugs/issue33724.go unsupported stdlib-package
-fixedbugs/issue34123.go unsupported stdlib-package
+fixedbugs/issue34123.go unsupported function-without-body
 fixedbugs/issue34395.go unsupported composite-literal
 fixedbugs/issue35576.go pass
 fixedbugs/issue36437.go unsupported stdlib-package
@@ -526,14 +526,14 @@ fixedbugs/issue43942.go unsupported stdlib-package
 fixedbugs/issue4396a.go pass
 fixedbugs/issue4396b.go pass
 fixedbugs/issue4448.go pass
-fixedbugs/issue44823.go unsupported stdlib-package
+fixedbugs/issue44823.go pass
 fixedbugs/issue44830.go unsupported stdlib-package
 fixedbugs/issue4495.go pass
 fixedbugs/issue45045.go unsupported stdlib-package
 fixedbugs/issue45175.go pass
 fixedbugs/issue4518.go pass
 fixedbugs/issue45242.go pass
-fixedbugs/issue4562.go unsupported stdlib-package
+fixedbugs/issue4562.go unsupported function-without-body
 fixedbugs/issue4585.go pass
 fixedbugs/issue45851.go pass
 fixedbugs/issue4618.go unsupported stdlib-package
@@ -564,14 +564,14 @@ fixedbugs/issue50671.go pass
 fixedbugs/issue50672.go pass
 fixedbugs/issue50854.go pass
 fixedbugs/issue51101.go pass
-fixedbugs/issue51401.go unsupported stdlib-package
+fixedbugs/issue51401.go unsupported function-without-body
 fixedbugs/issue51733.go unsupported stdlib-package
 fixedbugs/issue51913.go pass
 fixedbugs/issue52072.go pass
 fixedbugs/issue52127.go unsupported stdlib-package
 fixedbugs/issue52438.go pass
 fixedbugs/issue5244.go pass
-fixedbugs/issue52612.go unsupported stdlib-package
+fixedbugs/issue52612.go pass
 fixedbugs/issue52788.go unsupported stdlib-package
 fixedbugs/issue52788a.go unsupported stdlib-package
 fixedbugs/issue52953.go pass
@@ -606,7 +606,7 @@ fixedbugs/issue5809.go pass
 fixedbugs/issue5820.go pass
 fixedbugs/issue58300.go unsupported stdlib-package
 fixedbugs/issue58300b.go unsupported stdlib-package
-fixedbugs/issue5856.go unsupported stdlib-package
+fixedbugs/issue5856.go unsupported function-without-body
 fixedbugs/issue58671.go pass
 fixedbugs/issue59293.go pass
 fixedbugs/issue59338.go pass
@@ -619,10 +619,10 @@ fixedbugs/issue59680.go unsupported stdlib-package
 fixedbugs/issue6055.go pass
 fixedbugs/issue60601.go unsupported generic-instance
 fixedbugs/issue62203.go pass
-fixedbugs/issue62360.go unsupported stdlib-package
+fixedbugs/issue62360.go unsupported generic-instance
 fixedbugs/issue6269.go pass
 fixedbugs/issue63657.go pass
-fixedbugs/issue64565.go unsupported builtin
+fixedbugs/issue64565.go pass
 fixedbugs/issue64715.go pass
 fixedbugs/issue65417.go unsupported generic-instance
 fixedbugs/issue65962.go pass
@@ -673,7 +673,7 @@ fixedbugs/issue74935.go pass
 fixedbugs/issue75327.go pass
 fixedbugs/issue7550.go pass
 fixedbugs/issue75569.go pass
-fixedbugs/issue76008.go unsupported stdlib-package
+fixedbugs/issue76008.go unsupported function-without-body
 fixedbugs/issue76709.go pass
 fixedbugs/issue7690.go unsupported stdlib-package
 fixedbugs/issue7740.go unsupported stdlib-package
@@ -758,7 +758,7 @@ ken/cplx2.go unsupported println-argument-type
 ken/cplx3.go unsupported complex-arithmetic
 ken/cplx4.go unsupported complex-arithmetic
 ken/cplx5.go unsupported complex-arithmetic
-ken/divconst.go unsupported stdlib-package
+ken/divconst.go unsupported generic-instance
 ken/divmod.go pass
 ken/embed.go unsupported println-argument-type
 ken/for.go pass
@@ -768,7 +768,7 @@ ken/intervar.go pass
 ken/label.go pass
 ken/litfun.go pass
 ken/mfunc.go pass
-ken/modconst.go unsupported stdlib-package
+ken/modconst.go unsupported generic-instance
 ken/ptrfun.go pass
 ken/ptrvar.go pass
 ken/range.go pass
@@ -956,7 +956,7 @@ typeparam/issue54225.go pass
 typeparam/issue54456.go unsupported local-type-declaration
 typeparam/issue54535.go pass
 typeparam/issue54537.go pass
-typeparam/issue58513.go unsupported stdlib-package
+typeparam/issue58513.go unsupported function-without-body
 typeparam/list.go pass
 typeparam/list2.go pass
 typeparam/lockable.go pass
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 736 pass (73.2%), 269 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 741 pass (73.7%), 264 unsupported, 0 bug

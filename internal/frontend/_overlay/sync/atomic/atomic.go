@@ -5,6 +5,8 @@
 // one, and CompareAndSwap whether it stored new.
 package atomic
 
+import "unsafe"
+
 func SwapInt32(addr *int32, new int32) (old int32)  { old = *addr; *addr = new; return old }
 func AddInt32(addr *int32, delta int32) (new int32) { *addr += delta; return *addr }
 func AndInt32(addr *int32, mask int32) (old int32)  { old = *addr; *addr = old & mask; return old }
@@ -165,5 +167,93 @@ func (x *Bool) CompareAndSwap(old, new bool) (swapped bool) {
 		return false
 	}
 	x.v = new
+	return true
+}
+
+// A Pointer is an atomic pointer of type *T. The zero value is a nil *T.
+type Pointer[T any] struct {
+	// Mention *T in a field to disallow conversion between Pointer types,
+	// as gc's does.
+	_ [0]*T
+	v unsafe.Pointer
+}
+
+func (x *Pointer[T]) Load() *T     { return (*T)(x.v) }
+func (x *Pointer[T]) Store(val *T) { x.v = unsafe.Pointer(val) }
+func (x *Pointer[T]) Swap(new *T) (old *T) {
+	old = (*T)(x.v)
+	x.v = unsafe.Pointer(new)
+	return old
+}
+func (x *Pointer[T]) CompareAndSwap(old, new *T) (swapped bool) {
+	if x.v != unsafe.Pointer(old) {
+		return false
+	}
+	x.v = unsafe.Pointer(new)
+	return true
+}
+
+// A Value provides an atomic load and store of a consistently typed value.
+// The zero Value returns nil from Load. Its methods panic as gc's do: a nil
+// value, or a value of another dynamic type than the first stored.
+type Value struct {
+	v any
+}
+
+// efaceWords is an empty interface's words: its type descriptor and data.
+type efaceWords struct {
+	typ  unsafe.Pointer
+	data unsafe.Pointer
+}
+
+// typeOf returns the type word of the empty interface *p.
+func typeOf(p *any) unsafe.Pointer { return (*efaceWords)(unsafe.Pointer(p)).typ }
+
+func (v *Value) Load() (val any) { return v.v }
+
+func (v *Value) Store(val any) {
+	if val == nil {
+		panic("sync/atomic: store of nil value into Value")
+	}
+	if v.v != nil && typeOf(&v.v) != typeOf(&val) {
+		panic("sync/atomic: store of inconsistently typed value into Value")
+	}
+	v.v = val
+}
+
+func (v *Value) Swap(new any) (old any) {
+	if new == nil {
+		panic("sync/atomic: swap of nil value into Value")
+	}
+	if v.v != nil && typeOf(&v.v) != typeOf(&new) {
+		panic("sync/atomic: swap of inconsistently typed value into Value")
+	}
+	old, v.v = v.v, new
+	return old
+}
+
+// CompareAndSwap compares with ==, so a value of a type that is not
+// comparable panics as gc's does.
+func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
+	if new == nil {
+		panic("sync/atomic: compare and swap of nil value into Value")
+	}
+	if old != nil && typeOf(&new) != typeOf(&old) {
+		panic("sync/atomic: compare and swap of inconsistently typed values")
+	}
+	if v.v == nil {
+		if old != nil {
+			return false
+		}
+		v.v = new
+		return true
+	}
+	if typeOf(&v.v) != typeOf(&new) {
+		panic("sync/atomic: compare and swap of inconsistently typed value into Value")
+	}
+	if v.v != old {
+		return false
+	}
+	v.v = new
 	return true
 }

@@ -1327,8 +1327,8 @@ internals). They declare part of gc's API, with gc's behavior:
   `Uintptr`, and `Bool` with their methods. Goroutines switch only when
   one blocks or yields (D-048), so plain memory operations are atomic.
 - `unsupported` (`stdlib-package`): a name these packages do not declare
-  (for example `runtime.Caller`, `os.Getenv`, `sync.Map`,
-  `atomic.Pointer`, `WaitGroup.Go`, `File.Close`), named by the main
+  (for example `runtime.Goexit`, `os.Getenv`, `sync.Cond`,
+  `WaitGroup.Go`, `File.Close`), named by the main
   module, which gc's packages declare; and a standard-library package
   that uses one (for example `io` needs `sync.Pool`, so `strings` and
   `bytes` stay unsupported).
@@ -1362,7 +1362,7 @@ package's generic code is `unsupported`.
   R.6): `internal/reflectlite` is Aether's, `ValueOf`, `Len`, and
   `Swapper` over the type descriptors, which are then full as with
   `reflect`. A non-slice argument panics with gc's message.
-- `unsupported`: `errors.As` until Aether has reflection; `iter.Pull` and `iter.Pull2` (`stdlib-package`);
+- `unsupported`: `iter.Pull` and `iter.Pull2` (`stdlib-package`);
   everything ranging over an iterator (`slices.Collect`, `maps.Keys`, ...,
   `for-range`); `sort.Reverse` (a struct embedding an interface).
 
@@ -1458,6 +1458,40 @@ and `os`; the rest of the subset applies to what it reaches.
   for scanning into a `[]byte`. A program whose printing or scanning
   reaches what Aether's `reflect` does not declare is `unsupported`.
 
+## Capability Batch 1 (after the practical evaluation)
+
+- **`min` and `max` of every ordered type**: integers, floats, and
+  strings, of any number of operands, folded left as gc folds them. For
+  floats, the result is gc's on amd64, bit for bit: `min(-0, +0)` is `-0`,
+  `max(-0, +0)` is `+0`, and an operand NaN gives a NaN whose sign and
+  payload are gc's (its `MINSD` sequence ORs the bits of two candidates).
+  Strings compare as `<` does.
+- **`sync/atomic`**: `Pointer[T]` and `Value`, with gc's panics for a nil
+  value and for one of another dynamic type than the first stored. A
+  `Pointer` of a type `sync/atomic` cannot name is a generic instance of
+  another package (`generic-instance`, 11.7).
+- **`sync`**: `Map`, with every method; keys hash and values compare as
+  interface values, with the runtime's panics; `Range` visits the entries
+  in Aether's map order (V-8). gc's `CompareAndDelete` of a value that is
+  not comparable panics while holding the map's lock, so gc's map stays
+  locked if the panic is recovered; Aether's does not. `OnceFunc`,
+  `OnceValue`, and `OnceValues` are gc's `oncefunc.go`.
+- **`runtime`**: `Frame`, `Frames`, and `Func` are declared, with gc's
+  fields; the zero `Frames` has no frames, as gc's. `Callers`,
+  `CallersFrames`, and `Caller` are declared so that packages naming them
+  (for example `internal/bisect`) type-check; a program that reaches one
+  is `unsupported` (`function-without-body`).
+- **`reflect`**: `Indirect` and `Value.CanSet`.
+- **`hash/crc32`** and **`encoding/binary`** are compiled from GOROOT;
+  `crc32` uses gc's table-driven `crc32_otherarch.go` in place of its
+  amd64 assembly, with the same results.
+- **`errors`** is gc's, `As` included, with gc's panics (D-050).
+  `internal/reflectlite` adds `TypeOf`, `Type` (`String`, `Kind`, `Size`,
+  `Comparable`, `Elem`, `Implements`, `AssignableTo`), and `Value`'s
+  `Type`, `IsNil`, `Elem`, and `Set`. `AsType` of a type `errors` cannot
+  name is `generic-instance`. Whether an interface type implements
+  another interface type is not decided (D-050); gc's packages never ask.
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1510,6 +1544,7 @@ and `os`; the rest of the subset applies to what it reaches.
 | `unsafe` (`Sizeof`, `Alignof`, `Offsetof`, `Pointer`, `Add`, `String`, `StringData`, `Slice`, `SliceData`); `strings`, `bytes`, `sync.Pool` | Package unsafe; the packages' documentation | Phase 11 / 11.7 | Supported (native) | `TestStdPrograms` (`strings`, `unsafe`, `unsafepanic`); `TestStdRejects` |
 | Complex numbers as values (no arithmetic); `reflect` in part | Numeric types, Manipulating complex numbers, Package reflect | Phase 11 / 11.8 | Supported (native) | `s7_c01_complex`, `unsupported_complex_arithmetic`; `TestStdPrograms` (`reflect`); gate tests |
 | `fmt`, with `internal/fmtsort` | Package fmt | Phase 11 / 11.8 | Supported (native) | `TestStdPrograms` (`fmt`, against gc, natively and in the interpreter); `TestStdin` |
+| `min` and `max` of floats and strings; `sync/atomic` `Pointer` and `Value`; `sync` `Map`, `OnceFunc`, `OnceValue`, `OnceValues`; `runtime` `Frame` and `Frames`; `reflect` `Indirect` and `CanSet`; `hash/crc32`; `encoding/binary`; `errors.As` with `internal/reflectlite` | Min and max; the packages' documentation | Batch 1 | Supported (native) | `s7_l04_minmax_ordered`; `TestStdPrograms` (`minmax`, `atomicvalue`, `syncmap`, `syncmappanic`, `oncepanic`, `frames`, `crc32`, `binary`, `errorsas`, `errorsaspanic`); `TestStdRejects`; gate tests |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

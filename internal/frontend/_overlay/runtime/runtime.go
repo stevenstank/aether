@@ -1,6 +1,6 @@
 // Package runtime is Aether's replacement of gc's runtime package (D-049,
 // increment 11.6): the part of its API that Aether's runtime implements.
-// The functions without a body are intrinsics.
+// The functions without a body are intrinsics, but for those of extern.go.
 package runtime
 
 // GOOS and GOARCH are the target's operating system and architecture.

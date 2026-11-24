@@ -75,6 +75,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-044 | Named results (Phase 8 increment 8.7) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-048 | Goroutines, channels, and the scheduler (Phase 10) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending; increment 10.1 implemented) |
 | D-049 | Packages, the standard library, and conformance (Phase 11) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
+| D-050 | Interface checks at run time for internal/reflectlite (Batch 1) | Accepted (2026-11-24; owner review pending) |
 
 ## Review log
 
@@ -4414,6 +4415,69 @@ bug, fixed with a regression test:
 - An instance of a generic type declared in a function, which the gate
   rejects, is `unsupported` (`local-type-declaration`) in monomorphization,
   not `internal` (`typeparam/nested.go`; `TestInstantiate`).
+
+---
+
+## D-050: Interface checks at run time for internal/reflectlite (Batch 1)
+
+**Status:** Accepted (2026-11-24). Part of capability Batch 1, which the
+practical evaluation (`eval/practical/REPORT.md`) motivated: `errors.As`
+stopped 4 of its 10 programs.
+
+**Context.** gc's `errors.As` (`errors/wrap.go`) is written over
+`internal/reflectlite`: `TypeOf`, `Type.Elem`, `Kind`, `Implements`,
+`AssignableTo`, and `Value.Elem`, `IsNil`, and `Set`. Aether resolves
+interface assertions over the whole program: `.findK` compares a dynamic
+type's descriptor with every program type that implements the interface
+K, and returns their itab (D-041). A type descriptor does not list an
+interface's methods, so nothing at run time could answer whether a type
+implements an interface given only their descriptors. `AssignableTo` also
+needs whether a type is defined, and its underlying type.
+
+**Decision.**
+- **Two descriptor words.** A full descriptor (`internal/lower/reflect.go`)
+  grows from 96 to 112 bytes. Word 96 of a non-empty interface's
+  descriptor is the code address of its `.findK`. Word 104 of a defined
+  type's descriptor (a named or predeclared type) is the descriptor of its
+  underlying type; a predeclared type's is its own. Both words are written
+  only in a program that reaches the intrinsic
+  `internal/reflectlite.implements`, so other programs make no new
+  functions or descriptors. A channel's word 64 is its direction.
+- **The intrinsic.** `implements(iface, t unsafe.Pointer) unsafe.Pointer`
+  loads word 96 of `iface` and calls it with `t`, giving the itab or nil.
+  `.findK` already lists every emitted descriptor of a non-interface type,
+  not only those converted to interfaces, and full descriptors include
+  every pointer's element type, so a target type that never reaches an
+  interface (`*T` of `errors.As(err, &t)`) is found.
+- **reflectlite in Go.** `Implements` and `AssignableTo` are gc's
+  (`directlyAssignable` or `implements`). Two types have identical
+  underlying types exactly if their underlying descriptors are the same,
+  since Aether makes one descriptor of identical types (tags included).
+  The bidirectional-channel rule reads the direction. `Value` holds a
+  value's address, as Aether's `reflect`. Whether an interface type
+  implements another is not decided: descriptors do not give interface
+  methods, and gc's packages that use `reflectlite` never ask it; asking
+  panics with a message of Aether's.
+- **gc's `errors/wrap.go` is compiled**, `As` and `Is` included, with
+  gc's panic messages. Aether's `wrap.go` and its intrinsic
+  `errors.isComparable` (D-049, 11.7) are removed; `Is` reads
+  `Type.Comparable`.
+
+**Alternatives considered.** A generated dispatcher from an interface's
+descriptor to its `.findK`, instead of a descriptor word: the same work,
+but one more whole-program function, and the descriptor would still lack
+the underlying type. Keeping Aether's `wrap.go` with an intrinsic `As`
+lowered at each call site: `As` is called through `errors` from other
+packages and through func values, and gc's own code is the reference.
+
+**Consequences.** Every program that imports `errors`, which `strconv`
+and `fmt` do, now has `internal/reflectlite` and so full descriptors
+(R.6 already gave them to programs with `sort`). Measured once on
+2026-11-24 (one build each, this host): `testdata/std/strconv.go` built in
+267 ms instead of 252 ms, with a binary of 221,744 bytes instead of
+205,032; `fmt.go` in 736 ms instead of 696 ms, 563,368 bytes instead of
+513,928. A program reaching `implements` also has a `.findK` for each
+non-empty interface type it describes.
 
 ---
 

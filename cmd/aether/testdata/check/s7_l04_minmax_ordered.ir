@@ -1,0 +1,1081 @@
+string s0 "pear"
+string s1 "apple"
+string s2 "fig"
+string s3 "a"
+string s4 "abc"
+string s5 "ab"
+string s6 "ab\xff"
+string s7 "z"
+string s8 "q"
+string s9 "zz"
+string s10 "b"
+string s11 "c"
+
+func zero(bool) f64 @testdata/check/s7_l04_minmax_ordered.go:13:6
+  slot s0 neg bool @13:11
+  slot s1 z f64 @14:2
+b0:
+  v0 = param 0 @13:11
+  store s0, v0 @13:11
+  v1 = const f64 0 @14:7
+  store s1, v1 @14:2
+  v2 = load s0 @15:5
+  branch v2, b1, b2 @15:2
+b1:
+  v3 = load s1 @16:8
+  v4 = fneg v3 @16:7
+  store s1, v4 @16:3
+  jump b2 @17:2
+b2:
+  v5 = load s1 @18:9
+  ret v5 @18:2
+
+func main @testdata/check/s7_l04_minmax_ordered.go:21:6
+  slot s0 nz f64 @22:2
+  slot s1 pz f64 @22:6
+  slot s2 inf f64 @23:2
+  slot s3 nan f64 @24:2
+  slot s4 tmp f64 @25:10
+  slot s5 tmp f64 @25:10
+  slot s6 minmax f64 @25:10
+  slot s7 tmp f64 @25:10
+  slot s8 tmp f64 @25:23
+  slot s9 tmp f64 @25:23
+  slot s10 minmax f64 @25:23
+  slot s11 tmp f64 @25:23
+  slot s12 tmp f64 @25:36
+  slot s13 tmp f64 @25:36
+  slot s14 minmax f64 @25:36
+  slot s15 tmp f64 @25:36
+  slot s16 tmp f64 @25:49
+  slot s17 tmp f64 @25:49
+  slot s18 minmax f64 @25:49
+  slot s19 tmp f64 @26:10
+  slot s20 tmp f64 @26:10
+  slot s21 minmax f64 @26:10
+  slot s22 tmp f64 @26:10
+  slot s23 tmp f64 @26:25
+  slot s24 tmp f64 @26:25
+  slot s25 minmax f64 @26:25
+  slot s26 tmp f64 @26:25
+  slot s27 tmp f64 @26:40
+  slot s28 tmp f64 @26:40
+  slot s29 minmax f64 @26:40
+  slot s30 tmp f64 @26:40
+  slot s31 tmp f64 @26:56
+  slot s32 tmp f64 @26:56
+  slot s33 tmp f64 @26:56
+  slot s34 minmax f64 @26:56
+  slot s35 f f32 @28:6
+  slot s36 g f32 @28:9
+  slot s37 tmp f32 @29:10
+  slot s38 tmp f32 @29:10
+  slot s39 minmax f32 @29:10
+  slot s40 tmp f32 @29:10
+  slot s41 tmp f32 @29:21
+  slot s42 tmp f32 @29:21
+  slot s43 tmp f32 @29:21
+  slot s44 minmax f32 @29:21
+  slot s45 s ptr @31:2
+  slot s46 s i64 @31:2
+  slot s47 t ptr @31:5
+  slot s48 t i64 @31:5
+  slot s49 tmp ptr @32:10
+  slot s50 tmp i64 @32:10
+  slot s51 tmp ptr @32:10
+  slot s52 tmp i64 @32:10
+  slot s53 minmaxp ptr @32:10
+  slot s54 minmaxn i64 @32:10
+  slot s55 tmp ptr @32:10
+  slot s56 tmp i64 @32:10
+  slot s57 tmp ptr @32:21
+  slot s58 tmp i64 @32:21
+  slot s59 tmp ptr @32:21
+  slot s60 tmp i64 @32:21
+  slot s61 minmaxp ptr @32:21
+  slot s62 minmaxn i64 @32:21
+  slot s63 tmp ptr @32:21
+  slot s64 tmp i64 @32:21
+  slot s65 tmp ptr @32:32
+  slot s66 tmp i64 @32:32
+  slot s67 tmp ptr @32:32
+  slot s68 tmp i64 @32:32
+  slot s69 tmp ptr @32:32
+  slot s70 tmp i64 @32:32
+  slot s71 minmaxp ptr @32:32
+  slot s72 minmaxn i64 @32:32
+  slot s73 tmp ptr @32:32
+  slot s74 tmp i64 @32:32
+  slot s75 tmp ptr @32:50
+  slot s76 tmp i64 @32:50
+  slot s77 tmp ptr @32:50
+  slot s78 tmp i64 @32:50
+  slot s79 minmaxp ptr @32:50
+  slot s80 minmaxn i64 @32:50
+  slot s81 tmp ptr @32:50
+  slot s82 tmp i64 @32:50
+  slot s83 tmp ptr @32:62
+  slot s84 tmp i64 @32:62
+  slot s85 tmp ptr @32:62
+  slot s86 tmp i64 @32:62
+  slot s87 minmaxp ptr @32:62
+  slot s88 minmaxn i64 @32:62
+  slot s89 tmp ptr @32:62
+  slot s90 tmp i64 @32:62
+  slot s91 tmp ptr @32:74
+  slot s92 tmp i64 @32:74
+  slot s93 minmaxp ptr @32:74
+  slot s94 minmaxn i64 @32:74
+  slot s95 m ptr @35:2
+  slot s96 m i64 @35:2
+  slot s97 tmp ptr @36:20
+  slot s98 tmp ptr @36:2
+  slot s99 tmp i64 @36:2
+  slot s100 range.i i64 @36:2
+  slot s101 w ptr @36:9
+  slot s102 w i64 @36:9
+  slot s103 tmp ptr @37:7
+  slot s104 tmp i64 @37:7
+  slot s105 tmp ptr @37:7
+  slot s106 tmp i64 @37:7
+  slot s107 minmaxp ptr @37:7
+  slot s108 minmaxn i64 @37:7
+b0:
+  v0 = const true @22:17
+  v1 = call zero, v0 @22:12
+  v2 = const false @22:29
+  v3 = call zero, v2 @22:24
+  store s0, v1 @22:2
+  store s1, v3 @22:6
+  v4 = const f64 1 @23:9
+  v5 = load s1 @23:13
+  v6 = fdiv v4, v5 @23:11
+  store s2, v6 @23:2
+  v7 = load s1 @24:9
+  v8 = load s1 @24:14
+  v9 = fdiv v7, v8 @24:12
+  store s3, v9 @24:2
+  v10 = load s0 @25:14
+  store s4, v10 @25:10
+  v11 = load s1 @25:18
+  store s5, v11 @25:10
+  v12 = load s4 @25:10
+  v13 = load s4 @25:10
+  store s6, v13 @25:10
+  v14 = load s5 @25:10
+  v15 = load s6 @25:10
+  v16 = load s5 @25:10
+  v17 = call .fmin64, v15, v16 @25:10
+  store s6, v17 @25:10
+  v18 = load s6 @25:10
+  store s7, v18 @25:10
+  v19 = load s1 @25:27
+  store s8, v19 @25:23
+  v20 = load s0 @25:31
+  store s9, v20 @25:23
+  v21 = load s8 @25:23
+  v22 = load s8 @25:23
+  store s10, v22 @25:23
+  v23 = load s9 @25:23
+  v24 = load s10 @25:23
+  v25 = load s9 @25:23
+  v26 = call .fmin64, v24, v25 @25:23
+  store s10, v26 @25:23
+  v27 = load s10 @25:23
+  store s11, v27 @25:23
+  v28 = load s0 @25:40
+  store s12, v28 @25:36
+  v29 = load s1 @25:44
+  store s13, v29 @25:36
+  v30 = load s12 @25:36
+  v31 = load s12 @25:36
+  store s14, v31 @25:36
+  v32 = load s13 @25:36
+  v33 = load s14 @25:36
+  v34 = load s13 @25:36
+  v35 = call .fmax64, v33, v34 @25:36
+  store s14, v35 @25:36
+  v36 = load s14 @25:36
+  store s15, v36 @25:36
+  v37 = load s1 @25:53
+  store s16, v37 @25:49
+  v38 = load s0 @25:57
+  store s17, v38 @25:49
+  v39 = load s16 @25:49
+  v40 = load s16 @25:49
+  store s18, v40 @25:49
+  v41 = load s17 @25:49
+  v42 = load s18 @25:49
+  v43 = load s17 @25:49
+  v44 = call .fmax64, v42, v43 @25:49
+  store s18, v44 @25:49
+  v45 = load s18 @25:49
+  v46 = load s7 @25:10
+  v47 = load s11 @25:23
+  v48 = load s15 @25:36
+  println v46, v47, v48, v45 @25:2
+  v49 = load s3 @26:14
+  store s19, v49 @26:10
+  v50 = const f64 1 @26:19
+  store s20, v50 @26:10
+  v51 = load s19 @26:10
+  v52 = load s19 @26:10
+  store s21, v52 @26:10
+  v53 = load s20 @26:10
+  v54 = load s21 @26:10
+  v55 = load s20 @26:10
+  v56 = call .fmin64, v54, v55 @26:10
+  store s21, v56 @26:10
+  v57 = load s21 @26:10
+  store s22, v57 @26:10
+  v58 = const f64 1 @26:29
+  store s23, v58 @26:25
+  v59 = load s3 @26:34
+  store s24, v59 @26:25
+  v60 = load s23 @26:25
+  v61 = load s23 @26:25
+  store s25, v61 @26:25
+  v62 = load s24 @26:25
+  v63 = load s25 @26:25
+  v64 = load s24 @26:25
+  v65 = call .fmax64, v63, v64 @26:25
+  store s25, v65 @26:25
+  v66 = load s25 @26:25
+  store s26, v66 @26:25
+  v67 = load s2 @26:44
+  store s27, v67 @26:40
+  v68 = load s2 @26:50
+  v69 = fneg v68 @26:49
+  store s28, v69 @26:40
+  v70 = load s27 @26:40
+  v71 = load s27 @26:40
+  store s29, v71 @26:40
+  v72 = load s28 @26:40
+  v73 = load s29 @26:40
+  v74 = load s28 @26:40
+  v75 = call .fmin64, v73, v74 @26:40
+  store s29, v75 @26:40
+  v76 = load s29 @26:40
+  store s30, v76 @26:40
+  v77 = load s2 @26:61
+  v78 = fneg v77 @26:60
+  store s31, v78 @26:56
+  v79 = const f64 2.5 @26:66
+  store s32, v79 @26:56
+  v80 = load s2 @26:71
+  store s33, v80 @26:56
+  v81 = load s31 @26:56
+  v82 = load s31 @26:56
+  store s34, v82 @26:56
+  v83 = load s32 @26:56
+  v84 = load s34 @26:56
+  v85 = load s32 @26:56
+  v86 = call .fmax64, v84, v85 @26:56
+  store s34, v86 @26:56
+  v87 = load s33 @26:56
+  v88 = load s34 @26:56
+  v89 = load s33 @26:56
+  v90 = call .fmax64, v88, v89 @26:56
+  store s34, v90 @26:56
+  v91 = load s34 @26:56
+  v92 = load s22 @26:10
+  v93 = load s26 @26:25
+  v94 = load s30 @26:40
+  println v92, v93, v94, v91 @26:2
+  v95 = const f64 1 @27:10
+  v96 = const f64 3.5 @27:25
+  v97 = const f64 0.5 @27:40
+  println v95, v96, v97 @27:2
+  v98 = const f32 1.25 @28:21
+  v99 = const f32 -2 @28:27
+  store s35, v98 @28:6
+  store s36, v99 @28:9
+  v100 = load s35 @29:14
+  store s37, v100 @29:10
+  v101 = load s36 @29:17
+  store s38, v101 @29:10
+  v102 = load s37 @29:10
+  v103 = load s37 @29:10
+  store s39, v103 @29:10
+  v104 = load s38 @29:10
+  v105 = load s39 @29:10
+  v106 = load s38 @29:10
+  v107 = call .fmin32, v105, v106 @29:10
+  store s39, v107 @29:10
+  v108 = load s39 @29:10
+  store s40, v108 @29:10
+  v109 = load s35 @29:25
+  store s41, v109 @29:21
+  v110 = load s36 @29:28
+  store s42, v110 @29:21
+  v111 = const f32 0 @29:31
+  store s43, v111 @29:21
+  v112 = load s41 @29:21
+  v113 = load s41 @29:21
+  store s44, v113 @29:21
+  v114 = load s42 @29:21
+  v115 = load s44 @29:21
+  v116 = load s42 @29:21
+  v117 = call .fmax32, v115, v116 @29:21
+  store s44, v117 @29:21
+  v118 = load s43 @29:21
+  v119 = load s44 @29:21
+  v120 = load s43 @29:21
+  v121 = call .fmax32, v119, v120 @29:21
+  store s44, v121 @29:21
+  v122 = load s44 @29:21
+  v123 = load s40 @29:10
+  println v123, v122 @29:2
+  v124 = const f64 -1.5 @30:10
+  v125 = const f64 4 @30:36
+  println v124, v125 @30:2
+  v126 = str s0 @31:10
+  v127 = const 4 @31:10
+  v128 = str s1 @31:18
+  v129 = const 5 @31:18
+  store s45, v126 @31:2
+  store s46, v127 @31:2
+  store s47, v128 @31:5
+  store s48, v129 @31:5
+  v130 = load s45 @32:14
+  v131 = load s46 @32:14
+  store s49, v130 @32:10
+  store s50, v131 @32:10
+  v132 = load s47 @32:17
+  v133 = load s48 @32:17
+  store s51, v132 @32:10
+  store s52, v133 @32:10
+  v134 = load s49 @32:10
+  v135 = load s50 @32:10
+  store s53, v134 @32:10
+  store s54, v135 @32:10
+  v136 = load s51 @32:10
+  v137 = load s52 @32:10
+  v138 = load s53 @32:10
+  v139 = load s54 @32:10
+  v140 = call .strcmp, v136, v137, v138, v139 @32:10
+  v141 = const 0 @32:10
+  v142 = lt v140, v141 @32:10
+  branch v142, b1, b2 @32:10
+b1:
+  v143 = load s51 @32:10
+  v144 = load s52 @32:10
+  store s53, v143 @32:10
+  store s54, v144 @32:10
+  jump b2 @32:10
+b2:
+  v145 = load s53 @32:10
+  v146 = load s54 @32:10
+  store s55, v145 @32:10
+  store s56, v146 @32:10
+  v147 = load s45 @32:25
+  v148 = load s46 @32:25
+  store s57, v147 @32:21
+  store s58, v148 @32:21
+  v149 = load s47 @32:28
+  v150 = load s48 @32:28
+  store s59, v149 @32:21
+  store s60, v150 @32:21
+  v151 = load s57 @32:21
+  v152 = load s58 @32:21
+  store s61, v151 @32:21
+  store s62, v152 @32:21
+  v153 = load s59 @32:21
+  v154 = load s60 @32:21
+  v155 = load s61 @32:21
+  v156 = load s62 @32:21
+  v157 = call .strcmp, v153, v154, v155, v156 @32:21
+  v158 = const 0 @32:21
+  v159 = gt v157, v158 @32:21
+  branch v159, b3, b4 @32:21
+b3:
+  v160 = load s59 @32:21
+  v161 = load s60 @32:21
+  store s61, v160 @32:21
+  store s62, v161 @32:21
+  jump b4 @32:21
+b4:
+  v162 = load s61 @32:21
+  v163 = load s62 @32:21
+  store s63, v162 @32:21
+  store s64, v163 @32:21
+  v164 = load s45 @32:36
+  v165 = load s46 @32:36
+  store s65, v164 @32:32
+  store s66, v165 @32:32
+  v166 = load s47 @32:39
+  v167 = load s48 @32:39
+  store s67, v166 @32:32
+  store s68, v167 @32:32
+  v168 = str s2 @32:42
+  v169 = const 3 @32:42
+  store s69, v168 @32:32
+  store s70, v169 @32:32
+  v170 = load s65 @32:32
+  v171 = load s66 @32:32
+  store s71, v170 @32:32
+  store s72, v171 @32:32
+  v172 = load s67 @32:32
+  v173 = load s68 @32:32
+  v174 = load s71 @32:32
+  v175 = load s72 @32:32
+  v176 = call .strcmp, v172, v173, v174, v175 @32:32
+  v177 = const 0 @32:32
+  v178 = lt v176, v177 @32:32
+  branch v178, b5, b6 @32:32
+b5:
+  v179 = load s67 @32:32
+  v180 = load s68 @32:32
+  store s71, v179 @32:32
+  store s72, v180 @32:32
+  jump b6 @32:32
+b6:
+  v181 = load s69 @32:32
+  v182 = load s70 @32:32
+  v183 = load s71 @32:32
+  v184 = load s72 @32:32
+  v185 = call .strcmp, v181, v182, v183, v184 @32:32
+  v186 = const 0 @32:32
+  v187 = lt v185, v186 @32:32
+  branch v187, b7, b8 @32:32
+b7:
+  v188 = load s69 @32:32
+  v189 = load s70 @32:32
+  store s71, v188 @32:32
+  store s72, v189 @32:32
+  jump b8 @32:32
+b8:
+  v190 = load s71 @32:32
+  v191 = load s72 @32:32
+  store s73, v190 @32:32
+  store s74, v191 @32:32
+  v192 = const ptr 0 @32:54
+  v193 = const 0 @32:54
+  store s75, v192 @32:50
+  store s76, v193 @32:50
+  v194 = load s45 @32:58
+  v195 = load s46 @32:58
+  store s77, v194 @32:50
+  store s78, v195 @32:50
+  v196 = load s75 @32:50
+  v197 = load s76 @32:50
+  store s79, v196 @32:50
+  store s80, v197 @32:50
+  v198 = load s77 @32:50
+  v199 = load s78 @32:50
+  v200 = load s79 @32:50
+  v201 = load s80 @32:50
+  v202 = call .strcmp, v198, v199, v200, v201 @32:50
+  v203 = const 0 @32:50
+  v204 = gt v202, v203 @32:50
+  branch v204, b9, b10 @32:50
+b9:
+  v205 = load s77 @32:50
+  v206 = load s78 @32:50
+  store s79, v205 @32:50
+  store s80, v206 @32:50
+  jump b10 @32:50
+b10:
+  v207 = load s79 @32:50
+  v208 = load s80 @32:50
+  store s81, v207 @32:50
+  store s82, v208 @32:50
+  v209 = const ptr 0 @32:66
+  v210 = const 0 @32:66
+  store s83, v209 @32:62
+  store s84, v210 @32:62
+  v211 = load s45 @32:70
+  v212 = load s46 @32:70
+  store s85, v211 @32:62
+  store s86, v212 @32:62
+  v213 = load s83 @32:62
+  v214 = load s84 @32:62
+  store s87, v213 @32:62
+  store s88, v214 @32:62
+  v215 = load s85 @32:62
+  v216 = load s86 @32:62
+  v217 = load s87 @32:62
+  v218 = load s88 @32:62
+  v219 = call .strcmp, v215, v216, v217, v218 @32:62
+  v220 = const 0 @32:62
+  v221 = lt v219, v220 @32:62
+  branch v221, b11, b12 @32:62
+b11:
+  v222 = load s85 @32:62
+  v223 = load s86 @32:62
+  store s87, v222 @32:62
+  store s88, v223 @32:62
+  jump b12 @32:62
+b12:
+  v224 = load s87 @32:62
+  v225 = load s88 @32:62
+  store s89, v224 @32:62
+  store s90, v225 @32:62
+  v226 = load s45 @32:78
+  v227 = load s46 @32:78
+  store s91, v226 @32:74
+  store s92, v227 @32:74
+  v228 = load s91 @32:74
+  v229 = load s92 @32:74
+  store s93, v228 @32:74
+  store s94, v229 @32:74
+  v230 = load s93 @32:74
+  v231 = load s94 @32:74
+  v232 = load s55 @32:10
+  v233 = load s56 @32:10
+  v234 = load s63 @32:21
+  v235 = load s64 @32:21
+  v236 = load s73 @32:32
+  v237 = load s74 @32:32
+  v238 = load s81 @32:50
+  v239 = load s82 @32:50
+  v240 = load s89 @32:62
+  v241 = load s90 @32:62
+  println v232, v233, v234, v235, v236, v237, v238, v239, v240, v241, v230, v231 @32:2
+  v242 = str s3 @33:10
+  v243 = const 1 @33:10
+  v244 = str s4 @33:30
+  v245 = const 3 @33:30
+  println v242, v243, v244, v245 @33:2
+  v246 = str s5 @34:10
+  v247 = const 2 @34:10
+  v248 = str s6 @34:28
+  v249 = const 3 @34:28
+  println v246, v247, v248, v249 @34:2
+  v250 = str s7 @35:7
+  v251 = const 1 @35:7
+  store s95, v250 @35:2
+  store s96, v251 @35:2
+  v252 = const 64 @36:20
+  v253 = alloc v252 @36:20
+  store s97, v253 @36:20
+  v254 = str s8 @36:29
+  v255 = const 1 @36:29
+  v256 = const 0 @36:29
+  stm v253, v256, v254 @36:29
+  v257 = const 8 @36:29
+  stm v253, v257, v255 @36:29
+  v258 = str s9 @36:34
+  v259 = const 2 @36:34
+  v260 = const 16 @36:34
+  stm v253, v260, v258 @36:34
+  v261 = const 24 @36:34
+  stm v253, v261, v259 @36:34
+  v262 = str s10 @36:40
+  v263 = const 1 @36:40
+  v264 = const 32 @36:40
+  stm v253, v264, v262 @36:40
+  v265 = const 40 @36:40
+  stm v253, v265, v263 @36:40
+  v266 = str s11 @36:45
+  v267 = const 1 @36:45
+  v268 = const 48 @36:45
+  stm v253, v268, v266 @36:45
+  v269 = const 56 @36:45
+  stm v253, v269, v267 @36:45
+  v270 = const 4 @36:20
+  v271 = const 4 @36:20
+  store s98, v253 @36:2
+  store s99, v270 @36:2
+  v272 = const 0 @36:2
+  store s100, v272 @36:2
+  jump b13 @36:2
+b13:
+  v273 = load s100 @36:2
+  v274 = load s99 @36:2
+  v275 = lt v273, v274 @36:2
+  branch v275, b14, b16 @36:2
+b14:
+  v276 = load s98 @36:2
+  v277 = load s100 @36:2
+  v278 = const 16 @36:2
+  v279 = mul v277, v278 @36:2
+  v280 = ldm ptr, v276, v279 @36:2
+  v281 = load s98 @36:2
+  v282 = load s100 @36:2
+  v283 = const 16 @36:2
+  v284 = mul v282, v283 @36:2
+  v285 = const 8 @36:2
+  v286 = add v284, v285 @36:2
+  v287 = ldm i64, v281, v286 @36:2
+  store s101, v280 @36:9
+  store s102, v287 @36:9
+  v288 = load s95 @37:11
+  v289 = load s96 @37:11
+  store s103, v288 @37:7
+  store s104, v289 @37:7
+  v290 = load s101 @37:14
+  v291 = load s102 @37:14
+  store s105, v290 @37:7
+  store s106, v291 @37:7
+  v292 = load s103 @37:7
+  v293 = load s104 @37:7
+  store s107, v292 @37:7
+  store s108, v293 @37:7
+  v294 = load s105 @37:7
+  v295 = load s106 @37:7
+  v296 = load s107 @37:7
+  v297 = load s108 @37:7
+  v298 = call .strcmp, v294, v295, v296, v297 @37:7
+  v299 = const 0 @37:7
+  v300 = lt v298, v299 @37:7
+  branch v300, b17, b18 @37:7
+b15:
+  v305 = load s100 @36:2
+  v306 = const 1 @36:2
+  v307 = add v305, v306 @36:2
+  store s100, v307 @36:2
+  jump b13 @36:2
+b16:
+  v308 = load s95 @39:10
+  v309 = load s96 @39:10
+  println v308, v309 @39:2
+  ret @40:1
+b17:
+  v301 = load s105 @37:7
+  v302 = load s106 @37:7
+  store s107, v301 @37:7
+  store s108, v302 @37:7
+  jump b18 @37:7
+b18:
+  v303 = load s107 @37:7
+  v304 = load s108 @37:7
+  store s95, v303 @37:3
+  store s96, v304 @37:3
+  jump b15 @38:2
+
+func .fmin64(f64, f64) f64 @testdata/check/s7_l04_minmax_ordered.go:25:10
+  slot s0 tmp f64 @25:10
+  slot s1 tmp f64 @25:10
+  slot s2 x f64 @25:10
+  slot s3 fx u64 @25:10
+  slot s4 fy u64 @25:10
+  slot s5 fm u64 @25:10
+  slot s6 fm2 u64 @25:10
+  mem m0 fbits 8 align 8 @25:10
+b0:
+  v0 = param 0 @25:10
+  v1 = param 1 @25:10
+  store s0, v0 @25:10
+  store s1, v1 @25:10
+  v2 = load s0 @25:10
+  store s2, v2 @25:10
+  v3 = load s2 @25:10
+  v4 = addr m0 @25:10
+  v5 = const 0 @25:10
+  stm v4, v5, v3 @25:10
+  v6 = const 0 @25:10
+  v7 = ldm u64, v4, v6 @25:10
+  store s3, v7 @25:10
+  v8 = load s1 @25:10
+  v9 = addr m0 @25:10
+  v10 = const 0 @25:10
+  stm v9, v10, v8 @25:10
+  v11 = const 0 @25:10
+  v12 = ldm u64, v9, v11 @25:10
+  store s4, v12 @25:10
+  v13 = load s3 @25:10
+  v14 = addr m0 @25:10
+  v15 = const 0 @25:10
+  stm v14, v15, v13 @25:10
+  v16 = const 0 @25:10
+  v17 = ldm f64, v14, v16 @25:10
+  v18 = load s4 @25:10
+  v19 = addr m0 @25:10
+  v20 = const 0 @25:10
+  stm v19, v20, v18 @25:10
+  v21 = const 0 @25:10
+  v22 = ldm f64, v19, v21 @25:10
+  v23 = flt v17, v22 @25:10
+  branch v23, b1, b2 @25:10
+b1:
+  v24 = load s3 @25:10
+  store s5, v24 @25:10
+  jump b3 @25:10
+b2:
+  v25 = load s4 @25:10
+  store s5, v25 @25:10
+  jump b3 @25:10
+b3:
+  v26 = load s5 @25:10
+  v27 = addr m0 @25:10
+  v28 = const 0 @25:10
+  stm v27, v28, v26 @25:10
+  v29 = const 0 @25:10
+  v30 = ldm f64, v27, v29 @25:10
+  v31 = load s3 @25:10
+  v32 = addr m0 @25:10
+  v33 = const 0 @25:10
+  stm v32, v33, v31 @25:10
+  v34 = const 0 @25:10
+  v35 = ldm f64, v32, v34 @25:10
+  v36 = flt v30, v35 @25:10
+  branch v36, b4, b5 @25:10
+b4:
+  v37 = load s5 @25:10
+  store s6, v37 @25:10
+  jump b6 @25:10
+b5:
+  v38 = load s3 @25:10
+  store s6, v38 @25:10
+  jump b6 @25:10
+b6:
+  v39 = load s6 @25:10
+  v40 = load s5 @25:10
+  v41 = or v39, v40 @25:10
+  v42 = addr m0 @25:10
+  v43 = const 0 @25:10
+  stm v42, v43, v41 @25:10
+  v44 = const 0 @25:10
+  v45 = ldm f64, v42, v44 @25:10
+  store s2, v45 @25:10
+  v46 = load s2 @25:10
+  ret v46 @25:10
+
+func .fmax64(f64, f64) f64 @testdata/check/s7_l04_minmax_ordered.go:25:36
+  slot s0 tmp f64 @25:36
+  slot s1 tmp f64 @25:36
+  slot s2 x f64 @25:36
+  slot s3 fx u64 @25:36
+  slot s4 fy u64 @25:36
+  slot s5 fm u64 @25:36
+  slot s6 fm2 u64 @25:36
+  mem m0 fbits 8 align 8 @25:36
+b0:
+  v0 = param 0 @25:36
+  v1 = param 1 @25:36
+  store s0, v0 @25:36
+  store s1, v1 @25:36
+  v2 = load s0 @25:36
+  store s2, v2 @25:36
+  v3 = load s2 @25:36
+  v4 = addr m0 @25:36
+  v5 = const 0 @25:36
+  stm v4, v5, v3 @25:36
+  v6 = const 0 @25:36
+  v7 = ldm u64, v4, v6 @25:36
+  v8 = const u64 9223372036854775808 @25:36
+  v9 = xor v7, v8 @25:36
+  store s3, v9 @25:36
+  v10 = load s1 @25:36
+  v11 = addr m0 @25:36
+  v12 = const 0 @25:36
+  stm v11, v12, v10 @25:36
+  v13 = const 0 @25:36
+  v14 = ldm u64, v11, v13 @25:36
+  v15 = const u64 9223372036854775808 @25:36
+  v16 = xor v14, v15 @25:36
+  store s4, v16 @25:36
+  v17 = load s3 @25:36
+  v18 = addr m0 @25:36
+  v19 = const 0 @25:36
+  stm v18, v19, v17 @25:36
+  v20 = const 0 @25:36
+  v21 = ldm f64, v18, v20 @25:36
+  v22 = load s4 @25:36
+  v23 = addr m0 @25:36
+  v24 = const 0 @25:36
+  stm v23, v24, v22 @25:36
+  v25 = const 0 @25:36
+  v26 = ldm f64, v23, v25 @25:36
+  v27 = flt v21, v26 @25:36
+  branch v27, b1, b2 @25:36
+b1:
+  v28 = load s3 @25:36
+  store s5, v28 @25:36
+  jump b3 @25:36
+b2:
+  v29 = load s4 @25:36
+  store s5, v29 @25:36
+  jump b3 @25:36
+b3:
+  v30 = load s5 @25:36
+  v31 = addr m0 @25:36
+  v32 = const 0 @25:36
+  stm v31, v32, v30 @25:36
+  v33 = const 0 @25:36
+  v34 = ldm f64, v31, v33 @25:36
+  v35 = load s3 @25:36
+  v36 = addr m0 @25:36
+  v37 = const 0 @25:36
+  stm v36, v37, v35 @25:36
+  v38 = const 0 @25:36
+  v39 = ldm f64, v36, v38 @25:36
+  v40 = flt v34, v39 @25:36
+  branch v40, b4, b5 @25:36
+b4:
+  v41 = load s5 @25:36
+  store s6, v41 @25:36
+  jump b6 @25:36
+b5:
+  v42 = load s3 @25:36
+  store s6, v42 @25:36
+  jump b6 @25:36
+b6:
+  v43 = load s6 @25:36
+  v44 = load s5 @25:36
+  v45 = or v43, v44 @25:36
+  v46 = const u64 9223372036854775808 @25:36
+  v47 = xor v45, v46 @25:36
+  v48 = addr m0 @25:36
+  v49 = const 0 @25:36
+  stm v48, v49, v47 @25:36
+  v50 = const 0 @25:36
+  v51 = ldm f64, v48, v50 @25:36
+  store s2, v51 @25:36
+  v52 = load s2 @25:36
+  ret v52 @25:36
+
+func .fmin32(f32, f32) f32 @testdata/check/s7_l04_minmax_ordered.go:29:10
+  slot s0 tmp f32 @29:10
+  slot s1 tmp f32 @29:10
+  slot s2 x f32 @29:10
+  slot s3 fx u32 @29:10
+  slot s4 fy u32 @29:10
+  slot s5 fm u32 @29:10
+  slot s6 fm2 u32 @29:10
+  mem m0 fbits 4 align 4 @29:10
+b0:
+  v0 = param 0 @29:10
+  v1 = param 1 @29:10
+  store s0, v0 @29:10
+  store s1, v1 @29:10
+  v2 = load s0 @29:10
+  store s2, v2 @29:10
+  v3 = load s2 @29:10
+  v4 = addr m0 @29:10
+  v5 = const 0 @29:10
+  stm v4, v5, v3 @29:10
+  v6 = const 0 @29:10
+  v7 = ldm u32, v4, v6 @29:10
+  store s3, v7 @29:10
+  v8 = load s1 @29:10
+  v9 = addr m0 @29:10
+  v10 = const 0 @29:10
+  stm v9, v10, v8 @29:10
+  v11 = const 0 @29:10
+  v12 = ldm u32, v9, v11 @29:10
+  store s4, v12 @29:10
+  v13 = load s3 @29:10
+  v14 = addr m0 @29:10
+  v15 = const 0 @29:10
+  stm v14, v15, v13 @29:10
+  v16 = const 0 @29:10
+  v17 = ldm f32, v14, v16 @29:10
+  v18 = load s4 @29:10
+  v19 = addr m0 @29:10
+  v20 = const 0 @29:10
+  stm v19, v20, v18 @29:10
+  v21 = const 0 @29:10
+  v22 = ldm f32, v19, v21 @29:10
+  v23 = flt v17, v22 @29:10
+  branch v23, b1, b2 @29:10
+b1:
+  v24 = load s3 @29:10
+  store s5, v24 @29:10
+  jump b3 @29:10
+b2:
+  v25 = load s4 @29:10
+  store s5, v25 @29:10
+  jump b3 @29:10
+b3:
+  v26 = load s5 @29:10
+  v27 = addr m0 @29:10
+  v28 = const 0 @29:10
+  stm v27, v28, v26 @29:10
+  v29 = const 0 @29:10
+  v30 = ldm f32, v27, v29 @29:10
+  v31 = load s3 @29:10
+  v32 = addr m0 @29:10
+  v33 = const 0 @29:10
+  stm v32, v33, v31 @29:10
+  v34 = const 0 @29:10
+  v35 = ldm f32, v32, v34 @29:10
+  v36 = flt v30, v35 @29:10
+  branch v36, b4, b5 @29:10
+b4:
+  v37 = load s5 @29:10
+  store s6, v37 @29:10
+  jump b6 @29:10
+b5:
+  v38 = load s3 @29:10
+  store s6, v38 @29:10
+  jump b6 @29:10
+b6:
+  v39 = load s6 @29:10
+  v40 = load s5 @29:10
+  v41 = or v39, v40 @29:10
+  v42 = addr m0 @29:10
+  v43 = const 0 @29:10
+  stm v42, v43, v41 @29:10
+  v44 = const 0 @29:10
+  v45 = ldm f32, v42, v44 @29:10
+  store s2, v45 @29:10
+  v46 = load s2 @29:10
+  ret v46 @29:10
+
+func .fmax32(f32, f32) f32 @testdata/check/s7_l04_minmax_ordered.go:29:21
+  slot s0 tmp f32 @29:21
+  slot s1 tmp f32 @29:21
+  slot s2 x f32 @29:21
+  slot s3 fx u32 @29:21
+  slot s4 fy u32 @29:21
+  slot s5 fm u32 @29:21
+  slot s6 fm2 u32 @29:21
+  mem m0 fbits 4 align 4 @29:21
+b0:
+  v0 = param 0 @29:21
+  v1 = param 1 @29:21
+  store s0, v0 @29:21
+  store s1, v1 @29:21
+  v2 = load s0 @29:21
+  store s2, v2 @29:21
+  v3 = load s2 @29:21
+  v4 = addr m0 @29:21
+  v5 = const 0 @29:21
+  stm v4, v5, v3 @29:21
+  v6 = const 0 @29:21
+  v7 = ldm u32, v4, v6 @29:21
+  v8 = const u32 2147483648 @29:21
+  v9 = xor v7, v8 @29:21
+  store s3, v9 @29:21
+  v10 = load s1 @29:21
+  v11 = addr m0 @29:21
+  v12 = const 0 @29:21
+  stm v11, v12, v10 @29:21
+  v13 = const 0 @29:21
+  v14 = ldm u32, v11, v13 @29:21
+  v15 = const u32 2147483648 @29:21
+  v16 = xor v14, v15 @29:21
+  store s4, v16 @29:21
+  v17 = load s3 @29:21
+  v18 = addr m0 @29:21
+  v19 = const 0 @29:21
+  stm v18, v19, v17 @29:21
+  v20 = const 0 @29:21
+  v21 = ldm f32, v18, v20 @29:21
+  v22 = load s4 @29:21
+  v23 = addr m0 @29:21
+  v24 = const 0 @29:21
+  stm v23, v24, v22 @29:21
+  v25 = const 0 @29:21
+  v26 = ldm f32, v23, v25 @29:21
+  v27 = flt v21, v26 @29:21
+  branch v27, b1, b2 @29:21
+b1:
+  v28 = load s3 @29:21
+  store s5, v28 @29:21
+  jump b3 @29:21
+b2:
+  v29 = load s4 @29:21
+  store s5, v29 @29:21
+  jump b3 @29:21
+b3:
+  v30 = load s5 @29:21
+  v31 = addr m0 @29:21
+  v32 = const 0 @29:21
+  stm v31, v32, v30 @29:21
+  v33 = const 0 @29:21
+  v34 = ldm f32, v31, v33 @29:21
+  v35 = load s3 @29:21
+  v36 = addr m0 @29:21
+  v37 = const 0 @29:21
+  stm v36, v37, v35 @29:21
+  v38 = const 0 @29:21
+  v39 = ldm f32, v36, v38 @29:21
+  v40 = flt v34, v39 @29:21
+  branch v40, b4, b5 @29:21
+b4:
+  v41 = load s5 @29:21
+  store s6, v41 @29:21
+  jump b6 @29:21
+b5:
+  v42 = load s3 @29:21
+  store s6, v42 @29:21
+  jump b6 @29:21
+b6:
+  v43 = load s6 @29:21
+  v44 = load s5 @29:21
+  v45 = or v43, v44 @29:21
+  v46 = const u32 2147483648 @29:21
+  v47 = xor v45, v46 @29:21
+  v48 = addr m0 @29:21
+  v49 = const 0 @29:21
+  stm v48, v49, v47 @29:21
+  v50 = const 0 @29:21
+  v51 = ldm f32, v48, v50 @29:21
+  store s2, v51 @29:21
+  v52 = load s2 @29:21
+  ret v52 @29:21
+
+func .strcmp(ptr, i64, ptr, i64) i64 @testdata/check/s7_l04_minmax_ordered.go:32:10
+  slot s0 p ptr @32:10
+  slot s1 q ptr @32:10
+  slot s2 n i64 @32:10
+  slot s3 m i64 @32:10
+  slot s4 i i64 @32:10
+b0:
+  v0 = param 0 @32:10
+  v1 = param 1 @32:10
+  v2 = param 2 @32:10
+  v3 = param 3 @32:10
+  store s0, v0 @32:10
+  store s1, v2 @32:10
+  store s2, v1 @32:10
+  store s3, v3 @32:10
+  v4 = const 0 @32:10
+  store s4, v4 @32:10
+  jump b1 @32:10
+b1:
+  v8 = load s4 @32:10
+  v9 = load s2 @32:10
+  v10 = lt v8, v9 @32:10
+  branch v10, b2, b6 @32:10
+b2:
+  v11 = load s4 @32:10
+  v12 = load s3 @32:10
+  v13 = lt v11, v12 @32:10
+  branch v13, b3, b6 @32:10
+b3:
+  v14 = load s0 @32:10
+  v15 = load s4 @32:10
+  v16 = loadb v14, v15 @32:10
+  v17 = load s1 @32:10
+  v18 = load s4 @32:10
+  v19 = loadb v17, v18 @32:10
+  v20 = lt v16, v19 @32:10
+  branch v20, b8, b4 @32:10
+b4:
+  v21 = load s0 @32:10
+  v22 = load s4 @32:10
+  v23 = loadb v21, v22 @32:10
+  v24 = load s1 @32:10
+  v25 = load s4 @32:10
+  v26 = loadb v24, v25 @32:10
+  v27 = gt v23, v26 @32:10
+  branch v27, b9, b5 @32:10
+b5:
+  v28 = load s4 @32:10
+  v29 = const 1 @32:10
+  v30 = add v28, v29 @32:10
+  store s4, v30 @32:10
+  jump b1 @32:10
+b6:
+  v31 = load s2 @32:10
+  v32 = load s3 @32:10
+  v33 = lt v31, v32 @32:10
+  branch v33, b8, b7 @32:10
+b7:
+  v34 = load s2 @32:10
+  v35 = load s3 @32:10
+  v36 = gt v34, v35 @32:10
+  branch v36, b9, b10 @32:10
+b8:
+  v5 = const -1 @32:10
+  ret v5 @32:10
+b9:
+  v6 = const 1 @32:10
+  ret v6 @32:10
+b10:
+  v7 = const 0 @32:10
+  ret v7 @32:10

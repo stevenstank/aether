@@ -84,6 +84,10 @@ func (v Value) Type() Type {
 // CanAddr reports whether the value's address can be obtained.
 func (v Value) CanAddr() bool { return v.flag&flagAddr != 0 }
 
+// CanSet reports whether the value of v can be changed: it is addressable
+// and was not obtained through an unexported field (Batch 1).
+func (v Value) CanSet() bool { return v.flag&(flagAddr|flagRO) == flagAddr }
+
 // CanInterface reports whether Interface can be used without panicking:
 // whether v was not obtained through an unexported field.
 func (v Value) CanInterface() bool {
@@ -531,4 +535,14 @@ func MakeSlice(typ Type, len, cap int) Value {
 type sliceHeader struct {
 	data     unsafe.Pointer
 	len, cap int
+}
+
+// Indirect returns the value that v points to. If v is a nil pointer,
+// Indirect returns a zero Value. If v is not a pointer, Indirect returns v
+// (Batch 1).
+func Indirect(v Value) Value {
+	if v.Kind() != Pointer {
+		return v
+	}
+	return v.Elem()
 }

@@ -30,7 +30,7 @@ Supported subset (S2):
   module that it imports, unicode/utf8, unicode, math/bits, math, and
   strconv from GOROOT (go1.26), part of runtime, os, sync, and
   sync/atomic, cmp, slices, sort, maps, errors, strings, bytes,
-  unsafe, and fmt, with generic code instantiated across packages; functions with
+  unsafe, fmt, hash/crc32, and encoding/binary, with generic code instantiated across packages; functions with
   multiple results and
   variadic functions;
   bool, every integer type, float32, float64, strings with len, indexing,
@@ -44,7 +44,7 @@ Supported subset (S2):
   and channels with go, send, receive, close, len, cap, range, and
   select; if, for, for range over integers, arrays, slices, and
   strings, switch, labels, and goto; package-level var and const; init
-  functions; iota, min and max of integers, fallthrough; complex
+  functions; iota, min and max, fallthrough; complex
   numbers without arithmetic; reflect in part; print and println. Not
   supported: complex arithmetic, range over functions.
   See docs/SEMANTICS.md.

@@ -1,1 +1,0 @@
-testdata/check/unsupported_builtin_constant.go:6:7: unsupported: builtin min is not supported in subset S1 [builtin]

@@ -43,7 +43,11 @@ var patches = map[string]patch{
 		},
 	},
 	"math/bits": {use: map[string]string{"bits_errors.go": "bits_errors_bootstrap.go"}},
-	"strconv":   {use: map[string]string{"bytealg.go": "bytealg_bootstrap.go"}},
+	// The table-driven CRC of gc's other architectures, in place of its
+	// SSE4.2 and carry-less multiplication assembly: a CRC is defined
+	// exactly, so the results are the same (Batch 1).
+	"hash/crc32": {use: map[string]string{"crc32_amd64.go": "crc32_otherarch.go"}},
+	"strconv":    {use: map[string]string{"bytealg.go": "bytealg_bootstrap.go"}},
 	// gc's portable files, and Aether's for its assembly and runtime (11.7).
 	"internal/bytealg": {exclude: []string{"equal_native.go", "index_native.go"}, use: map[string]string{
 		"compare_native.go": "compare_generic.go", "count_native.go": "count_generic.go", "indexbyte_native.go": "indexbyte_generic.go"}},
@@ -63,7 +67,7 @@ var Intrinsics = map[string]bool{
 	"internal/strconv.float64bits": true, "internal/strconv.float64frombits": true,
 	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
 	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "os.read": true, "sync.fatal": true,
-	"errors.isComparable": true,
+	"internal/reflectlite.implements": true,
 }
 
 // isStd reports whether an import path names a standard-library package:
