@@ -130,7 +130,9 @@ func TestDependencyRulesDetectViolations(t *testing.T) {
 
 // TestNoProcessStartOutsideToolchain checks the non-test source of every
 // Aether package except internal/toolchain for other ways of starting a
-// process: importing syscall, or calling os.StartProcess.
+// process: importing syscall, or calling os.StartProcess. The one file
+// allowed syscall is the interpreter's emulation of a program's file system
+// calls (D-051), and it may use only the names of syscallAllowed.
 func TestNoProcessStartOutsideToolchain(t *testing.T) {
 	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Dir}}{{range .GoFiles}} {{.}}{{end}}", modulePath+"/...")
 	out, err := cmd.Output()
@@ -153,6 +155,17 @@ func TestNoProcessStartOutsideToolchain(t *testing.T) {
 	}
 }
 
+// interpSyscallFile makes the host's file system calls for the interpreter
+// (D-051), and syscallAllowed are the names of syscall it may use: none
+// starts a process, and its Syscall6 calls make only the system calls of
+// Aether's os package.
+const interpSyscallFile = "internal/interp/syscall_linux_amd64.go"
+
+var syscallAllowed = map[string]bool{
+	"Syscall6": true, "Errno": true, "Open": true, "Close": true, "Faccessat": true,
+	"O_CLOEXEC": true, "O_DIRECTORY": true, "EBADF": true, "ERANGE": true,
+}
+
 func checkNoProcessStart(t *testing.T, path string) {
 	t.Helper()
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
@@ -164,7 +177,18 @@ func checkNoProcessStart(t *testing.T, path string) {
 		p, _ := strconv.Unquote(imp.Path.Value)
 		switch p {
 		case "syscall":
-			t.Errorf("%s imports syscall", path)
+			if filepath.ToSlash(path) != interpSyscallFile && !strings.HasSuffix(filepath.ToSlash(path), "/"+interpSyscallFile) {
+				t.Errorf("%s imports syscall", path)
+				break
+			}
+			ast.Inspect(file, func(n ast.Node) bool {
+				if sel, ok := n.(*ast.SelectorExpr); ok {
+					if x, ok := sel.X.(*ast.Ident); ok && x.Name == "syscall" && !syscallAllowed[sel.Sel.Name] {
+						t.Errorf("%s uses syscall.%s", path, sel.Sel.Name)
+					}
+				}
+				return true
+			})
 		case "os":
 			osName = "os"
 			if imp.Name != nil {

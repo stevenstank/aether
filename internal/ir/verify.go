@@ -708,12 +708,14 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			args = []Type{I64}
 		case SysWrite, SysRead:
 			want, args = I64, []Type{I64, Ptr, I64}
-		case SysArgc:
+		case SysArgc, SysEnvc:
 			want = I64
-		case SysArgPtr:
+		case SysArgPtr, SysEnvPtr:
 			want, args = Ptr, []Type{I64}
-		case SysArgLen:
+		case SysArgLen, SysEnvLen:
 			want, args = I64, []Type{I64}
+		case SysCall:
+			want, args = I64, []Type{U64, U64, U64, U64, U64, U64, U64}
 		case SysGC:
 		default:
 			v.errorf(bi, i, in, "sys of unknown kind %d", in.Index)

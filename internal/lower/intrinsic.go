@@ -99,6 +99,18 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 			kind = ir.SysRead
 		}
 		l.fn.Ret(b, pos, l.fn.Sys(b, kind, ir.I64, pos, fdv, p, n))
+	case "os.syscall6":
+		// syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) int (D-051).
+		args := make([]*ir.Instr, 7)
+		for i := range args {
+			args[i] = l.fn.Param(b, i, pos)
+		}
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCall, ir.I64, pos, args...))
+	case "os.envc":
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvc, ir.I64, pos))
+	case "os.env":
+		i := l.fn.Param(b, 0, pos)
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvPtr, ir.Ptr, pos, i), l.fn.Sys(b, ir.SysEnvLen, ir.I64, pos, i))
 	case "internal/reflectlite.implements":
 		// implements(iface, t unsafe.Pointer) unsafe.Pointer: the itab of
 		// the type t and the non-empty interface iface, by iface's .findK,

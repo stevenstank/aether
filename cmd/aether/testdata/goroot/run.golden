@@ -42,7 +42,7 @@ armimm.go pass
 atomicload.go pass
 bigalg.go unsupported println-argument-type
 bigmap.go pass
-blank.go unsupported stdlib-package
+blank.go unsupported blank-identifier
 chan/doubleselect.go unsupported stdlib-package
 chan/fifo.go pass
 chan/goroutines.go pass
@@ -70,10 +70,10 @@ closure1.go pass
 closure2.go pass
 closure4.go pass
 closure7.go pass
-cmp.go unsupported stdlib-package
+cmp.go pass
 complit.go pass
 compos.go pass
-const.go unsupported stdlib-package
+const.go unsupported complex-arithmetic
 const3.go pass
 const4.go pass
 const7.go unsupported stdlib-package
@@ -92,7 +92,7 @@ devirtualization_nil_panics.go unsupported stdlib-package
 divide.go pass
 divmod.go pass
 dwarf/linedirectives.go unsupported directive
-env.go unsupported stdlib-package
+env.go pass
 escape.go pass
 escape3.go pass
 finprofiled.go unsupported stdlib-package
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 741 pass (73.7%), 264 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 743 pass (73.9%), 262 unsupported, 0 bug

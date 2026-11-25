@@ -1310,7 +1310,8 @@ internals). They declare part of gc's API, with gc's behavior:
   `*PathError` with gc's message (`write /dev/stdout: bad file
   descriptor`), and a write to a nil `*File` returns `ErrInvalid`
   (`invalid argument`). `PathError` and the error number are `os`'s own
-  types, not `io/fs`'s and `syscall`'s.
+  types, not `io/fs`'s and `syscall`'s. Batch 2 adds files by name and
+  the environment (§Capability Batch 2).
 - **`sync`:** `Mutex` (`Lock`, `TryLock`, `Unlock`), `RWMutex` (also
   `RLock`, `TryRLock`, `RUnlock`, `RLocker`; once a writer waits in
   `Lock`, new readers wait until it has unlocked), `WaitGroup` (`Add`,
@@ -1327,8 +1328,8 @@ internals). They declare part of gc's API, with gc's behavior:
   `Uintptr`, and `Bool` with their methods. Goroutines switch only when
   one blocks or yields (D-048), so plain memory operations are atomic.
 - `unsupported` (`stdlib-package`): a name these packages do not declare
-  (for example `runtime.Goexit`, `os.Getenv`, `sync.Cond`,
-  `WaitGroup.Go`, `File.Close`), named by the main
+  (for example `runtime.Goexit`, `os.Stat`, `sync.Cond`,
+  `WaitGroup.Go`, `File.Stat`), named by the main
   module, which gc's packages declare; and a standard-library package
   that uses one (for example `io` needs `sync.Pool`, so `strings` and
   `bytes` stay unsupported).
@@ -1492,6 +1493,42 @@ and `os`; the rest of the subset applies to what it reaches.
   name is `generic-instance`. Whether an interface type implements
   another interface type is not decided (D-050); gc's packages never ask.
 
+## Capability Batch 2: files and the environment
+
+D-051. Aether's `os` adds, with gc's behavior and errors:
+- **files by name**: `Open`, `Create`, `OpenFile` with the `O_` flags,
+  `ReadFile`, `WriteFile`, `Mkdir`, `MkdirAll`, `Remove`, `Rename`,
+  `Getwd`, `Chdir`, `TempDir`, `UserHomeDir`, `IsPathSeparator`,
+  `PathSeparator`, `PathListSeparator`, `DevNull`, and `SEEK_SET` etc.;
+- **`*File`**: `Close` (again: `file already closed`), `ReadAt`,
+  `WriteAt` (gc's error after `O_APPEND`), `Seek`, `Sync`, `Truncate`,
+  and `Fd`, besides `Read`, `Write`, `WriteString`, and `Name`;
+- **the environment**: `Getenv`, `LookupEnv`, `Setenv` (`setenv: invalid
+  argument`), `Unsetenv`, `Clearenv`, `Environ`, `Expand`, and
+  `ExpandEnv`; of two strings of one key, the first counts, as gc's;
+- **errors**: `PathError`, `LinkError`, `SyscallError`,
+  `NewSyscallError`, `ErrInvalid`, `ErrPermission`, `ErrExist`,
+  `ErrNotExist`, `ErrClosed`, `IsExist`, `IsNotExist`, `IsPermission`,
+  and `IsTimeout`; a system call's error has gc's message and `Is`
+  (`errors.Is(err, os.ErrNotExist)`).
+
+Differences from gc:
+- `io/fs` imports `time`, which Aether cannot compile yet, so `Stat`,
+  `Lstat`, `File.Stat`, `FileInfo`, `ReadDir`, and `DirEntry` are
+  `unsupported`, and `FileMode`, `PathError`, and the `Err*` values are
+  `os`'s own types and values rather than `io/fs`'s; an error's number is
+  `os`'s type, not `syscall.Errno`, so `%T` and `%#v` print other names.
+- gc's runtime opens descriptors of its own (its poller) when a program
+  first opens a file, so later files' numbers (`Fd`) differ; Aether's are
+  the kernel's lowest free ones.
+- `Getwd` returns the `getcwd` system call's error (`getwd: file name too
+  long`) for a working directory whose path exceeds 4095 bytes; gc then
+  searches the parent directories.
+- `NewFile`, `Pipe`, `ReadDir`, `Readlink`, `Symlink`, `Link`, `Chmod`,
+  `Chtimes`, `RemoveAll`, `MkdirTemp`, `CreateTemp`, `Getpid`,
+  `Hostname`, processes, and `File.ReadFrom`'s system-call shortcuts are
+  not provided (`io.Copy` copies through a buffer, with the same result).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1545,6 +1582,7 @@ and `os`; the rest of the subset applies to what it reaches.
 | Complex numbers as values (no arithmetic); `reflect` in part | Numeric types, Manipulating complex numbers, Package reflect | Phase 11 / 11.8 | Supported (native) | `s7_c01_complex`, `unsupported_complex_arithmetic`; `TestStdPrograms` (`reflect`); gate tests |
 | `fmt`, with `internal/fmtsort` | Package fmt | Phase 11 / 11.8 | Supported (native) | `TestStdPrograms` (`fmt`, against gc, natively and in the interpreter); `TestStdin` |
 | `min` and `max` of floats and strings; `sync/atomic` `Pointer` and `Value`; `sync` `Map`, `OnceFunc`, `OnceValue`, `OnceValues`; `runtime` `Frame` and `Frames`; `reflect` `Indirect` and `CanSet`; `hash/crc32`; `encoding/binary`; `errors.As` with `internal/reflectlite` | Min and max; the packages' documentation | Batch 1 | Supported (native) | `s7_l04_minmax_ordered`; `TestStdPrograms` (`minmax`, `atomicvalue`, `syncmap`, `syncmappanic`, `oncepanic`, `frames`, `crc32`, `binary`, `errorsas`, `errorsaspanic`); `TestStdRejects`; gate tests |
+| `os` files by name (`Open`, `Create`, `OpenFile`, `ReadFile`, `WriteFile`, `Mkdir`, `MkdirAll`, `Remove`, `Rename`, `Getwd`, `Chdir`), `File` methods (`Close`, `ReadAt`, `WriteAt`, `Seek`, `Sync`, `Truncate`, `Fd`), the environment, and `os`'s errors | The package's documentation | Batch 2 | Supported (native) | `TestOSPrograms` (`testdata/osprog`, against gc, natively and in the interpreter, comparing the directory left); `TestStdRejects`; `TestSysOps` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

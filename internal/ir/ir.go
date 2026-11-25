@@ -376,10 +376,23 @@ const (
 	// read system call (increment 11.8). Its value, an I64, is the bytes
 	// read, 0 at end of file, or the negated errno.
 	SysRead
+	// SysCall makes the Linux x86-64 system call numbered args[0] with the
+	// arguments args[1] to args[6], all U64 (uintptr), an address passed as
+	// its bits (D-051). Its value, an I64, is the system call's result: the negated
+	// errno if in [-4095, -1].
+	SysCall
+	// SysEnvc is the number of the program's environment strings, as
+	// execve passed them: an I64. No args.
+	SysEnvc
+	// SysEnvPtr and SysEnvLen are the address (a Ptr) and length (an I64)
+	// of environment string args[0], an I64 in [0, SysEnvc).
+	SysEnvPtr
+	SysEnvLen
 )
 
 // SysNames are the system calls' names, as the printer writes them.
-var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read"}
+var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read",
+	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",

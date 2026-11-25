@@ -70,7 +70,7 @@ func TestGoroutineOps(t *testing.T) {
 }
 
 // TestSysOps checks that the verifier accepts the system calls (D-049,
-// increment 11.6, and read, 11.8), prints them, and rejects their misuse.
+// increment 11.6, read, 11.8, and syscall and the environment, D-051), prints them, and rejects their misuse.
 func TestSysOps(t *testing.T) {
 	build := func() *Program {
 		p := &Program{}
@@ -83,6 +83,11 @@ func TestSysOps(t *testing.T) {
 		f.Sys(b, SysGC, NoType, pos)
 		f.Sys(b, SysExit, NoType, pos, n)
 		f.Sys(b, SysRead, I64, pos, n, ptr, n)
+		e := f.Sys(b, SysEnvc, I64, pos)
+		f.Sys(b, SysEnvPtr, Ptr, pos, e)
+		f.Sys(b, SysEnvLen, I64, pos, e)
+		w := f.TypedConst(b, U64, 1, pos)
+		f.Sys(b, SysCall, I64, pos, w, w, w, w, w, w, w)
 		f.Ret(b, pos)
 		return p
 	}
@@ -91,7 +96,8 @@ func TestSysOps(t *testing.T) {
 		t.Fatalf("rejected: %v", errs)
 	}
 	text := p.String()
-	for _, want := range []string{"v0 = sys argc @", "v4 = sys write, v2, v1, v3 @", "sys gc @", "sys exit, v0 @", "v5 = sys read, v0, v1, v0 @"} {
+	for _, want := range []string{"v0 = sys argc @", "v4 = sys write, v2, v1, v3 @", "sys gc @", "sys exit, v0 @", "v5 = sys read, v0, v1, v0 @",
+		"v6 = sys envc @", "v7 = sys envptr, v6 @", "v8 = sys envlen, v6 @", "v10 = sys syscall, v9, v9, v9, v9, v9, v9, v9 @"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("printed IR lacks %q:\n%s", want, text)
 		}
@@ -101,7 +107,10 @@ func TestSysOps(t *testing.T) {
 		break_ func(in []*Instr)
 		want   string
 	}{
-		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 7"},
+		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 11"},
+		{"syscall of six words", func(in []*Instr) { in[12].Args = in[12].Args[:6] }, "has 6 operands, want 7"},
+		{"syscall of a ptr", func(in []*Instr) { in[12].Args[3] = in[1] }, "operand v1 has type ptr, want u64"},
+		{"envptr of an i64", func(in []*Instr) { in[9].Type = I64 }, "has result type i64, want ptr"},
 		{"read into a non-ptr", func(in []*Instr) { in[7].Args[1] = in[0] }, "operand v0 has type i64, want ptr"},
 		{"argc of a ptr", func(in []*Instr) { in[0].Type = Ptr }, "has type ptr, want i64"},
 		{"write of a non-ptr", func(in []*Instr) { in[4].Args[1] = in[2] }, "operand v2 has type i64, want ptr"},

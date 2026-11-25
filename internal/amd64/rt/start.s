@@ -19,7 +19,8 @@
 # them succeed (D-049, increment 11.6); if that fails, it prints the fatal
 # error "cannot open standard fds" and exits with status 2. It saves argc
 # and argv for the system calls aether.argc, aether.argptr, and
-# aether.arglen.
+# aether.arglen, and envp for aether.envc, aether.envptr, and aether.envlen
+# (D-051).
 #
 # Every function's prologue checks its frame against L and jumps to
 # aether.stackoverflow if it does not fit (D-011).
@@ -55,6 +56,7 @@ _start:
 	leaq	8(%rsp), %rcx
 	movq	%rcx, .Largv(%rip)
 	leaq	16(%rsp,%rax,8), %rcx	# envp, after argv and its 0
+	movq	%rcx, .Lenvp(%rip)
 2:	movq	(%rcx), %rsi		# AETHER_GCSTRESS=1 sets aether.gcstress (D-046)
 	testq	%rsi, %rsi
 	jz	4f
@@ -273,9 +275,15 @@ aether.panicmsg:
 #   - aether.argc returns the number of the program's arguments, from
 #     _start's argc;
 #   - aether.argptr and aether.arglen return the address and length of
-#     argument %rdi, which is below that number.
+#     argument %rdi, which is below that number;
+#   - aether.envc, aether.envptr, and aether.envlen are the same for the
+#     environment strings, from _start's envp (D-051).
 #
-# They use no stack.
+# They use no stack. aether.syscall6 (D-051) takes its seven args, each a
+# word, in the caller's outgoing area, 8(%rsp) to 56(%rsp) after the call:
+# the system call's number, then its six arguments. It makes the system
+# call and returns its result in %rax, the negated errno on failure. It
+# clobbers %rdi, %rsi, %rdx, %r8, %r9, %r10, %rcx, and %r11.
 	.globl	aether.exit
 	.type	aether.exit, @function
 aether.exit:
@@ -299,6 +307,53 @@ aether.sysread:
 	syscall				# clobbers %rcx and %r11
 	ret
 	.size	aether.sysread, .-aether.sysread
+
+	.globl	aether.syscall6
+	.type	aether.syscall6, @function
+aether.syscall6:
+	movq	8(%rsp), %rax
+	movq	16(%rsp), %rdi
+	movq	24(%rsp), %rsi
+	movq	32(%rsp), %rdx
+	movq	40(%rsp), %r10
+	movq	48(%rsp), %r8
+	movq	56(%rsp), %r9
+	syscall				# clobbers %rcx and %r11
+	ret
+	.size	aether.syscall6, .-aether.syscall6
+
+	.globl	aether.envc
+	.type	aether.envc, @function
+aether.envc:
+	movq	.Lenvp(%rip), %rcx
+	xorl	%eax, %eax
+1:	cmpq	$0, (%rcx,%rax,8)
+	je	2f
+	incq	%rax
+	jmp	1b
+2:	ret
+	.size	aether.envc, .-aether.envc
+
+	.globl	aether.envptr
+	.type	aether.envptr, @function
+aether.envptr:
+	movq	.Lenvp(%rip), %rax
+	movq	(%rax,%rdi,8), %rax
+	ret
+	.size	aether.envptr, .-aether.envptr
+
+	.globl	aether.envlen
+	.type	aether.envlen, @function
+aether.envlen:
+	movq	.Lenvp(%rip), %rax
+	movq	(%rax,%rdi,8), %rcx
+	xorl	%eax, %eax
+1:	cmpb	$0, (%rcx,%rax)
+	je	2f
+	incq	%rax
+	jmp	1b
+2:	ret
+	.size	aether.envlen, .-aether.envlen
 
 	.globl	aether.argc
 	.type	aether.argc, @function
@@ -376,6 +431,8 @@ aether.stacklimit:
 .Largc:
 	.zero	8
 .Largv:
+	.zero	8
+.Lenvp:
 	.zero	8
 
 	.section	.note.GNU-stack,"",@progbits

@@ -1,12 +1,15 @@
 // Package os is Aether's replacement of gc's os package (D-049, increment
-// 11.6): the program's arguments, its exit, reads of its standard input
-// (11.8), and writes to its standard output and standard error. The
-// functions without a body are intrinsics.
+// 11.6, and D-051): the program's arguments, environment, and exit, and
+// its files: the standard input, output, and error, and files it opens,
+// creates, and removes by name. Its functions behave as gc's, with gc's
+// errors; their system calls are one primitive, syscall6, and their
+// numbers and structures are Linux x86-64's. The functions without a body
+// are intrinsics.
 package os
 
 import (
-	"errors"
 	"io"
+	"unsafe"
 )
 
 // Args are the program's arguments, its name first.
@@ -17,40 +20,68 @@ func init() {
 	for i := range Args {
 		Args[i] = arg(i)
 	}
+	envs = make([]string, envc())
+	for i := range envs {
+		envs[i] = env(i)
+	}
 }
 
 func argc() int
 func arg(i int) string
 
+// envc and env are the number of the environment strings and string i, as
+// execve passed them.
+func envc() int
+func env(i int) string
+
 // Exit ends the program with the exit status code. Deferred calls do not
 // run.
 func Exit(code int)
 
-// ErrInvalid is the error of an operation on a nil *File.
-var ErrInvalid = errors.New("invalid argument")
-
 // A File is an open file descriptor.
 type File struct {
-	fd   int
-	name string
+	fd         int
+	name       string
+	closed     bool
+	appendMode bool // opened with O_APPEND
 }
 
 // Stdin, Stdout, and Stderr are the files of the standard input, standard
 // output, and standard error.
 var (
-	Stdin  = &File{0, "/dev/stdin"}
-	Stdout = &File{1, "/dev/stdout"}
-	Stderr = &File{2, "/dev/stderr"}
+	Stdin  = &File{fd: 0, name: "/dev/stdin"}
+	Stdout = &File{fd: 1, name: "/dev/stdout"}
+	Stderr = &File{fd: 2, name: "/dev/stderr"}
 )
 
 // Name returns the name of the file.
 func (f *File) Name() string { return f.name }
+
+// Fd returns the file's descriptor, or ^uintptr(0) once it is closed.
+func (f *File) Fd() uintptr {
+	if f == nil || f.closed {
+		return ^uintptr(0)
+	}
+	return uintptr(f.fd)
+}
+
+// wrapErr is gc's: err with the operation and the file's name, but io.EOF
+// as it is.
+func (f *File) wrapErr(op string, err error) error {
+	if err == nil || err == io.EOF {
+		return err
+	}
+	return &PathError{Op: op, Path: f.name, Err: err}
+}
 
 // Read reads up to len(b) bytes from the file into b, with one read
 // system call. At end of file, it returns 0 and io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
 	if f == nil {
 		return 0, ErrInvalid
+	}
+	if f.closed {
+		return 0, f.wrapErr("read", ErrClosed)
 	}
 	// As gc's internal/poll.(*FD).Read: no system call for an empty b, at
 	// most maxRW bytes, retried after EINTR, and 0 bytes read without an
@@ -67,7 +98,7 @@ func (f *File) Read(b []byte) (n int, err error) {
 			continue
 		}
 		if m < 0 {
-			return 0, &PathError{Op: "read", Path: f.name, Err: errno(-m)}
+			return 0, f.wrapErr("read", errno(-m))
 		}
 		if m == 0 {
 			return 0, io.EOF
@@ -88,6 +119,9 @@ func (f *File) Write(b []byte) (n int, err error) {
 	if f == nil {
 		return 0, ErrInvalid
 	}
+	if f.closed {
+		return 0, f.wrapErr("write", ErrClosed)
+	}
 	// As gc's internal/poll.(*FD).Write: one write at least, retried after
 	// EINTR, continued after a short one.
 	for {
@@ -99,85 +133,38 @@ func (f *File) Write(b []byte) (n int, err error) {
 			n += m
 		}
 		if m < 0 {
-			return n, &PathError{Op: "write", Path: f.name, Err: errno(-m)}
+			return n, f.wrapErr("write", errno(-m))
 		}
 		if n == len(b) {
 			return n, nil
 		}
 		if m == 0 {
-			return n, &PathError{Op: "write", Path: f.name, Err: errUnexpectedEOF}
+			return n, f.wrapErr("write", io.ErrUnexpectedEOF)
 		}
 	}
 }
 
 // WriteString is Write of the bytes of s.
 func (f *File) WriteString(s string) (n int, err error) {
-	return f.Write([]byte(s))
+	return f.Write(unsafe.Slice(unsafe.StringData(s), len(s)))
 }
 
 // write makes one write system call and returns its result: the bytes
 // written, or the negated errno.
 func write(fd int, b []byte) int
 
-var errUnexpectedEOF = errors.New("unexpected EOF")
-
-// PathError records an error and the operation and file path that caused
-// it.
-type PathError struct {
-	Op   string
-	Path string
-	Err  error
-}
-
-func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
-
-func (e *PathError) Unwrap() error { return e.Err }
-
-const eintr = 4
-
-// errno is a Linux error number, with gc's message for each error of the
-// read and write system calls (syscall/zerrors_linux_amd64.go).
-type errno int
-
-func (e errno) Error() string {
-	switch e {
-	case 1:
-		return "operation not permitted"
-	case 5:
-		return "input/output error"
-	case 9:
-		return "bad file descriptor"
-	case 11:
-		return "resource temporarily unavailable"
-	case 14:
-		return "bad address"
-	case 21:
-		return "is a directory"
-	case 22:
-		return "invalid argument"
-	case 27:
-		return "file too large"
-	case 28:
-		return "no space left on device"
-	case 32:
-		return "broken pipe"
-	case 89:
-		return "destination address required"
-	case 122:
-		return "disk quota exceeded"
+// Close closes the file. Closing it again is an error.
+func (f *File) Close() error {
+	if f == nil {
+		return ErrInvalid
 	}
-	return "errno " + itoa(int(e))
-}
-
-func itoa(n int) string {
-	var b [20]byte
-	i := len(b)
-	for {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-		if n == 0 {
-			return string(b[i:])
-		}
+	if f.closed {
+		return f.wrapErr("close", ErrClosed)
 	}
+	f.closed = true
+	// As gc's: no retry after EINTR, which leaves the descriptor closed.
+	if r := syscall6(sysClose, uintptr(f.fd), 0, 0, 0, 0, 0); r < 0 {
+		return f.wrapErr("close", errno(-r))
+	}
+	return nil
 }

@@ -271,7 +271,9 @@ system calls of the runtime, named by its kind: `exit`, `write` (one write
 system call, whose value is the bytes written or the negated errno),
 `argc`, `argptr` and `arglen` (the program's arguments), and `gc` (a
 collection), for the bodies of the standard-library overlays' intrinsics
-(D-049, increment 11.6).
+(D-049, increment 11.6); `read` (11.8); `envc`, `envptr`, and `envlen` (the
+environment), and `syscall`, any Linux system call of a number and six
+words (D-051).
 
 | Op | Operands | Result | Meaning |
 |---|---|---|---|
@@ -362,6 +364,9 @@ and value numbering never depend on map iteration order.
 - It verifies the program first and executes nothing if the IR is malformed.
 - It exists to give tests an oracle and to locate bugs. It is not a product
   feature, has no performance goals, and has no CLI command (D-021).
+- It makes a program's file system calls through the host's, which must
+  be Linux x86-64, with descriptors and a working directory of the
+  program's own (D-051).
 
 ### 6. Optimizer (Aether, Phase 5+; SSA per D-006 and D-025)
 
@@ -677,7 +682,9 @@ so none can be read as an option.
   - The system calls of the IR's `sys` (D-049, increment 11.6):
     `aether.exit`, `aether.syswrite`, `aether.sysread` (11.8),
     `aether.argc`, `aether.argptr`, and `aether.arglen` in `rt/start.s`, whose `_start` saves `argc` and
-    `argv`, and `aether.gc` in `rt/heap.s` (table below).
+    `argv`, and `aether.gc` in `rt/heap.s` (table below); `aether.envc`,
+    `aether.envptr`, `aether.envlen`, and `aether.syscall6`, which takes
+    its seven words in the outgoing area (D-051).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
       (`aether.write`) that continues short writes, retries `EINTR`, and
@@ -734,6 +741,7 @@ that interface is:
 | `aether.zerobase` | runtime | The address of every zero-size allocation (D-035). |
 | `aether.write` | runtime | Writes `%rdx` bytes at `%rsi` to fd 2 under the same rules. For the runtime's own use (`_start`'s fatal error); generated code does not call it. Clobbers `%rax`, `%rcx`, `%rdx`, `%rsi`, `%rdi`, `%r11`. |
 | `aether.exit`, `aether.syswrite`, `aether.sysread`, `aether.argc`, `aether.argptr`, `aether.arglen` | runtime | The system calls of `sys` (D-049, increments 11.6 and 11.8), under the helper interface, with their arguments in `%rdi`, `%rsi`, `%rdx` and their value in `%rax`: `exit_group(%rdi)`, never returning; one `write(%rdi, %rsi, %rdx)`, returning the bytes written or the negated errno; one `read(%rdi, %rsi, %rdx)`, returning the bytes read, 0 at end of file, or the negated errno; the number of arguments; the address and length of argument `%rdi`, which must be below that number. They use no stack. |
+| `aether.envc`, `aether.envptr`, `aether.envlen`, `aether.syscall6` | runtime | The environment's `sys` kinds, as the arguments' (D-051); and `syscall`: its seven words at `8(%rsp)` to `56(%rsp)`, the caller's outgoing area, loaded into `%rax`, `%rdi`, `%rsi`, `%rdx`, `%r10`, `%r8`, and `%r9` for one `syscall`, whose result or negated errno it returns in `%rax`. |
 | `aether.gc` | runtime | Runs a collection unless nothing was ever allocated (`sys gc`, for `runtime.GC`), under the helper interface and `aether.alloc`'s stack bound. |
 
 Rules:

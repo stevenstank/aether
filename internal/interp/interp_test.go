@@ -501,3 +501,37 @@ func TestSys(t *testing.T) {
 		t.Errorf("exit in Init: exit %d, %v, stderr %q; want exit 0 and main not run", code, err, stderr.String())
 	}
 }
+
+// TestSysEnvAndCall checks the environment's system calls and SysCall
+// (D-051): close of the run's stdout, which a later write then fails, and of
+// a descriptor never open, and the error of a system call the interpreter
+// does not make.
+func TestSysEnvAndCall(t *testing.T) {
+	build := func(trap int64) *ir.Program {
+		p := &ir.Program{}
+		f := p.NewFunc("main", "p.go", p1)
+		b := f.Entry()
+		i := f.Const(b, 1, p1)
+		f.Println(b, []*ir.Instr{f.Sys(b, ir.SysEnvc, ir.I64, p1), f.Sys(b, ir.SysEnvLen, ir.I64, p1, i),
+			f.LoadB(b, f.Sys(b, ir.SysEnvPtr, ir.Ptr, p1, i), f.Const(b, 2, p1), p1)}, p1)
+		w := func(v int64) *ir.Instr { return f.TypedConst(b, ir.U64, v, p1) }
+		for _, fd := range []int64{1, 7} {
+			f.Println(b, []*ir.Instr{f.Sys(b, ir.SysCall, ir.I64, p1, w(trap), w(fd), w(0), w(0), w(0), w(0), w(0))}, p1)
+		}
+		s := f.Str(b, p.Intern("x"), p1)
+		f.Println(b, []*ir.Instr{f.Sys(b, ir.SysWrite, ir.I64, p1, f.Const(b, 1, p1), s, f.Const(b, 1, p1))}, p1)
+		f.Ret(b, p1)
+		return p
+	}
+	var stdout, stderr bytes.Buffer
+	code, err := RunOptions(build(3), &stderr, Options{Stdout: &stdout, Env: []string{"A=1", "BC=23"}})
+	if want := "2 5 61\n0\n-9\n-9\n"; err != nil || code != 0 || stdout.Len() != 0 || stderr.String() != want {
+		t.Errorf("exit %d, %v, stdout %q, stderr %q; want %q", code, err, stdout.String(), stderr.String(), want)
+	}
+	if _, err := RunOptions(build(3), io.Discard, Options{}); err == nil || !strings.Contains(err.Error(), "environment string 1 of 0") {
+		t.Errorf("no environment: err = %v", err)
+	}
+	if _, err := RunOptions(build(39), io.Discard, Options{Env: []string{"A=1", "B=2"}}); err == nil || !strings.Contains(err.Error(), "not emulated") {
+		t.Errorf("getpid: err = %v", err)
+	}
+}

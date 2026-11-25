@@ -318,8 +318,10 @@ func TestStdRejects(t *testing.T) {
 		// gc's runtime, os, sync, and sync/atomic have more than Aether's.
 		{"runtime name", "package main\nimport \"runtime\"\nfunc main() { runtime.Goexit() }\n",
 			diag.Unsupported, "p.go:3:23: unsupported: runtime.Goexit, which Aether's package runtime does not have, is not supported in subset S1 [stdlib-package]"},
-		{"os method", "package main\nimport \"os\"\nfunc main() { os.Stdout.Close() }\n",
-			diag.Unsupported, "p.go:3:25: unsupported: os.File.Close, which Aether's package os does not have,"},
+		{"os method", "package main\nimport \"os\"\nfunc main() { os.Stdout.Stat() }\n",
+			diag.Unsupported, "p.go:3:25: unsupported: os.File.Stat, which Aether's package os does not have,"},
+		{"os function", "package main\nimport \"os\"\nfunc main() { os.ReadDir(\".\") }\n",
+			diag.Unsupported, "p.go:3:18: unsupported: os.ReadDir, which Aether's package os does not have,"},
 		{"sync type", "package main\nimport \"sync\"\nvar c sync.Cond\nfunc main() {}\n",
 			diag.Unsupported, "p.go:3:12: unsupported: sync.Cond, which Aether's package sync does not have,"},
 		// Declared for type checking, but unsupported if reached (Batch 1).

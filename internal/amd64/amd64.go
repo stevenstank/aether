@@ -90,9 +90,19 @@ const symPanicIndex = "aether.panicindex"
 
 // symSys are the system calls of ir.Sys (D-049, increment 11.6), under the
 // helper interface: their args in %rdi, %rsi, and %rdx, their value in
-// %rax.
+// %rax. SysCall's seven args do not fit: they go through the outgoing area,
+// as a call's do (D-051).
 var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
-	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread"}
+	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread",
+	ir.SysCall: "aether.syscall6", ir.SysEnvc: "aether.envc", ir.SysEnvPtr: "aether.envptr", ir.SysEnvLen: "aether.envlen"}
+
+// sysOutgoing is the outgoing area a Sys needs: SysCall's args.
+func sysOutgoing(in *ir.Instr) int {
+	if in.Op == ir.Sys && in.Index == ir.SysCall {
+		return len(in.Args)
+	}
+	return 0
+}
 
 // strSym is the local symbol of the program's string i, in .rodata.
 func strSym(i int) string { return fmt.Sprintf(".Lstr.%d", i) }
@@ -381,6 +391,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 			if in.IsCall() {
 				out = max(out, outgoingWords(in, opts.ABIR1))
 			}
+			out = max(out, sysOutgoing(in))
 		}
 	}
 	slices.SortFunc(vals, func(x, y *ir.Instr) int { return x.ID - y.ID })
@@ -710,7 +721,15 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("call\t%s", symMemmove)
 	case ir.Sys:
 		// A call of the runtime (clobbers), its args through the scratch
-		// registers as Move's.
+		// registers as Move's, or SysCall's through the outgoing area.
+		if in.Index == ir.SysCall {
+			for i, a := range in.Args {
+				e.put(a, fmt.Sprintf("%d(%%rsp)", 8*i))
+			}
+			op("call\t%s", symSys[in.Index])
+			e.finish(in, "%rax")
+			break
+		}
 		scratch := []string{"%rax", "%rcx", "%rdx"}
 		for i, a := range in.Args {
 			e.load(a, scratch[i])

@@ -279,3 +279,22 @@ func (m *memory) bytes(p, n int64) ([]byte, error) {
 	}
 	return o.data[off : off+n], nil
 }
+
+// cstring returns the bytes at p up to and including the first 0 byte, a
+// path a system call takes (D-051), checking that they lie in one object
+// and were written.
+func (m *memory) cstring(p int64) ([]byte, error) {
+	o, off, err := m.object(p)
+	if err != nil {
+		return nil, err
+	}
+	for i := off; i < int64(len(o.data)); i++ {
+		if !o.written[i] {
+			return nil, fmt.Errorf("read of byte %d, never written", i)
+		}
+		if o.data[i] == 0 {
+			return o.data[off : i+1], nil
+		}
+	}
+	return nil, fmt.Errorf("no 0 byte after offset %d of an object of %d bytes", off, len(o.data))
+}

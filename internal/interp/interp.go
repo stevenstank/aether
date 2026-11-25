@@ -95,6 +95,14 @@ type Options struct {
 	// Args are the program's arguments, its name first; nil is one
 	// argument, "a.out".
 	Args []string
+	// Env are the program's environment strings, "key=value" as execve
+	// passes them; nil is none (D-051).
+	Env []string
+	// Dir is the program's initial working directory, in which it opens,
+	// creates, and removes files through the host's system calls; "" is
+	// the interpreter's own (D-051). Chdir changes the program's working
+	// directory, never the interpreter's.
+	Dir string
 	// Steps is RunSteps's budget.
 	Steps int64
 }
@@ -107,7 +115,9 @@ func RunOptions(prog *ir.Program, stderr io.Writer, opts Options) (int, error) {
 	globals := make([]int64, len(prog.Globals))
 	gs := &goroutines{stacks: make([][]frame, 1), live: []bool{true}}
 	mem := newMemory(prog)
-	sys := &process{stdin: opts.Stdin, stdout: opts.Stdout, stderr: stderr, args: opts.Args}
+	sys := &process{stdin: opts.Stdin, stdout: opts.Stdout, stderr: stderr, args: opts.Args, env: opts.Env, dir: opts.Dir,
+		fds: map[int64]vfd{0: {std: 0}, 1: {std: 1}, 2: {std: 2}}, cwd: -1}
+	defer sys.closeFiles()
 	if sys.stdout == nil {
 		sys.stdout = io.Discard
 	}
@@ -128,34 +138,55 @@ func RunOptions(prog *ir.Program, stderr io.Writer, opts Options) (int, error) {
 	return 0, errors.New("interp: no function main") // excluded by Verify
 }
 
-// process is a run's process: its output files and arguments.
+// process is a run's process: its files, arguments, and environment.
 type process struct {
 	stdin          io.Reader
 	stdout, stderr io.Writer
 	args           []string
 	argPtrs        []int64 // each argument's read-only object, once made
+	env            []string
+	envPtrs        []int64 // each environment string's, as argPtrs
 	exited         bool    // a SysExit ended the run
+	// The program's file descriptors (D-051): 0, 1, and 2 are the run's
+	// standard files until closed, and the others are the host's files the
+	// program opened, numbered as the kernel numbers them, the lowest free
+	// first.
+	fds map[int64]vfd
+	dir string // Options.Dir
+	cwd int    // the host descriptor of the working directory, -1 until used
 }
 
-// write is SysWrite: fd 1 and 2 are the run's stdout and stderr, and
-// every other descriptor is closed (EBADF).
+// vfd is one of the program's file descriptors: a standard file of the
+// run (std 0, 1, or 2) or, for std -1, the host's descriptor host.
+type vfd struct{ std, host int }
+
+// write is SysWrite: fd 1 and 2 are the run's stdout and stderr, a file
+// the program opened is the host's, and every other descriptor is closed
+// (EBADF).
 func (p *process) write(fd int64, b []byte) int64 {
-	switch fd {
-	case 1:
-		_, _ = p.stdout.Write(b)
-	case 2:
-		_, _ = p.stderr.Write(b)
-	default:
+	v, ok := p.fds[fd]
+	switch {
+	case !ok || v.std == 0:
 		return -9
+	case v.std < 0:
+		return hostWrite(v.host, b)
+	case v.std == 1:
+		_, _ = p.stdout.Write(b)
+	default:
+		_, _ = p.stderr.Write(b)
 	}
 	return int64(len(b))
 }
 
-// read is SysRead: fd 0 is the run's stdin, read once, and every other
-// descriptor is closed (EBADF), as for write. Errors reading stdin are
-// EIO.
+// read is SysRead: fd 0 is the run's stdin, read once, a file the program
+// opened is the host's, and every other descriptor is closed (EBADF), as
+// for write. Errors reading stdin are EIO.
 func (p *process) read(fd int64, b []byte) int64 {
-	if fd != 0 {
+	v, ok := p.fds[fd]
+	switch {
+	case ok && v.std < 0:
+		return hostRead(v.host, b)
+	case !ok || v.std != 0:
 		return -9
 	}
 	if p.stdin == nil || len(b) == 0 {
@@ -170,17 +201,28 @@ func (p *process) read(fd int64, b []byte) int64 {
 
 // arg returns the Ptr of argument i, a read-only object made on first use.
 func (p *process) arg(mem *memory, i int64) int64 {
-	if p.argPtrs == nil {
-		p.argPtrs = make([]int64, len(p.args))
+	return roString(mem, &p.argPtrs, p.args, i)
+}
+
+// envString returns the Ptr of environment string i, as arg.
+func (p *process) envString(mem *memory, i int64) int64 {
+	return roString(mem, &p.envPtrs, p.env, i)
+}
+
+// roString returns the Ptr of strs[i] in a read-only object, made on first
+// use and kept in (*ptrs)[i].
+func roString(mem *memory, ptrs *[]int64, strs []string, i int64) int64 {
+	if *ptrs == nil {
+		*ptrs = make([]int64, len(strs))
 	}
-	if p.argPtrs[i] == 0 {
-		ptr := mem.alloc(int64(len(p.args[i])), true)
+	if (*ptrs)[i] == 0 {
+		ptr := mem.alloc(int64(len(strs[i])), true)
 		o := mem.objs[ptr>>offBits]
-		copy(o.data, p.args[i])
+		copy(o.data, strs[i])
 		o.readOnly = true
-		p.argPtrs[i] = ptr
+		(*ptrs)[i] = ptr
 	}
-	return p.argPtrs[i]
+	return (*ptrs)[i]
 }
 
 // frame is one active call.
@@ -515,6 +557,28 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 				}
 			case ir.SysGC:
 				// The interpreter frees no heap object (D-035).
+			case ir.SysEnvc:
+				fr.values[in.ID] = int64(len(sys.env))
+			case ir.SysEnvPtr, ir.SysEnvLen:
+				i := arg(0)
+				if i < 0 || i >= int64(len(sys.env)) {
+					return 0, fmt.Errorf("interp: func %s: %s: environment string %d of %d", fr.f.Name, in, i, len(sys.env))
+				}
+				if in.Index == ir.SysEnvLen {
+					fr.values[in.ID] = int64(len(sys.env[i]))
+				} else {
+					fr.values[in.ID] = sys.envString(mem, i)
+				}
+			case ir.SysCall:
+				var a [7]int64
+				for i := range a {
+					a[i] = arg(i)
+				}
+				r, err := sys.syscall(mem, a)
+				if err != nil {
+					return 0, fmt.Errorf("interp: func %s: %s: %v", fr.f.Name, in, err)
+				}
+				fr.values[in.ID] = r
 			}
 		case ir.GoSwitch, ir.GoExit:
 			h := arg(0)

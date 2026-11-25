@@ -76,6 +76,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-048 | Goroutines, channels, and the scheduler (Phase 10) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending; increment 10.1 implemented) |
 | D-049 | Packages, the standard library, and conformance (Phase 11) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-050 | Interface checks at run time for internal/reflectlite (Batch 1) | Accepted (2026-11-24; owner review pending) |
+| D-051 | One system-call primitive and the environment for package os (Batch 2) | Accepted (2026-11-24; owner review pending) |
 
 ## Review log
 
@@ -4478,6 +4479,66 @@ and `fmt` do, now has `internal/reflectlite` and so full descriptors
 205,032; `fmt.go` in 736 ms instead of 696 ms, 563,368 bytes instead of
 513,928. A program reaching `implements` also has a `.findK` for each
 non-empty interface type it describes.
+
+## D-051: One system-call primitive and the environment for package os (Batch 2)
+
+**Status:** Accepted (2026-11-24). Capability Batch 2: `os.ReadFile`
+stopped `eval/practical`'s 08-interp, and real programs read and write
+files and the environment.
+
+**Context.** Aether's `os` (D-049, 11.6) reached the kernel only through
+the IR's `Sys` kinds `SysRead` and `SysWrite`, and the interpreter served
+only the standard files. gc's own `os` stands on `syscall`,
+`internal/poll`, and the runtime's poller; `syscall` needs generic
+instances of other packages (Batch 3), so it cannot be compiled yet.
+
+**Decision.**
+- **One primitive.** The `Sys` kind `SysCall` makes any Linux x86-64
+  system call: its number and six arguments, all `U64` (an address as its
+  `uintptr`), and its value, an `I64`, the result or the negated errno.
+  `os` declares it as the intrinsic `syscall6` and writes each operation
+  in Go over it, as gc's `os` and `syscall` do: the same system calls
+  (`openat`, `newfstatat`, `unlinkat`, ... with `AT_FDCWD`), the same
+  retries after `EINTR`, and gc's errors and messages. The backend passes
+  its seven words through the outgoing area, as a call's (D-011), to the
+  runtime helper `aether.syscall6`, which loads the six argument
+  registers. An address passed as a `uintptr` keeps its object: the
+  collector never moves objects and runs only when the program allocates
+  (D-046).
+- **The environment.** `SysEnvc`, `SysEnvPtr`, and `SysEnvLen` are
+  `SysArgc`'s three for the strings at `envp`, which `_start` now saves.
+  `os` keeps them as gc's `syscall` does (`env_unix.go`).
+- **The interpreter** makes a program's system calls through the host's,
+  which must be Linux x86-64: exactly the ones `os` makes, with the
+  program's addresses translated to its objects' bytes. Its descriptors
+  are the program's own, numbered as the kernel numbers them, mapped to
+  the host's; its working directory is a host descriptor (`O_PATH`), so
+  `chdir` never changes the interpreter's. `interp.Options` gains `Env`
+  and `Dir`. Any other system call, an `*at` call with a directory
+  descriptor other than `AT_FDCWD`, or one on a standard file other than
+  `read`, `write`, and `close`, is an error of the interpreter.
+- **No process start.** `TestNoProcessStartOutsideToolchain` forbade
+  importing `syscall` outside `internal/toolchain`, so that no other
+  package can start a process (D-007, D-008). The interpreter's
+  emulation, `internal/interp/syscall_linux_amd64.go`, is now the one
+  exception, and the test allows it only `syscall` names that cannot
+  start one (`Syscall6`, `Open`, `Close`, `Faccessat`, `Errno`, and four
+  constants); its `Syscall6` calls make only the system calls listed
+  above.
+
+**Alternatives considered.** A `Sys` kind per operation (open, stat,
+unlink, ...): each one a verifier rule, a runtime helper, and an
+interpreter case, for no gain in checking, since the kernel checks the
+arguments. gc's own `os` over a trimmed `syscall`: it needs the runtime's
+poller and `time`, so it waits for Batches 3 and 4. Reading
+`/proc/self/environ` instead of `envp`: the same strings, but a file the
+interpreter would have to fake.
+
+**Consequences.** `os` files and the environment are in Go, gc's code
+where gc's is plain Go. `io/fs` imports `time`, so `Stat`, `FileInfo`,
+`ReadDir`, and `DirEntry` wait for Batch 4, and `FileMode`, `PathError`,
+and the `Err*` values are `os`'s own until then. The interpreter is
+less of a sandbox: tests run it in a temporary directory.
 
 ---
 
