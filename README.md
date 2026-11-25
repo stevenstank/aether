@@ -164,7 +164,7 @@ potentially long-term dependencies. The exact ownership boundaries are in
   `Pool`),
   and `sync/atomic` (increment 11.6), and `cmp`, `slices`, `sort`,
   `maps`, and `errors` (increment 11.7), with another package's generic
-  code instantiated with types that package can name, and `unsafe`,
+  code instantiated with any package's types since Batch 3, and `unsafe`,
   `strings`, and `bytes` (increment 11.7), and Aether's own part of
   `reflect` with `fmt` from GOROOT (increment 11.8).
   Everything outside S2 is **rejected with an explicit diagnostic**. The

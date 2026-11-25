@@ -227,7 +227,7 @@ func (l *lowerer) methodExpr(e *ast.SelectorExpr, sel *types.Selection) *ir.Inst
 	nx := len(l.words(e, xt))
 	nrecv := len(l.words(e, sel.Obj().Type().(*types.Signature).Recv().Type()))
 	params := append(append([]ir.Type{ir.Ptr}, l.words(e, xt)...), f.Params[nrecv:]...)
-	w := l.wrapper(kind+qualify(named.Obj(), named.Obj().Name())+"."+sel.Obj().Name(), params, f.Results, f.Pos, func(w *ir.Func) {
+	w := l.wrapper(kind+l.qualify(named.Obj(), named.Obj().Name())+"."+sel.Obj().Name(), params, f.Results, f.Pos, func(w *ir.Func) {
 		ps := l.enter(w, pos)
 		x := ps[1]
 		var deref, addr func() place
@@ -321,7 +321,7 @@ func (l *lowerer) initStatics() {
 	// The type descriptors and itabs (D-041).
 	for _, d := range l.descs {
 		a := l.fn.Addr(entry, d.mem, pos)
-		name := gcName(d.t)
+		name := l.gcName(d.t)
 		l.fn.StM(entry, a, l.fn.Const(entry, 0, pos), l.fn.Str(entry, l.prog.Intern(name), pos), pos)
 		l.fn.StM(entry, a, l.fn.Const(entry, 8, pos), l.fn.Const(entry, int64(len(name)), pos), pos)
 		if d.eq != nil {

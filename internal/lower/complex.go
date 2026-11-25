@@ -101,7 +101,7 @@ func (l *lowerer) complexPartOf(call *ast.CallExpr, imag bool) *ir.Instr {
 // has none (a positive number, +0, or NaN).
 func (l *lowerer) printComplex(t types.Type, rec func() *ir.Instr, pos ir.Pos) {
 	if _, named := t.(*types.Named); named {
-		l.printStr(gcName(t), pos)
+		l.printStr(l.gcName(t), pos)
 	}
 	pt, size := complexPart(t)
 	ft := l.irType(nil, pt)

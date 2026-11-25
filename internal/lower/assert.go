@@ -114,7 +114,7 @@ func (l *lowerer) assert(e *ast.TypeAssertExpr, commaOk bool) [][]*ir.Instr {
 // whose package path is t's, gc's pkgpath (that of a defined type's
 // package, or empty).
 func (l *lowerer) samePathFunc(t types.Type, pos ir.Pos) *ir.Func {
-	path := pkgPath(t)
+	path := l.pkgPath(t)
 	if f := l.samePaths[path]; f != nil {
 		return f
 	}
@@ -127,7 +127,7 @@ func (l *lowerer) samePathFunc(t types.Type, pos ir.Pos) *ir.Func {
 	l.late = append(l.late, func() {
 		ps := l.enter(f, pos)
 		for _, d := range l.dynDescs() {
-			if pkgPath(d.t) != path {
+			if l.pkgPath(d.t) != path {
 				continue
 			}
 			yes, no := l.fn.NewBlock(), l.fn.NewBlock()
@@ -144,9 +144,9 @@ func (l *lowerer) samePathFunc(t types.Type, pos ir.Pos) *ir.Func {
 
 // pkgPath returns the path of the package declaring t, if it is a defined
 // type of one, or "".
-func pkgPath(t types.Type) string {
+func (l *lowerer) pkgPath(t types.Type) string {
 	if n, ok := types.Unalias(t).(*types.Named); ok && n.Obj().Pkg() != nil {
-		return n.Obj().Pkg().Path()
+		return l.home(n.Obj()).Path()
 	}
 	return ""
 }
@@ -157,20 +157,20 @@ func (l *lowerer) assertFail(xt, t types.Type, tab func() *ir.Instr, pos ir.Pos)
 	isNil, other := l.fn.NewBlock(), l.fn.NewBlock()
 	l.fn.Branch(l.b, l.fn.Compare(l.b, ir.Eq, tab(), l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos), isNil, other, pos)
 	l.b = isNil
-	from := gcName(xt)
+	from := l.gcName(xt)
 	if isIface(t) {
 		from = "interface"
 	}
-	l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: "+from+" is nil, not "+gcName(t), pos)}, pos)
+	l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: "+from+" is nil, not "+l.gcName(t), pos)}, pos)
 	l.b = other
 	d := l.dynDesc(xt, tab(), pos)
 	if !isIface(t) {
 		// When the names are the same, gc tells why the types differ.
 		dk := l.keep(d, pos)
 		head := func(suffix string) {
-			l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: "+gcName(xt)+" is ", pos), l.descName(dk(), pos), l.strWords(", not "+gcName(t)+suffix, pos)}, pos)
+			l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: "+l.gcName(xt)+" is ", pos), l.descName(dk(), pos), l.strWords(", not "+l.gcName(t)+suffix, pos)}, pos)
 		}
-		name, want := l.descName(dk(), pos), l.strWords(gcName(t), pos)
+		name, want := l.descName(dk(), pos), l.strWords(l.gcName(t), pos)
 		same := l.when(l.fn.Not(l.b, l.fn.Call(l.b, l.streqFunc(pos), []*ir.Instr{name[0], name[1], want[0], want[1]}, pos), pos), pos)
 		head("")
 		l.b = same
@@ -182,7 +182,7 @@ func (l *lowerer) assertFail(xt, t types.Type, tab func() *ir.Instr, pos ir.Pos)
 	}
 	miss := l.fn.Call(l.b, l.missFunc(t, pos), []*ir.Instr{d, d}, pos)
 	missing := []*ir.Instr{l.fn.Extract(l.b, miss, 0, pos), l.fn.Extract(l.b, miss, 1, pos)}
-	l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: ", pos), l.descName(d, pos), l.strWords(" is not "+gcName(t)+": missing method ", pos), missing}, pos)
+	l.panicMsg([][]*ir.Instr{l.strWords("interface conversion: ", pos), l.descName(d, pos), l.strWords(" is not "+l.gcName(t)+": missing method ", pos), missing}, pos)
 }
 
 // typeSwitch lowers a type switch: its init, then its guard's operand,

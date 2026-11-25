@@ -281,7 +281,7 @@ func (l *lowerer) declare(prog *ir.Program, fd *ast.FuncDecl) {
 		// and so on, in source order, as gc names them (D-049).
 		name = fmt.Sprintf("init.%d", len(l.inits[obj.Pkg()]))
 	}
-	f := prog.NewFunc(qualify(obj, name), file, l.pos(fd.Name, fd.Name.Pos()))
+	f := prog.NewFunc(l.qualify(obj, name), file, l.pos(fd.Name, fd.Name.Pos()))
 	if isInit {
 		l.inits[obj.Pkg()] = append(l.inits[obj.Pkg()], f)
 	}
@@ -332,7 +332,7 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 			}
 			file := frontend.Position(l.pkg.Fset, id.Pos()).File
 			if isAggregate(v.Type()) || l.addrTaken[v] {
-				l.mems[v] = prog.NewMem(qualify(v, id.Name), sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
+				l.mems[v] = prog.NewMem(l.qualify(v, id.Name), sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
 				continue
 			}
 			// A string's or slice's words are the globals name.ptr,
@@ -346,7 +346,7 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 				case len(ts) > 1:
 					name += [3]string{".ptr", ".len", ".cap"}[i]
 				}
-				l.globals[v] = append(l.globals[v], prog.NewGlobal(qualify(v, name), t, file, l.pos(id, id.Pos())))
+				l.globals[v] = append(l.globals[v], prog.NewGlobal(l.qualify(v, name), t, file, l.pos(id, id.Pos())))
 			}
 		}
 	}
@@ -675,11 +675,20 @@ func (l *lowerer) stringMinMax(e *ast.CallExpr, isMin bool) []*ir.Instr {
 
 // qualify returns name, of obj or a function or global for it, qualified
 // by obj's package's import path if it is not main's (D-049).
-func qualify(obj types.Object, name string) string {
-	if p := obj.Pkg(); p != nil && p.Path() != "main" {
+func (l *lowerer) qualify(obj types.Object, name string) string {
+	if p := l.home(obj); p != nil && p.Path() != "main" {
 		return p.Path() + "." + name
 	}
 	return name
+}
+
+// home returns the package whose name obj has at run time: the generic
+// code's, for an instance another package hosts (D-052), else obj's.
+func (l *lowerer) home(obj types.Object) *types.Package {
+	if p := l.pkg.Homes[obj]; p != nil {
+		return p
+	}
+	return obj.Pkg()
 }
 
 // merge returns the packages of program as one package, for lowering.
@@ -692,8 +701,9 @@ func merge(program *frontend.Program) *frontend.Package {
 		Implicits: map[ast.Node]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{},
 		Scopes: map[ast.Node]*types.Scope{}, Instances: map[*ast.Ident]types.Instance{},
 	}
-	out := &frontend.Package{Fset: program.Fset, Types: program.Main().Types, Info: info}
+	out := &frontend.Package{Fset: program.Fset, Types: program.Main().Types, Info: info, Homes: map[types.Object]*types.Package{}}
 	for _, p := range program.Packages {
+		maps.Copy(out.Homes, p.Homes)
 		out.Files = append(out.Files, p.Files...)
 		maps.Copy(info.Types, p.Info.Types)
 		maps.Copy(info.Defs, p.Info.Defs)

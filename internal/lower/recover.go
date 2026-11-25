@@ -107,7 +107,7 @@ func (l *lowerer) recoverSetup(file string, pos ir.Pos) {
 		l.funcs[rtM] = l.genFunc(rt.name+".RuntimeError", params, nil, func(_ []func() *ir.Instr, pos ir.Pos) {
 			l.fn.Ret(l.b, pos)
 		})
-		ps.rt[gcName(recv)] = recv
+		ps.rt[l.gcName(recv)] = recv
 		order = append(order, recv)
 	}
 	// The descriptors, made now: .materialize is built after them.

@@ -146,6 +146,15 @@ The candidate pipeline in the Phase 0 brief has been adjusted as follows:
     each package's instances and wants and checking its copies against
     the prepared packages it imports. The gate and lowering see the
     prepared packages.
+    Since Batch 3 (D-052) a want names its *host*: of the generic's
+    package and the packages declaring its type arguments' types, the
+    last in initialization order. The host copies the generic code from
+    the original check of the generic's package into a file of its own,
+    naming every other package's declarations through *views* (packages
+    `internal/mono` makes of prepared packages, which stand for their
+    declarations and are resolved to them after the check), and records
+    the hosted declarations' *home*, the generic's package, by which
+    lowering names them.
     Since increment 11.8 `reflect` is Aether's own package, written with
     `unsafe` over the type descriptors lowering emits; in a program with
     `reflect` they describe their types in full

@@ -57,13 +57,14 @@ type Stages struct {
 	Reject func(pos diag.Pos, feature, what string) diag.Diagnostic
 }
 
-// A Want is an instance of an exported generic function or type that a
-// package needs of another, Path, which makes it in its own code (D-049,
-// increment 11.7): the instance Name of Generic with the type arguments
-// Args, which Path can name.
+// A Want is an instance of a generic function or type of the package Path
+// that another package needs (D-049, increment 11.7): the instance Name of
+// Generic with the type arguments Args. The package Host makes it: Path,
+// or the package after it in initialization order that declares a type
+// in Args (D-052).
 type Want struct {
-	Path, Generic, Name string
-	Args                []types.Type
+	Path, Generic, Name, Host string
+	Args                      []types.Type
 }
 
 // Load parses and type-checks the program whose package main is srcs, with
@@ -78,7 +79,7 @@ type Want struct {
 // reads.
 func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.Diagnostic, error) {
 	ld := &loader{fset: fset, stages: stages, pkgs: map[string]*Package{}, loading: map[string]bool{},
-		files: map[string][]*ast.File{}, origs: map[string]*Package{}, wants: map[string][]Want{}}
+		files: map[string][]*ast.File{}, origs: map[string]*Package{}, wants: map[string][]Want{}, rank: map[string]int{}}
 	ld.findModule(filepath.Dir(srcs[0].Name))
 	main, ds := ld.load("main", srcs)
 	if ld.err != nil {
@@ -88,9 +89,13 @@ func Load(fset *token.FileSet, srcs []Source, stages Stages) (*Program, []diag.D
 		return nil, ds, nil
 	}
 	order := append(initOrder(ld.order), main)
-	// Wants go from a package to those it imports (D-049, increment
-	// 11.7): they are collected from main down, and then each package
-	// is prepared, after those it imports, with all its wants.
+	for i, p := range order {
+		ld.rank[p.Types.Path()] = i
+	}
+	// Wants go from a package to those before it in initialization order
+	// (D-049, increment 11.7; D-052): they are collected from main down,
+	// and then each package is prepared, after those it imports, with all
+	// its wants.
 	for i := len(order) - 1; i >= 0; i-- {
 		if _, ds := ld.prepare(order[i], true); len(ds) > 0 {
 			return nil, ds, nil
@@ -123,6 +128,7 @@ func (ld *loader) prepare(orig *Package, collect bool) (*Package, []diag.Diagnos
 	if in.Importer != nil {
 		in.Importer = ld
 	}
+	in.Others = ld
 	if ld.stages.Prepare == nil {
 		return &in, nil
 	}
@@ -131,8 +137,8 @@ func (ld *loader) prepare(orig *Package, collect bool) (*Package, []diag.Diagnos
 		return nil, ds
 	}
 	for _, w := range ws {
-		if !slices.ContainsFunc(ld.wants[w.Path], func(v Want) bool { return v.Name == w.Name }) {
-			ld.wants[w.Path] = append(ld.wants[w.Path], w)
+		if !slices.ContainsFunc(ld.wants[w.Host], func(v Want) bool { return v.Path == w.Path && v.Name == w.Name }) {
+			ld.wants[w.Host] = append(ld.wants[w.Host], w)
 		}
 	}
 	if !collect && pkg == &in && in.Importer != nil {
@@ -197,7 +203,8 @@ type loader struct {
 	order   []*Package             // the packages besides main, sorted by path
 	files   map[string][]*ast.File // each package's files, as parsed
 	origs   map[string]*Package    // each package's original check
-	wants   map[string][]Want      // each package's wants, from others
+	wants   map[string][]Want      // the instances each package makes for others
+	rank    map[string]int         // each package's place in initialization order
 	root    string                 // GOROOT, once a standard-library package is imported
 	err     error                  // a problem with GOROOT
 }
@@ -247,6 +254,26 @@ func (ld *loader) Import(path string) (*types.Package, error) {
 		return p.Types, nil
 	}
 	return nil, errors.New("package not loaded: " + path)
+}
+
+// Rank, Original, and Prepared make the loader the Others of the packages
+// it prepares (D-052).
+func (ld *loader) Rank(path string) int          { return ld.rank[path] }
+func (ld *loader) Original(path string) *Package { return ld.origs[path] }
+func (ld *loader) Home(obj types.Object) *types.Package {
+	if obj.Pkg() == nil {
+		return nil
+	}
+	if p := ld.pkgs[obj.Pkg().Path()]; p != nil {
+		return p.Homes[obj]
+	}
+	return nil
+}
+func (ld *loader) Prepared(path string) *types.Package {
+	if p := ld.pkgs[path]; p != nil {
+		return p.Types
+	}
+	return nil
 }
 
 // load loads the package path from srcs: parses its files, prechecks them,

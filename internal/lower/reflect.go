@@ -167,7 +167,7 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 			}
 			word(fa, r+32, c(flags))
 			if !f.Exported() {
-				path := f.Pkg().Path()
+				path := l.home(f).Path()
 				word(fa, r+40, l.fn.Str(b, l.prog.Intern(path), pos))
 				word(fa, r+48, c(int64(len(path))))
 			}

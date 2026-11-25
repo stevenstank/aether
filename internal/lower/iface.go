@@ -233,7 +233,7 @@ func (l *lowerer) wrapNilCheck(pt types.Type, sel *types.Selection, p func() *ir
 	} else if named.TypeArgs().Len() > 0 {
 		name += "[...]"
 	}
-	msg := "value method " + named.Obj().Pkg().Path() + "." + name + "." + sel.Obj().Name() + " called using nil *" + name + " pointer"
+	msg := "value method " + l.home(named.Obj()).Path() + "." + name + "." + sel.Obj().Name() + " called using nil *" + name + " pointer"
 	notNil := l.when(l.fn.Compare(l.b, ir.Eq, p(), l.nilPtr(pos), pos), pos)
 	l.panicMsg([][]*ir.Instr{l.strWords(msg, pos)}, pos)
 	l.b = notNil
@@ -600,10 +600,10 @@ func (l *lowerer) ifaceWrapperSig(n ast.Node, sig *types.Signature) ([]ir.Type, 
 }
 
 // gcName returns the name of t as gc's run time writes it in panics.
-func gcName(t types.Type) string {
+func (l *lowerer) gcName(t types.Type) string {
 	switch t := t.(type) {
 	case *types.Alias:
-		return gcName(types.Unalias(t))
+		return l.gcName(types.Unalias(t))
 	case *types.Basic:
 		if t.Kind() == types.UnsafePointer {
 			return "unsafe.Pointer"
@@ -613,23 +613,23 @@ func gcName(t types.Type) string {
 		if t.Obj().Pkg() == nil {
 			return t.Obj().Name()
 		}
-		return t.Obj().Pkg().Name() + "." + t.Obj().Name()
+		return l.home(t.Obj()).Name() + "." + t.Obj().Name()
 	case *types.Pointer:
-		return "*" + gcName(t.Elem())
+		return "*" + l.gcName(t.Elem())
 	case *types.Slice:
-		return "[]" + gcName(t.Elem())
+		return "[]" + l.gcName(t.Elem())
 	case *types.Array:
-		return fmt.Sprintf("[%d]%s", t.Len(), gcName(t.Elem()))
+		return fmt.Sprintf("[%d]%s", t.Len(), l.gcName(t.Elem()))
 	case *types.Map:
-		return "map[" + gcName(t.Key()) + "]" + gcName(t.Elem())
+		return "map[" + l.gcName(t.Key()) + "]" + l.gcName(t.Elem())
 	case *types.Chan:
 		switch t.Dir() {
 		case types.SendOnly:
-			return "chan<- " + gcName(t.Elem())
+			return "chan<- " + l.gcName(t.Elem())
 		case types.RecvOnly:
-			return "<-chan " + gcName(t.Elem())
+			return "<-chan " + l.gcName(t.Elem())
 		}
-		return "chan " + gcName(t.Elem())
+		return "chan " + l.gcName(t.Elem())
 	case *types.Struct:
 		if t.NumFields() == 0 {
 			return "struct {}"
@@ -637,21 +637,21 @@ func gcName(t types.Type) string {
 		var fs []string
 		for f := range t.Fields() {
 			if f.Embedded() {
-				fs = append(fs, gcName(f.Type()))
+				fs = append(fs, l.gcName(f.Type()))
 			} else {
-				fs = append(fs, f.Name()+" "+gcName(f.Type()))
+				fs = append(fs, f.Name()+" "+l.gcName(f.Type()))
 			}
 		}
 		return "struct { " + strings.Join(fs, "; ") + " }"
 	case *types.Signature:
-		return "func" + gcSig(t)
+		return "func" + l.gcSig(t)
 	case *types.Interface:
 		if t.NumMethods() == 0 {
 			return "interface {}"
 		}
 		var ms []string
 		for m := range t.Methods() {
-			ms = append(ms, m.Name()+gcSig(m.Type().(*types.Signature)))
+			ms = append(ms, m.Name()+l.gcSig(m.Type().(*types.Signature)))
 		}
 		return "interface { " + strings.Join(ms, "; ") + " }"
 	}
@@ -659,25 +659,25 @@ func gcName(t types.Type) string {
 }
 
 // gcSig returns a signature as gc writes it after "func".
-func gcSig(s *types.Signature) string {
+func (l *lowerer) gcSig(s *types.Signature) string {
 	var ps []string
 	for i := range s.Params().Len() {
 		pt := s.Params().At(i).Type()
 		if s.Variadic() && i == s.Params().Len()-1 {
-			ps = append(ps, "..."+gcName(pt.(*types.Slice).Elem()))
+			ps = append(ps, "..."+l.gcName(pt.(*types.Slice).Elem()))
 			continue
 		}
-		ps = append(ps, gcName(pt))
+		ps = append(ps, l.gcName(pt))
 	}
 	r := "(" + strings.Join(ps, ", ") + ")"
 	switch s.Results().Len() {
 	case 0:
 	case 1:
-		r += " " + gcName(s.Results().At(0).Type())
+		r += " " + l.gcName(s.Results().At(0).Type())
 	default:
 		var rs []string
 		for v := range s.Results().Variables() {
-			rs = append(rs, gcName(v.Type()))
+			rs = append(rs, l.gcName(v.Type()))
 		}
 		r += " (" + strings.Join(rs, ", ") + ")"
 	}

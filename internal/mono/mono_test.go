@@ -219,3 +219,20 @@ var (
 		}
 	}
 }
+
+// TestPathPrefix checks import paths as gc writes them in the names of
+// instances' type arguments (D-052), measured with gc 1.26.1:
+// main.Box[dot.test/lib%2ev2.T] for the package dot.test/lib.v2.
+func TestPathPrefix(t *testing.T) {
+	for _, c := range [][2]string{
+		{"main", "main"},
+		{"sync/atomic", "sync/atomic"},
+		{"example.com/pk/shape", "example.com/pk/shape"},
+		{"dot.test/lib.v2", "dot.test/lib%2ev2"},
+		{"a b/c%d\"é", "a%20b/c%25d%22%c3%a9"},
+	} {
+		if got := pathPrefix(c[0]); got != c[1] {
+			t.Errorf("pathPrefix(%q) = %q, want %q", c[0], got, c[1])
+		}
+	}
+}

@@ -161,14 +161,14 @@ func (l *lowerer) printValue(t types.Type, rec func() *ir.Instr, pos ir.Pos) {
 	}
 	b, ok := t.Underlying().(*types.Basic)
 	if !ok || b.Kind() == types.UnsafePointer {
-		l.printStr("("+gcName(t)+") ", pos)
+		l.printStr("("+l.gcName(t)+") ", pos)
 		l.fn.Call(l.b, l.ps.hex, []*ir.Instr{l.recField(rec, ir.I64, recData, pos)}, pos)
 		return
 	}
 	_, named := t.(*types.Named)
 	str := b.Info()&types.IsString != 0
 	if named {
-		l.printStr(gcName(t)+map[bool]string{false: "(", true: `("`}[str], pos)
+		l.printStr(l.gcName(t)+map[bool]string{false: "(", true: `("`}[str], pos)
 	}
 	w := l.loadPlace(l.valuePlace(l.recField(rec, ir.Ptr, recData, pos), t, pos), pos)
 	if str {

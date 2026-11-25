@@ -131,19 +131,16 @@ func (m *mono) typeExpr1(n ast.Node, t types.Type, pos token.Pos) ast.Expr {
 				args[i] = t.TypeArgs().At(i)
 			}
 			if p := obj.Pkg(); p.Path() != m.pkg.Types.Path() {
-				// Another package's instance, named as the file imports
-				// it, by its package name.
-				name := m.want(n, t.Origin().Obj(), args)
-				if name == "" {
-					return nil
-				}
-				return &ast.SelectorExpr{X: ident(p.Name()), Sel: &ast.Ident{NamePos: pos, Name: name}}
+				return m.foreignInst(n, t.Origin().Obj(), args, pos)
 			}
 			return ident(m.instance(n, t.Origin().Obj(), args).name)
 		case obj.Pkg().Path() != m.pkg.Types.Path():
-			if imports(m.pkg.Types, obj) {
+			if !m.hosting && imports(m.pkg.Types, obj) {
 				// Named as the file imports it, by its package name.
 				return &ast.SelectorExpr{X: ident(obj.Pkg().Name()), Sel: &ast.Ident{NamePos: pos, Name: obj.Name()}}
+			}
+			if m.pkg.Others != nil && obj.Exported() && obj.Parent() == obj.Pkg().Scope() {
+				return m.viewRef(obj.Pkg().Path(), obj.Name(), pos) // D-052
 			}
 			m.rejectAt(n, gate.FeatGenericInstance, "type argument "+typeName(t, true)+" of a package "+m.pkg.Types.Path()+" does not import")
 			return nil
@@ -214,11 +211,29 @@ func (m *mono) funcType(n ast.Node, s *types.Signature, pos token.Pos) *ast.Func
 }
 
 // typeName returns the name of t as gc writes it: in a type argument
-// (arg), with unexported field and method names qualified by the package.
-func typeName(t types.Type, arg bool) string {
+// (arg), with defined types qualified by their package's path, not its
+// name, and unexported field and method names qualified too.
+func typeName(t types.Type, arg bool) string { return typeNameIn(t, arg, nil) }
+
+// typeNameIn is typeName with home, if not nil, giving the package whose
+// name a declaration has, if not its own (D-052).
+func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) string {
+	typeName := func(t types.Type, arg bool) string { return typeNameIn(t, arg, home) }
+	qual := func(v types.Object) string {
+		p := v.Pkg()
+		if home != nil {
+			if h := home(v); h != nil {
+				p = h
+			}
+		}
+		if arg {
+			return pathPrefix(p.Path())
+		}
+		return p.Name()
+	}
 	field := func(v types.Object) string {
 		if arg && !v.Exported() && v.Pkg() != nil {
-			return v.Pkg().Name() + "." + v.Name()
+			return qual(v) + "." + v.Name()
 		}
 		return v.Name()
 	}
@@ -239,7 +254,7 @@ func typeName(t types.Type, arg bool) string {
 		if t.Obj().Pkg() == nil {
 			return name
 		}
-		return t.Obj().Pkg().Name() + "." + name
+		return qual(t.Obj()) + "." + name
 	case *types.Pointer:
 		return "*" + typeName(t.Elem(), arg)
 	case *types.Slice:
@@ -262,14 +277,14 @@ func typeName(t types.Type, arg bool) string {
 		}
 		return "struct { " + strings.Join(fs, "; ") + " }"
 	case *types.Signature:
-		return "func" + sigName(t, arg)
+		return "func" + sigName(t, arg, home)
 	case *types.Interface:
 		if t.NumMethods() == 0 {
 			return "interface {}"
 		}
 		var ms []string
 		for f := range t.Methods() {
-			ms = append(ms, field(f)+sigName(f.Type().(*types.Signature), arg))
+			ms = append(ms, field(f)+sigName(f.Type().(*types.Signature), arg, home))
 		}
 		return "interface { " + strings.Join(ms, "; ") + " }"
 	}
@@ -277,7 +292,8 @@ func typeName(t types.Type, arg bool) string {
 }
 
 // sigName returns a signature as gc writes it after "func".
-func sigName(s *types.Signature, arg bool) string {
+func sigName(s *types.Signature, arg bool, home func(types.Object) *types.Package) string {
+	typeName := func(t types.Type, arg bool) string { return typeNameIn(t, arg, home) }
 	var ps []string
 	for i := range s.Params().Len() {
 		pt := s.Params().At(i).Type()
@@ -300,6 +316,23 @@ func sigName(s *types.Signature, arg bool) string {
 		r += " (" + strings.Join(rs, ", ") + ")"
 	}
 	return r
+}
+
+// pathPrefix returns the import path p as gc writes it in names: with
+// control characters, spaces, '%', '"', non-ASCII bytes, and the dots of
+// its last element escaped as %xx (cmd/internal/objabi.PathToPrefix).
+func pathPrefix(p string) string {
+	slash := strings.LastIndex(p, "/")
+	var b strings.Builder
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		if c <= ' ' || c == '.' && i > slash || c == '%' || c == '"' || c >= 0x7F {
+			fmt.Fprintf(&b, "%%%02x", c)
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // pathName is the name of t with every package written as its path, which

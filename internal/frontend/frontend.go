@@ -42,6 +42,29 @@ type Package struct {
 	// loader (D-049). Monomorphization type-checks the package again with
 	// it.
 	Importer types.Importer
+	// Others gives monomorphization the program's other packages, nil for
+	// a package checked alone (D-052).
+	Others Others
+	// Homes maps the objects of instances this package makes of another
+	// package's generic code to that package, whose names they have at
+	// run time (D-052).
+	Homes map[types.Object]*types.Package
+}
+
+// Others is the loader's view of a program's packages, for the instances
+// a package makes of another package's generic code (D-052).
+type Others interface {
+	// Rank returns the place of the package path in initialization
+	// order: a package ranks after those it imports.
+	Rank(path string) int
+	// Original returns the original check of the package path.
+	Original(path string) *Package
+	// Prepared returns the prepared package path, nil if it is not
+	// prepared yet.
+	Prepared(path string) *types.Package
+	// Home returns the home of obj, a declaration of a prepared package,
+	// if it has one (Package.Homes), or nil.
+	Home(obj types.Object) *types.Package
 }
 
 // Parse parses one source file. Syntax errors are returned as Invalid

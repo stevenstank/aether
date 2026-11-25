@@ -109,18 +109,24 @@ func TestPackageRejects(t *testing.T) {
 		{"unsupported in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
 			"--\na/a.go:package a\nfunc F() { println(1i) }\n",
 			[]string{"main.go"}, diag.Unsupported, "a/a.go:2:20: unsupported"},
-		// Another package's generic code is instantiated there, with type
-		// arguments it can name (11.7).
-		{"type argument a package cannot name", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\ntype T int\nfunc main() { println(a.Id(T(1)) == 1) }\n" +
+		// Another package's generic code is instantiated by the last, in
+		// initialization order, of its package and those of the type
+		// arguments, which must name them all (11.7, D-052).
+		{"type argument of main", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\ntype T int\nfunc main() { println(a.Id(T(1)) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
-			[]string{"main.go"}, diag.Unsupported, "main.go:4:25: unsupported: type argument main.T, which package m.test/x/a cannot name, is not supported in subset S1 [generic-instance]"},
+			[]string{"main.go"}, 0, ""},
 		{"local type argument", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { type T int; println(a.Id(T(1)) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
-			[]string{"main.go"}, diag.Unsupported, "main.go:3:37: unsupported: type argument main.T, which package m.test/x/a cannot name,"},
+			[]string{"main.go"}, diag.Unsupported, "main.go:3:35: unsupported: type argument main.T declared in a function is not supported in subset S1 [generic-instance]"},
 		{"unexported type argument", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nimport \"m.test/x/b\"\nfunc main() { println(b.F() == 1, a.Id(1) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n" +
 			"--\nb/b.go:package b\nimport \"m.test/x/a\"\ntype t int\nfunc F() t { return a.Id(t(1)) }\n",
-			[]string{"main.go"}, diag.Unsupported, "b/b.go:4:23: unsupported: type argument b.t, which package m.test/x/a cannot name,"},
+			[]string{"main.go"}, 0, ""},
+		{"unexported type arguments of two packages", mod + "--\nmain.go:package main\nimport (\"m.test/x/a\"; \"m.test/x/b\"; \"m.test/x/c\")\nfunc main() { _ = a.Two(b.F(), c.G()) }\n" +
+			"--\na/a.go:package a\nfunc Two[A, B any](x A, y B) int { return 2 }\n" +
+			"--\nb/b.go:package b\ntype t int\nfunc F() t { return 1 }\n" +
+			"--\nc/c.go:package c\ntype u int\nfunc G() u { return 1 }\n",
+			[]string{"main.go"}, diag.Unsupported, "main.go:3:19: unsupported: type argument m.test/x/b.t, which package m.test/x/c cannot name, is not supported in subset S1 [generic-instance]"},
 		{"type argument of an imported package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc id[T any](x T) T { return x }\nfunc main() { println(id(a.T(1)) == 1) }\n" +
 			"--\na/a.go:package a\ntype T int\n",
 			[]string{"main.go"}, 0, ""},
@@ -341,13 +347,10 @@ func TestStdRejects(t *testing.T) {
 			diag.Unsupported, "p.go:3:21: unsupported: type struct{error}"},
 		{"println of unsafe.Pointer", "package main\nimport \"unsafe\"\nfunc main() { println(unsafe.Pointer(nil)) }\n",
 			diag.Unsupported, "p.go:3:30: unsupported: println argument of type unsafe.Pointer"},
-		// errors.As is gc's (Batch 1); AsType of main's type is another
-		// package's generic code instantiated with it (11.7).
-		{"errors.AsType", "package main\nimport \"errors\"\ntype E struct{}\nfunc (*E) Error() string { return \"\" }\nfunc main() { _, ok := errors.AsType[*E](errors.New(\"x\")); println(ok) }\n",
-			diag.Unsupported, "p.go:5:24: unsupported: type argument main.E, which package errors cannot name"},
-		// Another package's generic code (11.7).
-		{"type argument of main", "package main\nimport \"slices\"\ntype T int\nfunc main() { slices.Sort([]T{2, 1}) }\n",
-			diag.Unsupported, "p.go:4:22: unsupported: type argument main.T, which package slices cannot name, is not supported in subset S1 [generic-instance]"},
+		// Another package's generic code, instantiated with main's types,
+		// which main hosts (D-052).
+		{"errors.AsType", "package main\nimport \"errors\"\ntype E struct{}\nfunc (*E) Error() string { return \"\" }\nfunc main() { _, ok := errors.AsType[*E](errors.New(\"x\")); println(ok) }\n", 0, ""},
+		{"type argument of main", "package main\nimport \"slices\"\ntype T int\nfunc main() { slices.Sort([]T{2, 1}) }\n", 0, ""},
 		{"sort.Reverse", "package main\nimport \"sort\"\nfunc main() { sort.Sort(sort.Reverse(sort.IntSlice{2, 1})) }\n",
 			diag.Unsupported, "$GOROOT/src/sort/sort.go:90:14: unsupported: type struct{Interface}"},
 		{"iter.Pull", "package main\nimport \"iter\"\nfunc main() { next, stop := iter.Pull(iter.Seq[int](nil)); _, _ = next, stop }\n",

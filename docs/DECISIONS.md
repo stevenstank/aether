@@ -77,6 +77,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-049 | Packages, the standard library, and conformance (Phase 11) | Accepted (2026-11-20, owner's instruction to proceed with the design-first rule; owner review pending) |
 | D-050 | Interface checks at run time for internal/reflectlite (Batch 1) | Accepted (2026-11-24; owner review pending) |
 | D-051 | One system-call primitive and the environment for package os (Batch 2) | Accepted (2026-11-24; owner review pending) |
+| D-052 | Instances of another package's generic code, hosted (Batch 3) | Accepted (2026-11-25; owner review pending) |
 
 ## Review log
 
@@ -4539,6 +4540,91 @@ where gc's is plain Go. `io/fs` imports `time`, so `Stat`, `FileInfo`,
 `ReadDir`, and `DirEntry` wait for Batch 4, and `FileMode`, `PathError`,
 and the `Err*` values are `os`'s own until then. The interpreter is
 less of a sandbox: tests run it in a temporary directory.
+
+---
+
+## D-052: Instances of another package's generic code, hosted (Batch 3)
+
+**Status:** Accepted (2026-11-25). Capability Batch 3. This note was
+written with its code, after a design spike; the owner's review is
+pending.
+
+**Context.** Since increment 11.7 (D-049) an instance of another package's
+generic code is made by that package, which must name every type
+argument. Packages are prepared in initialization order, each after
+those it imports, so the generic's package is prepared before any
+package that imports it: `slices.SortFunc` of main's own type,
+`errors.AsType[*main.E]`, `atomic.Pointer[main.T]`, and the standard
+library's own `atomic.Pointer[rand.Rand]` (`math/rand`) and
+`slices.Sort` of `big.nat` (`math/big`) were all `unsupported`. A type
+instance and the package of its argument can depend on each other
+(`math/rand` declares `Rand` and a variable of type
+`atomic.Pointer[Rand]`), so no order of whole packages can put the
+instance in the generic's package. Separately, measured with gc-built
+go1.26.1 binaries on 2026-11-25, gc writes the package of a type
+argument by its import path, escaped as `objabi.PathToPrefix` does
+(`main.Box[sync/atomic.Int32]`, `main.Box[dot.test/lib%2ev2.T]`), and an
+unexported field in a type argument by that path too; Aether wrote the
+package's name (`main.Box[atomic.Int32]`), as D-045 measured only main's
+types.
+
+**Decision.**
+- **The host.** An instance of the generic function or type of package P
+  with type arguments A is made by its host: of P and the packages that
+  declare the defined types, and the unexported fields and methods, in A,
+  the last in initialization order. All of them are prepared before it,
+  and every package that uses the instance comes after it or is it. A
+  type argument must be one the host can name: a type declared in a
+  function, or an unexported name of a package other than the host, is
+  `unsupported` (`generic-instance`), so unexported types of two
+  packages in one instance are rejected. A want (D-049) names its host,
+  and the loader gives it to the host's preparation.
+- **Hosted copies.** The host copies the generic declaration from P's
+  original check, as D-045 copies its own, into a file of its own. Every
+  package-level name the copy uses, P's own included, unexported or not,
+  and every name in A of another package, is written through a **view**:
+  a package the monomorphizer makes of the prepared package, imported
+  under a name no source can write (`·view0`), whose declarations stand
+  for the prepared declarations (an unexported name is exported as
+  `X·name`). The host is type-checked with its copies and the views; then
+  every use of a view's declaration is made a use of the declaration it
+  stands for, so the gate, pruning, and lowering never see a view. A
+  package that uses an instance another package hosts names it through
+  that package's view the same way.
+- **Homes.** The hosted declarations (the type, its methods, its
+  unexported fields, a function) are recorded as having P as their home
+  (`frontend.Package.Homes`). Lowering names them by their home: symbols,
+  gc's type names (`%T`, `reflect`, panics), and the package path of an
+  unexported field, so `atomic.Pointer[main.T]` is named as gc names it
+  although main declares it.
+- **Type argument names.** In the name of an instance, a type argument's
+  defined types and unexported fields are qualified by their package's
+  escaped import path, as gc's are.
+- **What stays unsupported.** A hosted copy is type-checked as code of the
+  host: one that uses an unexported field or method of one of P's
+  non-generic types, or embeds an unexported type of P, does not
+  type-check there and is `unsupported` (`generic-instance`), as is any
+  other copy that does not type-check. Rejections, never a different
+  meaning: `go/types` checks every copy.
+
+**Alternatives considered.** Making every instance in P, with P importing
+the packages of its arguments: impossible for a type instance that its
+argument's package uses (the cycle above), and P is prepared before
+them. Leaving a package's uses of another package's generic code as
+`go/types`' own instances and lowering the generic bodies under a
+substitution: the alternative D-045 rejected, as about 190 places in
+lowering ask `go/types` for a type. Giving the host exported aliases or
+wrappers for P's unexported declarations in P's own source: changes P's
+code, and a wrapper changes calls into indirect ones.
+
+**Consequences.** A hosted instance's unexported names belong, for
+`go/types`, to the host: one that would need them to be P's (an interface
+of P with unexported methods) does not type-check and is rejected. Code
+size is as D-045's. `math/rand` and `math/big` get past their generic
+instances and stop next at `math.Exp` and `math.Log` (Batch 5).
+`internal/fmtsort`'s Aether change (its own sort of the map's indices,
+D-049), which avoided an instance `slices` could not name, could now be
+gc's file, and is left as it is.
 
 ---
 

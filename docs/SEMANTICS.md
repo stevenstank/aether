@@ -1350,6 +1350,7 @@ package's generic code is `unsupported`.
   importing package, a local type, a struct or interface with unexported
   names of another package) is `unsupported` (`generic-instance`), which
   includes, for example, `slices.Sort` of a slice of main's own type.
+  Capability Batch 3 (below) supersedes this rule.
 - A generic function instantiated with an exported type of a package its
   package imports is now compiled, as is a generic type's instance.
 - **`clear` of a slice** sets each element in its length to its zero
@@ -1468,9 +1469,8 @@ and `os`; the rest of the subset applies to what it reaches.
   payload are gc's (its `MINSD` sequence ORs the bits of two candidates).
   Strings compare as `<` does.
 - **`sync/atomic`**: `Pointer[T]` and `Value`, with gc's panics for a nil
-  value and for one of another dynamic type than the first stored. A
-  `Pointer` of a type `sync/atomic` cannot name is a generic instance of
-  another package (`generic-instance`, 11.7).
+  value and for one of another dynamic type than the first stored, of any
+  type since Batch 3 (D-052).
 - **`sync`**: `Map`, with every method; keys hash and values compare as
   interface values, with the runtime's panics; `Range` visits the entries
   in Aether's map order (V-8). gc's `CompareAndDelete` of a value that is
@@ -1529,6 +1529,36 @@ Differences from gc:
   `Hostname`, processes, and `File.ReadFrom`'s system-call shortcuts are
   not provided (`io.Copy` copies through a buffer, with the same result).
 
+## Capability Batch 3: generics across packages
+
+D-052. It supersedes 11.7's rule that another package's generic code is
+instantiated only with type arguments that package can name.
+- **Any package's types as type arguments.** An instance of another
+  package's generic function or type is made by the last, in
+  initialization order, of the generic's package and the packages
+  declaring the types in its type arguments; it behaves as if the
+  generic's package had made it. So `slices.Sort`, `slices.SortFunc`,
+  `slices.Index`, and the rest of `slices` of main's own types,
+  `errors.AsType[*main.E]`, `atomic.Pointer[main.T]`, and instances of a
+  module's own generic code with types of the packages that import it
+  are compiled; the instance has gc's type name (`%T` of
+  `atomic.Pointer[main.T]` is `atomic.Pointer[main.T]`), method set, and
+  identity in every package that uses it.
+- **Type argument names.** A type argument's package is written by its
+  import path, as gc writes it: `%T` of `Box[atomic.Int32]` is
+  `main.Box[sync/atomic.Int32]`, and of a type of the package
+  `dot.test/lib.v2`, `dot.test/lib%2ev2.T`. Aether wrote the package's
+  name before.
+- `unsupported` (`generic-instance`): a type argument with unexported
+  types, fields, or methods of two different packages; a type declared in
+  a function (as before); and generic code whose instance, made in the
+  package that makes it, does not type-check: one that uses an
+  unexported field or method of a non-generic type of the generic's
+  package, embeds an unexported type of it, or whose type must implement
+  an interface of it with unexported methods.
+- `math/rand` and `math/big` now get past their generic instances and
+  stop at `math.Exp` and `math.Log` (`function-without-body`, Batch 5).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1582,6 +1612,7 @@ Differences from gc:
 | Complex numbers as values (no arithmetic); `reflect` in part | Numeric types, Manipulating complex numbers, Package reflect | Phase 11 / 11.8 | Supported (native) | `s7_c01_complex`, `unsupported_complex_arithmetic`; `TestStdPrograms` (`reflect`); gate tests |
 | `fmt`, with `internal/fmtsort` | Package fmt | Phase 11 / 11.8 | Supported (native) | `TestStdPrograms` (`fmt`, against gc, natively and in the interpreter); `TestStdin` |
 | `min` and `max` of floats and strings; `sync/atomic` `Pointer` and `Value`; `sync` `Map`, `OnceFunc`, `OnceValue`, `OnceValues`; `runtime` `Frame` and `Frames`; `reflect` `Indirect` and `CanSet`; `hash/crc32`; `encoding/binary`; `errors.As` with `internal/reflectlite` | Min and max; the packages' documentation | Batch 1 | Supported (native) | `s7_l04_minmax_ordered`; `TestStdPrograms` (`minmax`, `atomicvalue`, `syncmap`, `syncmappanic`, `oncepanic`, `frames`, `crc32`, `binary`, `errorsas`, `errorsaspanic`); `TestStdRejects`; gate tests |
+| Instances of another package's generic code with any package's types, and gc's names of type arguments | Instantiation; the packages' documentation | Batch 3 | Supported (native) | `TestPackagePrograms` (`hosted`, against gc); `TestPackageRejects`; `TestStdRejects`; `TestPathPrefix` |
 | `os` files by name (`Open`, `Create`, `OpenFile`, `ReadFile`, `WriteFile`, `Mkdir`, `MkdirAll`, `Remove`, `Rename`, `Getwd`, `Chdir`), `File` methods (`Close`, `ReadAt`, `WriteAt`, `Seek`, `Sync`, `Truncate`, `Fd`), the environment, and `os`'s errors | The package's documentation | Batch 2 | Supported (native) | `TestOSPrograms` (`testdata/osprog`, against gc, natively and in the interpreter, comparing the directory left); `TestStdRejects`; `TestSysOps` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 

@@ -1,6 +1,7 @@
 package lower
 
 import (
+	"github.com/stevenstank/aether/internal/frontend"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -52,7 +53,8 @@ var (
 	}
 	for i, w := range want {
 		v := pkg.Scope().Lookup("v" + itoa(i+1))
-		if got := gcName(v.Type()); got != w {
+		l := &lowerer{pkg: &frontend.Package{}}
+		if got := l.gcName(v.Type()); got != w {
 			t.Errorf("v%d: gcName = %q, want %q", i+1, got, w)
 		}
 	}

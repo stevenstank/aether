@@ -9,7 +9,7 @@ abi/f_ret_z_not.go pass
 abi/fibish.go pass
 abi/fibish_closure.go pass
 abi/fuzz_trailing_zero_field.go pass
-abi/idata.go unsupported generic-instance
+abi/idata.go unsupported function-without-body
 abi/leaf.go pass
 abi/leaf2.go pass
 abi/many_int_input.go pass
@@ -619,7 +619,7 @@ fixedbugs/issue59680.go unsupported stdlib-package
 fixedbugs/issue6055.go pass
 fixedbugs/issue60601.go unsupported generic-instance
 fixedbugs/issue62203.go pass
-fixedbugs/issue62360.go unsupported generic-instance
+fixedbugs/issue62360.go unsupported function-without-body
 fixedbugs/issue6269.go pass
 fixedbugs/issue63657.go pass
 fixedbugs/issue64565.go pass
@@ -758,7 +758,7 @@ ken/cplx2.go unsupported println-argument-type
 ken/cplx3.go unsupported complex-arithmetic
 ken/cplx4.go unsupported complex-arithmetic
 ken/cplx5.go unsupported complex-arithmetic
-ken/divconst.go unsupported generic-instance
+ken/divconst.go unsupported function-without-body
 ken/divmod.go pass
 ken/embed.go unsupported println-argument-type
 ken/for.go pass
@@ -768,7 +768,7 @@ ken/intervar.go pass
 ken/label.go pass
 ken/litfun.go pass
 ken/mfunc.go pass
-ken/modconst.go unsupported generic-instance
+ken/modconst.go unsupported function-without-body
 ken/ptrfun.go pass
 ken/ptrvar.go pass
 ken/range.go pass
