@@ -300,7 +300,7 @@ b0:
   stm v51, v55, v54 @44:12
   v56 = const 1 @44:6
   v57 = const 1 @44:6
-  v58 = const 56 @45:21
+  v58 = const 64 @45:21
   v59 = alloc v58 @45:21
   store s11, v59 @45:21
   v60 = str s10 @45:22
@@ -314,13 +314,13 @@ b0:
   v65 = load s13 @45:21
   v66 = call .mapassign0, v63, v64, v65 @45:21
   store s71, v66 @45:21
-  v309 = gload g4 @45:21
-  branch v309, b1, b30 @45:21
+  v315 = gload g4 @45:21
+  branch v315, b1, b30 @45:21
 b1:
-  v289 = load s0 @77:1
-  v290 = const ptr 0 @77:1
-  v291 = ne v289, v290 @77:1
-  branch v291, b23, b24 @77:1
+  v295 = load s0 @77:1
+  v296 = const ptr 0 @77:1
+  v297 = ne v295, v296 @77:1
+  branch v297, b23, b24 @77:1
 b2:
   v104 = load s27 @49:14
   store s30, v104 @49:14
@@ -359,13 +359,13 @@ b4:
   v124 = const true @50:8
   v125 = call .makechan, v123, v122, v124 @50:8
   store s72, v125 @50:8
-  v311 = gload g4 @50:8
-  branch v311, b1, b31 @50:8
+  v317 = gload g4 @50:8
+  branch v317, b1, b31 @50:8
 b5:
   v176 = load s32 @60:8
   call .closechan, v176 @60:2
-  v312 = gload g4 @60:2
-  branch v312, b1, b32 @60:2
+  v318 = gload g4 @60:2
+  branch v318, b1, b32 @60:2
 b6:
   v174 = str s13 @58:11
   v175 = const 6 @58:11
@@ -404,199 +404,207 @@ b11:
   v192 = const 48 @63:2
   v193 = ldm i64, v191, v192 @63:2
   store s47, v193 @63:2
+  v194 = load s45 @63:2
+  v195 = const 56 @63:2
+  v196 = ldm i64, v194, v195 @63:2
+  store s48, v196 @63:2
   jump b13 @63:2
 b12:
   jump b13 @63:2
 b13:
-  v194 = load s45 @63:2
-  v195 = load s46 @63:2
-  v196 = load s48 @63:2
-  v197 = load s47 @63:2
-  v198 = call .mapnext0, v194, v195, v196, v197 @63:2
-  v199 = extract 0, v198 @63:2
-  store s49, v199 @63:2
-  v200 = extract 1, v198 @63:2
-  store s48, v200 @63:2
-  v201 = load s49 @63:2
-  v202 = const ptr 0 @63:2
-  v203 = eq v201, v202 @63:2
-  branch v203, b14, b15 @63:2
-b14:
-  v212 = const ptr 0 @66:6
-  store s52, v212 @66:6
-  v213 = const 0 @66:6
-  store s53, v213 @66:6
-  v214 = load s16 @67:19
-  store s54, v214 @67:2
-  v215 = const ptr 0 @67:2
-  store s55, v215 @67:2
-  v216 = const 0 @67:2
-  store s56, v216 @67:2
-  v217 = const 0 @67:2
-  store s57, v217 @67:2
-  v218 = load s54 @67:2
-  v219 = const ptr 0 @67:2
-  v220 = ne v218, v219 @67:2
-  branch v220, b16, b17 @67:2
-b15:
+  v197 = load s45 @63:2
+  v198 = load s46 @63:2
+  v199 = load s48 @63:2
+  v200 = load s47 @63:2
+  v201 = call .mapnext0, v197, v198, v199, v200 @63:2
+  v202 = extract 0, v201 @63:2
+  store s49, v202 @63:2
+  v203 = extract 1, v201 @63:2
+  store s48, v203 @63:2
   v204 = load s49 @63:2
-  v205 = const 16 @63:6
-  v206 = ldm ptr, v204, v205 @63:6
+  v205 = const ptr 0 @63:2
+  v206 = eq v204, v205 @63:2
+  branch v206, b14, b15 @63:2
+b14:
+  v215 = const ptr 0 @66:6
+  store s52, v215 @66:6
+  v216 = const 0 @66:6
+  store s53, v216 @66:6
+  v217 = load s16 @67:19
+  store s54, v217 @67:2
+  v218 = const ptr 0 @67:2
+  store s55, v218 @67:2
+  v219 = const 0 @67:2
+  store s56, v219 @67:2
+  v220 = const 0 @67:2
+  store s57, v220 @67:2
+  v221 = load s54 @67:2
+  v222 = const ptr 0 @67:2
+  v223 = ne v221, v222 @67:2
+  branch v223, b16, b17 @67:2
+b15:
   v207 = load s49 @63:2
-  v208 = const 24 @63:6
-  v209 = ldm i64, v207, v208 @63:6
-  store s50, v206 @63:6
-  store s51, v209 @63:6
-  v210 = load s50 @64:11
-  v211 = load s51 @64:11
-  println v210, v211 @64:3
+  v208 = const 16 @63:6
+  v209 = ldm ptr, v207, v208 @63:6
+  v210 = load s49 @63:2
+  v211 = const 24 @63:6
+  v212 = ldm i64, v210, v211 @63:6
+  store s50, v209 @63:6
+  store s51, v212 @63:6
+  v213 = load s50 @64:11
+  v214 = load s51 @64:11
+  println v213, v214 @64:3
   jump b13 @65:2
 b16:
-  v221 = load s54 @67:2
-  v222 = const 8 @67:2
-  v223 = ldm ptr, v221, v222 @67:2
-  store s55, v223 @67:2
   v224 = load s54 @67:2
-  v225 = const 48 @67:2
-  v226 = ldm i64, v224, v225 @67:2
-  store s56, v226 @67:2
+  v225 = const 8 @67:2
+  v226 = ldm ptr, v224, v225 @67:2
+  store s55, v226 @67:2
+  v227 = load s54 @67:2
+  v228 = const 48 @67:2
+  v229 = ldm i64, v227, v228 @67:2
+  store s56, v229 @67:2
+  v230 = load s54 @67:2
+  v231 = const 56 @67:2
+  v232 = ldm i64, v230, v231 @67:2
+  store s57, v232 @67:2
   jump b18 @67:2
 b17:
   jump b18 @67:2
 b18:
-  v227 = load s54 @67:2
-  v228 = load s55 @67:2
-  v229 = load s57 @67:2
-  v230 = load s56 @67:2
-  v231 = call .mapnext0, v227, v228, v229, v230 @67:2
-  v232 = extract 0, v231 @67:2
-  store s58, v232 @67:2
-  v233 = extract 1, v231 @67:2
-  store s57, v233 @67:2
-  v234 = load s58 @67:2
-  v235 = const ptr 0 @67:2
-  v236 = eq v234, v235 @67:2
-  branch v236, b19, b20 @67:2
-b19:
-  v249 = gload g1 @70:10
-  v250 = gload g2 @70:13
-  v251 = gload g3 @70:13
-  v252 = load s2 @70:16
-  v253 = load s3 @70:16
-  v254 = load s4 @70:19
-  v255 = load s9 @70:22
-  v256 = const 2 @70:25
-  v257 = load s18 @70:28
-  v258 = load s31 @70:32
-  v259 = load s40 @70:37
-  v260 = gload g0 @70:43
-  println v249, v250, v251, v252, v253, v254, v255, v256, v257, v258, v259, v260 @70:2
-  v261 = addr gm9 @71:8
-  store s61, v261 @71:2
-  v262 = const 24 @71:2
-  v263 = alloc v262 @71:2
-  store s62, v263 @71:2
-  v264 = const 16 @71:2
-  v265 = load s61 @71:2
-  stm v263, v264, v265 @71:2
-  v266 = const 8 @71:2
-  v267 = funcaddr .defer1 @71:2
-  stm v263, v266, v267 @71:2
-  v268 = const 0 @71:2
-  v269 = load s0 @71:2
-  stm v263, v268, v269 @71:2
-  store s0, v263 @71:2
-  v270 = const ptr 0 @75:6
-  store s63, v270 @75:6
-  v271 = const 0 @75:6
-  store s64, v271 @75:6
-  v272 = const 0 @75:6
-  store s65, v272 @75:6
-  v273 = load s63 @76:6
-  v274 = load s64 @76:6
-  v275 = load s65 @76:6
-  store s66, v273 @76:6
-  store s67, v274 @76:6
-  v276 = str s14 @76:10
-  v277 = const 5 @76:10
-  v278 = call f, v276, v277 @76:8
-  store s68, v278 @76:7
-  v279 = conv u64, v278 @76:7
-  v280 = conv u64, v274 @76:7
-  v281 = ge v279, v280 @76:7
-  branch v281, b21, b22 @76:7
-b20:
-  v237 = load s58 @67:2
-  v238 = const 16 @67:6
-  v239 = ldm ptr, v237, v238 @67:6
+  v233 = load s54 @67:2
+  v234 = load s55 @67:2
+  v235 = load s57 @67:2
+  v236 = load s56 @67:2
+  v237 = call .mapnext0, v233, v234, v235, v236 @67:2
+  v238 = extract 0, v237 @67:2
+  store s58, v238 @67:2
+  v239 = extract 1, v237 @67:2
+  store s57, v239 @67:2
   v240 = load s58 @67:2
-  v241 = const 24 @67:6
-  v242 = ldm i64, v240, v241 @67:6
-  store s59, v239 @67:6
-  store s60, v242 @67:6
-  v243 = load s59 @67:6
-  v244 = load s60 @67:6
-  store s52, v243 @67:6
-  store s53, v244 @67:6
-  v245 = str s10 @68:11
-  v246 = const 1 @68:11
-  v247 = load s52 @68:16
-  v248 = load s53 @68:16
-  println v245, v246, v247, v248 @68:3
+  v241 = const ptr 0 @67:2
+  v242 = eq v240, v241 @67:2
+  branch v242, b19, b20 @67:2
+b19:
+  v255 = gload g1 @70:10
+  v256 = gload g2 @70:13
+  v257 = gload g3 @70:13
+  v258 = load s2 @70:16
+  v259 = load s3 @70:16
+  v260 = load s4 @70:19
+  v261 = load s9 @70:22
+  v262 = const 2 @70:25
+  v263 = load s18 @70:28
+  v264 = load s31 @70:32
+  v265 = load s40 @70:37
+  v266 = gload g0 @70:43
+  println v255, v256, v257, v258, v259, v260, v261, v262, v263, v264, v265, v266 @70:2
+  v267 = addr gm9 @71:8
+  store s61, v267 @71:2
+  v268 = const 24 @71:2
+  v269 = alloc v268 @71:2
+  store s62, v269 @71:2
+  v270 = const 16 @71:2
+  v271 = load s61 @71:2
+  stm v269, v270, v271 @71:2
+  v272 = const 8 @71:2
+  v273 = funcaddr .defer1 @71:2
+  stm v269, v272, v273 @71:2
+  v274 = const 0 @71:2
+  v275 = load s0 @71:2
+  stm v269, v274, v275 @71:2
+  store s0, v269 @71:2
+  v276 = const ptr 0 @75:6
+  store s63, v276 @75:6
+  v277 = const 0 @75:6
+  store s64, v277 @75:6
+  v278 = const 0 @75:6
+  store s65, v278 @75:6
+  v279 = load s63 @76:6
+  v280 = load s64 @76:6
+  v281 = load s65 @76:6
+  store s66, v279 @76:6
+  store s67, v280 @76:6
+  v282 = str s14 @76:10
+  v283 = const 5 @76:10
+  v284 = call f, v282, v283 @76:8
+  store s68, v284 @76:7
+  v285 = conv u64, v284 @76:7
+  v286 = conv u64, v280 @76:7
+  v287 = ge v285, v286 @76:7
+  branch v287, b21, b22 @76:7
+b20:
+  v243 = load s58 @67:2
+  v244 = const 16 @67:6
+  v245 = ldm ptr, v243, v244 @67:6
+  v246 = load s58 @67:2
+  v247 = const 24 @67:6
+  v248 = ldm i64, v246, v247 @67:6
+  store s59, v245 @67:6
+  store s60, v248 @67:6
+  v249 = load s59 @67:6
+  v250 = load s60 @67:6
+  store s52, v249 @67:6
+  store s53, v250 @67:6
+  v251 = str s10 @68:11
+  v252 = const 1 @68:11
+  v253 = load s52 @68:16
+  v254 = load s53 @68:16
+  println v251, v252, v253, v254 @68:3
   jump b18 @69:2
 b21:
-  v282 = load s68 @76:7
-  v283 = load s67 @76:6
-  v313 = const 0 @76:7
-  v314 = const 0 @76:7
-  v315 = const false @76:7
-  v316 = const ptr 0 @76:7
-  v317 = const 0 @76:7
-  v318 = const true @76:7
-  v319 = const 5 @76:7
-  call .raise, v319, v282, v283, v318, v316, v317 @76:7
+  v288 = load s68 @76:7
+  v289 = load s67 @76:6
+  v319 = const 0 @76:7
+  v320 = const 0 @76:7
+  v321 = const false @76:7
+  v322 = const ptr 0 @76:7
+  v323 = const 0 @76:7
+  v324 = const true @76:7
+  v325 = const 5 @76:7
+  call .raise, v325, v288, v289, v324, v322, v323 @76:7
   jump b1 @76:7
 b22:
-  v284 = load s66 @76:6
-  v285 = load s68 @76:7
-  v286 = const 8 @76:6
-  v287 = mul v285, v286 @76:6
-  v288 = ldm i64, v284, v287 @76:6
+  v290 = load s66 @76:6
+  v291 = load s68 @76:7
+  v292 = const 8 @76:6
+  v293 = mul v291, v292 @76:6
+  v294 = ldm i64, v290, v293 @76:6
   jump b1 @77:1
 b23:
-  v292 = load s0 @77:1
-  store s69, v292 @77:1
-  v293 = const 0 @77:1
-  v294 = ldm ptr, v292, v293 @77:1
-  store s0, v294 @77:1
-  v295 = gload g4 @77:1
-  store s70, v295 @77:1
-  v296 = const false @77:1
-  gstore g4, v296 @77:1
-  v297 = const 8 @77:1
-  v298 = ldm ptr, v292, v297 @77:1
-  v299 = load s70 @77:1
-  gstore g6, v299 @77:1
-  callind func(ptr), v298, v292 @77:1
-  v300 = const false @77:1
-  gstore g6, v300 @77:1
-  v301 = load s70 @77:1
-  branch v301, b25, b1 @77:1
+  v298 = load s0 @77:1
+  store s69, v298 @77:1
+  v299 = const 0 @77:1
+  v300 = ldm ptr, v298, v299 @77:1
+  store s0, v300 @77:1
+  v301 = gload g4 @77:1
+  store s70, v301 @77:1
+  v302 = const false @77:1
+  gstore g4, v302 @77:1
+  v303 = const 8 @77:1
+  v304 = ldm ptr, v298, v303 @77:1
+  v305 = load s70 @77:1
+  gstore g6, v305 @77:1
+  callind func(ptr), v304, v298 @77:1
+  v306 = const false @77:1
+  gstore g6, v306 @77:1
+  v307 = load s70 @77:1
+  branch v307, b25, b1 @77:1
 b24:
-  v307 = gload g4 @77:1
-  branch v307, b28, b29 @77:1
+  v313 = gload g4 @77:1
+  branch v313, b28, b29 @77:1
 b25:
-  v302 = gload g5 @77:1
-  v303 = const 49 @77:1
-  v304 = ldm bool, v302, v303 @77:1
-  branch v304, b26, b27 @77:1
+  v308 = gload g5 @77:1
+  v309 = const 49 @77:1
+  v310 = ldm bool, v308, v309 @77:1
+  branch v310, b26, b27 @77:1
 b26:
-  v305 = load s1 @77:1
-  gstore g5, v305 @77:1
+  v311 = load s1 @77:1
+  gstore g5, v311 @77:1
   jump b1 @77:1
 b27:
-  v306 = const true @77:1
-  gstore g4, v306 @77:1
+  v312 = const true @77:1
+  gstore g4, v312 @77:1
   jump b1 @77:1
 b28:
   call .printpanics @77:1
@@ -604,11 +612,11 @@ b28:
 b29:
   ret @77:1
 b30:
-  v308 = load s71 @45:21
-  store s15, v308 @45:21
+  v314 = load s71 @45:21
+  store s15, v314 @45:21
   v67 = load s14 @45:21
   v68 = const 0 @45:21
-  stm v308, v68, v67 @45:21
+  stm v314, v68, v67 @45:21
   v69 = load s11 @45:21
   store s16, v69 @45:2
   v70 = load s16 @46:11
@@ -662,8 +670,8 @@ b30:
   v103 = eq v102, v98 @49:14
   branch v103, b2, b3 @49:14
 b31:
-  v310 = load s72 @50:8
-  store s32, v310 @50:2
+  v316 = load s72 @50:8
+  store s32, v316 @50:2
   v126 = load s32 @51:2
   store s33, v126 @51:5
   v127 = const 1 @51:8
@@ -674,8 +682,8 @@ b31:
   stm v129, v130, v128 @51:5
   v131 = load s33 @51:5
   call .chansend, v131, v129 @51:5
-  v320 = gload g4 @51:5
-  branch v320, b1, b33 @51:5
+  v326 = gload g4 @51:5
+  branch v326, b1, b33 @51:5
 b32:
   v177 = load s32 @61:16
   store s44, v177 @61:2
@@ -691,8 +699,8 @@ b33:
   stm v135, v136, v134 @52:5
   v137 = load s35 @52:5
   call .chansend, v137, v135 @52:5
-  v321 = gload g4 @52:5
-  branch v321, b1, b34 @52:5
+  v327 = gload g4 @52:5
+  branch v327, b1, b34 @52:5
 b34:
   v138 = load s32 @53:2
   store s37, v138 @53:5
@@ -704,8 +712,8 @@ b34:
   stm v141, v142, v140 @53:5
   v143 = load s37 @53:5
   call .chansend, v143, v141 @53:5
-  v322 = gload g4 @53:5
-  branch v322, b1, b35 @53:5
+  v328 = gload g4 @53:5
+  branch v328, b1, b35 @53:5
 b35:
   v144 = load s32 @54:8
   v145 = addr m8 @54:6
@@ -740,13 +748,13 @@ b35:
   v168 = extract 1, v166 @56:2
   store s73, v167 @56:2
   store s74, v168 @56:2
-  v325 = gload g4 @56:2
-  branch v325, b1, b36 @56:2
+  v331 = gload g4 @56:2
+  branch v331, b1, b36 @56:2
 b36:
-  v323 = load s73 @56:2
-  v324 = load s74 @56:2
-  store s42, v323 @56:2
-  store s43, v324 @56:2
+  v329 = load s73 @56:2
+  v330 = load s74 @56:2
+  store s42, v329 @56:2
+  store s43, v330 @56:2
   v169 = load s42 @56:2
   v170 = const 0 @56:2
   v171 = eq v169, v170 @56:2
@@ -6356,19 +6364,23 @@ b10:
   v106 = const 16 @45:21
   stm v104, v106, v105 @45:21
   v107 = load s0 @45:21
-  v108 = load s2 @45:21
-  v109 = const 24 @45:21
+  v108 = const 0 @45:21
+  v109 = const 56 @45:21
   stm v107, v109, v108 @45:21
   v110 = load s0 @45:21
-  v111 = load s5 @45:21
-  v112 = const 32 @45:21
+  v111 = load s2 @45:21
+  v112 = const 24 @45:21
   stm v110, v112, v111 @45:21
   v113 = load s0 @45:21
-  v114 = load s3 @45:21
-  v115 = const 1 @45:21
-  v116 = sub v114, v115 @45:21
-  v117 = const 40 @45:21
-  stm v113, v117, v116 @45:21
+  v114 = load s5 @45:21
+  v115 = const 32 @45:21
+  stm v113, v115, v114 @45:21
+  v116 = load s0 @45:21
+  v117 = load s3 @45:21
+  v118 = const 1 @45:21
+  v119 = sub v117, v118 @45:21
+  v120 = const 40 @45:21
+  stm v116, v120, v119 @45:21
   ret @45:21
 b11:
   v62 = load s4 @45:21

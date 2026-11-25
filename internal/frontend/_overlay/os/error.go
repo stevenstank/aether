@@ -1,15 +1,18 @@
 package os
 
-import "errors"
+import (
+	"internal/oserror"
+	"syscall"
+)
 
-// Portable analogs of some common system call errors, gc's io/fs errors,
-// which Aether cannot import yet (SEMANTICS.md).
+// Portable analogs of some common system call errors: gc's io/fs errors,
+// which are internal/oserror's, as syscall.Errno's Is knows them (D-054).
 var (
-	ErrInvalid    = errors.New("invalid argument")
-	ErrPermission = errors.New("permission denied")
-	ErrExist      = errors.New("file already exists")
-	ErrNotExist   = errors.New("file does not exist")
-	ErrClosed     = errors.New("file already closed")
+	ErrInvalid    = oserror.ErrInvalid
+	ErrPermission = oserror.ErrPermission
+	ErrExist      = oserror.ErrExist
+	ErrNotExist   = oserror.ErrNotExist
+	ErrClosed     = oserror.ErrClosed
 )
 
 // PathError records an error and the operation and file path that caused
@@ -97,7 +100,7 @@ func underlyingErrorIs(err, target error) bool {
 	if err == target {
 		return true
 	}
-	e, ok := err.(errno)
+	e, ok := err.(syscall.Errno)
 	return ok && e.Is(target)
 }
 
@@ -118,51 +121,12 @@ const (
 	eperm     = 1
 	enoent    = 2
 	eintr     = 4
-	eagain    = 11
 	eacces    = 13
 	eexist    = 17
 	enotdir   = 20
 	einval    = 22
-	enfile    = 23
-	emfile    = 24
-	enosys    = 38
 	enotempty = 39
-	eopnotsup = 95
-	etimedout = 110
 )
-
-// errno is a Linux error number, gc's syscall.Errno, with its methods.
-type errno uintptr
-
-func (e errno) Error() string {
-	if 0 <= int(e) && int(e) < len(errnoText) {
-		s := errnoText[e]
-		if s != "" {
-			return s
-		}
-	}
-	return "errno " + itoa(int(e))
-}
-
-func (e errno) Is(target error) bool {
-	switch target {
-	case ErrPermission:
-		return e == eacces || e == eperm
-	case ErrExist:
-		return e == eexist || e == enotempty
-	case ErrNotExist:
-		return e == enoent
-	case errors.ErrUnsupported:
-		return e == enosys || e == eopnotsup
-	}
-	return false
-}
-
-func (e errno) Temporary() bool {
-	return e == eintr || e == emfile || e == enfile || e.Timeout()
-}
-
-func (e errno) Timeout() bool { return e == eagain || e == etimedout }
 
 func itoa(n int) string {
 	neg := n < 0

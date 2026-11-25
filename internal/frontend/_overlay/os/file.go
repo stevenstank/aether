@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"slices"
+	"syscall"
 	"unsafe"
 )
 
@@ -299,7 +300,7 @@ func MkdirAll(path string, perm FileMode) error {
 		if dir.isDir() {
 			return nil
 		}
-		return &PathError{Op: "mkdir", Path: path, Err: errno(enotdir)}
+		return &PathError{Op: "mkdir", Path: path, Err: syscall.Errno(enotdir)}
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
@@ -345,7 +346,7 @@ func Remove(name string) error {
 		return nil
 	}
 	// Both failed: as gc's, rmdir's error, unless it is ENOTDIR.
-	if e1 != errno(enotdir) {
+	if e1 != syscall.Errno(enotdir) {
 		e = e1
 	}
 	return &PathError{Op: "remove", Path: name, Err: e}
@@ -359,7 +360,7 @@ func Rename(oldpath, newpath string) error {
 		if ofi, err := statName("lstat", oldpath, atSymlinkNofollow); err != nil {
 			return &LinkError{"rename", oldpath, newpath, err.(*PathError).Err}
 		} else if newpath == oldpath || !sameFile(fi, ofi) {
-			return &LinkError{"rename", oldpath, newpath, errno(eexist)}
+			return &LinkError{"rename", oldpath, newpath, syscall.Errno(eexist)}
 		}
 	}
 	o, err := cstring(oldpath)
@@ -397,9 +398,9 @@ func Getwd() (dir string, err error) {
 	switch {
 	case err != nil:
 	case n < 1 || n > len(buf) || buf[n-1] != 0:
-		err = errno(einval)
+		err = syscall.Errno(einval)
 	case buf[0] != '/':
-		err = errno(enoent)
+		err = syscall.Errno(enoent)
 	default:
 		return string(buf[:n-1]), nil
 	}
@@ -411,7 +412,7 @@ func Chdir(dir string) error {
 	p, e := cstring(dir)
 	if e == nil {
 		if r := syscall6(sysChdir, addr(p), 0, 0, 0, 0, 0); r < 0 {
-			e = errno(-r)
+			e = syscall.Errno(-r)
 		}
 	}
 	if e != nil {

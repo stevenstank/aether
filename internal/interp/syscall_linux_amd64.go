@@ -28,6 +28,9 @@ const (
 	sysNewfstatat = 262
 	sysUnlinkat   = 263
 	sysRenameat   = 264
+	// time's (D-054).
+	sysClockGettime   = 228
+	sysClockNanosleep = 230
 )
 
 // atFDCWD is AT_FDCWD, the working directory as a directory descriptor.
@@ -47,6 +50,23 @@ const statSize = 144
 // memory is not the program's, is an error of the interpreter.
 func (p *process) syscall(mem *memory, a [7]int64) (int64, error) {
 	switch a[0] {
+	case sysClockGettime:
+		// A struct timespec of two words.
+		b, err := mem.writable(a[2], 16)
+		if err != nil {
+			return 0, err
+		}
+		return host(sysClockGettime, uintptr(a[1]), uintptr(unsafe.Pointer(&b[0])), 0, 0), nil
+	case sysClockNanosleep:
+		if a[4] != 0 {
+			return 0, fmt.Errorf("clock_nanosleep with a remainder is not emulated")
+		}
+		b, err := mem.bytes(a[3], 16)
+		if err != nil {
+			return 0, err
+		}
+		req := append([]byte(nil), b...)
+		return host(sysClockNanosleep, uintptr(a[1]), uintptr(a[2]), uintptr(unsafe.Pointer(&req[0])), 0), nil
 	case sysRead:
 		b, err := mem.writable(a[2], a[3])
 		if err != nil {

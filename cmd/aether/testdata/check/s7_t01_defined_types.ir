@@ -1019,7 +1019,7 @@ b13:
   v208 = load s35 @80:20
   v209 = load s36 @80:29
   println v207, v208, v209, v206 @80:2
-  v210 = const 56 @81:12
+  v210 = const 64 @81:12
   v211 = alloc v210 @81:12
   store s40, v211 @81:12
   v212 = load s40 @81:12
@@ -1413,7 +1413,7 @@ b45:
   v702 = const true @113:38
   v703 = load s162 @113:10
   println v703, v701, v702 @113:2
-  v704 = const 56 @114:21
+  v704 = const 64 @114:21
   v705 = alloc v704 @114:21
   store s173, v705 @114:21
   v706 = const 1 @114:22
@@ -8194,19 +8194,23 @@ b10:
   v106 = const 16 @33:40
   stm v104, v106, v105 @33:40
   v107 = load s0 @33:40
-  v108 = load s2 @33:40
-  v109 = const 24 @33:40
+  v108 = const 0 @33:40
+  v109 = const 56 @33:40
   stm v107, v109, v108 @33:40
   v110 = load s0 @33:40
-  v111 = load s5 @33:40
-  v112 = const 32 @33:40
+  v111 = load s2 @33:40
+  v112 = const 24 @33:40
   stm v110, v112, v111 @33:40
   v113 = load s0 @33:40
-  v114 = load s3 @33:40
-  v115 = const 1 @33:40
-  v116 = sub v114, v115 @33:40
-  v117 = const 40 @33:40
-  stm v113, v117, v116 @33:40
+  v114 = load s5 @33:40
+  v115 = const 32 @33:40
+  stm v113, v115, v114 @33:40
+  v116 = load s0 @33:40
+  v117 = load s3 @33:40
+  v118 = const 1 @33:40
+  v119 = sub v117, v118 @33:40
+  v120 = const 40 @33:40
+  stm v116, v120, v119 @33:40
   ret @33:40
 b11:
   v62 = load s4 @33:40

@@ -4,8 +4,10 @@ package lower
 //
 // A map value is one Ptr: 0 for nil, or a heap header of hdrSize bytes
 // holding the number of live entries, the entry array, the entries used
-// in it, its capacity, the index, the index's mask, and the number of
-// clear calls. The entry array, after a first word written only when the
+// in it, its capacity, the index, the index's mask, the number of clear
+// calls, and the position before which no entry is live, which delete
+// advances, so that a range deleting the first key it visits, repeated,
+// takes linear time (as gc's, whose iteration begins at random). The entry array, after a first word written only when the
 // array is replaced, holds the entries in order of insertion, each the
 // key's hash, whether it is live, the key, and the element. The index is
 // a power of two of I64 slots, each 0 or an entry's position plus 1,
@@ -35,7 +37,8 @@ const (
 	hdrIndex   = 32
 	hdrMask    = 40
 	hdrClears  = 48
-	hdrSize    = 56
+	hdrFirst   = 56 // no live entry is before it: where a range begins
+	hdrSize    = 64
 
 	entFirst = 8 // the entry array's first entry; its first word is its final used
 	entHash  = 0
@@ -267,6 +270,16 @@ func (l *lowerer) mapFunc(mt *mapT, kind int, pos ir.Pos) *ir.Func {
 		case mapDelete:
 			m.st(e.get(), entLive, m.c(0))
 			m.st(hdr(), hdrCount, m.bin(ir.Sub, count(), m.c(1)))
+			first := m.v("first", m.ld(ir.I64, hdr(), hdrFirst))
+			ents := m.v("ents", m.ld(ir.Ptr, hdr(), hdrEntries))
+			m.loop(func() *ir.Instr {
+				in := m.v("in", l.fn.BoolConst(l.b, false, pos))
+				past := m.when(m.cmp(ir.Lt, first.get(), m.ld(ir.I64, hdr(), hdrUsed)))
+				in.set(m.cmp(ir.Eq, m.ld(ir.I64, m.entry(ents.get(), first.get(), m.c(mt.esize)), entLive), m.c(0)))
+				m.join(past)
+				return in.get()
+			}, func() { first.set(m.bin(ir.Add, first.get(), m.c(1))) })
+			m.st(hdr(), hdrFirst, first.get())
 			ret(nil)
 			l.b = miss
 			ret(nil)
@@ -345,6 +358,7 @@ func (l *lowerer) mapGrowFunc(pos ir.Pos) *ir.Func {
 		})
 		m.st(hdr(), hdrEntries, ents.get())
 		m.st(hdr(), hdrUsed, j.get())
+		m.st(hdr(), hdrFirst, m.c(0))
 		m.st(hdr(), hdrCap, ncap.get())
 		m.st(hdr(), hdrIndex, idx.get())
 		m.st(hdr(), hdrMask, mask())
@@ -372,6 +386,7 @@ func (l *lowerer) mapClearFunc(pos ir.Pos) *ir.Func {
 		m.join(empty)
 		m.st(hdr(), hdrCount, m.c(0))
 		m.st(hdr(), hdrUsed, m.c(0))
+		m.st(hdr(), hdrFirst, m.c(0))
 		m.st(hdr(), hdrClears, m.bin(ir.Add, m.ld(ir.I64, hdr(), hdrClears), m.c(1)))
 		m.join(done)
 		l.fn.Ret(l.b, pos)
@@ -462,11 +477,24 @@ func (l *lowerer) hashFunc(t types.Type, pos ir.Pos) *ir.Func {
 						bits = ir.U32
 					}
 					b := m.v("bits", l.ldm(bits, p, pos))
-					z := l.fn.Float(l.b, ir.FEq, pos, l.ldm(it, p, pos), l.fn.FloatConst(l.b, it, 0, pos))
+					f := m.v("f", l.ldm(it, p, pos))
+					z := l.fn.Float(l.b, ir.FEq, pos, f.get(), l.fn.FloatConst(l.b, it, 0, pos))
 					nz := m.when(z)
 					b.set(l.fn.TypedConst(l.b, bits, 0, pos)) // -0 hashes as +0
 					m.join(nz)
+					// A NaN, equal to no key, hashes as the next of a
+					// sequence, so that n NaN keys take linear time to
+					// insert, as gc's random hash of a NaN does.
+					nan := m.when(l.fn.Float(l.b, ir.FEq, pos, f.get(), f.get()))
 					mix(b.get())
+					done := l.fn.NewBlock()
+					m.join(done)
+					l.b = nan
+					seq := l.nanSeq(pos)
+					k := m.v("k", l.fn.GLoad(l.b, seq, pos))
+					l.fn.GStore(l.b, seq, m.bin(ir.Add, k.get(), l.fn.TypedConst(l.b, ir.U64, 1, pos)), pos)
+					mix(k.get())
+					m.join(done)
 				case it == ir.Bool:
 					mix(l.ldm(ir.U8, p, pos))
 				case it == ir.Ptr:
@@ -762,6 +790,7 @@ func (l *lowerer) mapRange(s *ast.RangeStmt) {
 	isNil := m.when(m.cmp(ir.Ne, hdr.get(), m.nilPtr()))
 	ents.set(m.ld(ir.Ptr, hdr.get(), hdrEntries))
 	clears.set(m.ld(ir.I64, hdr.get(), hdrClears))
+	i.set(m.ld(ir.I64, hdr.get(), hdrFirst))
 	head, exit := l.fn.NewBlock(), l.fn.NewBlock()
 	l.fn.Jump(l.b, head, pos)
 	l.b = isNil
@@ -810,4 +839,12 @@ func (l *lowerer) mapRange(s *ast.RangeStmt) {
 	}
 	l.targets = l.targets[:len(l.targets)-1]
 	l.b, l.done = exit, false
+}
+
+// nanSeq returns the global .nanseq, the sequence NaN keys hash as.
+func (l *lowerer) nanSeq(pos ir.Pos) *ir.Global {
+	if l.nanseq == nil {
+		l.nanseq = l.prog.NewGlobal(".nanseq", ir.U64, l.prog.Funcs[0].File, pos)
+	}
+	return l.nanseq
 }

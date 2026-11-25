@@ -218,6 +218,11 @@ type lowerer struct {
 	rtok    *ir.Slot    // the copy of .rframe of the function being lowered, if it calls recover (recover.go)
 
 	sch *sched // the scheduler and channel functions, once needed (chan.go)
+	// hooks are time's functions the scheduler and channels call, if the
+	// program has them (D-054); hooksKnown once looked up.
+	hooks      *timeHooks
+	hooksKnown bool
+	nanseq     *ir.Global // the hash sequence of NaN keys, once needed (maps.go)
 	// countG is whether the scheduler counts goroutines, for
 	// runtime.NumGoroutine (intrinsic.go).
 	countG bool

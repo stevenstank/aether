@@ -292,6 +292,11 @@ func (ld *loader) load(path string, srcs []Source) (*Package, []diag.Diagnostic)
 		return nil, ds
 	}
 	std := path != "main" && isStd(path)
+	if std {
+		for _, f := range files {
+			giveBodies(path, f)
+		}
+	}
 	for _, f := range files {
 		ds = append(ds, ld.stages.Precheck(ld.fset, f, path == "main", std)...)
 	}

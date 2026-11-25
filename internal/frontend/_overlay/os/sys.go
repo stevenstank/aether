@@ -1,6 +1,9 @@
 package os
 
-import "unsafe"
+import (
+	"syscall"
+	"unsafe"
+)
 
 // syscall6 makes the Linux x86-64 system call trap with six arguments and
 // returns its result, the negated errno if in [-4095, -1] (D-051). An
@@ -44,7 +47,7 @@ func call(trap, a1, a2, a3, a4 uintptr) (int, error) {
 			continue
 		}
 		if r < 0 && r > -4096 {
-			return 0, errno(-r)
+			return 0, syscall.Errno(-r)
 		}
 		return r, nil
 	}
@@ -55,7 +58,7 @@ func call(trap, a1, a2, a3, a4 uintptr) (int, error) {
 func cstring(s string) ([]byte, error) {
 	for i := 0; i < len(s); i++ {
 		if s[i] == 0 {
-			return nil, errno(einval)
+			return nil, syscall.Errno(einval)
 		}
 	}
 	b := make([]byte, len(s)+1)

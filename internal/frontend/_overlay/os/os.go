@@ -9,6 +9,7 @@ package os
 
 import (
 	"io"
+	"syscall"
 	"unsafe"
 )
 
@@ -20,19 +21,10 @@ func init() {
 	for i := range Args {
 		Args[i] = arg(i)
 	}
-	envs = make([]string, envc())
-	for i := range envs {
-		envs[i] = env(i)
-	}
 }
 
 func argc() int
 func arg(i int) string
-
-// envc and env are the number of the environment strings and string i, as
-// execve passed them.
-func envc() int
-func env(i int) string
 
 // Exit ends the program with the exit status code. Deferred calls do not
 // run.
@@ -98,7 +90,7 @@ func (f *File) Read(b []byte) (n int, err error) {
 			continue
 		}
 		if m < 0 {
-			return 0, f.wrapErr("read", errno(-m))
+			return 0, f.wrapErr("read", syscall.Errno(-m))
 		}
 		if m == 0 {
 			return 0, io.EOF
@@ -133,7 +125,7 @@ func (f *File) Write(b []byte) (n int, err error) {
 			n += m
 		}
 		if m < 0 {
-			return n, f.wrapErr("write", errno(-m))
+			return n, f.wrapErr("write", syscall.Errno(-m))
 		}
 		if n == len(b) {
 			return n, nil
@@ -164,7 +156,7 @@ func (f *File) Close() error {
 	f.closed = true
 	// As gc's: no retry after EINTR, which leaves the descriptor closed.
 	if r := syscall6(sysClose, uintptr(f.fd), 0, 0, 0, 0, 0); r < 0 {
-		return f.wrapErr("close", errno(-r))
+		return f.wrapErr("close", syscall.Errno(-r))
 	}
 	return nil
 }

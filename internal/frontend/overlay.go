@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"go/ast"
 	"io/fs"
 	"maps"
 	"os"
@@ -27,6 +28,10 @@ type patch struct {
 	replace bool              // the package is only its overlay files
 	exclude []string          // GOROOT files left out
 	use     map[string]string // GOROOT files replaced by other GOROOT files, built whatever their constraints
+	// bodies gives GOROOT functions declared without a body, which gc's
+	// runtime implements (//go:linkname), the body "return target(its
+	// parameters)", target an overlay function of the package (D-054).
+	bodies map[string]string
 }
 
 // patches are the standard-library packages Aether changes (D-049). Each
@@ -59,6 +64,11 @@ var patches = map[string]patch{
 	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)
 	"internal/reflectlite": {replace: true}, // ValueOf, Len, and Swapper, for sort (R.6)
 	"internal/godebug":     {replace: true}, // $GODEBUG at startup, without gc's runtime hooks (D-053)
+	"syscall":              {replace: true}, // what time and os use, over D-051's primitive (D-054)
+	// gc's time, its runtime's part in Aether's runtime.go (D-054).
+	"time": {bodies: map[string]string{"now": "runtimeClock", "runtimeNow": "runtimeClock", "runtimeNano": "nanotime",
+		"runtimeIsBubbled": "isBubbled", "Sleep": "sleep", "newTimer": "newRuntimeTimer", "stopTimer": "stopRuntimeTimer",
+		"resetTimer": "resetRuntimeTimer"}},
 }
 
 // Intrinsics are the functions of overlay files declared without a body
@@ -69,7 +79,9 @@ var Intrinsics = map[string]bool{
 	"internal/strconv.float64bits": true, "internal/strconv.float64frombits": true,
 	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
 	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "os.read": true,
-	"os.syscall6": true, "os.envc": true, "os.env": true, "sync.fatal": true,
+	"os.syscall6": true, "sync.fatal": true,
+	"syscall.rawSyscall6": true, "syscall.envc": true, "syscall.envString": true,
+	"time.syscall6": true, "time.setChanTimer": true, "runtime.envc": true, "runtime.envString": true,
 	"math.cpuFMA": true, "math.envc": true, "math.env": true,
 	"internal/godebug.envc": true, "internal/godebug.env": true, "math/rand.runtime_rand": true,
 	"internal/reflectlite.implements": true,
@@ -154,4 +166,33 @@ func stdFiles(root, p string) ([]Source, error) {
 func hasOverlay(p, name string) bool {
 	_, err := fs.Stat(overlayFS, "_overlay/"+p+"/"+name)
 	return err == nil
+}
+
+// giveBodies gives each function of the file f of the standard-library
+// package p that its patch's bodies lists, declared without a body, the
+// body calling its target with its parameters, returning its results: as
+// written in the source, at the declaration's name (D-054).
+func giveBodies(p string, f *ast.File) {
+	bodies := patches[p].bodies
+	for _, d := range f.Decls {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Body != nil || fd.Recv != nil || bodies[fd.Name.Name] == "" {
+			continue
+		}
+		pos := fd.Name.Pos()
+		call := &ast.CallExpr{Fun: &ast.Ident{NamePos: pos, Name: bodies[fd.Name.Name]}, Lparen: pos, Rparen: pos}
+		for i, field := range fd.Type.Params.List {
+			if len(field.Names) == 0 {
+				field.Names = []*ast.Ident{{NamePos: pos, Name: fmt.Sprintf("p%d", i)}}
+			}
+			for _, n := range field.Names {
+				call.Args = append(call.Args, &ast.Ident{NamePos: pos, Name: n.Name})
+			}
+		}
+		var s ast.Stmt = &ast.ExprStmt{X: call}
+		if fd.Type.Results != nil && len(fd.Type.Results.List) > 0 {
+			s = &ast.ReturnStmt{Return: pos, Results: []ast.Expr{call}}
+		}
+		fd.Body = &ast.BlockStmt{Lbrace: pos, List: []ast.Stmt{s}, Rbrace: pos}
+	}
 }

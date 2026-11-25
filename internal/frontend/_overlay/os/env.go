@@ -1,116 +1,44 @@
 package os
 
-// The environment, as gc's syscall keeps it (env_unix.go): envs are the
-// "key=value" strings, "" for one unset, and env, made on first use, maps
-// each key to its first string, the others of the same key unset. A
-// program's goroutines never run in parallel (D-049), so they need no lock.
-var (
-	envs   []string
-	envMap map[string]int
-)
+import "syscall"
 
-func copyenv() {
-	if envMap != nil {
-		return
-	}
-	envMap = make(map[string]int)
-	for i, s := range envs {
-		for j := 0; j < len(s); j++ {
-			if s[j] == '=' {
-				key := s[:j]
-				if _, ok := envMap[key]; !ok {
-					envMap[key] = i // first mention of key
-				} else {
-					envs[i] = ""
-				}
-				break
-			}
-		}
-	}
-}
+// The environment is syscall's, as gc's os keeps it (D-054).
 
 // Getenv returns the value of the environment variable key, "" if it is
 // not set.
 func Getenv(key string) string {
-	v, _ := LookupEnv(key)
+	v, _ := syscall.Getenv(key)
 	return v
 }
 
 // LookupEnv returns the value of the environment variable key and whether
 // it is set.
 func LookupEnv(key string) (string, bool) {
-	copyenv()
-	if len(key) == 0 {
-		return "", false
-	}
-	i, ok := envMap[key]
-	if !ok {
-		return "", false
-	}
-	s := envs[i]
-	for i := 0; i < len(s); i++ {
-		if s[i] == '=' {
-			return s[i+1:], true
-		}
-	}
-	return "", false
+	return syscall.Getenv(key)
 }
 
 // Setenv sets the environment variable key to value.
 func Setenv(key, value string) error {
-	copyenv()
-	if len(key) == 0 {
-		return NewSyscallError("setenv", errno(einval))
+	err := syscall.Setenv(key, value)
+	if err != nil {
+		return NewSyscallError("setenv", err)
 	}
-	for i := 0; i < len(key); i++ {
-		if key[i] == '=' || key[i] == 0 {
-			return NewSyscallError("setenv", errno(einval))
-		}
-	}
-	for i := 0; i < len(value); i++ {
-		if value[i] == 0 {
-			return NewSyscallError("setenv", errno(einval))
-		}
-	}
-	i, ok := envMap[key]
-	kv := key + "=" + value
-	if ok {
-		envs[i] = kv
-	} else {
-		i = len(envs)
-		envs = append(envs, kv)
-	}
-	envMap[key] = i
 	return nil
 }
 
 // Unsetenv unsets the environment variable key.
 func Unsetenv(key string) error {
-	copyenv()
-	if i, ok := envMap[key]; ok {
-		envs[i] = ""
-		delete(envMap, key)
-	}
-	return nil
+	return syscall.Unsetenv(key)
 }
 
 // Clearenv deletes all environment variables.
 func Clearenv() {
-	copyenv()
-	envMap = make(map[string]int)
-	envs = []string{}
+	syscall.Clearenv()
 }
 
 // Environ returns the environment, "key=value" strings.
 func Environ() []string {
-	copyenv()
-	a := make([]string, 0, len(envs))
-	for _, env := range envs {
-		if env != "" {
-			a = append(a, env)
-		}
-	}
-	return a
+	return syscall.Environ()
 }
 
 // The rest is gc's, from $GOROOT/src/os/env.go.

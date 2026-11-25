@@ -9,6 +9,7 @@ string s7 "c64"
 string s8 "c128"
 string s9 "assignment to entry in nil map"
 string s10 "complex64"
+global g0 .nanseq u64 @testdata/check/s7_c01_complex.go:33:24
 mem gm0 .t0 32 align 8 @testdata/check/s7_c01_complex.go:19:6
 mem gm1 .t1 32 align 8 @testdata/check/s7_c01_complex.go:19:6
 mem gm2 .mzero 8 align 8 @testdata/check/s7_c01_complex.go:35:11
@@ -667,7 +668,7 @@ b28:
   v337 = eq v336, v335 @28:7
   branch v337, b30, b31 @28:7
 b29:
-  v345 = const 56 @33:24
+  v345 = const 64 @33:24
   v346 = alloc v345 @33:24
   store s37, v346 @33:24
   v347 = const f32 1 @33:28
@@ -1612,7 +1613,11 @@ func .hash0(ptr, ptr, i64) i64 @testdata/check/s7_c01_complex.go:33:24
   slot s2 tmp i64 @33:24
   slot s3 h u64 @33:24
   slot s4 bits u32 @33:24
-  slot s5 bits u32 @33:24
+  slot s5 f f32 @33:24
+  slot s6 k u64 @33:24
+  slot s7 bits u32 @33:24
+  slot s8 f f32 @33:24
+  slot s9 k u64 @33:24
 b0:
   v0 = param 0 @33:24
   v1 = param 1 @33:24
@@ -1629,54 +1634,100 @@ b0:
   v7 = load s1 @33:24
   v8 = const 0 @33:24
   v9 = ldm f32, v7, v8 @33:24
-  v10 = const f32 0 @33:24
-  v11 = feq v9, v10 @33:24
-  branch v11, b1, b2 @33:24
+  store s5, v9 @33:24
+  v10 = load s5 @33:24
+  v11 = const f32 0 @33:24
+  v12 = feq v10, v11 @33:24
+  branch v12, b1, b2 @33:24
 b1:
-  v12 = const u32 0 @33:24
-  store s4, v12 @33:24
+  v13 = const u32 0 @33:24
+  store s4, v13 @33:24
   jump b2 @33:24
 b2:
-  v13 = load s4 @33:24
-  v14 = conv u64, v13 @33:24
-  v15 = load s3 @33:24
-  v16 = xor v15, v14 @33:24
-  v17 = const u64 11400714819323198485 @33:24
-  v18 = mul v16, v17 @33:24
-  store s3, v18 @33:24
-  v19 = load s1 @33:24
-  v20 = const 4 @33:24
-  v21 = ldm u32, v19, v20 @33:24
-  store s5, v21 @33:24
-  v22 = load s1 @33:24
-  v23 = const 4 @33:24
-  v24 = ldm f32, v22, v23 @33:24
-  v25 = const f32 0 @33:24
-  v26 = feq v24, v25 @33:24
-  branch v26, b3, b4 @33:24
+  v14 = load s5 @33:24
+  v15 = load s5 @33:24
+  v16 = feq v14, v15 @33:24
+  branch v16, b3, b4 @33:24
 b3:
-  v27 = const u32 0 @33:24
-  store s5, v27 @33:24
-  jump b4 @33:24
+  v17 = load s4 @33:24
+  v18 = conv u64, v17 @33:24
+  v19 = load s3 @33:24
+  v20 = xor v19, v18 @33:24
+  v21 = const u64 11400714819323198485 @33:24
+  v22 = mul v20, v21 @33:24
+  store s3, v22 @33:24
+  jump b5 @33:24
 b4:
-  v28 = load s5 @33:24
-  v29 = conv u64, v28 @33:24
-  v30 = load s3 @33:24
-  v31 = xor v30, v29 @33:24
-  v32 = const u64 11400714819323198485 @33:24
-  v33 = mul v31, v32 @33:24
-  store s3, v33 @33:24
-  v34 = load s3 @33:24
-  v35 = const u64 33 @33:24
-  v36 = shr v34, v35 @33:24
-  v37 = xor v34, v36 @33:24
-  v38 = const u64 18397679294719823053 @33:24
-  v39 = mul v37, v38 @33:24
-  v40 = const u64 33 @33:24
-  v41 = shr v39, v40 @33:24
-  v42 = xor v39, v41 @33:24
-  v43 = conv i64, v42 @33:24
-  ret v43 @33:24
+  v23 = gload g0 @33:24
+  store s6, v23 @33:24
+  v24 = load s6 @33:24
+  v25 = const u64 1 @33:24
+  v26 = add v24, v25 @33:24
+  gstore g0, v26 @33:24
+  v27 = load s6 @33:24
+  v28 = load s3 @33:24
+  v29 = xor v28, v27 @33:24
+  v30 = const u64 11400714819323198485 @33:24
+  v31 = mul v29, v30 @33:24
+  store s3, v31 @33:24
+  jump b5 @33:24
+b5:
+  v32 = load s1 @33:24
+  v33 = const 4 @33:24
+  v34 = ldm u32, v32, v33 @33:24
+  store s7, v34 @33:24
+  v35 = load s1 @33:24
+  v36 = const 4 @33:24
+  v37 = ldm f32, v35, v36 @33:24
+  store s8, v37 @33:24
+  v38 = load s8 @33:24
+  v39 = const f32 0 @33:24
+  v40 = feq v38, v39 @33:24
+  branch v40, b6, b7 @33:24
+b6:
+  v41 = const u32 0 @33:24
+  store s7, v41 @33:24
+  jump b7 @33:24
+b7:
+  v42 = load s8 @33:24
+  v43 = load s8 @33:24
+  v44 = feq v42, v43 @33:24
+  branch v44, b8, b9 @33:24
+b8:
+  v45 = load s7 @33:24
+  v46 = conv u64, v45 @33:24
+  v47 = load s3 @33:24
+  v48 = xor v47, v46 @33:24
+  v49 = const u64 11400714819323198485 @33:24
+  v50 = mul v48, v49 @33:24
+  store s3, v50 @33:24
+  jump b10 @33:24
+b9:
+  v51 = gload g0 @33:24
+  store s9, v51 @33:24
+  v52 = load s9 @33:24
+  v53 = const u64 1 @33:24
+  v54 = add v52, v53 @33:24
+  gstore g0, v54 @33:24
+  v55 = load s9 @33:24
+  v56 = load s3 @33:24
+  v57 = xor v56, v55 @33:24
+  v58 = const u64 11400714819323198485 @33:24
+  v59 = mul v57, v58 @33:24
+  store s3, v59 @33:24
+  jump b10 @33:24
+b10:
+  v60 = load s3 @33:24
+  v61 = const u64 33 @33:24
+  v62 = shr v60, v61 @33:24
+  v63 = xor v60, v62 @33:24
+  v64 = const u64 18397679294719823053 @33:24
+  v65 = mul v63, v64 @33:24
+  v66 = const u64 33 @33:24
+  v67 = shr v65, v66 @33:24
+  v68 = xor v65, v67 @33:24
+  v69 = conv i64, v68 @33:24
+  ret v69 @33:24
 
 func .mapgrow(ptr, i64) @testdata/check/s7_c01_complex.go:33:24
   slot s0 tmp ptr @33:24
@@ -1799,19 +1850,23 @@ b10:
   v106 = const 16 @33:24
   stm v104, v106, v105 @33:24
   v107 = load s0 @33:24
-  v108 = load s2 @33:24
-  v109 = const 24 @33:24
+  v108 = const 0 @33:24
+  v109 = const 56 @33:24
   stm v107, v109, v108 @33:24
   v110 = load s0 @33:24
-  v111 = load s5 @33:24
-  v112 = const 32 @33:24
+  v111 = load s2 @33:24
+  v112 = const 24 @33:24
   stm v110, v112, v111 @33:24
   v113 = load s0 @33:24
-  v114 = load s3 @33:24
-  v115 = const 1 @33:24
-  v116 = sub v114, v115 @33:24
-  v117 = const 40 @33:24
-  stm v113, v117, v116 @33:24
+  v114 = load s5 @33:24
+  v115 = const 32 @33:24
+  stm v113, v115, v114 @33:24
+  v116 = load s0 @33:24
+  v117 = load s3 @33:24
+  v118 = const 1 @33:24
+  v119 = sub v117, v118 @33:24
+  v120 = const 40 @33:24
+  stm v116, v120, v119 @33:24
   ret @33:24
 b11:
   v62 = load s4 @33:24

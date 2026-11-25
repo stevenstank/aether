@@ -781,7 +781,7 @@ func main @testdata/check/s5_d14_defer_builtins_variadic.go:50:6
 b0:
   v0 = const false @50:13
   gstore g2, v0 @50:13
-  v1 = const 56 @51:16
+  v1 = const 64 @51:16
   v2 = alloc v1 @51:16
   store s0, v2 @51:16
   v3 = const 1 @51:18
@@ -5934,7 +5934,7 @@ b0:
   v12 = load s1 @77:3
   stm v6, v11, v12 @77:3
   store s1, v6 @77:3
-  v13 = const 56 @81:19
+  v13 = const 64 @81:19
   v14 = alloc v13 @81:19
   store s5, v14 @81:19
   v15 = const 1 @81:20
@@ -6311,6 +6311,9 @@ func .mapdelete0(ptr, ptr) @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
   slot s4 s i64 @7:1
   slot s5 e ptr @7:1
   slot s6 tmp bool @7:1
+  slot s7 first i64 @7:1
+  slot s8 ents ptr @7:1
+  slot s9 in bool @7:1
 b0:
   v0 = param 0 @7:1
   v1 = param 1 @7:1
@@ -6449,9 +6452,55 @@ b18:
   v88 = sub v86, v87 @7:1
   v89 = const 0 @7:1
   stm v83, v89, v88 @7:1
-  ret @7:1
+  v90 = load s0 @7:1
+  v91 = const 56 @7:1
+  v92 = ldm i64, v90, v91 @7:1
+  store s7, v92 @7:1
+  v93 = load s0 @7:1
+  v94 = const 8 @7:1
+  v95 = ldm ptr, v93, v94 @7:1
+  store s8, v95 @7:1
+  jump b20 @7:1
 b19:
   jump b7 @7:1
+b20:
+  v96 = const false @7:1
+  store s9, v96 @7:1
+  v97 = load s7 @7:1
+  v98 = load s0 @7:1
+  v99 = const 16 @7:1
+  v100 = ldm i64, v98, v99 @7:1
+  v101 = lt v97, v100 @7:1
+  branch v101, b21, b22 @7:1
+b21:
+  v102 = load s8 @7:1
+  v103 = load s7 @7:1
+  v104 = const 48 @7:1
+  v105 = mul v103, v104 @7:1
+  v106 = const 8 @7:1
+  v107 = add v105, v106 @7:1
+  v108 = padd v102, v107 @7:1
+  v109 = const 8 @7:1
+  v110 = ldm i64, v108, v109 @7:1
+  v111 = const 0 @7:1
+  v112 = eq v110, v111 @7:1
+  store s9, v112 @7:1
+  jump b22 @7:1
+b22:
+  v113 = load s9 @7:1
+  branch v113, b23, b24 @7:1
+b23:
+  v114 = load s7 @7:1
+  v115 = const 1 @7:1
+  v116 = add v114, v115 @7:1
+  store s7, v116 @7:1
+  jump b20 @7:1
+b24:
+  v117 = load s0 @7:1
+  v118 = load s7 @7:1
+  v119 = const 56 @7:1
+  stm v117, v119, v118 @7:1
+  ret @7:1
 
 func .hash0(ptr, ptr, i64) i64 @testdata/check/s5_d14_defer_builtins_variadic.go:51:16
   slot s0 tmp ptr @51:16
@@ -6651,19 +6700,23 @@ b10:
   v106 = const 16 @51:16
   stm v104, v106, v105 @51:16
   v107 = load s0 @51:16
-  v108 = load s2 @51:16
-  v109 = const 24 @51:16
+  v108 = const 0 @51:16
+  v109 = const 56 @51:16
   stm v107, v109, v108 @51:16
   v110 = load s0 @51:16
-  v111 = load s5 @51:16
-  v112 = const 32 @51:16
+  v111 = load s2 @51:16
+  v112 = const 24 @51:16
   stm v110, v112, v111 @51:16
   v113 = load s0 @51:16
-  v114 = load s3 @51:16
-  v115 = const 1 @51:16
-  v116 = sub v114, v115 @51:16
-  v117 = const 40 @51:16
-  stm v113, v117, v116 @51:16
+  v114 = load s5 @51:16
+  v115 = const 32 @51:16
+  stm v113, v115, v114 @51:16
+  v116 = load s0 @51:16
+  v117 = load s3 @51:16
+  v118 = const 1 @51:16
+  v119 = sub v117, v118 @51:16
+  v120 = const 40 @51:16
+  stm v116, v120, v119 @51:16
   ret @51:16
 b11:
   v62 = load s4 @51:16
@@ -7688,6 +7741,9 @@ func .mapdelete1(ptr, ptr, i64) @testdata/check/s5_d14_defer_builtins_variadic.g
   slot s5 s i64 @7:1
   slot s6 e ptr @7:1
   slot s7 tmp bool @7:1
+  slot s8 first i64 @7:1
+  slot s9 ents ptr @7:1
+  slot s10 in bool @7:1
   mem m0 key 16 align 8 @7:1
 b0:
   v0 = param 0 @7:1
@@ -7826,9 +7882,55 @@ b17:
   v86 = sub v84, v85 @7:1
   v87 = const 0 @7:1
   stm v81, v87, v86 @7:1
-  ret @7:1
+  v88 = load s0 @7:1
+  v89 = const 56 @7:1
+  v90 = ldm i64, v88, v89 @7:1
+  store s8, v90 @7:1
+  v91 = load s0 @7:1
+  v92 = const 8 @7:1
+  v93 = ldm ptr, v91, v92 @7:1
+  store s9, v93 @7:1
+  jump b19 @7:1
 b18:
   jump b7 @7:1
+b19:
+  v94 = const false @7:1
+  store s10, v94 @7:1
+  v95 = load s8 @7:1
+  v96 = load s0 @7:1
+  v97 = const 16 @7:1
+  v98 = ldm i64, v96, v97 @7:1
+  v99 = lt v95, v98 @7:1
+  branch v99, b20, b21 @7:1
+b20:
+  v100 = load s9 @7:1
+  v101 = load s8 @7:1
+  v102 = const 40 @7:1
+  v103 = mul v101, v102 @7:1
+  v104 = const 8 @7:1
+  v105 = add v103, v104 @7:1
+  v106 = padd v100, v105 @7:1
+  v107 = const 8 @7:1
+  v108 = ldm i64, v106, v107 @7:1
+  v109 = const 0 @7:1
+  v110 = eq v108, v109 @7:1
+  store s10, v110 @7:1
+  jump b21 @7:1
+b21:
+  v111 = load s10 @7:1
+  branch v111, b22, b23 @7:1
+b22:
+  v112 = load s8 @7:1
+  v113 = const 1 @7:1
+  v114 = add v112, v113 @7:1
+  store s8, v114 @7:1
+  jump b19 @7:1
+b23:
+  v115 = load s0 @7:1
+  v116 = load s8 @7:1
+  v117 = const 56 @7:1
+  stm v115, v117, v116 @7:1
+  ret @7:1
 
 func .find0(ptr, ptr) ptr @testdata/check/s5_d14_defer_builtins_variadic.go:70:28
   slot s0 tmp ptr @70:28
@@ -8059,8 +8161,11 @@ func .mapdelete2(ptr, ptr, ptr) @testdata/check/s5_d14_defer_builtins_variadic.g
   slot s10 tmp ptr @7:1
   slot s11 tmp ptr @7:1
   slot s12 eq bool @7:1
-  slot s13 tmp i64 @7:1
-  slot s14 tmp bool @7:1
+  slot s13 first i64 @7:1
+  slot s14 ents ptr @7:1
+  slot s15 in bool @7:1
+  slot s16 tmp i64 @7:1
+  slot s17 tmp bool @7:1
   mem m0 key 16 align 8 @7:1
 b0:
   v0 = param 0 @7:1
@@ -8085,8 +8190,8 @@ b1:
   v17 = addr m0 @7:1
   v18 = const 1 @7:1
   v19 = call .hash1, v16, v17, v18 @7:1
-  v132 = gload g0 @7:1
-  branch v132, b27, b26 @7:1
+  v162 = gload g0 @7:1
+  branch v162, b32, b31 @7:1
 b2:
   jump b1 @7:1
 b3:
@@ -8103,9 +8208,9 @@ b5:
   v21 = addr m0 @7:1
   v22 = const 0 @7:1
   v23 = call .hash1, v20, v21, v22 @7:1
-  store s13, v23 @7:1
-  v134 = gload g0 @7:1
-  branch v134, b27, b28 @7:1
+  store s16, v23 @7:1
+  v164 = gload g0 @7:1
+  branch v164, b32, b33 @7:1
 b6:
   v29 = load s0 @7:1
   v30 = const 32 @7:1
@@ -8219,9 +8324,9 @@ b19:
   v108 = load s10 @7:1
   v109 = load s11 @7:1
   v110 = callind func(ptr, ptr, ptr) bool, v105, v102, v107, v109 @7:1
-  store s14, v110 @7:1
-  v136 = gload g0 @7:1
-  branch v136, b27, b29 @7:1
+  store s17, v110 @7:1
+  v166 = gload g0 @7:1
+  branch v166, b32, b34 @7:1
 b20:
   v88 = str s26 @7:1
   v89 = const 43 @7:1
@@ -8239,14 +8344,14 @@ b20:
   v100 = add v98, v89 @7:1
   v101 = padd v97, v100 @7:1
   move v101, v93, v95 @7:1
-  v137 = const 0 @7:1
-  v138 = const 0 @7:1
-  v139 = const false @7:1
-  v140 = const ptr 0 @7:1
-  v141 = const 0 @7:1
-  v142 = const 17 @7:1
-  call .raise, v142, v137, v138, v139, v97, v96 @7:1
-  jump b27 @7:1
+  v167 = const 0 @7:1
+  v168 = const 0 @7:1
+  v169 = const false @7:1
+  v170 = const ptr 0 @7:1
+  v171 = const 0 @7:1
+  v172 = const 17 @7:1
+  call .raise, v172, v167, v168, v169, v97, v96 @7:1
+  jump b32 @7:1
 b21:
   v111 = load s12 @7:1
   branch v111, b22, b14 @7:1
@@ -8270,16 +8375,62 @@ b24:
   v130 = sub v128, v129 @7:1
   v131 = const 0 @7:1
   stm v125, v131, v130 @7:1
-  ret @7:1
+  v132 = load s0 @7:1
+  v133 = const 56 @7:1
+  v134 = ldm i64, v132, v133 @7:1
+  store s13, v134 @7:1
+  v135 = load s0 @7:1
+  v136 = const 8 @7:1
+  v137 = ldm ptr, v135, v136 @7:1
+  store s14, v137 @7:1
+  jump b26 @7:1
 b25:
   jump b7 @7:1
 b26:
-  ret @7:1
+  v138 = const false @7:1
+  store s15, v138 @7:1
+  v139 = load s13 @7:1
+  v140 = load s0 @7:1
+  v141 = const 16 @7:1
+  v142 = ldm i64, v140, v141 @7:1
+  v143 = lt v139, v142 @7:1
+  branch v143, b27, b28 @7:1
 b27:
-  ret @7:1
+  v144 = load s14 @7:1
+  v145 = load s13 @7:1
+  v146 = const 40 @7:1
+  v147 = mul v145, v146 @7:1
+  v148 = const 8 @7:1
+  v149 = add v147, v148 @7:1
+  v150 = padd v144, v149 @7:1
+  v151 = const 8 @7:1
+  v152 = ldm i64, v150, v151 @7:1
+  v153 = const 0 @7:1
+  v154 = eq v152, v153 @7:1
+  store s15, v154 @7:1
+  jump b28 @7:1
 b28:
-  v133 = load s13 @7:1
-  store s3, v133 @7:1
+  v155 = load s15 @7:1
+  branch v155, b29, b30 @7:1
+b29:
+  v156 = load s13 @7:1
+  v157 = const 1 @7:1
+  v158 = add v156, v157 @7:1
+  store s13, v158 @7:1
+  jump b26 @7:1
+b30:
+  v159 = load s0 @7:1
+  v160 = load s13 @7:1
+  v161 = const 56 @7:1
+  stm v159, v161, v160 @7:1
+  ret @7:1
+b31:
+  ret @7:1
+b32:
+  ret @7:1
+b33:
+  v163 = load s16 @7:1
+  store s3, v163 @7:1
   v24 = load s3 @7:1
   v25 = load s0 @7:1
   v26 = const 40 @7:1
@@ -8287,9 +8438,9 @@ b28:
   v28 = and v24, v27 @7:1
   store s4, v28 @7:1
   jump b6 @7:1
-b29:
-  v135 = load s14 @7:1
-  store s12, v135 @7:1
+b34:
+  v165 = load s17 @7:1
+  store s12, v165 @7:1
   jump b21 @7:1
 
 func .hash2(ptr, ptr, i64) i64 @testdata/check/s5_d14_defer_builtins_variadic.go:7:1

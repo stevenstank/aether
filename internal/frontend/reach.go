@@ -57,9 +57,36 @@ func prune(prog *Program) {
 		}
 		r.walk(n)
 	}
+	// The functions lowering's scheduler calls are reachable if the
+	// program can make what they serve (D-054).
+	for _, p := range prog.Packages {
+		hooks := RuntimeHooks[p.Types.Path()]
+		if trigger := p.Types.Scope().Lookup(hooks.Trigger); trigger == nil || !r.seen[trigger] {
+			continue
+		}
+		for _, name := range hooks.Funcs {
+			if obj := p.Types.Scope().Lookup(name); obj != nil {
+				r.mark(obj)
+			}
+		}
+	}
 	for i, p := range prog.Packages[:len(prog.Packages)-1] {
 		prog.Packages[i] = r.pruned(p)
 	}
+}
+
+// Hooks are a package's functions lowering's scheduler calls, if Trigger
+// is reachable.
+type Hooks struct {
+	Trigger string
+	Funcs   []string
+}
+
+// RuntimeHooks are the functions of time that lowering's scheduler and
+// channels call, by package path, if the program can make a timer: the
+// part of gc's runtime that is Aether's time/runtime.go (D-054).
+var RuntimeHooks = map[string]Hooks{
+	"time": {Trigger: "newRuntimeTimer", Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}},
 }
 
 type reacher struct {

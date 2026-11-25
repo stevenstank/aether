@@ -13,6 +13,7 @@ string s11 "bool"
 string s12 "int8"
 string s13 "int16"
 string s14 "int"
+global g0 .nanseq u64 @testdata/check/s5_k06_key_kinds.go:19:22
 mem gm0 .t0 32 align 8 @testdata/check/s5_k06_key_kinds.go:16:6
 mem gm1 .t1 32 align 8 @testdata/check/s5_k06_key_kinds.go:16:6
 mem gm2 .t2 32 align 8 @testdata/check/s5_k06_key_kinds.go:16:6
@@ -198,7 +199,7 @@ b0:
   v2 = load s0 @18:14
   v3 = fdiv v1, v2 @18:12
   store s0, v3 @18:2
-  v4 = const 56 @19:22
+  v4 = const 64 @19:22
   v5 = alloc v4 @19:22
   store s1, v5 @19:22
   v6 = load s1 @19:22
@@ -262,7 +263,7 @@ b0:
   v45 = load s14 @25:5
   v46 = const 0 @25:5
   stm v45, v46, v38 @25:5
-  v47 = const 56 @26:20
+  v47 = const 64 @26:20
   v48 = alloc v47 @26:20
   store s15, v48 @26:20
   v49 = const f64 1.5 @26:22
@@ -472,7 +473,7 @@ b3:
   store s49, v178 @31:6
   v179 = const ptr 0 @31:6
   store s50, v179 @31:6
-  v180 = const 56 @32:21
+  v180 = const 64 @32:21
   v181 = alloc v180 @32:21
   store s51, v181 @32:21
   v182 = load s49 @32:22
@@ -499,12 +500,12 @@ b3:
   v196 = const 0 @33:10
   v197 = ldm i64, v195, v196 @33:10
   println v197 @33:2
-  v198 = const 56 @34:32
+  v198 = const 64 @34:32
   v199 = alloc v198 @34:32
   store s58, v199 @34:32
   v200 = const true @34:33
   store s59, v200 @34:32
-  v201 = const 56 @34:39
+  v201 = const 64 @34:39
   v202 = alloc v201 @34:39
   store s60, v202 @34:39
   v203 = const i8 -1 @34:40
@@ -533,7 +534,7 @@ b3:
   v218 = const false @35:5
   store s67, v217 @35:4
   store s68, v218 @35:4
-  v219 = const 56 @35:29
+  v219 = const 64 @35:29
   v220 = alloc v219 @35:29
   store s70, v220 @35:29
   v221 = load s70 @35:29
@@ -601,7 +602,7 @@ b3:
   v267 = load s79 @37:10
   v268 = load s82 @37:24
   println v267, v268, v264, v266 @37:2
-  v269 = const 56 @38:20
+  v269 = const 64 @38:20
   v270 = alloc v269 @38:20
   store s84, v270 @38:20
   v271 = load s13 @38:22
@@ -660,7 +661,7 @@ b3:
   v307 = load s98 @41:15
   store s99, v306 @41:6
   store s100, v307 @41:6
-  v308 = const 56 @42:19
+  v308 = const 64 @42:19
   v309 = alloc v308 @42:19
   store s101, v309 @42:19
   v310 = load s99 @42:20
@@ -1275,6 +1276,9 @@ func .mapdelete0(ptr, f64) @testdata/check/s5_k06_key_kinds.go:23:2
   slot s4 s i64 @23:2
   slot s5 e ptr @23:2
   slot s6 tmp bool @23:2
+  slot s7 first i64 @23:2
+  slot s8 ents ptr @23:2
+  slot s9 in bool @23:2
   mem m0 key 8 align 8 @23:2
 b0:
   v0 = param 0 @23:2
@@ -1403,9 +1407,55 @@ b17:
   v78 = sub v76, v77 @23:2
   v79 = const 0 @23:2
   stm v73, v79, v78 @23:2
-  ret @23:2
+  v80 = load s0 @23:2
+  v81 = const 56 @23:2
+  v82 = ldm i64, v80, v81 @23:2
+  store s7, v82 @23:2
+  v83 = load s0 @23:2
+  v84 = const 8 @23:2
+  v85 = ldm ptr, v83, v84 @23:2
+  store s8, v85 @23:2
+  jump b19 @23:2
 b18:
   jump b7 @23:2
+b19:
+  v86 = const false @23:2
+  store s9, v86 @23:2
+  v87 = load s7 @23:2
+  v88 = load s0 @23:2
+  v89 = const 16 @23:2
+  v90 = ldm i64, v88, v89 @23:2
+  v91 = lt v87, v90 @23:2
+  branch v91, b20, b21 @23:2
+b20:
+  v92 = load s8 @23:2
+  v93 = load s7 @23:2
+  v94 = const 32 @23:2
+  v95 = mul v93, v94 @23:2
+  v96 = const 8 @23:2
+  v97 = add v95, v96 @23:2
+  v98 = padd v92, v97 @23:2
+  v99 = const 8 @23:2
+  v100 = ldm i64, v98, v99 @23:2
+  v101 = const 0 @23:2
+  v102 = eq v100, v101 @23:2
+  store s9, v102 @23:2
+  jump b21 @23:2
+b21:
+  v103 = load s9 @23:2
+  branch v103, b22, b23 @23:2
+b22:
+  v104 = load s7 @23:2
+  v105 = const 1 @23:2
+  v106 = add v104, v105 @23:2
+  store s7, v106 @23:2
+  jump b19 @23:2
+b23:
+  v107 = load s0 @23:2
+  v108 = load s7 @23:2
+  v109 = const 56 @23:2
+  stm v107, v109, v108 @23:2
+  ret @23:2
 
 func .mapassign1(ptr, ptr) ptr @testdata/check/s5_k06_key_kinds.go:26:20
   slot s0 tmp ptr @26:20
@@ -4329,6 +4379,8 @@ func .hash0(ptr, ptr, i64) i64 @testdata/check/s5_k06_key_kinds.go:19:22
   slot s2 tmp i64 @19:22
   slot s3 h u64 @19:22
   slot s4 bits u64 @19:22
+  slot s5 f f64 @19:22
+  slot s6 k u64 @19:22
 b0:
   v0 = param 0 @19:22
   v1 = param 1 @19:22
@@ -4345,31 +4397,54 @@ b0:
   v7 = load s1 @19:22
   v8 = const 0 @19:22
   v9 = ldm f64, v7, v8 @19:22
-  v10 = const f64 0 @19:22
-  v11 = feq v9, v10 @19:22
-  branch v11, b1, b2 @19:22
+  store s5, v9 @19:22
+  v10 = load s5 @19:22
+  v11 = const f64 0 @19:22
+  v12 = feq v10, v11 @19:22
+  branch v12, b1, b2 @19:22
 b1:
-  v12 = const u64 0 @19:22
-  store s4, v12 @19:22
+  v13 = const u64 0 @19:22
+  store s4, v13 @19:22
   jump b2 @19:22
 b2:
-  v13 = load s4 @19:22
-  v14 = load s3 @19:22
-  v15 = xor v14, v13 @19:22
-  v16 = const u64 11400714819323198485 @19:22
-  v17 = mul v15, v16 @19:22
-  store s3, v17 @19:22
+  v14 = load s5 @19:22
+  v15 = load s5 @19:22
+  v16 = feq v14, v15 @19:22
+  branch v16, b3, b4 @19:22
+b3:
+  v17 = load s4 @19:22
   v18 = load s3 @19:22
-  v19 = const u64 33 @19:22
-  v20 = shr v18, v19 @19:22
-  v21 = xor v18, v20 @19:22
-  v22 = const u64 18397679294719823053 @19:22
-  v23 = mul v21, v22 @19:22
-  v24 = const u64 33 @19:22
-  v25 = shr v23, v24 @19:22
-  v26 = xor v23, v25 @19:22
-  v27 = conv i64, v26 @19:22
-  ret v27 @19:22
+  v19 = xor v18, v17 @19:22
+  v20 = const u64 11400714819323198485 @19:22
+  v21 = mul v19, v20 @19:22
+  store s3, v21 @19:22
+  jump b5 @19:22
+b4:
+  v22 = gload g0 @19:22
+  store s6, v22 @19:22
+  v23 = load s6 @19:22
+  v24 = const u64 1 @19:22
+  v25 = add v23, v24 @19:22
+  gstore g0, v25 @19:22
+  v26 = load s6 @19:22
+  v27 = load s3 @19:22
+  v28 = xor v27, v26 @19:22
+  v29 = const u64 11400714819323198485 @19:22
+  v30 = mul v28, v29 @19:22
+  store s3, v30 @19:22
+  jump b5 @19:22
+b5:
+  v31 = load s3 @19:22
+  v32 = const u64 33 @19:22
+  v33 = shr v31, v32 @19:22
+  v34 = xor v31, v33 @19:22
+  v35 = const u64 18397679294719823053 @19:22
+  v36 = mul v34, v35 @19:22
+  v37 = const u64 33 @19:22
+  v38 = shr v36, v37 @19:22
+  v39 = xor v36, v38 @19:22
+  v40 = conv i64, v39 @19:22
+  ret v40 @19:22
 
 func .mapgrow(ptr, i64) @testdata/check/s5_k06_key_kinds.go:19:22
   slot s0 tmp ptr @19:22
@@ -4492,19 +4567,23 @@ b10:
   v106 = const 16 @19:22
   stm v104, v106, v105 @19:22
   v107 = load s0 @19:22
-  v108 = load s2 @19:22
-  v109 = const 24 @19:22
+  v108 = const 0 @19:22
+  v109 = const 56 @19:22
   stm v107, v109, v108 @19:22
   v110 = load s0 @19:22
-  v111 = load s5 @19:22
-  v112 = const 32 @19:22
+  v111 = load s2 @19:22
+  v112 = const 24 @19:22
   stm v110, v112, v111 @19:22
   v113 = load s0 @19:22
-  v114 = load s3 @19:22
-  v115 = const 1 @19:22
-  v116 = sub v114, v115 @19:22
-  v117 = const 40 @19:22
-  stm v113, v117, v116 @19:22
+  v114 = load s5 @19:22
+  v115 = const 32 @19:22
+  stm v113, v115, v114 @19:22
+  v116 = load s0 @19:22
+  v117 = load s3 @19:22
+  v118 = const 1 @19:22
+  v119 = sub v117, v118 @19:22
+  v120 = const 40 @19:22
+  stm v116, v120, v119 @19:22
   ret @19:22
 b11:
   v62 = load s4 @19:22
@@ -4568,9 +4647,11 @@ func .hash1(ptr, ptr, i64) i64 @testdata/check/s5_k06_key_kinds.go:26:20
   slot s2 tmp i64 @26:20
   slot s3 h u64 @26:20
   slot s4 bits u64 @26:20
-  slot s5 s ptr @26:20
-  slot s6 n i64 @26:20
-  slot s7 i i64 @26:20
+  slot s5 f f64 @26:20
+  slot s6 k u64 @26:20
+  slot s7 s ptr @26:20
+  slot s8 n i64 @26:20
+  slot s9 i i64 @26:20
 b0:
   v0 = param 0 @26:20
   v1 = param 1 @26:20
@@ -4587,78 +4668,101 @@ b0:
   v7 = load s1 @26:20
   v8 = const 0 @26:20
   v9 = ldm f64, v7, v8 @26:20
-  v10 = const f64 0 @26:20
-  v11 = feq v9, v10 @26:20
-  branch v11, b1, b2 @26:20
+  store s5, v9 @26:20
+  v10 = load s5 @26:20
+  v11 = const f64 0 @26:20
+  v12 = feq v10, v11 @26:20
+  branch v12, b1, b2 @26:20
 b1:
-  v12 = const u64 0 @26:20
-  store s4, v12 @26:20
+  v13 = const u64 0 @26:20
+  store s4, v13 @26:20
   jump b2 @26:20
 b2:
-  v13 = load s4 @26:20
-  v14 = load s3 @26:20
-  v15 = xor v14, v13 @26:20
-  v16 = const u64 11400714819323198485 @26:20
-  v17 = mul v15, v16 @26:20
-  store s3, v17 @26:20
-  v18 = load s1 @26:20
-  v19 = const 8 @26:20
-  v20 = ldm ptr, v18, v19 @26:20
-  store s5, v20 @26:20
-  v21 = load s1 @26:20
-  v22 = const 16 @26:20
-  v23 = ldm i64, v21, v22 @26:20
-  store s6, v23 @26:20
-  v24 = const 0 @26:20
-  store s7, v24 @26:20
-  jump b3 @26:20
+  v14 = load s5 @26:20
+  v15 = load s5 @26:20
+  v16 = feq v14, v15 @26:20
+  branch v16, b3, b4 @26:20
 b3:
-  v25 = load s7 @26:20
-  v26 = load s6 @26:20
-  v27 = lt v25, v26 @26:20
-  branch v27, b4, b5 @26:20
+  v17 = load s4 @26:20
+  v18 = load s3 @26:20
+  v19 = xor v18, v17 @26:20
+  v20 = const u64 11400714819323198485 @26:20
+  v21 = mul v19, v20 @26:20
+  store s3, v21 @26:20
+  jump b5 @26:20
 b4:
-  v28 = load s5 @26:20
-  v29 = load s7 @26:20
-  v30 = loadb v28, v29 @26:20
-  v31 = conv u64, v30 @26:20
-  v32 = load s3 @26:20
-  v33 = xor v32, v31 @26:20
-  v34 = const u64 11400714819323198485 @26:20
-  v35 = mul v33, v34 @26:20
-  store s3, v35 @26:20
-  v36 = load s7 @26:20
-  v37 = const 1 @26:20
-  v38 = add v36, v37 @26:20
-  store s7, v38 @26:20
-  jump b3 @26:20
+  v22 = gload g0 @26:20
+  store s6, v22 @26:20
+  v23 = load s6 @26:20
+  v24 = const u64 1 @26:20
+  v25 = add v23, v24 @26:20
+  gstore g0, v25 @26:20
+  v26 = load s6 @26:20
+  v27 = load s3 @26:20
+  v28 = xor v27, v26 @26:20
+  v29 = const u64 11400714819323198485 @26:20
+  v30 = mul v28, v29 @26:20
+  store s3, v30 @26:20
+  jump b5 @26:20
 b5:
-  v39 = load s6 @26:20
-  v40 = conv u64, v39 @26:20
-  v41 = load s3 @26:20
-  v42 = xor v41, v40 @26:20
-  v43 = const u64 11400714819323198485 @26:20
-  v44 = mul v42, v43 @26:20
-  store s3, v44 @26:20
-  v45 = load s1 @26:20
-  v46 = const 24 @26:20
-  v47 = ldm u64, v45, v46 @26:20
-  v48 = load s3 @26:20
-  v49 = xor v48, v47 @26:20
-  v50 = const u64 11400714819323198485 @26:20
-  v51 = mul v49, v50 @26:20
-  store s3, v51 @26:20
-  v52 = load s3 @26:20
-  v53 = const u64 33 @26:20
-  v54 = shr v52, v53 @26:20
-  v55 = xor v52, v54 @26:20
-  v56 = const u64 18397679294719823053 @26:20
+  v31 = load s1 @26:20
+  v32 = const 8 @26:20
+  v33 = ldm ptr, v31, v32 @26:20
+  store s7, v33 @26:20
+  v34 = load s1 @26:20
+  v35 = const 16 @26:20
+  v36 = ldm i64, v34, v35 @26:20
+  store s8, v36 @26:20
+  v37 = const 0 @26:20
+  store s9, v37 @26:20
+  jump b6 @26:20
+b6:
+  v38 = load s9 @26:20
+  v39 = load s8 @26:20
+  v40 = lt v38, v39 @26:20
+  branch v40, b7, b8 @26:20
+b7:
+  v41 = load s7 @26:20
+  v42 = load s9 @26:20
+  v43 = loadb v41, v42 @26:20
+  v44 = conv u64, v43 @26:20
+  v45 = load s3 @26:20
+  v46 = xor v45, v44 @26:20
+  v47 = const u64 11400714819323198485 @26:20
+  v48 = mul v46, v47 @26:20
+  store s3, v48 @26:20
+  v49 = load s9 @26:20
+  v50 = const 1 @26:20
+  v51 = add v49, v50 @26:20
+  store s9, v51 @26:20
+  jump b6 @26:20
+b8:
+  v52 = load s8 @26:20
+  v53 = conv u64, v52 @26:20
+  v54 = load s3 @26:20
+  v55 = xor v54, v53 @26:20
+  v56 = const u64 11400714819323198485 @26:20
   v57 = mul v55, v56 @26:20
-  v58 = const u64 33 @26:20
-  v59 = shr v57, v58 @26:20
-  v60 = xor v57, v59 @26:20
-  v61 = conv i64, v60 @26:20
-  ret v61 @26:20
+  store s3, v57 @26:20
+  v58 = load s1 @26:20
+  v59 = const 24 @26:20
+  v60 = ldm u64, v58, v59 @26:20
+  v61 = load s3 @26:20
+  v62 = xor v61, v60 @26:20
+  v63 = const u64 11400714819323198485 @26:20
+  v64 = mul v62, v63 @26:20
+  store s3, v64 @26:20
+  v65 = load s3 @26:20
+  v66 = const u64 33 @26:20
+  v67 = shr v65, v66 @26:20
+  v68 = xor v65, v67 @26:20
+  v69 = const u64 18397679294719823053 @26:20
+  v70 = mul v68, v69 @26:20
+  v71 = const u64 33 @26:20
+  v72 = shr v70, v71 @26:20
+  v73 = xor v70, v72 @26:20
+  v74 = conv i64, v73 @26:20
+  ret v74 @26:20
 
 func .streq(ptr, i64, ptr, i64) bool @testdata/check/s5_k06_key_kinds.go:26:20
   slot s0 p ptr @26:20

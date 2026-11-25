@@ -5323,7 +5323,7 @@ b0:
   store s0, v0 @47:9
   v1 = const false @47:16
   gstore g2, v1 @47:16
-  v2 = const 56 @47:34
+  v2 = const 64 @47:34
   v3 = alloc v2 @47:34
   store s1, v3 @47:34
   v4 = load s1 @47:34
@@ -5392,7 +5392,7 @@ b0:
   store s0, v0 @48:9
   v1 = const false @48:16
   gstore g2, v1 @48:16
-  v2 = const 56 @48:34
+  v2 = const 64 @48:34
   v3 = alloc v2 @48:34
   store s1, v3 @48:34
   v4 = load s1 @48:34
@@ -8522,19 +8522,23 @@ b10:
   v106 = const 16 @43:38
   stm v104, v106, v105 @43:38
   v107 = load s0 @43:38
-  v108 = load s2 @43:38
-  v109 = const 24 @43:38
+  v108 = const 0 @43:38
+  v109 = const 56 @43:38
   stm v107, v109, v108 @43:38
   v110 = load s0 @43:38
-  v111 = load s5 @43:38
-  v112 = const 32 @43:38
+  v111 = load s2 @43:38
+  v112 = const 24 @43:38
   stm v110, v112, v111 @43:38
   v113 = load s0 @43:38
-  v114 = load s3 @43:38
-  v115 = const 1 @43:38
-  v116 = sub v114, v115 @43:38
-  v117 = const 40 @43:38
-  stm v113, v117, v116 @43:38
+  v114 = load s5 @43:38
+  v115 = const 32 @43:38
+  stm v113, v115, v114 @43:38
+  v116 = load s0 @43:38
+  v117 = load s3 @43:38
+  v118 = const 1 @43:38
+  v119 = sub v117, v118 @43:38
+  v120 = const 40 @43:38
+  stm v116, v120, v119 @43:38
   ret @43:38
 b11:
   v62 = load s4 @43:38

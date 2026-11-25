@@ -99,7 +99,13 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 			kind = ir.SysRead
 		}
 		l.fn.Ret(b, pos, l.fn.Sys(b, kind, ir.I64, pos, fdv, p, n))
-	case "os.syscall6":
+	case "time.setChanTimer":
+		// setChanTimer(c, t unsafe.Pointer) records the timer of a channel
+		// (D-054).
+		c, t := l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos)
+		l.fn.StM(b, c, l.fn.Const(b, chTimer, pos), t, pos)
+		l.fn.Ret(b, pos)
+	case "os.syscall6", "syscall.rawSyscall6", "time.syscall6":
 		// syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) int (D-051).
 		args := make([]*ir.Instr, 7)
 		for i := range args {
@@ -109,12 +115,12 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 	case "math/rand.runtime_rand":
 		// runtime_rand() uint64, gc's runtime.rand (D-053).
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysRand, ir.U64, pos))
-	case "os.envc", "math.envc", "internal/godebug.envc":
+	case "syscall.envc", "math.envc", "internal/godebug.envc", "runtime.envc":
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvc, ir.I64, pos))
 	case "math.cpuFMA":
 		// cpuFMA() int (D-053).
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCPUFMA, ir.I64, pos))
-	case "os.env", "math.env", "internal/godebug.env":
+	case "syscall.envString", "math.env", "internal/godebug.env", "runtime.envString":
 		i := l.fn.Param(b, 0, pos)
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvPtr, ir.Ptr, pos, i), l.fn.Sys(b, ir.SysEnvLen, ir.I64, pos, i))
 	case "internal/reflectlite.implements":

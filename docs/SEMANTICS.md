@@ -1512,11 +1512,11 @@ D-051. Aether's `os` adds, with gc's behavior and errors:
   (`errors.Is(err, os.ErrNotExist)`).
 
 Differences from gc:
-- `io/fs` imports `time`, which Aether cannot compile yet, so `Stat`,
-  `Lstat`, `File.Stat`, `FileInfo`, `ReadDir`, and `DirEntry` are
-  `unsupported`, and `FileMode`, `PathError`, and the `Err*` values are
-  `os`'s own types and values rather than `io/fs`'s; an error's number is
-  `os`'s type, not `syscall.Errno`, so `%T` and `%#v` print other names.
+- `Stat`, `Lstat`, `File.Stat`, `FileInfo`, `ReadDir`, and `DirEntry`
+  are `unsupported`, and `FileMode` and `PathError` are `os`'s own types
+  rather than `io/fs`'s. Since Batch 4 the `Err*` values are
+  `internal/oserror`'s, as gc's, and an error's number is a
+  `syscall.Errno`.
 - gc's runtime opens descriptors of its own (its poller) when a program
   first opens a file, so later files' numbers (`Fd`) differ; Aether's are
   the kernel's lowest free ones.
@@ -1587,6 +1587,44 @@ D-053.
   and applies a value's `#pattern` (bisect) suffix nowhere, using the
   value everywhere.
 
+## Capability Batch 4: time and timers
+
+D-054.
+- **`time`** is gc's, compiled from GOROOT: `Time`, `Duration`,
+  `Month`, `Weekday`, parsing and formatting, arithmetic, `Location`
+  with the system's zoneinfo, `TZ` and `ZONEINFO` (also when the program
+  sets them with `os.Setenv` before `time` first reads them), and the
+  monotonic clock. Its runtime part is Aether's: `Now` reads
+  `clock_gettime`, and `Sleep`, `Timer`, `Ticker`, `After`, `AfterFunc`,
+  and `Tick` are timers in Aether's scheduler, with gc's (Go 1.23)
+  semantics: a timer's channel reports length and capacity 0, `Stop` and
+  `Reset` report whether the timer was pending and drain a value it sent
+  but nobody received, a receive (also a `select` polling with
+  `default`) runs a due timer, and a timer whose channel nobody waits on
+  costs nothing until then. While every goroutine is blocked, the program
+  sleeps until the next timer; with no timer, it ends in deadlock as
+  before. `GODEBUG=asynctimerchan=1` gives gc's earlier buffered timer
+  channels.
+- **`syscall`** is Aether's: the environment (`Getenv`, `Setenv`,
+  `Unsetenv`, `Clearenv`, `Environ`), which `os` now uses, `Errno` with
+  gc's messages and `Is`, `Signal`, `Open`, `Read`, `Write`, `Close`,
+  `Seek`, `Getpid`, `Kill`, `Syscall`, `Syscall6`, `RawSyscall`, and
+  `RawSyscall6` on Linux x86-64, and the `O_` flags, error numbers, and
+  signals. The rest of gc's `syscall` is `unsupported`.
+- **`runtime.GOROOT`** returns the `GOROOT` environment variable, or ""
+  (a gc program built with `-trimpath` also returns ""; one built
+  without it returns the tree it was built with).
+- Differences: timers run when goroutines switch, when every goroutine
+  is blocked, and when a `select` with a `default` case finds no case
+  ready; a goroutine that does none of these (a loop without channel
+  operations) keeps them from running until it does (D-049), where gc
+  runs them on its own. A timer's value is the time it runs.
+- Maps, found with `$GOROOT/test/maplinear.go`, which `time` makes
+  testable: NaN keys and a range that deletes the first key it visits,
+  repeated, took quadratic time; both are linear now.
+- Still `unsupported`, for reasons of their own: `log` (`runtime.Caller`),
+  `flag` (`reflect.New`), and `context` (a struct embedding an interface).
+
 ## Support matrix
 
 | Feature | Spec section | Subset / phase | State | Tests |
@@ -1632,6 +1670,7 @@ D-053.
 | The blank identifier in declarations and assignments | Blank identifier, Assignment statements | Phase 11 / 11.2 | Supported (native) | `s7_b01_blank` to `s7_b03_blank_declarations`; gate tests; `TestGorootRun` |
 | `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
+| `time` (gc's), its clocks, `Sleep` and timers in the scheduler, zones, `syscall` (Aether's), `runtime.GOROOT` | The packages' documentation | Batch 4 | Supported (native) | `TestStdPrograms` (`timefmt`, `timers`, `mapedge`, against gc, natively and in the interpreter); `TestTimeZoneEnv`; `TestOSPrograms`; `$GOROOT/test` (`maplinear`, `chanlinear`, `sigchld`, ...) |
 | `math.Exp` and `math.Log` (gc's amd64 results, both FMA paths), what is built on them, `math/rand`, and `GODEBUG` settings | The packages' documentation | Batch 5 | Supported (native) | `TestMathExpLog` (`testdata/mathprog/explog.go`, millions of inputs, against gc, with and without FMA, natively and in the interpreter); `TestMathRandGodebug`; `TestStdPrograms` (`mathrand`); `TestSysOps` |
 | `unicode/utf8`, `unicode`, `math/bits`, `math`, `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
 | `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, methods, and func values, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`, `s7_l03_variadic_values`, `s7_w01_switch_compare`; gate tests |

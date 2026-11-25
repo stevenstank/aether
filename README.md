@@ -160,7 +160,8 @@ potentially long-term dependencies. The exact ownership boundaries are in
   must be go1.26 (increment 11.5), and Aether's own `runtime` (`GOOS`,
   `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`,
   `Stdin`, `Stdout`, `Stderr`, and since Batch 2 files by name and the
-  environment, without `Stat` and `ReadDir`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`,
+  environment, without `Stat` and `ReadDir`), `time` and timers since
+  Batch 4, `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`,
   `Pool`),
   and `sync/atomic` (increment 11.6), and `cmp`, `slices`, `sort`,
   `maps`, and `errors` (increment 11.7), with another package's generic

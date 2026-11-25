@@ -29,7 +29,7 @@ func main @testdata/check/s5_k04_unhashable_hash.go:8:6
   slot s17 tmp ptr @11:11
   slot s18 tmp ptr @11:11
 b0:
-  v0 = const 56 @9:18
+  v0 = const 64 @9:18
   v1 = alloc v0 @9:18
   store s0, v1 @9:18
   v2 = const 1 @9:19
@@ -910,19 +910,23 @@ b10:
   v106 = const 16 @9:18
   stm v104, v106, v105 @9:18
   v107 = load s0 @9:18
-  v108 = load s2 @9:18
-  v109 = const 24 @9:18
+  v108 = const 0 @9:18
+  v109 = const 56 @9:18
   stm v107, v109, v108 @9:18
   v110 = load s0 @9:18
-  v111 = load s5 @9:18
-  v112 = const 32 @9:18
+  v111 = load s2 @9:18
+  v112 = const 24 @9:18
   stm v110, v112, v111 @9:18
   v113 = load s0 @9:18
-  v114 = load s3 @9:18
-  v115 = const 1 @9:18
-  v116 = sub v114, v115 @9:18
-  v117 = const 40 @9:18
-  stm v113, v117, v116 @9:18
+  v114 = load s5 @9:18
+  v115 = const 32 @9:18
+  stm v113, v115, v114 @9:18
+  v116 = load s0 @9:18
+  v117 = load s3 @9:18
+  v118 = const 1 @9:18
+  v119 = sub v117, v118 @9:18
+  v120 = const 40 @9:18
+  stm v116, v120, v119 @9:18
   ret @9:18
 b11:
   v62 = load s4 @9:18

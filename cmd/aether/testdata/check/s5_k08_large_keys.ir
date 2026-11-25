@@ -5,6 +5,7 @@ string s3 "runtime error: hash of unhashable type "
 string s4 "hash of unhashable type: "
 string s5 "int"
 string s6 "[]string"
+global g0 .nanseq u64 @testdata/check/s5_k08_large_keys.go:24:21
 mem gm0 .t0 32 align 8 @testdata/check/s5_k08_large_keys.go:16:6
 mem gm1 .t1 32 align 8 @testdata/check/s5_k08_large_keys.go:16:6
 mem gm2 .mzero 24 align 8 @testdata/check/s5_k08_large_keys.go:37:13
@@ -140,7 +141,7 @@ func main @testdata/check/s5_k08_large_keys.go:16:6
   mem m14 tmp 32 align 8 @34:13
   mem m15 tmp 32 align 8 @37:14
 b0:
-  v0 = const 56 @17:22
+  v0 = const 64 @17:22
   v1 = alloc v0 @17:22
   store s0, v1 @17:22
   v2 = load s0 @17:22
@@ -323,7 +324,7 @@ b18:
   v113 = load s12 @23:10
   v114 = load s16 @23:18
   println v113, v114, v112 @23:2
-  v115 = const 56 @24:21
+  v115 = const 64 @24:21
   v116 = alloc v115 @24:21
   store s20, v116 @24:21
   v117 = load s20 @24:21
@@ -1341,7 +1342,7 @@ b65:
   v843 = load s70 @32:10
   v844 = load s74 @32:19
   println v843, v844, v835, v842 @32:2
-  v845 = const 56 @33:22
+  v845 = const 64 @33:22
   v846 = alloc v845 @33:22
   store s81, v846 @33:22
   v847 = const 1 @33:24
@@ -3120,6 +3121,9 @@ func .mapdelete2(ptr, ptr) @testdata/check/s5_k08_large_keys.go:34:2
   slot s14 tmp ptr @34:2
   slot s15 tmp ptr @34:2
   slot s16 eq bool @34:2
+  slot s17 first i64 @34:2
+  slot s18 ents ptr @34:2
+  slot s19 in bool @34:2
 b0:
   v0 = param 0 @34:2
   v1 = param 1 @34:2
@@ -3394,9 +3398,55 @@ b32:
   v178 = sub v176, v177 @34:2
   v179 = const 0 @34:2
   stm v173, v179, v178 @34:2
-  ret @34:2
+  v180 = load s0 @34:2
+  v181 = const 56 @34:2
+  v182 = ldm i64, v180, v181 @34:2
+  store s17, v182 @34:2
+  v183 = load s0 @34:2
+  v184 = const 8 @34:2
+  v185 = ldm ptr, v183, v184 @34:2
+  store s18, v185 @34:2
+  jump b34 @34:2
 b33:
   jump b7 @34:2
+b34:
+  v186 = const false @34:2
+  store s19, v186 @34:2
+  v187 = load s17 @34:2
+  v188 = load s0 @34:2
+  v189 = const 16 @34:2
+  v190 = ldm i64, v188, v189 @34:2
+  v191 = lt v187, v190 @34:2
+  branch v191, b35, b36 @34:2
+b35:
+  v192 = load s18 @34:2
+  v193 = load s17 @34:2
+  v194 = const 56 @34:2
+  v195 = mul v193, v194 @34:2
+  v196 = const 8 @34:2
+  v197 = add v195, v196 @34:2
+  v198 = padd v192, v197 @34:2
+  v199 = const 8 @34:2
+  v200 = ldm i64, v198, v199 @34:2
+  v201 = const 0 @34:2
+  v202 = eq v200, v201 @34:2
+  store s19, v202 @34:2
+  jump b36 @34:2
+b36:
+  v203 = load s19 @34:2
+  branch v203, b37, b38 @34:2
+b37:
+  v204 = load s17 @34:2
+  v205 = const 1 @34:2
+  v206 = add v204, v205 @34:2
+  store s17, v206 @34:2
+  jump b34 @34:2
+b38:
+  v207 = load s0 @34:2
+  v208 = load s17 @34:2
+  v209 = const 56 @34:2
+  stm v207, v209, v208 @34:2
+  ret @34:2
 
 func .mapaccess2(ptr, ptr) ptr @testdata/check/s5_k08_large_keys.go:37:13
   slot s0 tmp ptr @37:13
@@ -3861,19 +3911,23 @@ b10:
   v106 = const 16 @17:22
   stm v104, v106, v105 @17:22
   v107 = load s0 @17:22
-  v108 = load s2 @17:22
-  v109 = const 24 @17:22
+  v108 = const 0 @17:22
+  v109 = const 56 @17:22
   stm v107, v109, v108 @17:22
   v110 = load s0 @17:22
-  v111 = load s5 @17:22
-  v112 = const 32 @17:22
+  v111 = load s2 @17:22
+  v112 = const 24 @17:22
   stm v110, v112, v111 @17:22
   v113 = load s0 @17:22
-  v114 = load s3 @17:22
-  v115 = const 1 @17:22
-  v116 = sub v114, v115 @17:22
-  v117 = const 40 @17:22
-  stm v113, v117, v116 @17:22
+  v114 = load s5 @17:22
+  v115 = const 32 @17:22
+  stm v113, v115, v114 @17:22
+  v116 = load s0 @17:22
+  v117 = load s3 @17:22
+  v118 = const 1 @17:22
+  v119 = sub v117, v118 @17:22
+  v120 = const 40 @17:22
+  stm v116, v120, v119 @17:22
   ret @17:22
 b11:
   v62 = load s4 @17:22
@@ -3947,6 +4001,8 @@ func .hash1(ptr, ptr, i64) i64 @testdata/check/s5_k08_large_keys.go:24:21
   slot s12 n i64 @24:21
   slot s13 i i64 @24:21
   slot s14 bits u32 @24:21
+  slot s15 f f32 @24:21
+  slot s16 k u64 @24:21
 b0:
   v0 = param 0 @24:21
   v1 = param 1 @24:21
@@ -4106,32 +4162,55 @@ b12:
   v105 = load s1 @24:21
   v106 = const 216 @24:21
   v107 = ldm f32, v105, v106 @24:21
-  v108 = const f32 0 @24:21
-  v109 = feq v107, v108 @24:21
-  branch v109, b13, b14 @24:21
+  store s15, v107 @24:21
+  v108 = load s15 @24:21
+  v109 = const f32 0 @24:21
+  v110 = feq v108, v109 @24:21
+  branch v110, b13, b14 @24:21
 b13:
-  v110 = const u32 0 @24:21
-  store s14, v110 @24:21
+  v111 = const u32 0 @24:21
+  store s14, v111 @24:21
   jump b14 @24:21
 b14:
-  v111 = load s14 @24:21
-  v112 = conv u64, v111 @24:21
-  v113 = load s3 @24:21
-  v114 = xor v113, v112 @24:21
-  v115 = const u64 11400714819323198485 @24:21
-  v116 = mul v114, v115 @24:21
-  store s3, v116 @24:21
+  v112 = load s15 @24:21
+  v113 = load s15 @24:21
+  v114 = feq v112, v113 @24:21
+  branch v114, b15, b16 @24:21
+b15:
+  v115 = load s14 @24:21
+  v116 = conv u64, v115 @24:21
   v117 = load s3 @24:21
-  v118 = const u64 33 @24:21
-  v119 = shr v117, v118 @24:21
-  v120 = xor v117, v119 @24:21
-  v121 = const u64 18397679294719823053 @24:21
-  v122 = mul v120, v121 @24:21
-  v123 = const u64 33 @24:21
-  v124 = shr v122, v123 @24:21
-  v125 = xor v122, v124 @24:21
-  v126 = conv i64, v125 @24:21
-  ret v126 @24:21
+  v118 = xor v117, v116 @24:21
+  v119 = const u64 11400714819323198485 @24:21
+  v120 = mul v118, v119 @24:21
+  store s3, v120 @24:21
+  jump b17 @24:21
+b16:
+  v121 = gload g0 @24:21
+  store s16, v121 @24:21
+  v122 = load s16 @24:21
+  v123 = const u64 1 @24:21
+  v124 = add v122, v123 @24:21
+  gstore g0, v124 @24:21
+  v125 = load s16 @24:21
+  v126 = load s3 @24:21
+  v127 = xor v126, v125 @24:21
+  v128 = const u64 11400714819323198485 @24:21
+  v129 = mul v127, v128 @24:21
+  store s3, v129 @24:21
+  jump b17 @24:21
+b17:
+  v130 = load s3 @24:21
+  v131 = const u64 33 @24:21
+  v132 = shr v130, v131 @24:21
+  v133 = xor v130, v132 @24:21
+  v134 = const u64 18397679294719823053 @24:21
+  v135 = mul v133, v134 @24:21
+  v136 = const u64 33 @24:21
+  v137 = shr v135, v136 @24:21
+  v138 = xor v135, v137 @24:21
+  v139 = conv i64, v138 @24:21
+  ret v139 @24:21
 
 func .streq(ptr, i64, ptr, i64) bool @testdata/check/s5_k08_large_keys.go:24:21
   slot s0 p ptr @24:21

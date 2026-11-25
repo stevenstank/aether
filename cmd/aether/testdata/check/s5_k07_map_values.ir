@@ -272,7 +272,7 @@ func main @testdata/check/s5_k07_map_values.go:16:6
   mem m6 u 192 align 8 @25:2
   mem m7 tmp 192 align 8 @26:19
 b0:
-  v0 = const 56 @17:19
+  v0 = const 64 @17:19
   v1 = alloc v0 @17:19
   store s0, v1 @17:19
   v2 = load s0 @17:19
@@ -331,7 +331,7 @@ b3:
   stm v16, v35, v32 @20:2
   v36 = const 176 @20:2
   stm v16, v36, v33 @20:2
-  v37 = const 56 @21:22
+  v37 = const 64 @21:22
   v38 = alloc v37 @21:22
   store s4, v38 @21:22
   v39 = str s0 @21:23
@@ -702,7 +702,7 @@ b21:
   v302 = eq v300, v301 @26:31
   v303 = load s28 @26:10
   println v303, v302 @26:2
-  v304 = const 56 @27:21
+  v304 = const 64 @27:21
   v305 = alloc v304 @27:21
   store s29, v305 @27:21
   v306 = load s29 @27:21
@@ -940,7 +940,7 @@ b35:
   v455 = ldm i64, v451, v454 @30:22
   v456 = load s62 @30:10
   println v456, v455 @30:2
-  v457 = const 56 @31:23
+  v457 = const 64 @31:23
   v458 = alloc v457 @31:23
   store s67, v458 @31:23
   v459 = load s67 @31:23
@@ -1040,7 +1040,7 @@ b38:
   v549 = load s83 @36:10
   v550 = load s85 @36:20
   println v549, v550, v548 @36:2
-  v551 = const 56 @37:25
+  v551 = const 64 @37:25
   v552 = alloc v551 @37:25
   store s87, v552 @37:25
   v553 = load s87 @37:25
@@ -1129,7 +1129,7 @@ b38:
   v614 = const 8 @40:10
   v615 = ldm i64, v611, v614 @40:10
   println v613, v615 @40:2
-  v616 = const 56 @41:19
+  v616 = const 64 @41:19
   v617 = alloc v616 @41:19
   store s102, v617 @41:19
   v618 = const 1 @41:20
@@ -1206,7 +1206,7 @@ b38:
   v666 = call .maplen, v665 @43:24
   v667 = load s121 @43:10
   println v667, v664, v666 @43:2
-  v668 = const 56 @44:32
+  v668 = const 64 @44:32
   v669 = alloc v668 @44:32
   store s123, v669 @44:32
   v670 = str s7 @44:33
@@ -4026,19 +4026,23 @@ b10:
   v106 = const 16 @17:19
   stm v104, v106, v105 @17:19
   v107 = load s0 @17:19
-  v108 = load s2 @17:19
-  v109 = const 24 @17:19
+  v108 = const 0 @17:19
+  v109 = const 56 @17:19
   stm v107, v109, v108 @17:19
   v110 = load s0 @17:19
-  v111 = load s5 @17:19
-  v112 = const 32 @17:19
+  v111 = load s2 @17:19
+  v112 = const 24 @17:19
   stm v110, v112, v111 @17:19
   v113 = load s0 @17:19
-  v114 = load s3 @17:19
-  v115 = const 1 @17:19
-  v116 = sub v114, v115 @17:19
-  v117 = const 40 @17:19
-  stm v113, v117, v116 @17:19
+  v114 = load s5 @17:19
+  v115 = const 32 @17:19
+  stm v113, v115, v114 @17:19
+  v116 = load s0 @17:19
+  v117 = load s3 @17:19
+  v118 = const 1 @17:19
+  v119 = sub v117, v118 @17:19
+  v120 = const 40 @17:19
+  stm v116, v120, v119 @17:19
   ret @17:19
 b11:
   v62 = load s4 @17:19

@@ -28,6 +28,7 @@ import (
 	"go/token"
 	"go/types"
 
+	"github.com/stevenstank/aether/internal/frontend"
 	"github.com/stevenstank/aether/internal/ir"
 )
 
@@ -86,7 +87,59 @@ const (
 	chSendq     = 72
 	chSendqTail = 80
 	chSize      = 88
+	// chTimer is a timer channel's timer, in programs with timers (D-054),
+	// whose channel headers are chTimerSize bytes.
+	chTimer     = 88
+	chTimerSize = 96
 )
+
+// timeHooks are the functions of package time that the scheduler and the
+// channel operations call in a program that can make timers (D-054,
+// frontend.RuntimeHooks).
+type timeHooks struct {
+	runTimers, maybeRunChan, block, unblock *ir.Func
+}
+
+// timers returns the program's timeHooks, or nil.
+func (l *lowerer) timers() *timeHooks {
+	if l.hooksKnown {
+		return l.hooks
+	}
+	l.hooksKnown = true
+	for _, u := range l.units {
+		h := frontend.RuntimeHooks[u.Types.Path()]
+		if len(h.Funcs) == 0 {
+			continue
+		}
+		var fs []*ir.Func
+		for _, name := range h.Funcs {
+			if fn, ok := u.Types.Scope().Lookup(name).(*types.Func); ok && l.funcs[fn] != nil {
+				fs = append(fs, l.funcs[fn])
+			}
+		}
+		if len(fs) == 4 {
+			l.hooks = &timeHooks{runTimers: fs[0], maybeRunChan: fs[1], block: fs[2], unblock: fs[3]}
+		}
+	}
+	return l.hooks
+}
+
+// timerOf calls hook with the timer of the channel c if it has one.
+func (l *lowerer) timerOf(c func() *ir.Instr, hook func(h *timeHooks) *ir.Func, pos ir.Pos) {
+	h := l.timers()
+	if h == nil {
+		return
+	}
+	m := mb{l, pos}
+	t := l.keep(m.ld(ir.Ptr, c(), chTimer), pos)
+	none := m.when(m.cmp(ir.Ne, t(), m.nilPtr()))
+	l.fn.Call(l.b, hook(h), []*ir.Instr{t()}, pos)
+	m.join(none)
+}
+
+func maybeRun(h *timeHooks) *ir.Func { return h.maybeRunChan }
+func block(h *timeHooks) *ir.Func    { return h.block }
+func unblock(h *timeHooks) *ir.Func  { return h.unblock }
 
 // maxChanBytes is gc's bound on a channel's buffer: maxAlloc (1<<48 on
 // linux/amd64) less its header's size.
@@ -143,6 +196,15 @@ func (l *lowerer) sched() *sched {
 	})
 	sc.next = l.genFunc("nextg", nil, []ir.Type{ir.Ptr}, func(_ []func() *ir.Instr, pos ir.Pos) {
 		m := mb{l, pos}
+		h := l.timers()
+		var head *ir.Block
+		if h != nil {
+			// The due timers run at every switch (D-054).
+			l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos)
+			head = l.fn.NewBlock()
+			l.fn.Jump(l.b, head, pos)
+			l.b = head
+		}
 		g := m.v("g", l.fn.GLoad(l.b, sc.runnext, pos))
 		queue := m.when(m.cmp(ir.Ne, g.get(), m.nilPtr()))
 		l.fn.GStore(l.b, sc.runnext, m.nilPtr(), pos)
@@ -157,6 +219,13 @@ func (l *lowerer) sched() *sched {
 		m.join(keep)
 		l.fn.Ret(l.b, pos, g.get())
 		l.b = dead
+		if h != nil {
+			// Every goroutine is blocked: wait for the next timer, unless
+			// there is none.
+			none := m.when(l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, true, pos)}, pos))
+			l.fn.Jump(l.b, head, pos)
+			l.b = none
+		}
 		msg := l.strWords("all goroutines are asleep - deadlock!", pos)
 		l.fn.Panic(l.b, ir.PanicFatal, pos, msg[0], msg[1])
 	})
@@ -275,7 +344,11 @@ func (l *lowerer) chanFunc(name string) *ir.Func {
 			m.join(bad)
 			l.b = fits
 			m.join(sized)
-			hdr := m.v("hdr", l.fn.Alloc(l.b, m.c(chSize), pos))
+			size := int64(chSize)
+			if l.timers() != nil {
+				size = chTimerSize
+			}
+			hdr := m.v("hdr", l.fn.Alloc(l.b, m.c(size), pos))
 			m.st(hdr.get(), chEsz, p[0]())
 			m.st(hdr.get(), chCap, p[1]())
 			scan := m.when(p[2]())
@@ -320,6 +393,7 @@ func (l *lowerer) chanFunc(name string) *ir.Func {
 		f = l.genFunc(name, []ir.Type{ir.Ptr, ir.Ptr}, []ir.Type{ir.Bool}, func(p []func() *ir.Instr, pos ir.Pos) {
 			m := mb{l, pos}
 			l.blockOnNil(p[0], pos)
+			l.timerOf(p[0], maybeRun, pos)
 			esz := m.v("esz", m.ld(ir.I64, p[0](), chEsz))
 			w := l.dequeueLive(p[0], chSendq, pos)
 			none := m.when(m.cmp(ir.Ne, w(), m.nilPtr()))
@@ -349,7 +423,9 @@ func (l *lowerer) chanFunc(name string) *ir.Func {
 			l.fn.Call(l.b, l.chanFunc("memclr"), []*ir.Instr{p[1](), esz.get()}, pos)
 			l.fn.Ret(l.b, pos, l.fn.BoolConst(l.b, false, pos))
 			l.b = open
+			l.timerOf(p[0], block, pos)
 			w = l.wait(p[0], p[1], chRecvq, pos)
+			l.timerOf(p[0], unblock, pos)
 			l.fn.Ret(l.b, pos, m.ld(ir.Bool, w(), wOk))
 		})
 	case "closechan":
@@ -397,6 +473,13 @@ func (l *lowerer) chanFunc(name string) *ir.Func {
 			nonNil := m.when(m.cmp(ir.Eq, p[0](), m.nilPtr()))
 			l.fn.Ret(l.b, pos, m.c(0))
 			l.b = nonNil
+			if l.timers() != nil {
+				// A timer channel's are 0, as gc's synchronous timer
+				// channels' (D-054).
+				plain := m.when(m.cmp(ir.Ne, m.ld(ir.Ptr, p[0](), chTimer), m.nilPtr()))
+				l.fn.Ret(l.b, pos, m.c(0))
+				l.b = plain
+			}
 			l.fn.Ret(l.b, pos, m.ld(ir.I64, p[0](), off))
 		})
 	case "dequeue":
@@ -513,6 +596,7 @@ func (l *lowerer) chanFunc(name string) *ir.Func {
 			l.b = none
 			l.fn.Ret(l.b, pos, m.cmp(ir.Lt, m.ld(ir.I64, c.get(), chCount), m.ld(ir.I64, c.get(), chCap)))
 			l.b = recv
+			l.timerOf(c.get, maybeRun, pos)
 			none = m.when(m.cmp(ir.Ne, l.fn.Call(l.b, l.chanFunc("peek"), []*ir.Instr{c.get(), m.c(chSendq)}, pos), m.nilPtr()))
 			yes()
 			l.b = none
@@ -569,6 +653,13 @@ func (l *lowerer) buildSelectgo(p []func() *ir.Instr, pos ir.Pos) {
 		m.join(recv)
 		return q.get()
 	}
+	h := l.timers()
+	var top *ir.Block
+	if h != nil {
+		top = l.fn.NewBlock()
+		l.fn.Jump(l.b, top, pos)
+		l.b = top
+	}
 	i, k := m.v("i", m.c(0)), m.v("k", m.c(0))
 	m.loop(func() *ir.Instr { return m.cmp(ir.Lt, i.get(), p[1]()) }, func() {
 		not := m.when(ready(i.get()))
@@ -602,6 +693,13 @@ func (l *lowerer) buildSelectgo(p []func() *ir.Instr, pos ir.Pos) {
 	l.fn.Jump(l.b, head, pos)
 	l.b = none
 	blocks := m.when(l.fn.Not(l.b, p[2](), pos))
+	if h != nil {
+		// No case is ready and the select does not block: the due timers
+		// run, and if one did, the cases are polled again (D-054).
+		again := m.when(l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos))
+		l.fn.Jump(l.b, top, pos)
+		l.b = again
+	}
 	l.fn.Ret(l.b, pos, m.c(-1), l.fn.BoolConst(l.b, false, pos))
 	l.b = blocks
 	// Wait on every case with a channel.
@@ -621,10 +719,28 @@ func (l *lowerer) buildSelectgo(p []func() *ir.Instr, pos ir.Pos) {
 		m.st(e(), scW, w.get())
 		q := m.v("qoff", queue(e))
 		l.enqueue(c, q.get, w.get, pos)
+		if l.timers() != nil {
+			send := m.when(l.fn.Not(l.b, m.ld(ir.Bool, e(), scSend), pos))
+			l.timerOf(c, block, pos)
+			m.join(send)
+		}
 		m.join(isNil)
 		i.set(m.bin(ir.Add, i.get(), m.c(1)))
 	})
 	l.fn.Call(l.b, l.sched().park, nil, pos)
+	if l.timers() != nil {
+		i.set(m.c(0))
+		m.loop(func() *ir.Instr { return m.cmp(ir.Lt, i.get(), p[1]()) }, func() {
+			e := l.keep(ent(i.get()), pos)
+			c := l.keep(m.ld(ir.Ptr, e(), scC), pos)
+			skip := m.when(m.cmp(ir.Ne, c(), m.nilPtr()))
+			send := m.when(l.fn.Not(l.b, m.ld(ir.Bool, e(), scSend), pos))
+			l.timerOf(c, unblock, pos)
+			m.join(send)
+			m.join(skip)
+			i.set(m.bin(ir.Add, i.get(), m.c(1)))
+		})
+	}
 	// Woken by the case that completed: the others' waiters leave their
 	// queues.
 	win := m.v("win", m.ld(ir.Ptr, sel.get(), selWin))

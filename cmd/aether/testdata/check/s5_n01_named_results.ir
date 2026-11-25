@@ -1050,7 +1050,7 @@ b0:
   store s3, v3 @94:22
   v4 = const ptr 0 @94:34
   store s4, v4 @94:34
-  v5 = const 56 @95:21
+  v5 = const 64 @95:21
   v6 = alloc v5 @95:21
   store s5, v6 @95:21
   v7 = str s4 @95:22
@@ -1680,19 +1680,23 @@ b10:
   v106 = const 16 @95:21
   stm v104, v106, v105 @95:21
   v107 = load s0 @95:21
-  v108 = load s2 @95:21
-  v109 = const 24 @95:21
+  v108 = const 0 @95:21
+  v109 = const 56 @95:21
   stm v107, v109, v108 @95:21
   v110 = load s0 @95:21
-  v111 = load s5 @95:21
-  v112 = const 32 @95:21
+  v111 = load s2 @95:21
+  v112 = const 24 @95:21
   stm v110, v112, v111 @95:21
   v113 = load s0 @95:21
-  v114 = load s3 @95:21
-  v115 = const 1 @95:21
-  v116 = sub v114, v115 @95:21
-  v117 = const 40 @95:21
-  stm v113, v117, v116 @95:21
+  v114 = load s5 @95:21
+  v115 = const 32 @95:21
+  stm v113, v115, v114 @95:21
+  v116 = load s0 @95:21
+  v117 = load s3 @95:21
+  v118 = const 1 @95:21
+  v119 = sub v117, v118 @95:21
+  v120 = const 40 @95:21
+  stm v116, v120, v119 @95:21
   ret @95:21
 b11:
   v62 = load s4 @95:21

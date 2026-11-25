@@ -79,6 +79,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-051 | One system-call primitive and the environment for package os (Batch 2) | Accepted (2026-11-24; owner review pending) |
 | D-052 | Instances of another package's generic code, hosted (Batch 3) | Accepted (2026-11-25; owner review pending) |
 | D-053 | gc's amd64 Exp and Log in Go, the processor's FMA, GODEBUG, and math/rand (Batch 5) | Accepted (2026-11-25; owner review pending) |
+| D-054 | gc's time over Aether's syscall, with its timers in the scheduler (Batch 4) | Accepted (2026-11-26; owner review pending) |
 
 ## Review log
 
@@ -4696,6 +4697,64 @@ the evaluation machine, 1.6 million calls with `Log` and `Pow`).
 `GODEBUG` is read once; changing it with `os.Setenv` changes nothing, and
 its `#pattern` suffixes are ignored. The top-level `math/rand` functions
 give other random numbers than gc's, as two gc runs do.
+
+---
+
+## D-054: gc's time over Aether's syscall, with its timers in the scheduler (Batch 4)
+
+**Status:** Accepted (2026-11-26). Capability Batch 4, written with its
+code.
+
+**Context.** gc's `time` is plain Go but for its system and runtime
+parts: it reads zone files and `TZ` through `syscall`, whose gc version
+needs `internal/race` and its runtime, and it declares without bodies
+the clocks and timers its runtime implements (`now`, `runtimeNano`,
+`Sleep`, `newTimer`, `stopTimer`, `resetTimer`). Since Go 1.23 gc's
+timer channels are synchronous: length and capacity 0, no stale value
+after `Stop` or `Reset`, and a channel timer in the runtime's heap only
+while a goroutine waits on its channel. Aether's scheduler (D-048) is
+lowered IR, single-threaded, and ended in deadlock once no goroutine
+could run.
+
+**Decision.**
+- **Aether's `syscall`**, a package of overlay files: gc's environment
+  (`env_unix.go`), `Errno` and `Signal` with gc's tables, and the system
+  calls `time` and `os` make, over D-051's primitive. `os` keeps its
+  environment and error numbers there, as gc's does, and its `Err*`
+  values are `internal/oserror`'s.
+- **gc's `time`**, from GOROOT. A patch gives each of its runtime
+  functions a body calling a function of Aether's `time/runtime.go`
+  (`frontend` `patch.bodies`: the body is made in the syntax tree after
+  parsing, so every later stage sees ordinary Go).
+- **Timers in Go.** `runtime.go` is gc's runtime timers: a heap of the
+  timers that run; a channel timer joins it while a receive blocks on
+  its channel; a receive first runs its channel's due timer; `Stop` and
+  `Reset` return gc's "pending" and drain a stale value. Lowering calls
+  these functions: `.nextg` runs the due timers at every switch, and when
+  no goroutine can run sleeps until the next timer (`clock_nanosleep`)
+  before it reports a deadlock; a channel header gets a timer word
+  (`setChanTimer`, an intrinsic), which receives, `select`, `len`, and
+  `cap` consult. Only in a program that can make a timer
+  (`frontend.RuntimeHooks`: pruning keeps the hooks if
+  `newRuntimeTimer` is reachable); others are lowered as before.
+- **Clocks**: `clock_gettime`; the interpreter makes it and
+  `clock_nanosleep` through its host.
+
+**Alternatives considered.** Timers in lowered IR: the heap and gc's
+rules in IR builders, hard to read and to check against gc's runtime.
+Firing every timer into its channel's buffer when due: simpler, but a
+polling `select` would never see it without a switch, and every pending
+`time.After` would stay in the heap. An overlay of gc's `time` files:
+copies of thousands of lines for a few runtime declarations.
+
+**Consequences.** Programs using `time` for values only (parsing,
+formatting) have no timer code. A goroutine that never blocks delays
+timers (D-049's switching). `log`, `flag`, and `context` need more than
+`time` (`runtime.Caller`, `reflect.New`, an embedded interface).
+Exercising `$GOROOT/test/maplinear.go` found two quadratic map cases
+(NaN keys, and ranges after deleting the first entries), fixed in
+lowering: a NaN key hashes as the next of a sequence, and a map header
+records where its first live entry may be.
 ---
 
 ## Phase 0 research notes

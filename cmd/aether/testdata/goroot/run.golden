@@ -46,12 +46,12 @@ blank.go unsupported blank-identifier
 chan/doubleselect.go unsupported stdlib-package
 chan/fifo.go pass
 chan/goroutines.go pass
-chan/nonblock.go unsupported stdlib-package
+chan/nonblock.go pass
 chan/powser1.go pass
 chan/powser2.go pass
 chan/select.go pass
 chan/select2.go unsupported stdlib-package
-chan/select3.go unsupported stdlib-package
+chan/select3.go pass
 chan/select4.go pass
 chan/select6.go pass
 chan/select7.go pass
@@ -61,7 +61,7 @@ chan/sieve1.go pass
 chan/sieve2.go pass
 chan/zerosize.go pass
 chancap.go pass
-chanlinear.go unsupported stdlib-package
+chanlinear.go pass
 char_lit.go pass
 clear.go pass
 closedchan.go pass
@@ -152,7 +152,7 @@ fixedbugs/bug128.go pass
 fixedbugs/bug130.go pass
 fixedbugs/bug141.go unsupported println-argument-type
 fixedbugs/bug142.go pass
-fixedbugs/bug147.go unsupported stdlib-package
+fixedbugs/bug147.go pass
 fixedbugs/bug148.go pass
 fixedbugs/bug1515.go pass
 fixedbugs/bug152.go pass
@@ -477,7 +477,7 @@ fixedbugs/issue31546.go pass
 fixedbugs/issue31782.go pass
 fixedbugs/issue31987.go pass
 fixedbugs/issue32175.go pass
-fixedbugs/issue32187.go unsupported stdlib-package
+fixedbugs/issue32187.go unsupported function-without-body
 fixedbugs/issue32288.go pass
 fixedbugs/issue32477.go unsupported stdlib-package
 fixedbugs/issue32560.go pass
@@ -522,7 +522,7 @@ fixedbugs/issue43570.go pass
 fixedbugs/issue43619.go pass
 fixedbugs/issue43835.go pass
 fixedbugs/issue43908.go pass
-fixedbugs/issue43942.go unsupported stdlib-package
+fixedbugs/issue43942.go unsupported function-without-body
 fixedbugs/issue4396a.go pass
 fixedbugs/issue4396b.go pass
 fixedbugs/issue4448.go pass
@@ -565,7 +565,7 @@ fixedbugs/issue50672.go pass
 fixedbugs/issue50854.go pass
 fixedbugs/issue51101.go pass
 fixedbugs/issue51401.go unsupported function-without-body
-fixedbugs/issue51733.go unsupported stdlib-package
+fixedbugs/issue51733.go unsupported directive
 fixedbugs/issue51913.go pass
 fixedbugs/issue52072.go pass
 fixedbugs/issue52127.go unsupported stdlib-package
@@ -615,7 +615,7 @@ fixedbugs/issue59404part2.go pass
 fixedbugs/issue59411.go unsupported stdlib-package
 fixedbugs/issue59572.go pass
 fixedbugs/issue5963.go unsupported stdlib-package
-fixedbugs/issue59680.go unsupported stdlib-package
+fixedbugs/issue59680.go pass
 fixedbugs/issue6055.go pass
 fixedbugs/issue60601.go unsupported generic-instance
 fixedbugs/issue62203.go pass
@@ -724,7 +724,7 @@ gc1.go pass
 gc2.go unsupported stdlib-package
 gcgort.go unsupported stdlib-package
 gcstring.go unsupported stdlib-package
-goprint.go unsupported stdlib-package
+goprint.go unsupported function-without-body
 heapsampling.go unsupported stdlib-package
 helloworld.go pass
 if.go pass
@@ -796,14 +796,14 @@ makeslice.go pass
 mallocfin.go unsupported stdlib-package
 map.go pass
 mapclear.go pass
-maplinear.go unsupported stdlib-package
+maplinear.go pass
 method.go unsupported non-int-type
 method3.go pass
 method5.go pass
 method7.go unsupported selector
 named.go pass
 newexpr.go unsupported builtin
-nil.go unsupported stdlib-package
+nil.go pass
 nilptr.go unsupported non-int-type
 nilptr2.go unsupported println-argument-type
 nilptr_aix.go skip
@@ -831,7 +831,7 @@ rename.go unsupported stdlib-package
 reorder.go pass
 reorder2.go pass
 shift3.go pass
-sigchld.go unsupported stdlib-package
+sigchld.go pass
 simassign.go pass
 sizeof.go pass
 slicecap.go pass
@@ -874,7 +874,7 @@ typeparam/issue23536.go pass
 typeparam/issue376214.go pass
 typeparam/issue42758.go pass
 typeparam/issue44688.go unsupported non-int-type
-typeparam/issue45722.go unsupported stdlib-package
+typeparam/issue45722.go unsupported function-without-body
 typeparam/issue45817.go pass
 typeparam/issue46472.go pass
 typeparam/issue46591.go unsupported generic-instance
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 746 pass (74.2%), 259 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 754 pass (75.0%), 251 unsupported, 0 bug

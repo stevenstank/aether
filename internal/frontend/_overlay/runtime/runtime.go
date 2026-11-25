@@ -15,3 +15,22 @@ func Gosched()
 
 // NumGoroutine returns the number of goroutines that exist.
 func NumGoroutine() int
+
+// GOROOT returns the GOROOT environment variable's value, as gc's does
+// when the program sets it, else "": gc's then returns the tree it was
+// built with unless built with -trimpath, and an Aether program records no
+// absolute path (D-054).
+func GOROOT() string {
+	const prefix = "GOROOT="
+	for i := 0; i < envc(); i++ {
+		if s := envString(i); len(s) >= len(prefix) && s[:len(prefix)] == prefix {
+			return s[len(prefix):]
+		}
+	}
+	return ""
+}
+
+// envc and envString are the program's environment strings, as execve
+// passed them: intrinsics.
+func envc() int
+func envString(i int) string
