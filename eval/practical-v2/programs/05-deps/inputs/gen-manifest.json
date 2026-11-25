@@ -1,0 +1,1 @@
+{"name": "big-app", "dependencies": {"pkg000": "*", "pkg001": "*", "pkg002": "^1", "pkg003": "*", "pkg010": "*"}}

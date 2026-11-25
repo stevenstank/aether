@@ -1,0 +1,18 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+bench-small    | -              | bench inputs/mixed.txt inputs/empty.bin inputs/one.bin inputs/zzz.txt
+bench-missing  | -              | bench inputs/mixed.txt inputs/nope.bin
+compress       | mixed.txt      | c -v
+compress-l0    | mixed.txt      | c -level 0 -v
+compress-empty | empty.bin      | c -v
+decompress     | mixed.lzh      | d
+truncated      | truncated.lzh  | d
+corrupt        | corrupt.lzh    | d
+bad-magic      | badmagic.lzh   | d
+trailing       | trailing.lzh   | d
+size-limit     | mixed.lzh      | d -max 100
+bad-level      | mixed.txt      | c -level 9
+usage          | -              |
+unknown-cmd    | -              | x
+large-bench    | -              | bench -level 6 inputs/gen-text.txt inputs/gen-table.csv inputs/gen-noise.bin
+large-compress | gen-text.txt   | c -v
+large-decomp   | gen-text.lzh   | d

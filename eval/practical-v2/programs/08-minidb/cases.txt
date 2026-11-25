@@ -1,0 +1,8 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+basic          | -           | -echo inputs/basic.sql
+basic-stdin    | basic.sql   | -q
+syntax         | -           | inputs/syntax.sql
+syntax2        | syntax2.sql |
+overflow       | -           | inputs/overflow.sql
+missing        | -           | inputs/nope.sql
+large          | -           | -q inputs/gen-load.sql

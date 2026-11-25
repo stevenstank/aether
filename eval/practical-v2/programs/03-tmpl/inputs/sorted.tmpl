@@ -1,0 +1,7 @@
+{{set items = order.items | sortby "price"}}{{#each items}}{{sku}}={{price | money}} {{/each}}
+{{#each counts}}{{@key}}:{{.}}{{#unless @last}}; {{/unless}}{{/each}}
+{{#each empty}}never{{else}}empty list{{/each}}
+Raw: {{{store.name}}} Escaped: {{store.name}}
+JSON: {{{counts | json}}}
+{{#if customer.missing}}x{{else}}missing is falsy{{/if}} {{customer.email | eq "ada@example.org"}} {{order.items.2.qty | gt 10}}
+Big: {{ 1234567.891 | money }} Neg: {{ -0.5 | money }}

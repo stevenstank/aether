@@ -1,0 +1,18 @@
+{
+  "store": {"name": "Corner <Books> & Co", "since": "1998-04-01T09:00:00Z"},
+  "customer": {"name": "ada LOVELACE", "email": "ada@example.org", "vip": true},
+  "order": {
+    "id": "A-1042",
+    "placed": "2026-02-28T17:45:00Z",
+    "items": [
+      {"sku": "B-7", "title": "Structure and Interpretation of Computer Programs", "qty": 1, "price": 54.5, "tags": ["classic", "lisp"]},
+      {"sku": "B-2", "title": "The Go Programming Language", "qty": 2, "price": 39.99, "tags": []},
+      {"sku": "C-9", "title": "Coffee mug", "qty": 12, "price": 1234.005, "tags": ["merch"]}
+    ],
+    "discount": 0,
+    "notes": null,
+    "shipping": {"method": "express", "address": {"city": "Zürich", "zip": "8001"}}
+  },
+  "counts": {"zeta": 3, "alpha": 1, "mid": 2},
+  "empty": []
+}

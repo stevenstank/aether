@@ -1,0 +1,13 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+numeric        | -           | -stats inputs/numeric.scm
+lists          | -           | inputs/lists.scm
+control        | -           | -stats inputs/control.scm
+queens         | -           | -stats inputs/queens.scm
+stdin          | numeric.scm |
+bad-read       | -           | inputs/badread.scm
+bad-paren      | -           | inputs/badparen.scm
+arity          | -           | inputs/arity.scm
+deep           | -           | inputs/deep.scm
+deep-limit     | -           | -max-depth 500 inputs/control.scm
+missing        | -           | inputs/nope.scm
+multi          | -           | inputs/numeric.scm inputs/queens.scm

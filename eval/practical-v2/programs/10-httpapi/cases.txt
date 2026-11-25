@@ -1,0 +1,7 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+session        | - | -script inputs/session.http
+bad-script     | - | -script inputs/bad.http
+missing-script | - | -script inputs/nope.http
+usage          | - |
+selftest       | - | -selftest
+selftest-big   | - | -selftest -clients 32 -requests 60

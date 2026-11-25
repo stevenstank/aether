@@ -1,0 +1,6 @@
+2026-11-02 08:15:01 INFO  user=alice action=login ip=10.1.2.3
+2026-11-02 08:15:07 WARN  user=bob action=login ip=10.1.2.99 attempts=3
+2026-11-02 08:16:44 ERROR user=carol action=upload size=1048576 err="disk full"
+2026-11-02 08:17:00 INFO  user=alice action=logout
+2026-11-02 08:20:13 ERROR user=dave action=login ip=192.168.0.14 err="bad password"
+2026-11-02 08:21:59 INFO  user=Émile action=login ip=10.1.2.7 note="naïve café"

@@ -1,0 +1,13 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+small          | -          | inputs/small.log
+small-json     | -          | -json -top 3 inputs/small.log
+small-stdin    | small.log  | -bucket 15m
+crlf           | -          | inputs/crlf.log
+empty          | -          | inputs/empty.log
+since-until    | -          | -since 2026-03-14T10:30 -until 2026-03-14T12:00:00Z inputs/small.log
+missing-file   | -          | inputs/small.log inputs/nope.log
+bad-since      | -          | -since yesterday inputs/small.log
+bad-bucket     | -          | -bucket -1h inputs/small.log
+bad-flag       | -          | -frobnicate
+large          | -          | -top 12 -bucket 3h inputs/gen-access.log
+large-json     | -          | -json -top 5 -bucket 24h inputs/gen-access.log inputs/small.log

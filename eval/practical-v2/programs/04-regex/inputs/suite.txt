@@ -1,0 +1,49 @@
+# pattern<TAB>subject
+abc	xabcabc
+a|b|c	cab
+a*	baaab
+a*?	aaa
+(a+)(b+)?	aab ab a
+(?i)hello	"HeLLo hello HELLO"
+(?i:ß)x	"ẞx ßx"
+colou?r	color colour colouur
+\d{2,4}	1 12 123 12345
+x{0}y	xy
+[^aeiou\s]+	"rhythm and blues"
+[a-c-]+	"a-b-c d"
+[[:alpha:]]+[[:digit:]]*	"abc123 def 7"
+[[:^digit:]]+	"ab12cd"
+\bfoo\b	"foo food foo.bar xfoo"
+\Bo\B	"foo book"
+^\w+	"first second"
+(?m)^\w+$	"one\ntwo three\nfour"
+\w+$	"line one\nline two"
+(?s)a.b	"a\nb"
+a.b	"a\nb axb"
+(\w+)@(\w+)\.com	"mail bob@example.com or eve@corp.com"
+(?P<year>\d{4})-(?P<month>\d\d)	"2026-11 and 1999-01"
+(a|ab)(c|bcd)(d*)	abcd
+(a*)*	b
+(a*)+	b
+(a|b)*c	abababc
+()	abc
+a{2}{3}	aaaaaa
+x**	xx
+(?i)[k]	"k K K"
+café	"un café, CAFÉ"
+.	"\xff\xfea"
+[α-ω]+	"Ελληνικά ελληνικά"
+\x41\x{263a}	"A☺"
+(	x
+a)	x
+[z-a]	x
+a{1001}	x
+\8	x
+(?<n>a)(?<n>b)	ab
+\pL	x
+[a	x
+*a	x
+a{2,1}	x
+(?z)a	x
+a{,3}	"a{,3}"
+\Qa.b\E	x

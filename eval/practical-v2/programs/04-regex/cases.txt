@@ -1,0 +1,16 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+suite          | -          | -suite inputs/suite.txt
+grep-n         | -          | -n ERROR|WARN inputs/server.log
+only-fold      | -          | -o -i user=(\w+) inputs/server.log
+replace        | -          | -replace ip=<${1}.x.x.${2}> ip=(\d+)\.\d+\.\d+\.(\d+) inputs/server.log
+replace-named  | server.log | -replace ${user}@${act} user=(?P<user>\S+)\s+action=(?P<act>\w+)
+count-invert   | -          | -c -v INFO inputs/server.log inputs/suite.txt
+no-match       | -          | zzz inputs/server.log
+bad-pattern    | -          | ( inputs/server.log
+missing-file   | -          | a inputs/nope.txt
+usage          | -          |
+large-count    | -          | -c ERROR|WARN inputs/gen-text.txt
+large-emails   | -          | -o [\w.]+@\w+\.example\.com inputs/gen-text.txt
+large-backref  | -          | -c -i \b(compiler|runtime)\b.*\b(heap|stack)\b inputs/gen-text.txt
+large-replace  | gen-text.txt | -replace [$1] \+1-(\d{3})-\d{3}-\d{4}
+large-multiline| -          | -c (?m)^\d{4}-\d\d-\d\d.*\d+\.\d+\.\d+\.\d+ inputs/gen-text.txt

@@ -1,0 +1,19 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+resolve        | - | resolve -registry inputs/registry.json -manifest inputs/app.json
+modern         | - | resolve -registry inputs/registry.json -manifest inputs/modern.json
+conflict-trace | - | resolve -registry inputs/registry.json -manifest inputs/conflict.json -trace
+cycle          | - | resolve -registry inputs/registry.json -manifest inputs/cyclic.json
+missing-dep    | - | resolve -registry inputs/registry.json -manifest inputs/missing.json
+unknown-root   | - | resolve -registry inputs/registry.json -manifest inputs/unknownroot.json
+typo-field     | - | resolve -registry inputs/registry.json -manifest inputs/typo.json
+bad-registry   | - | resolve -registry inputs/badreg.json -manifest inputs/app.json
+no-registry    | - | resolve -registry inputs/nope.json -manifest inputs/app.json
+why            | - | why unicode -registry inputs/registry.json -manifest inputs/app.json
+why-absent     | - | why zzz -registry inputs/registry.json -manifest inputs/app.json
+outdated       | - | outdated -registry inputs/registry.json -manifest inputs/app.json
+step-limit     | - | resolve -registry inputs/registry.json -manifest inputs/app.json -max-steps 3
+semver         | semver.txt | semver
+usage          | - |
+unknown-cmd    | - | frob -registry inputs/registry.json -manifest inputs/app.json
+large          | - | resolve -registry inputs/gen-registry.json -manifest inputs/gen-manifest.json
+large-outdated | - | outdated -registry inputs/gen-registry.json -manifest inputs/gen-manifest.json

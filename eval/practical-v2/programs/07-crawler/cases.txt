@@ -1,0 +1,14 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+site           | - | -site inputs/site.txt -sitemap https://docs.example/
+site-depth1    | - | -site inputs/site.txt -depth 1 -workers 1 -retries 0 https://docs.example/
+site-noretry   | - | -site inputs/site.txt -retries 0 -workers 3 https://docs.example/guide/intro
+site-cap       | - | -site inputs/site.txt -max 6 https://docs.example/
+site-external  | - | -site inputs/site.txt -same-host=false -depth 2 https://docs.example/
+bad-site       | - | -site inputs/badsite.txt https://a.example/
+bad-site2      | - | -site inputs/badsite2.txt https://a.example/
+missing-site   | - | -site inputs/nope.txt https://a.example/
+usage          | - |
+bad-workers    | - | -workers 0 -synthetic 10
+synthetic-300  | - | -synthetic 300 -depth 20 -sitemap
+synthetic-big  | - | -synthetic 20000 -depth 1000 -max 20000 -workers 16
+synthetic-seed | - | -synthetic 5000 -seed 42 -depth 50 -max 3000 -workers 4

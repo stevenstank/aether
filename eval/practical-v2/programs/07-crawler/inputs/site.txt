@@ -1,0 +1,46 @@
+== https://docs.example/ 200
+<html><head><title>Docs &amp; Guides</title></head><body>
+<h1>Welcome</h1> Start with the <a href="/guide/intro">introduction</a> or the
+<A HREF='/api/'>API reference</A>. Old links: <a href="/old-guide">old guide</a>.
+<a href="https://other.example/blog">blog</a> <a href="mailto:team@docs.example">mail</a>
+<a href="#top">top</a> <a href="/guide/intro?utm_source=home#install">install</a>
+</body></html>
+== https://docs.example/robots.txt 200 type=text/plain
+User-agent: *
+Disallow: /private
+User-agent: badbot
+Disallow: /
+== https://docs.example/guide/intro 200 latency=3ms
+<html><head><title>Introduction</title></head><body>
+Read <a href="../guide/setup">setup</a>, then <a href="./advanced">advanced topics</a>.
+See also <a href="/private/notes">internal notes</a> and <a href="/missing">a dead link</a>.
+<a href=/guide/flaky>flaky page</a> <a href="/guide/slow">slow page</a>
+</body></html>
+== https://docs.example/guide/setup 200 latency=2ms
+<html><head><title>Setup</title></head><body>Install it. Back to <a href="/guide/intro">intro</a>.
+<a href="/redirect-loop">loop</a> <a href="http://unknown-host.example/x">gone</a></body></html>
+== https://docs.example/guide/advanced 200
+<html><head><title>Advanced</title></head><body>Deep <a href="/guide/deeper">deeper</a></body></html>
+== https://docs.example/guide/deeper 200
+<html><head><title>Deeper</title></head><body><a href="/guide/deepest">deepest</a></body></html>
+== https://docs.example/guide/deepest 200
+<html><head><title>Deepest</title></head><body>bottom</body></html>
+== https://docs.example/guide/flaky 200 fail=2
+<html><head><title>Flaky</title></head><body>worked on the third try</body></html>
+== https://docs.example/guide/slow 200 latency=400ms
+<html><head><title>Slow</title></head><body>too slow</body></html>
+== https://docs.example/api/ 200
+<html><head><title>API</title></head><body>
+<a href="v1/users">users</a> <a href="v1/orders">orders</a> <a href="/api/spec.json">spec</a>
+</body></html>
+== https://docs.example/api/v1/users 200
+<html><head><title>Users API</title></head><body>GET /users lists users.</body></html>
+== https://docs.example/api/v1/orders 500
+<html>internal error</html>
+== https://docs.example/api/spec.json 200 type=application/json
+{"openapi": "3.1.0"}
+== https://docs.example/old-guide 301 -> /guide/intro
+== https://docs.example/redirect-loop 302 -> /redirect-loop-2
+== https://docs.example/redirect-loop-2 302 -> /redirect-loop
+== https://docs.example/private/notes 200
+<html>secret</html>

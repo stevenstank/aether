@@ -1,0 +1,1 @@
+{"name": "conflict", "dependencies": {"web": "^1.4", "log": "~1.2.0", "cli": "0.3.1"}}

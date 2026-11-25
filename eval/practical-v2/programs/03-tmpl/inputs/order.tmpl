@@ -1,0 +1,19 @@
+{{! Order confirmation }}
+<h1>{{store.name}}</h1>
+<p>Dear {{ customer.name | title }},{{#if customer.vip}} (VIP){{/if}}</p>
+{{set total = 0}}
+<table>
+{{#each order.items as item -}}
+  <tr class="{{#if @first}}first{{else}}row{{/if}}{{#if @last}} last{{/if}}">
+    <td>{{ @index | add 1 }}.</td><td>{{item.title | truncate 24}}</td>
+    <td>{{item.qty}} {{item.qty | pluralize "copy" "copies"}}</td><td>{{item.price | money "€"}}</td>
+    <td>{{#each item.tags}}#{{.}}{{#unless @last}}, {{/unless}}{{else}}(no tags){{/each}}</td>
+  </tr>
+{{/each}}
+</table>
+{{#if order.discount}}Discount applied.{{else}}No discount.{{/if}}
+Notes: {{order.notes | default "none"}}
+Ship {{order.shipping.method | upper}} to {{order.shipping.address.city}} {{order.shipping.address.zip}}
+Placed {{order.placed | date "Monday, 2 January 2006"}}; customer since {{store.since | date}}
+Item count: {{order.items | len}}; first SKU {{order.items.0.sku}}
+{{> footer store}}

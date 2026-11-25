@@ -1,0 +1,7 @@
+<h1>{{title}}</h1>
+{{set n = products | len}}<p>{{n}} products</p>
+<ul>
+{{#each products as p -}}
+<li class="{{#if p.featured}}featured{{else}}plain{{/if}}">{{p.sku}} {{p.name | truncate 30 | title}} {{p.price | money currency}}{{#if p.stock}} ({{p.stock}} {{p.stock | pluralize "unit" "units"}} left){{else}} (sold out){{/if}} {{#each p.tags}}#{{.}} {{/each}}{{p.added | date "02 Jan 2006"}}</li>
+{{/each -}}
+</ul>

@@ -1,0 +1,9 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+guide          | -           | inputs/guide.md
+guide-toc      | -           | -toc -stats -page Aurora&Co inputs/guide.md
+edge           | edge.md     | -stats
+badutf8        | -           | inputs/badutf8.md
+empty          | empty.md    | -toc
+missing        | -           | inputs/nope.md
+too-many-args  | -           | a b
+large          | -           | -toc -stats inputs/gen-book.md

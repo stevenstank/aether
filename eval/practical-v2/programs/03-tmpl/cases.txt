@@ -1,0 +1,18 @@
+# name | stdin file (in inputs/, or - for none) | arguments
+order          | - | -data inputs/shop.json -partials inputs/partials inputs/order.tmpl
+sorted         | - | -data inputs/shop.json inputs/sorted.tmpl
+list-partials  | - | -partials inputs/partials -list
+typo-lenient   | - | -data inputs/shop.json inputs/typo.tmpl
+typo-strict    | - | -data inputs/shop.json -strict inputs/typo.tmpl
+bad-filter     | - | inputs/badfilter.tmpl
+unclosed       | - | inputs/unclosed.tmpl
+bad-path       | - | inputs/badpath.tmpl
+bad-string     | - | inputs/badstring.tmpl
+not-a-list     | - | -data inputs/shop.json inputs/notlist.tmpl
+bad-money      | - | -data inputs/shop.json inputs/badmoney.tmpl
+bad-date       | - | -data inputs/baddate.json -partials inputs/partials inputs/order.tmpl
+recursive      | - | -partials inputs/partials inputs/recursive.tmpl
+bad-json       | - | -data inputs/bad.json inputs/typo.tmpl
+no-partials    | - | -partials inputs/none inputs/typo.tmpl
+usage          | - |
+large          | - | -data inputs/gen-catalog.json inputs/catalog.tmpl

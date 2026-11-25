@@ -1,0 +1,4 @@
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (1);
+SELECT a FROM t;
+SELECT a FROM t WHERE a = 'unterminated;

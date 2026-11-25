@@ -1,0 +1,1 @@
+{"name": "shop-frontend", "dependencies": {"web": "^1.0", "cli": "~0.3", "json": "*"}}

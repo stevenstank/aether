@@ -1,0 +1,148 @@
+# health and auth
+GET /healthz
+---
+GET /api/bookmarks
+---
+GET /api/bookmarks
+Authorization: Bearer wrong
+---
+# create
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://go.dev/doc/", "title": "  Go documentation ", "tags": ["Go", "docs", "go"]}
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://pkg.go.dev/net/http", "title": "net/http — Go Packages", "tags": ["go", "http"]}
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://www.rfc-editor.org/rfc/rfc9110", "title": "RFC 9110: HTTP Semantics", "tags": ["http", "rfc"]}
+---
+POST /api/bookmarks
+Authorization: Bearer bob-token
+Content-Type: application/json
+
+{"url": "https://go.dev/doc/", "title": "Bob's copy", "tags": []}
+---
+# errors on create
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://go.dev/doc/", "title": "dup"}
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "javascript:alert(1)", "title": "", "tags": ["has space", "ok"]}
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://x.example", "title": "t", "extra": 1}
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://x.example", "title": 42}
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+{"url": "https://x.example", "title": "broken"
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: text/plain
+
+hello
+---
+POST /api/bookmarks
+Authorization: Bearer alice-token
+Content-Type: application/json
+
+---
+# reads
+GET /api/bookmarks/1
+Authorization: Bearer alice-token
+---
+GET /api/bookmarks/1
+Authorization: Bearer alice-token
+If-None-Match: "d3293fadceabf8ea"
+---
+GET /api/bookmarks/4
+Authorization: Bearer alice-token
+---
+GET /api/bookmarks/abc
+Authorization: Bearer alice-token
+---
+GET /api/bookmarks?tag=HTTP
+Authorization: Bearer alice-token
+---
+GET /api/bookmarks?q=go&limit=1
+Authorization: Bearer alice-token
+---
+GET /api/bookmarks?q=go&limit=1&offset=1
+Authorization: Bearer alice-token
+---
+GET /api/bookmarks?limit=0&offset=-1
+Authorization: Bearer alice-token
+---
+GET /api/tags
+Authorization: Bearer alice-token
+---
+# update and conditional update
+PATCH /api/bookmarks/2
+Authorization: Bearer alice-token
+Content-Type: application/json
+If-Match-Version: 1
+
+{"title": "net/http package", "tags": ["go", "http", "stdlib"]}
+---
+PATCH /api/bookmarks/2
+Authorization: Bearer alice-token
+Content-Type: application/json
+If-Match-Version: 1
+
+{"title": "stale write"}
+---
+PATCH /api/bookmarks/2
+Authorization: Bearer alice-token
+Content-Type: application/json
+If-Match-Version: two
+
+{"title": "x"}
+---
+DELETE /api/bookmarks/3
+Authorization: Bearer alice-token
+---
+DELETE /api/bookmarks/3
+Authorization: Bearer alice-token
+---
+DELETE /api/bookmarks/4
+Authorization: Bearer alice-token
+---
+GET /api/tags
+Authorization: Bearer alice-token
+---
+# routing edge cases
+PUT /api/bookmarks/1
+Authorization: Bearer alice-token
+---
+GET /nowhere
+---
+GET /debug/panic
+---
+GET /api/bookmarks
+Authorization: Bearer bob-token
