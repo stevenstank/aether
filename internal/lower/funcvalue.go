@@ -227,7 +227,7 @@ func (l *lowerer) methodExpr(e *ast.SelectorExpr, sel *types.Selection) *ir.Inst
 	nx := len(l.words(e, xt))
 	nrecv := len(l.words(e, sel.Obj().Type().(*types.Signature).Recv().Type()))
 	params := append(append([]ir.Type{ir.Ptr}, l.words(e, xt)...), f.Params[nrecv:]...)
-	w := l.wrapper(kind+l.qualify(named.Obj(), named.Obj().Name())+"."+sel.Obj().Name(), params, f.Results, f.Pos, func(w *ir.Func) {
+	w := l.wrapper(kind+l.qualify(named.Obj(), frontend.SourceName(named.Obj().Name()))+"."+sel.Obj().Name(), params, f.Results, f.Pos, func(w *ir.Func) {
 		ps := l.enter(w, pos)
 		x := ps[1]
 		var deref, addr func() place

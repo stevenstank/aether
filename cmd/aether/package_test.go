@@ -127,6 +127,12 @@ func TestPackageRejects(t *testing.T) {
 			"--\nb/b.go:package b\ntype t int\nfunc F() t { return 1 }\n" +
 			"--\nc/c.go:package c\ntype u int\nfunc G() u { return 1 }\n",
 			[]string{"main.go"}, diag.Unsupported, "main.go:3:19: unsupported: type argument m.test/x/b.t, which package m.test/x/c cannot name, is not supported in subset S1 [generic-instance]"},
+		{"hosted embedding of an unexported type", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\ntype T int\nfunc main() { var b a.Box[T]; println(b.V) }\n" +
+			"--\na/a.go:package a\ntype inner struct{}\ntype Box[T any] struct {\n\tinner\n\tV T\n}\n",
+			[]string{"main.go"}, diag.Unsupported, "a/a.go:4:2: unsupported: embedded unexported type inner of another package in a hosted instance is not supported in subset S1 [generic-instance]"},
+		{"hosted use of an unexported field", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\ntype T int\nfunc main() { println(a.Get(T(1))) }\n" +
+			"--\na/a.go:package a\ntype cfg struct{ n int }\nvar c = cfg{2}\nfunc Get[T any](x T) int { return c.n }\n",
+			[]string{"main.go"}, diag.Unsupported, "a/a.go:4:37: unsupported: generic code whose instance does not type-check (c.n undefined"},
 		{"type argument of an imported package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc id[T any](x T) T { return x }\nfunc main() { println(id(a.T(1)) == 1) }\n" +
 			"--\na/a.go:package a\ntype T int\n",
 			[]string{"main.go"}, 0, ""},
@@ -319,8 +325,8 @@ func TestStdRejects(t *testing.T) {
 		class     diag.Class
 		want      string
 	}{
-		{"assembly", "package main\nimport \"math\"\nfunc main() { println(math.Exp(1)) }\n",
-			diag.Unsupported, "$GOROOT/src/math/exp_asm.go:11:1: unsupported: function archExp without a body (implemented outside Go)"},
+		{"assembly", "package main\nimport \"math/big\"\nfunc main() { println(new(big.Int).Add(big.NewInt(1), big.NewInt(1)).String()) }\n",
+			diag.Unsupported, "$GOROOT/src/math/big/arith_decl.go:25:1: unsupported: function addVV without a body (implemented outside Go)"},
 		// gc's runtime, os, sync, and sync/atomic have more than Aether's.
 		{"runtime name", "package main\nimport \"runtime\"\nfunc main() { runtime.Goexit() }\n",
 			diag.Unsupported, "p.go:3:23: unsupported: runtime.Goexit, which Aether's package runtime does not have, is not supported in subset S1 [stdlib-package]"},

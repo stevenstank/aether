@@ -106,9 +106,15 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 			args[i] = l.fn.Param(b, i, pos)
 		}
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCall, ir.I64, pos, args...))
-	case "os.envc":
+	case "math/rand.runtime_rand":
+		// runtime_rand() uint64, gc's runtime.rand (D-053).
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysRand, ir.U64, pos))
+	case "os.envc", "math.envc", "internal/godebug.envc":
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvc, ir.I64, pos))
-	case "os.env":
+	case "math.cpuFMA":
+		// cpuFMA() int (D-053).
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCPUFMA, ir.I64, pos))
+	case "os.env", "math.env", "internal/godebug.env":
 		i := l.fn.Param(b, 0, pos)
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvPtr, ir.Ptr, pos, i), l.fn.Sys(b, ir.SysEnvLen, ir.I64, pos, i))
 	case "internal/reflectlite.implements":

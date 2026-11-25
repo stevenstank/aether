@@ -236,3 +236,12 @@ func TestPathPrefix(t *testing.T) {
 		}
 	}
 }
+
+// TestSourceNames checks that a type checker's message about hosted copies
+// names their declarations as the source does (D-052).
+func TestSourceNames(t *testing.T) {
+	msg := frontend.HostedName("Stack[main.T]", "m.test/x/gen") + " redeclared; ·view0.X·c.n undefined (·view12.Point)"
+	if got, want := sourceNames(msg), "Stack[main.T] redeclared; c.n undefined (Point)"; got != want {
+		t.Errorf("sourceNames = %q, want %q", got, want)
+	}
+}

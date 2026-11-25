@@ -78,6 +78,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-050 | Interface checks at run time for internal/reflectlite (Batch 1) | Accepted (2026-11-24; owner review pending) |
 | D-051 | One system-call primitive and the environment for package os (Batch 2) | Accepted (2026-11-24; owner review pending) |
 | D-052 | Instances of another package's generic code, hosted (Batch 3) | Accepted (2026-11-25; owner review pending) |
+| D-053 | gc's amd64 Exp and Log in Go, the processor's FMA, GODEBUG, and math/rand (Batch 5) | Accepted (2026-11-25; owner review pending) |
 
 ## Review log
 
@@ -4597,6 +4598,18 @@ types.
   gc's type names (`%T`, `reflect`, panics), and the package path of an
   unexported field, so `atomic.Pointer[main.T]` is named as gc names it
   although main declares it.
+- **Hosted identifiers.** A hosted copy's identifier is its instance's
+  name followed by `·of·` and the generic's package path, so that it
+  cannot collide with the host's own instance of a generic of the same
+  name (`shape.Stack[shape.Point]` beside a hosted
+  `gen.Stack[shape.Point]`); lowering and diagnostics drop that part.
+  Review (2026-11-25), with `TestHostedInvariants` and
+  `TestHostedInitOrder`: the host depends only on the generic and its
+  arguments, so the order of imports and other importers do not change
+  it, and every package that wants an instance uses the host's one copy;
+  views exist only in the prepared checks, which nothing orders packages
+  by, so initialization order is unchanged; builds are byte-identical
+  across directories.
 - **Type argument names.** In the name of an instance, a type argument's
   defined types and unexported fields are qualified by their package's
   escaped import path, as gc's are.
@@ -4626,6 +4639,63 @@ instances and stop next at `math.Exp` and `math.Log` (Batch 5).
 D-049), which avoided an instance `slices` could not name, could now be
 gc's file, and is left as it is.
 
+---
+
+## D-053: gc's amd64 Exp and Log in Go, the processor's FMA, GODEBUG, and math/rand (Batch 5)
+
+**Status:** Accepted (2026-11-25). Capability Batch 5, written with its
+code.
+
+**Context.** gc's `math.Exp` and `math.Log` on amd64 are assembly
+(`exp_amd64.s`, `log_amd64.s`), with other algorithms than the portable
+Go, so their results differ in the last bits; Aether left them without
+bodies, which made `math/rand`, `Pow`, and everything else calling them
+`unsupported`. gc's `Exp` has two paths, chosen at startup: with fused
+multiply-adds if the processor and kernel provide AVX and FMA
+(`useFMA`, from `internal/cpu`, which `GODEBUG`'s `cpu.` options can turn
+off), else with separately rounded operations; they give different
+results. `math/rand` also needs `internal/godebug` (gc's reaches
+`internal/bisect` and `runtime.Callers`) and, for its top-level
+functions, `runtime.rand` through `//go:linkname`.
+
+**Decision.**
+- **The assembly in Go.** Overlay files replace `exp_asm.go` and
+  `log_asm.go` with `archExp` and `archLog` written instruction by
+  instruction: the same constants (as the assembler rounds them), the
+  same operations on the same values in the same order, each rounded
+  alone (an explicit `float64` conversion, which forbids fusing),
+  `CVTSD2SL`'s rounding to nearest even and its value for out-of-range
+  numbers, `CMPSD`'s "not less than", and every special case's bits. A
+  `VFMADD`/`VFNMADD` is `math.FMA`, gc's software fused multiply-add,
+  which is exact as the instruction is.
+- **The processor.** The `Sys` kind `SysCPUFMA` (helper `aether.cpufma`:
+  CPUID leaf 1's FMA, OSXSAVE, and AVX bits and XGETBV's SSE and AVX
+  states, as `internal/cpu`) gives `useFMA`, after `GODEBUG`'s `cpu.avx`,
+  `cpu.fma`, and `cpu.all` as `processOptions` applies them. The
+  interpreter answers from `/proc/cpuinfo`'s `avx` and `fma` flags.
+- **`GODEBUG`.** Aether's `internal/godebug`: gc's API over the first
+  `GODEBUG` of the environment, its last setting of each name winning, as
+  gc's runtime parses it at startup, with the environment through the
+  intrinsics `os` uses.
+- **`runtime.rand`.** A GOROOT function declared without a body may be an
+  intrinsic only if listed in `frontend.GOROOTIntrinsics`: just
+  `math/rand.runtime_rand`, which lowers to the `Sys` kind `SysRand`
+  (helper `aether.rand`, the wyrand generator seeded by `getrandom`; the
+  interpreter uses its host's `math/rand/v2`).
+
+**Alternatives considered.** gc's portable `exp` and `log`: other
+results. Always one of the two `Exp` paths: gc's results on only some
+machines. A hardware FMA instruction for `math.FMA`: faster, the same
+results, and left for later. gc's `internal/godebug`: needs runtime
+hooks and `internal/bisect`. An overlay of all of `math/rand`'s
+`rand.go` for one linkname: a copy of 500 lines to change one.
+
+**Consequences.** `Exp` takes about 20 times gc's time on the FMA path
+(software `FMA`) and about 6 times on the other (measured 2026-11-25 on
+the evaluation machine, 1.6 million calls with `Log` and `Pow`).
+`GODEBUG` is read once; changing it with `os.Setenv` changes nothing, and
+its `#pattern` suffixes are ignored. The top-level `math/rand` functions
+give other random numbers than gc's, as two gc runs do.
 ---
 
 ## Phase 0 research notes

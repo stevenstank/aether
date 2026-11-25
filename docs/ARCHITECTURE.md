@@ -693,7 +693,8 @@ so none can be read as an option.
     `aether.argc`, `aether.argptr`, and `aether.arglen` in `rt/start.s`, whose `_start` saves `argc` and
     `argv`, and `aether.gc` in `rt/heap.s` (table below); `aether.envc`,
     `aether.envptr`, `aether.envlen`, and `aether.syscall6`, which takes
-    its seven words in the outgoing area (D-051).
+    its seven words in the outgoing area (D-051); `aether.cpufma` (CPUID
+    and XGETBV) and `aether.rand` (wyrand seeded by `getrandom`) (D-053).
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
       (`aether.write`) that continues short writes, retries `EINTR`, and

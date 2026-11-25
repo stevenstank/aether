@@ -94,7 +94,8 @@ const symPanicIndex = "aether.panicindex"
 // as a call's do (D-051).
 var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
 	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread",
-	ir.SysCall: "aether.syscall6", ir.SysEnvc: "aether.envc", ir.SysEnvPtr: "aether.envptr", ir.SysEnvLen: "aether.envlen"}
+	ir.SysCall: "aether.syscall6", ir.SysEnvc: "aether.envc", ir.SysEnvPtr: "aether.envptr", ir.SysEnvLen: "aether.envlen",
+	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand"}
 
 // sysOutgoing is the outgoing area a Sys needs: SysCall's args.
 func sysOutgoing(in *ir.Instr) int {

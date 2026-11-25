@@ -322,6 +322,60 @@ aether.syscall6:
 	ret
 	.size	aether.syscall6, .-aether.syscall6
 
+# aether.cpufma (D-053) returns 1 if the processor and the kernel provide
+# AVX and FMA, as gc's internal/cpu decides: CPUID leaf 1's ECX has FMA
+# (bit 12), OSXSAVE (bit 27), and AVX (bit 28), and XGETBV's XCR0 has the
+# SSE and AVX states (bits 1 and 2). Else 0. It saves %rbx, which CPUID
+# writes, in %r11.
+	.globl	aether.cpufma
+	.type	aether.cpufma, @function
+aether.cpufma:
+	movq	%rbx, %r11
+	movl	$1, %eax
+	xorl	%ecx, %ecx
+	cpuid
+	movq	%r11, %rbx
+	movl	%ecx, %r8d
+	andl	$0x18001000, %r8d	# FMA, OSXSAVE, AVX
+	cmpl	$0x18001000, %r8d
+	jne	1f
+	xorl	%ecx, %ecx
+	xgetbv
+	andl	$6, %eax
+	cmpl	$6, %eax
+	jne	1f
+	movl	$1, %eax
+	ret
+1:	xorl	%eax, %eax
+	ret
+	.size	aether.cpufma, .-aether.cpufma
+
+# aether.rand (D-053) returns a random word, as gc's runtime.rand: the
+# wyrand generator, whose state the getrandom system call seeds at the
+# first call (made odd, so that it is never zero, should getrandom fail).
+	.globl	aether.rand
+	.type	aether.rand, @function
+aether.rand:
+	movq	.Lrandstate(%rip), %rax
+	testq	%rax, %rax
+	jne	1f
+	leaq	.Lrandstate(%rip), %rdi
+	movl	$8, %esi
+	xorl	%edx, %edx
+	movl	$318, %eax		# getrandom
+	syscall
+	orq	$1, .Lrandstate(%rip)
+	movq	.Lrandstate(%rip), %rax
+1:	movabsq	$0xa0761d6478bd642f, %rcx
+	addq	%rcx, %rax
+	movq	%rax, .Lrandstate(%rip)
+	movabsq	$0xe7037ed1a0b428db, %rdx
+	xorq	%rax, %rdx
+	mulq	%rdx
+	xorq	%rdx, %rax
+	ret
+	.size	aether.rand, .-aether.rand
+
 	.globl	aether.envc
 	.type	aether.envc, @function
 aether.envc:
@@ -433,6 +487,8 @@ aether.stacklimit:
 .Largv:
 	.zero	8
 .Lenvp:
+	.zero	8
+.Lrandstate:
 	.zero	8
 
 	.section	.note.GNU-stack,"",@progbits

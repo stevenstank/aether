@@ -2,6 +2,7 @@ package lower
 
 import (
 	"fmt"
+	"github.com/stevenstank/aether/internal/frontend"
 	"go/types"
 	"strings"
 
@@ -181,7 +182,7 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 func fieldName(f *types.Var) string {
 	name := f.Name()
 	if f.Embedded() {
-		name, _, _ = strings.Cut(name, "[")
+		name, _, _ = strings.Cut(frontend.SourceName(name), "[")
 	}
 	return name
 }

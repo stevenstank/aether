@@ -1611,8 +1611,12 @@ func (c *checker) variadic(call *ast.CallExpr) bool {
 func (c *checker) intrinsic(d *ast.FuncDecl) bool {
 	obj := c.info.Defs[d.Name]
 	file := frontend.Position(c.pkg.Fset, d.Pos()).File
-	return obj != nil && d.Recv == nil && strings.HasPrefix(file, "$AETHER/") &&
-		frontend.Intrinsics[obj.Pkg().Path()+"."+obj.Name()]
+	key := ""
+	if obj != nil {
+		key = obj.Pkg().Path() + "." + obj.Name()
+	}
+	return obj != nil && d.Recv == nil && frontend.Intrinsics[key] &&
+		(strings.HasPrefix(file, "$AETHER/") || frontend.GOROOTIntrinsics[key] && strings.HasPrefix(file, "$GOROOT/"))
 }
 
 // packageLevel reports whether obj is declared at the package level of a

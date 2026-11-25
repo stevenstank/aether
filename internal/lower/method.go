@@ -21,6 +21,7 @@ package lower
 // may be called on nil.
 
 import (
+	"github.com/stevenstank/aether/internal/frontend"
 	"go/ast"
 	"go/types"
 
@@ -31,7 +32,7 @@ import (
 func (l *lowerer) funcName(fd *ast.FuncDecl, obj *types.Func) string {
 	r := obj.Type().(*types.Signature).Recv()
 	if r == nil {
-		return fd.Name.Name
+		return frontend.SourceName(fd.Name.Name)
 	}
 	t := r.Type()
 	if p, ok := t.(*types.Pointer); ok {
@@ -41,7 +42,7 @@ func (l *lowerer) funcName(fd *ast.FuncDecl, obj *types.Func) string {
 	if !ok {
 		l.fail(fd, "method %s of a type %s that is not defined", fd.Name.Name, t)
 	}
-	return n.Obj().Name() + "." + fd.Name.Name
+	return frontend.SourceName(n.Obj().Name()) + "." + fd.Name.Name
 }
 
 // selectPath returns the place that the path of field indices reaches from

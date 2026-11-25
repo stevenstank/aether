@@ -198,3 +198,22 @@ func Position(fset *token.FileSet, pos token.Pos) diag.Pos {
 	p := fset.PositionFor(pos, false)
 	return diag.Pos{File: p.Filename, Line: p.Line, Col: p.Column}
 }
+
+// hostedMark separates, in the identifier of an instance a package hosts
+// (D-052), the instance's name from its home package's path, so that it
+// cannot collide with the host's own instance of a generic of the same
+// name. No source can write it: "·" is not a letter.
+const hostedMark = "·of·"
+
+// HostedName returns the identifier of the hosted instance name of a
+// generic of the package path.
+func HostedName(name, path string) string { return name + hostedMark + path }
+
+// SourceName returns name, an object's identifier, as the source names
+// it: a hosted instance's without its home's path.
+func SourceName(name string) string {
+	if i := strings.Index(name, hostedMark); i >= 0 {
+		return name[:i]
+	}
+	return name
+}

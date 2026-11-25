@@ -2,6 +2,7 @@ package mono
 
 import (
 	"fmt"
+	"github.com/stevenstank/aether/internal/frontend"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -243,7 +244,7 @@ func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) 
 	case *types.Basic:
 		return types.Typ[t.Kind()].Name()
 	case *types.Named:
-		name := t.Obj().Name()
+		name := frontend.SourceName(t.Obj().Name())
 		if t.TypeArgs().Len() > 0 {
 			var as []string
 			for a := range t.TypeArgs().Types() {

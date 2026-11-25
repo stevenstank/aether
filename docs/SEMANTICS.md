@@ -1255,9 +1255,8 @@ D-049. These supersede the 11.4 rule that standard-library imports are
   - `math`: `Float32bits`, `Float32frombits`, `Float64bits`, and
     `Float64frombits` are intrinsics; `Floor`, `Ceil`, `Trunc`, `Max`,
     `Min`, and `Hypot` use gc's portable `_noasm` files, which give the
-    same results as its assembly. `Exp` and `Log`, whose amd64 assembly
-    uses other algorithms, and everything calling them (for example
-    `Pow`, `Sinh`, `Gamma`) are `unsupported` (`function-without-body`).
+    same results as its assembly. `Exp` and `Log` are gc's amd64
+    assembly written in Go since Batch 5 (below).
   - `math/bits`: the overflow and divide errors are gc's bootstrap
     version, of a type of `math/bits` rather than `runtime`, with the same
     messages.
@@ -1556,8 +1555,37 @@ instantiated only with type arguments that package can name.
   unexported field or method of a non-generic type of the generic's
   package, embeds an unexported type of it, or whose type must implement
   an interface of it with unexported methods.
-- `math/rand` and `math/big` now get past their generic instances and
-  stop at `math.Exp` and `math.Log` (`function-without-body`, Batch 5).
+- `math/rand` now gets past its generic instances (Batch 5 compiles it);
+  `math/big` then stops at its assembly (`function-without-body`).
+
+## Capability Batch 5: Exp, Log, and math/rand
+
+D-053.
+- **`math.Exp` and `math.Log`** are gc's amd64 assembly, written in Go
+  operation by operation, and give gc's results bit for bit on the same
+  machine: NaNs (a negative NaN's `Log` is the NaN `0x7FF8000000000001`,
+  as gc's), infinities, signed zeros, subnormal arguments (`Log` takes
+  their exponent field as it is, as gc's assembly does) and results,
+  overflow, and underflow. gc's `Exp` takes a fused multiply-add path
+  when the processor and kernel provide AVX and FMA; Aether's makes the
+  same check at startup, and honors `GODEBUG`'s `cpu.avx`, `cpu.fma`, and
+  `cpu.all` as gc does, so it takes the same path and gives the same
+  results as gc on the same machine. gc's warnings for malformed `cpu.`
+  options are not printed. Everything built on them is compiled: `Pow`,
+  `Log10`, `Log2`, `Log1p`, `Sinh`, `Cosh`, `Tanh`, `Asinh`, `Acosh`,
+  `Atanh`, `Gamma`, and the rest. The FMA path uses gc's software `FMA`,
+  exact but slower than gc's instruction.
+- **`math/rand`**: every function and type. A seeded generator gives gc's
+  sequence. The top-level functions without `Seed` draw from Aether's
+  runtime generator (wyrand, seeded by `getrandom`), as gc's draw from its
+  runtime's (ChaCha8): random either way, but not the same numbers.
+  `GODEBUG=randautoseed=0` and `randseednop=0` behave as gc's.
+- **`internal/godebug`** is Aether's: a setting's value is its last
+  `name=value` in the first `GODEBUG` of the environment, as gc's runtime
+  reads it at startup. Unlike gc's, it does not follow later changes to
+  `GODEBUG` made with `os.Setenv`, publishes no `runtime/metrics` counts,
+  and applies a value's `#pattern` (bisect) suffix nowhere, using the
+  value everywhere.
 
 ## Support matrix
 
@@ -1604,7 +1632,8 @@ instantiated only with type arguments that package can name.
 | The blank identifier in declarations and assignments | Blank identifier, Assignment statements | Phase 11 / 11.2 | Supported (native) | `s7_b01_blank` to `s7_b03_blank_declarations`; gate tests; `TestGorootRun` |
 | `for range` over integers, arrays, pointers to arrays, slices, and strings; labels, labeled `break` and `continue`, `goto`; `init` functions | For statements with range clause, Labeled statements, Goto statements, Package initialization | Phase 11 / 11.3 | Supported (native) | `s7_g01_range` to `s7_g04_generic_range`; gate tests; `TestGorootRun` |
 | Several files of `package main`; packages of the main module, imported, with build constraints and the specification's initialization order | Source file organization, Import declarations, Package initialization, Build constraints (go command) | Phase 11 / 11.4 | Supported (native) | `TestPackagePrograms` (`testdata/packages`, against gc); `TestPackageRejects`; loader tests |
-| `unicode/utf8`, `unicode`, `math/bits`, `math` (without `Exp`, `Log`, and their callers), `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
+| `math.Exp` and `math.Log` (gc's amd64 results, both FMA paths), what is built on them, `math/rand`, and `GODEBUG` settings | The packages' documentation | Batch 5 | Supported (native) | `TestMathExpLog` (`testdata/mathprog/explog.go`, millions of inputs, against gc, with and without FMA, natively and in the interpreter); `TestMathRandGodebug`; `TestStdPrograms` (`mathrand`); `TestSysOps` |
+| `unicode/utf8`, `unicode`, `math/bits`, `math`, `strconv`, `errors.New`, compiled from GOROOT | Import declarations; the packages' documentation | Phase 11 / 11.5 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc); `TestStdRejects`; `TestGOROOTVersion` |
 | `iota`, constants without a value, `min` and `max` of integers, `fallthrough`, variadic functions, methods, and func values, switches on interface values | Iota, Constant declarations, Min and max, Fallthrough statements, Passing arguments to ... parameters, Expression switches | Phase 11 / 11.5 | Supported (native) | `s7_l01_constants_minmax_fallthrough`, `s7_l02_variadic_switch`, `s7_l03_variadic_values`, `s7_w01_switch_compare`; gate tests |
 | `runtime` (`GOOS`, `GOARCH`, `GC`, `Gosched`, `NumGoroutine`), `os` (`Args`, `Exit`, `Stdin`, `Stdout`, `Stderr`), `sync` (`Mutex`, `RWMutex`, `WaitGroup`, `Once`), `sync/atomic`, as Aether's own packages | Import declarations; the packages' documentation | Phase 11 / 11.6 | Supported (native) | `TestStdPrograms` (`testdata/std`, against gc, natively and in the interpreter); `TestStdRejects`; `TestSys`, `TestSysNative`, `TestSysRead`, `TestSysReadNative`, `TestSysOps` |
 | Instances of another package's generic code; `clear` of a slice; `cmp`, `slices`, `sort`, `maps`, `errors` (not `As`), `iter` | Instantiations, Clear; the packages' documentation | Phase 11 / 11.7 | Supported (native), except as above | `TestPackagePrograms` (`cmd/generic`); `TestPackageRejects`; `TestStdPrograms` (`generics`, `errors`); `TestStdRejects`; gate tests |

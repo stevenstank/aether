@@ -25,6 +25,7 @@ package lower
 
 import (
 	"fmt"
+	"github.com/stevenstank/aether/internal/frontend"
 	"go/ast"
 	"go/types"
 	"slices"
@@ -227,7 +228,7 @@ func (l *lowerer) wrapNilCheck(pt types.Type, sel *types.Selection, p func() *ir
 	if !ok || !isNamed || len(sel.Index()) != 1 || !types.Identical(recv, named) || named.Obj().Pkg() == nil {
 		return
 	}
-	name := named.Obj().Name()
+	name := frontend.SourceName(named.Obj().Name())
 	if i := strings.IndexByte(name, '['); i >= 0 {
 		name = name[:i] + "[...]"
 	} else if named.TypeArgs().Len() > 0 {
@@ -613,7 +614,7 @@ func (l *lowerer) gcName(t types.Type) string {
 		if t.Obj().Pkg() == nil {
 			return t.Obj().Name()
 		}
-		return l.home(t.Obj()).Name() + "." + t.Obj().Name()
+		return l.home(t.Obj()).Name() + "." + frontend.SourceName(t.Obj().Name())
 	case *types.Pointer:
 		return "*" + l.gcName(t.Elem())
 	case *types.Slice:

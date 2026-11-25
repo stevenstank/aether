@@ -190,7 +190,7 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 	ds = deleteInstanceErrors(ds)
 	if len(ds) > 0 {
 		// The first error only: the others often follow from it.
-		m.reject(ds[0].Pos, gate.FeatGenericInstance, "generic code whose instance does not type-check ("+ds[0].Message+")")
+		m.reject(ds[0].Pos, gate.FeatGenericInstance, "generic code whose instance does not type-check ("+sourceNames(ds[0].Message)+")")
 	}
 	if len(m.ds) > 0 {
 		return nil, nil, m.ds
@@ -424,6 +424,9 @@ func (m *mono) instance(n ast.Node, obj types.Object, args []types.Type) *instan
 	}
 	name := instName(obj, args)
 	key := obj.Pkg().Path() + "." + name
+	if src != m.own {
+		name = frontend.HostedName(name, obj.Pkg().Path())
+	}
 	if _, isType := obj.(*types.TypeName); isType && obj.Parent() != obj.Pkg().Scope() {
 		// A generic type declared in a function, which the gate rejects
 		// too: never made.

@@ -34,11 +34,12 @@ type patch struct {
 // _noasm or compiler_bootstrap variant.
 var patches = map[string]patch{
 	"math": {
-		exclude: []string{"exp_amd64.go"}, // useFMA, for the assembly of Exp
+		// useFMA, for Exp, is in Aether's exp_asm.go, which, with
+		// log_asm.go, is gc's amd64 assembly of Exp and Log in Go (D-053).
+		exclude: []string{"exp_amd64.go"},
 		use: map[string]string{
 			// Floor, Ceil, Trunc, Max, Min, and Hypot compute the same
-			// results in Go as gc's assembly; Exp and Log, whose assembly
-			// uses other algorithms, stay without bodies.
+			// results in Go as gc's assembly.
 			"floor_asm.go": "floor_noasm.go", "dim_asm.go": "dim_noasm.go", "hypot_asm.go": "hypot_noasm.go",
 		},
 	},
@@ -57,6 +58,7 @@ var patches = map[string]patch{
 	"runtime": {replace: true}, "os": {replace: true}, "sync": {replace: true}, "sync/atomic": {replace: true},
 	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)
 	"internal/reflectlite": {replace: true}, // ValueOf, Len, and Swapper, for sort (R.6)
+	"internal/godebug":     {replace: true}, // $GODEBUG at startup, without gc's runtime hooks (D-053)
 }
 
 // Intrinsics are the functions of overlay files declared without a body
@@ -68,8 +70,15 @@ var Intrinsics = map[string]bool{
 	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
 	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "os.read": true,
 	"os.syscall6": true, "os.envc": true, "os.env": true, "sync.fatal": true,
+	"math.cpuFMA": true, "math.envc": true, "math.env": true,
+	"internal/godebug.envc": true, "internal/godebug.env": true, "math/rand.runtime_rand": true,
 	"internal/reflectlite.implements": true,
 }
+
+// GOROOTIntrinsics are the intrinsics declared without a body in GOROOT's
+// own files, not Aether's: math/rand's runtime_rand, which gc's linker
+// makes runtime.rand (D-053).
+var GOROOTIntrinsics = map[string]bool{"math/rand.runtime_rand": true}
 
 // isStd reports whether an import path names a standard-library package:
 // its first element has no dot.

@@ -190,7 +190,7 @@ fixedbugs/bug247.go pass
 fixedbugs/bug253.go pass
 fixedbugs/bug254.go pass
 fixedbugs/bug257.go unsupported directive
-fixedbugs/bug258.go unsupported function-without-body
+fixedbugs/bug258.go pass
 fixedbugs/bug259.go pass
 fixedbugs/bug260.go pass
 fixedbugs/bug261.go pass
@@ -758,7 +758,7 @@ ken/cplx2.go unsupported println-argument-type
 ken/cplx3.go unsupported complex-arithmetic
 ken/cplx4.go unsupported complex-arithmetic
 ken/cplx5.go unsupported complex-arithmetic
-ken/divconst.go unsupported function-without-body
+ken/divconst.go pass
 ken/divmod.go pass
 ken/embed.go unsupported println-argument-type
 ken/for.go pass
@@ -768,7 +768,7 @@ ken/intervar.go pass
 ken/label.go pass
 ken/litfun.go pass
 ken/mfunc.go pass
-ken/modconst.go unsupported function-without-body
+ken/modconst.go pass
 ken/ptrfun.go pass
 ken/ptrvar.go pass
 ken/range.go pass
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go unsupported stdlib-package
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 743 pass (73.9%), 262 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 746 pass (74.2%), 259 unsupported, 0 bug

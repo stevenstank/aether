@@ -388,11 +388,19 @@ const (
 	// of environment string args[0], an I64 in [0, SysEnvc).
 	SysEnvPtr
 	SysEnvLen
+	// SysCPUFMA is 1 if the processor and the kernel provide AVX and FMA
+	// as gc's internal/cpu decides (CPUID and XGETBV), else 0: an I64. No
+	// args. gc's Exp computes otherwise with them (D-053).
+	SysCPUFMA
+	// SysRand is a random U64, as gc's runtime.rand: uniformly
+	// distributed, from a generator the kernel's entropy seeds. No args
+	// (D-053).
+	SysRand
 )
 
 // SysNames are the system calls' names, as the printer writes them.
 var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read",
-	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen"}
+	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 
@@ -559,6 +560,10 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 				// The interpreter frees no heap object (D-035).
 			case ir.SysEnvc:
 				fr.values[in.ID] = int64(len(sys.env))
+			case ir.SysCPUFMA:
+				fr.values[in.ID] = hostCPUFMA()
+			case ir.SysRand:
+				fr.values[in.ID] = int64(rand.Uint64())
 			case ir.SysEnvPtr, ir.SysEnvLen:
 				i := arg(0)
 				if i < 0 || i >= int64(len(sys.env)) {

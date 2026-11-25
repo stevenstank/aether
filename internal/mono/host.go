@@ -1,10 +1,13 @@
 package mono
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -104,6 +107,9 @@ func (m *mono) foreignInst(n ast.Node, obj types.Object, args []types.Type, pos 
 		return &ast.Ident{NamePos: pos, Name: m.instance(n, obj, args).name}
 	}
 	name := instName(obj, args)
+	if host != obj.Pkg().Path() {
+		name = frontend.HostedName(name, obj.Pkg().Path())
+	}
 	found := false
 	for _, w := range m.wants {
 		found = found || w.Path == obj.Pkg().Path() && w.Name == name
@@ -403,10 +409,16 @@ func (m *mono) resolveViews(out *frontend.Package, real map[types.Object]types.O
 			out.Info.Uses[id] = r
 		}
 	}
+	// In source order, so that the diagnostics are deterministic.
+	var embedded []*ast.Ident
 	for id, obj := range out.Info.Defs {
 		if v, ok := obj.(*types.Var); ok && v.Embedded() && strings.HasPrefix(v.Name(), viewPrefix) {
-			m.reject(frontend.Position(out.Fset, id.Pos()), gate.FeatGenericInstance, "embedded unexported type "+strings.TrimPrefix(v.Name(), viewPrefix)+" of another package in a hosted instance")
+			embedded = append(embedded, id)
 		}
+	}
+	slices.SortFunc(embedded, func(a, b *ast.Ident) int { return cmp.Compare(a.Pos(), b.Pos()) })
+	for _, id := range embedded {
+		m.reject(frontend.Position(out.Fset, id.Pos()), gate.FeatGenericInstance, "embedded unexported type "+strings.TrimPrefix(id.Name, viewPrefix)+" of another package in a hosted instance")
 	}
 	for _, in := range m.order {
 		if in.src == m.own {
@@ -458,3 +470,11 @@ func homeFields(t types.Type, p, home *types.Package, homes map[types.Object]*ty
 func (m *mono) internalDiag(format string, args ...any) diag.Diagnostic {
 	return diag.Diagnostic{Class: diag.Internal, Message: "monomorphization: " + fmt.Sprintf(format, args...)}
 }
+
+// viewName matches a view's qualifier, the prefix of a name it exports,
+// and a hosted instance's home in its name (frontend.HostedName).
+var viewName = regexp.MustCompile(`·view[0-9]+\.|` + viewPrefix + `|·of·[^\s(),\]]*`)
+
+// sourceNames returns msg, a type checker's message about copies, with
+// the names of views' declarations written as the source writes them.
+func sourceNames(msg string) string { return viewName.ReplaceAllString(msg, "") }
