@@ -73,7 +73,6 @@ const (
 	FeatEmptyResults  = "empty-result-list"
 	FeatNoBody        = "function-without-body"
 	FeatFrameSize     = "frame-size"
-	FeatLoopVarAddr   = "loop-variable-address"
 	// Reported by monomorphization (internal/mono, D-045).
 	FeatGenericInstance = "generic-instance"
 	FeatGenericUnused   = "generic-uninstantiated"
@@ -263,7 +262,7 @@ func init() {
 		FeatCompositeLit,
 		FeatSelector, FeatIndex, FeatSlice,
 		FeatTypeExpr, FeatExpression, FeatStatement, FeatEmptyResults, FeatNoBody, FeatFrameSize,
-		FeatLoopVarAddr, FeatGenericInstance, FeatGenericUnused,
+		FeatGenericInstance, FeatGenericUnused,
 		// Statement kinds, named by the statement keyword (see stmt).
 		"for-range", "go",
 		"defer",
@@ -536,8 +535,10 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 			return true // counted as its operand
 		case *ast.CallExpr:
 			if c.info.Types[e.Fun].IsType() {
-				if isComplex(tv.Type) {
-					add(tv.Type) // a new object, made from its operand's
+				if isComplex(tv.Type) || isSlice(c.info.Types[e.Args[0]].Type) {
+					// A new object, made from its operand's, or a slice's
+					// elements copied to an array (D-055).
+					add(tv.Type)
 				}
 				return true // a conversion: counted as its operand
 			}
@@ -934,8 +935,12 @@ func (c *checker) typeDecl(d *ast.GenDecl, feature string) {
 		switch {
 		case feature == FeatPackageDecl && c.pkg.Types.Path() != "main" && frontend.Generic(c.info, spec):
 			// Kept for importers; only instances are compiled (D-049).
+		case spec.Assign.IsValid() && spec.TypeParams != nil:
+			c.reject(spec, feature, "generic type alias "+spec.Name.Name)
 		case spec.Assign.IsValid():
-			c.reject(spec, feature, "type alias "+spec.Name.Name)
+			// An alias (v2 evaluation): another name of its type, which
+			// go/types resolves; nothing to lower.
+			c.typeExpr(spec.Type)
 		case spec.TypeParams != nil:
 			c.reject(spec, feature, "generic type "+spec.Name.Name)
 		default:
@@ -1072,10 +1077,6 @@ func (c *checker) address(x ast.Expr) {
 		c.expr(lit)
 		return
 	}
-	if v := c.root(x); v != nil && c.forVars[v] {
-		c.reject(x, FeatLoopVarAddr, "the address of "+types.ExprString(x)+", of a variable declared in a for statement's init")
-		return
-	}
 	c.target(x)
 }
 
@@ -1190,9 +1191,11 @@ func (c *checker) call(call *ast.CallExpr) bool {
 		case isString(tv.Type) || isString(at.Type):
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
+		case isSlice(at.Type) && isArrayOrPtr(tv.Type):
+			// A slice to an array or a pointer to one (Go 1.20, v2
+			// evaluation), which checks the slice's length.
 		case isSlice(tv.Type) != isSlice(at.Type) && !at.IsNil():
-			// A slice converts only to a slice type (D-036): not to an
-			// array or a pointer to one.
+			// A slice converts otherwise only to a slice type (D-036).
 			c.reject(call, FeatConversion, "conversion to "+types.ExprString(call.Fun))
 			return false
 		}
@@ -1769,9 +1772,6 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 			if !isScalar(f.Type()) && !c.composite(f.Type(), seen) {
 				return false
 			}
-			if f.Embedded() && isInterface(f.Type()) {
-				return false // its methods would be promoted (D-041)
-			}
 		}
 		return true
 	case *types.Interface:
@@ -1936,4 +1936,14 @@ func (c *checker) supportedOrUntyped(t types.Type) bool {
 func isIdent(e ast.Expr, name string) bool {
 	id, ok := e.(*ast.Ident)
 	return ok && id.Name == name
+}
+
+// isArrayOrPtr reports whether t is an array type or a pointer to one.
+func isArrayOrPtr(t types.Type) bool {
+	u := t.Underlying()
+	if p, ok := u.(*types.Pointer); ok {
+		u = p.Elem().Underlying()
+	}
+	_, ok := u.(*types.Array)
+	return ok
 }

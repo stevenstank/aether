@@ -28,6 +28,24 @@ import (
 //	   interface, or 0 if the type does not implement it
 //	104 for a defined type, the descriptor of its underlying type (its
 //	   own for a predeclared one); 0 for a type literal
+//	112 the descriptor of the pointer type *T, if the program has one;
+//	   reflect's New and PointerTo use it, so that a pointer they make
+//	   has the type the rest of the program uses
+//	120 a defined type's name, as reflect's Name gives it (a string);
+//	   empty for a type literal
+//	136 a defined type's package path (a string); empty for a
+//	   predeclared type or a type literal
+//	152 the number of methods reflect's NumMethod counts: an interface's
+//	   methods, or the exported methods of another type's method set
+//	160, 168, 176 for a map type, static closures of its functions
+//	   access, assign, and delete, which take the map and the address of
+//	   a key, as the map's own do its words (D-042); access and assign
+//	   return the element's address, a missing key's that of .mzero
+//
+// A struct's field record continues with its tag (a string) at 56, and an
+// interface's word 72 holds its methods' records (methodRecSize bytes
+// each: the name, the package path of an unexported one, and the
+// descriptor of its signature) (v2 evaluation).
 //
 // 96 and 104 are written only in a program that reaches
 // internal/reflectlite's implements, for Type.Implements, AssignableTo,
@@ -37,8 +55,9 @@ import (
 // The descriptors of the element, key, and field types are made with it,
 // so reflect reaches every type a value holds.
 const (
-	reflectDescSize = 112
-	fieldRecSize    = 56
+	reflectDescSize = 184
+	fieldRecSize    = 72
+	methodRecSize   = 40
 )
 
 // reflectKind returns reflect's Kind of t.
@@ -88,9 +107,29 @@ func (l *lowerer) reflectDesc(d *tdesc, pos ir.Pos) {
 		for f := range u.Fields() {
 			d.fieldDescs = append(d.fieldDescs, l.desc(f.Type()))
 		}
+	case *types.Interface:
+		// Its methods' records, for reflect's Implements of an interface
+		// type (v2 evaluation): each its name, its package's path if it
+		// is not exported, and its signature's descriptor.
+		d.fields = l.prog.NewMem(fmt.Sprintf("%sf%d", genPrefix, d.id), max(methodRecSize*int64(u.NumMethods()), 8), 8, l.fn.File, pos)
+		for m := range u.Methods() {
+			s := m.Type().(*types.Signature)
+			d.fieldDescs = append(d.fieldDescs, l.desc(types.NewSignatureType(nil, nil, nil, s.Params(), s.Results(), s.Variadic())))
+		}
+	}
+	if u, ok := d.t.Underlying().(*types.Map); ok {
+		d.mapFns = l.reflectMapFns(d.t, u, pos)
 	}
 	if !l.implements {
 		return
+	}
+	// A defined type whose pointer type has more methods: the pointer
+	// type's descriptor, so that reflect's PointerTo finds it, and with it
+	// the interfaces it implements (v2 evaluation).
+	if named, ok := types.Unalias(d.t).(*types.Named); ok && !isIface(d.t) {
+		if types.NewMethodSet(types.NewPointer(named)).Len() > types.NewMethodSet(named).Len() {
+			l.desc(types.NewPointer(named))
+		}
 	}
 	switch {
 	case isIface(d.t):
@@ -132,6 +171,33 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 	if d.under != nil {
 		word(a, 104, l.fn.Addr(b, d.under.mem, pos))
 	}
+	if _, ok := types.Unalias(d.t).(*types.Pointer); ok && d.elem != nil {
+		word(l.fn.Addr(b, d.elem.mem, pos), 112, a)
+	}
+	strWord := func(p *ir.Instr, off int64, s string) {
+		if s != "" {
+			word(p, off, l.fn.Str(b, l.prog.Intern(s), pos))
+			word(p, off+8, c(int64(len(s))))
+		}
+	}
+	name, path := l.reflectName(d.t)
+	strWord(a, 120, name)
+	strWord(a, 136, path)
+	if it, ok := d.t.Underlying().(*types.Interface); ok {
+		word(a, 152, c(int64(it.NumMethods())))
+	} else {
+		n := 0
+		ms := types.NewMethodSet(d.t)
+		for i := range ms.Len() {
+			if ms.At(i).Obj().Exported() {
+				n++
+			}
+		}
+		word(a, 152, c(int64(n)))
+	}
+	for i, m := range d.mapFns {
+		word(a, 160+8*int64(i), l.fn.Addr(b, m, pos))
+	}
 	switch u := d.t.Underlying().(type) {
 	case *types.Array:
 		word(a, 64, c(u.Len()))
@@ -139,6 +205,18 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 		word(a, 64, c(map[types.ChanDir]int64{types.RecvOnly: 1, types.SendOnly: 2, types.SendRecv: 3}[u.Dir()]))
 	case *types.Interface:
 		word(a, 64, c(int64(u.NumMethods())))
+		fa := l.fn.Addr(b, d.fields, pos)
+		word(a, 72, fa)
+		i := 0
+		for m := range u.Methods() {
+			r := methodRecSize * int64(i)
+			strWord(fa, r, m.Name())
+			if !m.Exported() {
+				strWord(fa, r+16, l.home(m).Path())
+			}
+			word(fa, r+32, l.fn.Addr(b, d.fieldDescs[i].mem, pos))
+			i++
+		}
 	case *types.Map:
 		mt := l.mapType(d.t)
 		word(a, 80, c(mt.esize))
@@ -172,6 +250,7 @@ func (l *lowerer) initReflectDesc(b *ir.Block, d *tdesc, pos ir.Pos) {
 				word(fa, r+40, l.fn.Str(b, l.prog.Intern(path), pos))
 				word(fa, r+48, c(int64(len(path))))
 			}
+			strWord(fa, r+56, u.Tag(i))
 		}
 	}
 }
@@ -185,4 +264,58 @@ func fieldName(f *types.Var) string {
 		name, _, _ = strings.Cut(frontend.SourceName(name), "[")
 	}
 	return name
+}
+
+// reflectName returns the name and package path that reflect's Name and
+// PkgPath give of t: those of a defined type, gc's for an instance of a
+// generic type (D-045), and empty for a type literal; a predeclared type
+// has no package path.
+func (l *lowerer) reflectName(t types.Type) (string, string) {
+	switch t := types.Unalias(t).(type) {
+	case *types.Basic:
+		if t.Kind() == types.UnsafePointer {
+			return "Pointer", "unsafe"
+		}
+		return t.Name(), ""
+	case *types.Named:
+		obj := t.Obj()
+		name := frontend.SourceName(obj.Name())
+		if obj.Pkg() == nil {
+			return name, "" // error, comparable
+		}
+		return name, l.home(obj).Path()
+	}
+	return "", ""
+}
+
+// reflectMapFns returns the static closures of reflect's access, assign,
+// and delete functions of the map type t: each takes the map and the
+// address of a key and calls the map's own function with the key's words.
+func (l *lowerer) reflectMapFns(t types.Type, u *types.Map, pos ir.Pos) []*ir.Mem {
+	mt := l.mapType(t)
+	var mems []*ir.Mem
+	for kind, name := range []string{"raccess", "rassign", "rdelete"} {
+		var results []ir.Type
+		if kind != mapDelete {
+			results = []ir.Type{ir.Ptr}
+		}
+		w := l.wrapper(name+itoa(mt.id), []ir.Type{ir.Ptr, ir.Ptr, ir.Ptr}, results, pos, func(w *ir.Func) {
+			ps := l.enter(w, pos)
+			var key []*ir.Instr
+			if isAggregate(u.Key()) {
+				key = []*ir.Instr{ps[2]()} // an array or struct is passed as its Ptr (D-034)
+			} else {
+				key = l.loadPlace(place{base: ps[2], t: u.Key()}, pos)
+			}
+			call := l.fn.Call(l.b, l.mapFunc(mt, kind, pos), append([]*ir.Instr{ps[1]()}, key...), pos)
+			if kind == mapDelete {
+				l.fn.Ret(l.b, pos)
+			} else {
+				l.fn.Ret(l.b, pos, call)
+			}
+			prune(l.fn)
+		})
+		mems = append(mems, l.staticClosure(w))
+	}
+	return mems
 }

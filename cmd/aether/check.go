@@ -9,6 +9,7 @@ import (
 	"github.com/stevenstank/aether/internal/ir"
 	"github.com/stevenstank/aether/internal/lower"
 	"github.com/stevenstank/aether/internal/mono"
+	"github.com/stevenstank/aether/internal/rangefunc"
 )
 
 type source struct {
@@ -66,7 +67,8 @@ func compileGOROOT(srcs []source) (*ir.Program, []diag.Diagnostic, error) {
 	if ds := gate.Files(names); len(ds) > 0 {
 		return nil, ds, nil
 	}
-	program, ds, err := frontend.Load(token.NewFileSet(), fsrcs, frontend.Stages{Precheck: gate.Precheck, Prepare: mono.Instantiate, Reject: gate.Reject})
+	program, ds, err := frontend.Load(token.NewFileSet(), fsrcs, frontend.Stages{Precheck: gate.Precheck, Prepare: mono.Instantiate, Reject: gate.Reject,
+		Desugar: func(p *frontend.Package) []diag.Diagnostic { return rangefunc.Rewrite(p, gate.Reject) }})
 	if err != nil || len(ds) > 0 {
 		return nil, ds, err
 	}

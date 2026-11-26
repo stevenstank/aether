@@ -379,9 +379,9 @@ func TestMilestone1Rejections(t *testing.T) {
 		// becomes supported is replaced (in Phase 11: import "fmt",
 		// fallthrough, a range over a string, and a complex type).
 		{"import", "package main\n\nimport \"example.com/lib\"\n\nfunc main() { lib.F() }\n", 3, "import"},
-		{"type alias", "package main\n\ntype A = int\n\nfunc main() { var a A; println(a) }\n", 3, "package-level-declaration"},
+		{"generic type alias", "package main\n\ntype A[T any] = []T\n\nfunc main() { var a A[int]; println(len(a)) }\n", 3, "package-level-declaration"},
 		{"generic function", "package main\n\nfunc f[T any](x T) T { return x }\n\nfunc main() {}\n", 3, "generic-uninstantiated"},
-		{"range over a function", main("for x := range func(yield func(int) bool) { yield(1) } {\n\tprintln(x)\n}"), 3, "for-range"},
+		{"defer in a range over a function", main("for x := range func(yield func(int) bool) { yield(1) } {\n\tdefer println(x)\n}"), 3, "for-range"},
 		{"complex arithmetic", main("var c complex64 = 1\nprintln(real(c + c))"), 3, "complex-arithmetic"},
 		{"package name", "package foo\n\nfunc main() {}\n", 3, "package-name"},
 	}

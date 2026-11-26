@@ -1,1 +1,0 @@
-testdata/check/unsupported_loop_variable_capture.go:12:39: unsupported: the capture of i, a variable declared in a for statement's init, by a function literal is not supported in subset S1 [loop-variable-address]

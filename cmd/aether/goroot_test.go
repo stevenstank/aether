@@ -196,7 +196,9 @@ func runGorootTest(t *testing.T, testDir, exe string) ([]byte, string) {
 	for try := 0; ; try++ {
 		cmd = exec.CommandContext(ctx, exe)
 		cmd.Dir = testDir
-		cmd.Env = append(os.Environ(), "PWD="+testDir)
+		// The go command testdir runs a test with exports GOROOT, which
+		// Aether's runtime.GOROOT returns (v2 evaluation).
+		cmd.Env = append(os.Environ(), "PWD="+testDir, "GOROOT="+filepath.Dir(testDir))
 		cmd.Stdout, cmd.Stderr = &out, &out
 		cmd.WaitDelay = waitDelay
 		err := cmd.Start()

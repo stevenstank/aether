@@ -28,19 +28,22 @@ func literals(pkg *frontend.Package) (map[*ast.FuncLit]int, map[*ast.FuncLit][]*
 	nums := map[*ast.FuncLit]int{}
 	caps := map[*ast.FuncLit][]*types.Var{}
 	var open []*ast.FuncLit // the literals around the node visited
-	// Each declaration is walked on its own: the copies of generic code
-	// have the positions of the code they copy (D-045), so positions
-	// order the nodes of one declaration only.
+	var path []ast.Node     // the nodes around it
+	// The literals around a node are those of the tree, not of positions:
+	// a range over a function's body is a literal (D-055) whose span
+	// holds its iterator's, a literal too.
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
-			open = open[:0]
+			open, path = open[:0], path[:0]
 			ast.Inspect(d, func(n ast.Node) bool {
 				if n == nil {
+					if _, ok := path[len(path)-1].(*ast.FuncLit); ok {
+						open = open[:len(open)-1]
+					}
+					path = path[:len(path)-1]
 					return true
 				}
-				for len(open) > 0 && n.Pos() >= open[len(open)-1].End() {
-					open = open[:len(open)-1]
-				}
+				path = append(path, n)
 				switch n := n.(type) {
 				case *ast.FuncLit:
 					nums[n] = len(nums) + 1

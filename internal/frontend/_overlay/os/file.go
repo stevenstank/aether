@@ -3,6 +3,7 @@ package os
 import (
 	"errors"
 	"io"
+	"io/fs"
 	"slices"
 	"syscall"
 	"unsafe"
@@ -438,70 +439,25 @@ func UserHomeDir() (string, error) {
 	return "", errors.New("$HOME is not defined")
 }
 
-// A FileMode is a file's mode and permission bits. It is gc's io/fs
-// FileMode, which Aether cannot import yet (SEMANTICS.md).
-type FileMode uint32
+// A FileMode is a file's mode and permission bits: gc's io/fs FileMode
+// (v2 evaluation).
+type FileMode = fs.FileMode
 
-// The defined file mode bits are the most significant bits of the
-// FileMode. The nine least-significant bits are the standard Unix rwxrwxrwx
-// permissions.
+// The defined file mode bits, io/fs's.
 const (
-	// The single letters are the abbreviations
-	// used by the String method's formatting.
-	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
-	ModeAppend                                     // a: append-only
-	ModeExclusive                                  // l: exclusive use
-	ModeTemporary                                  // T: temporary file; Plan 9 only
-	ModeSymlink                                    // L: symbolic link
-	ModeDevice                                     // D: device file
-	ModeNamedPipe                                  // p: named pipe (FIFO)
-	ModeSocket                                     // S: Unix domain socket
-	ModeSetuid                                     // u: setuid
-	ModeSetgid                                     // g: setgid
-	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
-	ModeSticky                                     // t: sticky
-	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
-
-	// Mask for the type bits. For regular files, none will be set.
-	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
-
-	ModePerm FileMode = 0777 // Unix permission bits
+	ModeDir        = fs.ModeDir
+	ModeAppend     = fs.ModeAppend
+	ModeExclusive  = fs.ModeExclusive
+	ModeTemporary  = fs.ModeTemporary
+	ModeSymlink    = fs.ModeSymlink
+	ModeDevice     = fs.ModeDevice
+	ModeNamedPipe  = fs.ModeNamedPipe
+	ModeSocket     = fs.ModeSocket
+	ModeSetuid     = fs.ModeSetuid
+	ModeSetgid     = fs.ModeSetgid
+	ModeCharDevice = fs.ModeCharDevice
+	ModeSticky     = fs.ModeSticky
+	ModeIrregular  = fs.ModeIrregular
+	ModeType       = fs.ModeType
+	ModePerm       = fs.ModePerm
 )
-
-func (m FileMode) String() string {
-	const str = "dalTLDpSugct?"
-	var buf [32]byte // Mode is uint32.
-	w := 0
-	for i, c := range str {
-		if m&(1<<uint(32-1-i)) != 0 {
-			buf[w] = byte(c)
-			w++
-		}
-	}
-	if w == 0 {
-		buf[w] = '-'
-		w++
-	}
-	const rwx = "rwxrwxrwx"
-	for i, c := range rwx {
-		if m&(1<<uint(9-1-i)) != 0 {
-			buf[w] = byte(c)
-		} else {
-			buf[w] = '-'
-		}
-		w++
-	}
-	return string(buf[:w])
-}
-
-// IsDir reports whether m describes a directory.
-func (m FileMode) IsDir() bool { return m&ModeDir != 0 }
-
-// IsRegular reports whether m describes a regular file.
-func (m FileMode) IsRegular() bool { return m&ModeType == 0 }
-
-// Perm returns the Unix permission bits in m (m & ModePerm).
-func (m FileMode) Perm() FileMode { return m & ModePerm }
-
-// Type returns type bits in m (m & ModeType).
-func (m FileMode) Type() FileMode { return m & ModeType }

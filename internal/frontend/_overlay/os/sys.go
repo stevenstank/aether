@@ -29,6 +29,7 @@ const (
 	sysNewfstatat = 262
 	sysUnlinkat   = 263
 	sysRenameat   = 264
+	sysGetdents64 = 217
 )
 
 const (
@@ -84,6 +85,7 @@ type fileStat struct {
 	dev, ino uint64
 	mode     uint32
 	size     int64
+	mtime    [2]int64 // seconds and nanoseconds
 }
 
 func (s fileStat) isDir() bool { return s.mode&0xf000 == 0x4000 } // S_IFDIR
@@ -94,7 +96,7 @@ func sameFile(a, b fileStat) bool { return a.dev == b.dev && a.ino == b.ino }
 type statWords [18]uint64
 
 func (w *statWords) stat() fileStat {
-	return fileStat{dev: w[0], ino: w[1], mode: uint32(w[3]), size: int64(w[6])}
+	return fileStat{dev: w[0], ino: w[1], mode: uint32(w[3]), size: int64(w[6]), mtime: [2]int64{int64(w[11]), int64(w[12])}}
 }
 
 // statName is gc's Stat (op "stat", flags 0) or Lstat (op "lstat",

@@ -3,5 +3,5 @@
 package main
 
 func main() {
-	println(len([]struct{ error }{{}}))
+	println(len([][1 << 22]int{{}}))
 }

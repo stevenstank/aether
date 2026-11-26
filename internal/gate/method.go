@@ -48,7 +48,9 @@ func (c *checker) methodCall(call *ast.CallExpr, x ast.Expr, sel *types.Selectio
 // methodValue checks a method value x.M, not called (D-039): its receiver
 // operand x, as for a call of M.
 func (c *checker) methodValue(e *ast.SelectorExpr, sel *types.Selection) {
-	if fn, ok := sel.Obj().(*types.Func); !ok || fn.Pkg() == nil && !isInterface(sel.Recv()) {
+	// error's Error has no package; it is selected through an interface,
+	// perhaps one embedded in a struct.
+	if fn, ok := sel.Obj().(*types.Func); !ok || fn.Pkg() == nil && !isInterface(fn.Signature().Recv().Type()) {
 		c.reject(e, FeatSelector, "selector "+types.ExprString(e))
 		return
 	}

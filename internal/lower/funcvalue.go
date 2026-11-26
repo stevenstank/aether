@@ -75,6 +75,12 @@ func (l *lowerer) buildWrappers() {
 
 // closure returns the Ptr of the static closure of the wrapper code.
 func (l *lowerer) closure(code *ir.Func, pos ir.Pos) *ir.Instr {
+	return l.addr(l.staticClosure(code), pos)
+}
+
+// staticClosure returns the static closure object of code, which Init
+// initializes.
+func (l *lowerer) staticClosure(code *ir.Func) *ir.Mem {
 	m := l.staticMems[code]
 	if m == nil {
 		m = l.prog.NewMem(".v"+code.Name, 8, 8, code.File, code.Pos)
@@ -84,7 +90,7 @@ func (l *lowerer) closure(code *ir.Func, pos ir.Pos) *ir.Instr {
 		l.staticMems[code] = m
 		l.statics = append(l.statics, static{m, code})
 	}
-	return l.addr(m, pos)
+	return m
 }
 
 // forward ends w's body: it calls callee with recv, if not nil, and then

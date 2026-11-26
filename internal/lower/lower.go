@@ -69,7 +69,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 	l.lits, l.captures = literals(pkg)
 	l.unwinds = programDefers(pkg)
 	l.countG = reached(pkg, "runtime.NumGoroutine")
-	l.implements = reached(pkg, "internal/reflectlite.implements")
+	l.implements = reached(pkg, "internal/reflectlite.implements") || reached(pkg, "reflect.implements")
 	for _, u := range program.Packages {
 		l.reflect = l.reflect || u.Types.Path() == "reflect" || u.Types.Path() == "internal/reflectlite"
 	}
@@ -1065,8 +1065,9 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 		l.stmt(s.Init)
 	}
 	head, body, exit := l.fn.NewBlock(), l.fn.NewBlock(), l.fn.NewBlock()
+	iterVars := l.iterationVars(s)
 	next := head
-	if s.Post != nil {
+	if s.Post != nil || len(iterVars) > 0 {
 		next = l.fn.NewBlock()
 	}
 	pos := l.pos(s, s.For)
@@ -1085,10 +1086,19 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 		l.fn.Jump(l.b, next, l.pos(s.Body, s.Body.Rbrace))
 	}
 	l.targets = l.targets[:len(l.targets)-1]
-	if s.Post != nil {
+	if next != head {
 		l.b, l.done = next, false
-		l.stmt(s.Post)
-		l.fn.Jump(l.b, head, l.pos(s.Post, s.Post.Pos()))
+		// Each iteration's own variables (Go 1.22): a new one for the
+		// next, holding the value of this one, before the post statement.
+		for _, v := range iterVars {
+			l.rebox(v, pos)
+		}
+		back := pos
+		if s.Post != nil {
+			l.stmt(s.Post)
+			back = l.pos(s.Post, s.Post.Pos())
+		}
+		l.fn.Jump(l.b, head, back)
 	}
 	// Without a condition, only a break reaches the exit.
 	l.b, l.done = exit, s.Cond == nil && !lp.broken
@@ -1431,6 +1441,9 @@ func (l *lowerer) call(call *ast.CallExpr) *ir.Instr {
 		}
 		if isIface(sel.Recv()) {
 			return l.ifaceCall(call, fn, sel) // D-041
+		}
+		if viaIface(sel) {
+			return l.promotedCall(call, fn, sel)
 		}
 		obj, _ = sel.Obj().(*types.Func)
 		w := l.receiver(fn, sel)
@@ -1857,13 +1870,22 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 				if tv, ok := l.pkg.Info.Types[e]; ok && !tv.IsType() && tv.Type != nil && isIface(tv.Type) {
 					found = true
 				}
+				// So may a multi-value call's interface results, as
+				// arguments of another call.
+				if tv, ok := l.pkg.Info.Types[e]; ok && !tv.IsType() {
+					if tup, ok := tv.Type.(*types.Tuple); ok {
+						for v := range tup.Variables() {
+							found = found || isIface(v.Type())
+						}
+					}
+				}
 			}
 			if _, ok := n.(*ast.TypeAssertExpr); ok {
 				found = true
 			}
 			if se, ok := n.(*ast.SelectorExpr); ok {
-				if sel := l.pkg.Info.Selections[se]; sel != nil && isIface(sel.Recv()) {
-					found = true
+				if sel := l.pkg.Info.Selections[se]; sel != nil && (isIface(sel.Recv()) || sel.Kind() != types.FieldVal && viaIface(sel)) {
+					found = true // also through an embedded interface
 				}
 			}
 			if b, ok := n.(*ast.BinaryExpr); ok {
@@ -1883,6 +1905,9 @@ func (l *lowerer) branches(list []ast.Expr) bool {
 				// a call of a func value checks it for nil (funcvalue.go).
 				// min and max select by branching (D-049), and
 				// unsafe.String and unsafe.Slice check (unsafe.go).
+				if tv := l.pkg.Info.Types[n.Fun]; tv.IsType() && len(n.Args) == 1 && isSlice(l.pkg.Info.Types[n.Args[0]].Type) && toArray(tv.Type) {
+					found = true // a slice's conversion to an array checks its length
+				}
 				found = found || l.isBuiltin(n, "make") || l.isBuiltin(n, "append") || l.isBuiltin(n, "copy") || l.isValueCall(n) ||
 					l.isBuiltin(n, "min") || l.isBuiltin(n, "max") || l.isBuiltin(n, "String") || l.isBuiltin(n, "Slice")
 			case *ast.SelectorExpr:
@@ -1983,6 +2008,10 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			return l.ifaceMethodValue(e, sel) // D-041
 		case sel != nil && sel.Kind() == types.MethodExpr && isIface(sel.Recv()):
 			return l.ifaceMethodExpr(e, sel)
+		case sel != nil && sel.Kind() == types.MethodVal && viaIface(sel):
+			return l.promotedValue(e, sel)
+		case sel != nil && sel.Kind() == types.MethodExpr && viaIface(sel):
+			return l.promotedExpr(e, sel)
 		case sel != nil && sel.Kind() == types.MethodVal:
 			return l.methodValue(e, sel)
 		case sel != nil && sel.Kind() == types.MethodExpr:
@@ -2051,6 +2080,9 @@ func (l *lowerer) expr(e ast.Expr) *ir.Instr {
 			}
 		}
 		if l.pkg.Info.Types[e.Fun].IsType() {
+			if isSlice(l.pkg.Info.Types[e.Args[0]].Type) {
+				return l.sliceToArrayPtr(e) // Go 1.20
+			}
 			// A conversion: between integer types a conv, and between
 			// identical types, such as bool(b), nothing.
 			x := l.expr(e.Args[0])
@@ -2354,6 +2386,29 @@ func (l *lowerer) guard(fail *ir.Instr, kind int, pos ir.Pos, vals ...*ir.Instr)
 	return out
 }
 
+// guardFn is guard with a panic that build lowers in the failing block,
+// given the values vals there; build must end the block.
+func (l *lowerer) guardFn(fail *ir.Instr, pos ir.Pos, vals []*ir.Instr, build func(vs []*ir.Instr)) []*ir.Instr {
+	get := make([]func() *ir.Instr, len(vals))
+	for i, v := range vals {
+		get[i] = l.spill(v, pos)
+	}
+	panicking, ok := l.fn.NewBlock(), l.fn.NewBlock()
+	l.fn.Branch(l.b, fail, panicking, ok, pos)
+	l.b = panicking
+	vs := make([]*ir.Instr, len(get))
+	for i := range get {
+		vs[i] = get[i]()
+	}
+	build(vs)
+	l.b = ok
+	out := make([]*ir.Instr, len(vals))
+	for i := range get {
+		out[i] = get[i]()
+	}
+	return out
+}
+
 // logical lowers x && y and x || y: x is stored in a temporary slot, and
 // y is evaluated, and stored over it, only if x does not decide the
 // result. Both branches are at the operator.
@@ -2570,12 +2625,65 @@ func int64Val(tv types.TypeAndValue) (int64, bool) {
 // declare an array or struct type (D-034).
 func (l *lowerer) typeDecl(d *ast.GenDecl, what string) {
 	for _, spec := range d.Specs {
-		tn, ok := l.pkg.Info.Defs[spec.(*ast.TypeSpec).Name].(*types.TypeName)
+		_, ok := l.pkg.Info.Defs[spec.(*ast.TypeSpec).Name].(*types.TypeName)
 		if ok && l.generic(spec) {
 			continue
 		}
-		if !ok || tn.IsAlias() {
+		if !ok {
 			l.fail(d, "unexpected %s", what)
 		}
+		// An alias names its type, which needs nothing (v2 evaluation).
 	}
+}
+
+// toArray reports whether t is an array type or a pointer to one.
+func toArray(t types.Type) bool {
+	u := t.Underlying()
+	if p, ok := u.(*types.Pointer); ok {
+		u = p.Elem().Underlying()
+	}
+	_, ok := u.(*types.Array)
+	return ok
+}
+
+// iterationVars returns the variables that the init statement of the for
+// statement s declares and that are on the heap: captured by a function
+// literal or address-taken, so each iteration's own must be a new object
+// (Go 1.22 per-iteration loop variables, v2 evaluation). One on the stack
+// needs nothing: no reference to it outlives its iteration's value.
+func (l *lowerer) iterationVars(s *ast.ForStmt) []*types.Var {
+	a, ok := s.Init.(*ast.AssignStmt)
+	if !ok || a.Tok != token.DEFINE {
+		return nil
+	}
+	var vs []*types.Var
+	for _, lhs := range a.Lhs {
+		id, ok := lhs.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		if v, ok := l.pkg.Info.Defs[id].(*types.Var); ok && l.addrTaken[v] {
+			vs = append(vs, v)
+		}
+	}
+	return vs
+}
+
+// rebox gives the heap variable v a new object holding its current value:
+// references to the old one keep it.
+func (l *lowerer) rebox(v *types.Var, pos ir.Pos) {
+	s := l.ptrs[v]
+	if s == nil {
+		l.fail(nil, "loop variable %s is not on the heap", v.Name())
+	}
+	t := v.Type()
+	old := l.keep(l.fn.Load(l.b, s, pos), pos)
+	fresh := l.keep(l.alloc(t, pos), pos)
+	dst, src := place{base: fresh, t: t}, place{base: old, t: t}
+	if isAggregate(t) {
+		l.copyPlace(dst, src, pos)
+	} else {
+		l.storePlace(dst, l.loadPlace(src, pos), pos)
+	}
+	l.fn.Store(l.b, s, fresh(), pos)
 }

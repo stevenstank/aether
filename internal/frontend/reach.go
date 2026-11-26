@@ -14,9 +14,11 @@ import (
 //     initializers may have an effect (impure) are roots;
 //   - a declaration is reachable when reachable code names it, or names
 //     an object whose type involves it;
-//   - every method of a reachable defined type is reachable, which is more
-//     than D-049 requires (a conversion of the type to an interface) and
-//     so never leaves out code the program runs.
+//   - a method of a reachable defined type is reachable when reachable
+//     code names it, or when a reachable interface type has a method of
+//     its name (and package, if unexported): only then can it be called,
+//     through an itab (v2 evaluation; Aether's reflect calls no method).
+//     Error and String are always kept, for the printing of panics.
 //
 // The pruned packages share their syntax and types.Info maps with the
 // unpruned ones; only their files' declaration lists and InitOrder differ.
@@ -25,7 +27,8 @@ func prune(prog *Program) {
 		return
 	}
 	r := &reacher{decls: map[types.Object]ast.Node{}, methods: map[*types.TypeName][]types.Object{},
-		seen: map[types.Object]bool{}, types: map[types.Type]bool{}}
+		seen: map[types.Object]bool{}, types: map[types.Type]bool{},
+		ifaceIDs: map[string]bool{"Error": true, "String": true}, pending: map[string][]types.Object{}}
 	main := prog.Main()
 	var roots []ast.Node
 	for _, p := range prog.Packages[:len(prog.Packages)-1] {
@@ -96,6 +99,10 @@ type reacher struct {
 	methods map[*types.TypeName][]types.Object
 	seen    map[types.Object]bool
 	types   map[types.Type]bool
+	// The method identities of the reachable interfaces, and the methods
+	// of reachable types not yet reachable, by identity.
+	ifaceIDs map[string]bool
+	pending  map[string][]types.Object
 }
 
 // index records the declarations of d by object, and returns those that
@@ -169,10 +176,15 @@ func pure(info *types.Info, e ast.Expr) bool {
 		}
 		return true
 	case *ast.CallExpr:
-		// A conversion, except to a pointer (from a slice, it may panic).
+		// A conversion, except of a slice to an array or a pointer to
+		// one, which may panic (D-055).
 		if tv := info.Types[e.Fun]; tv.IsType() && len(e.Args) == 1 {
-			_, ptr := tv.Type.Underlying().(*types.Pointer)
-			return !ptr && pure(info, e.Args[0])
+			if at := info.Types[e.Args[0]].Type; at != nil {
+				if _, sl := at.Underlying().(*types.Slice); sl && !isSliceType(tv.Type) {
+					return false
+				}
+			}
+			return pure(info, e.Args[0])
 		}
 	}
 	return false
@@ -221,7 +233,11 @@ func (r *reacher) mark(obj types.Object) {
 	}
 	if tn, ok := obj.(*types.TypeName); ok {
 		for _, m := range r.methods[tn] {
-			r.mark(m)
+			if id := m.Id(); r.ifaceIDs[id] {
+				r.mark(m)
+			} else {
+				r.pending[id] = append(r.pending[id], m)
+			}
 		}
 	}
 	if d := r.decls[obj]; d != nil {
@@ -240,6 +256,23 @@ func (r *reacher) markType(t types.Type) {
 		r.mark(t.Obj())
 		for a := range t.TypeArgs().Types() {
 			r.markType(a)
+		}
+		if _, ok := t.Underlying().(*types.Interface); ok {
+			r.markType(t.Underlying()) // error's, which has no declaration
+		}
+	case *types.Interface:
+		// Its methods may be called on any reachable type that has them.
+		for m := range t.Methods() {
+			id := m.Id()
+			if r.ifaceIDs[id] {
+				continue
+			}
+			r.ifaceIDs[id] = true
+			ms := r.pending[id]
+			delete(r.pending, id)
+			for _, m := range ms {
+				r.mark(m)
+			}
 		}
 	case *types.Alias:
 		r.markType(types.Unalias(t))
@@ -329,4 +362,9 @@ func (r *reacher) specReached(info *types.Info, s ast.Spec) bool {
 		return r.seen[info.Defs[s.Name]]
 	}
 	return false
+}
+
+func isSliceType(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Slice)
+	return ok
 }

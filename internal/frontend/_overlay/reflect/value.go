@@ -413,13 +413,27 @@ func (v Value) Set(x Value) {
 	if x.flag&flagRO != 0 {
 		panic("reflect: reflect.Value.Set using value obtained using unexported field")
 	}
+	if x.typ == nil {
+		panic(&ValueError{"reflect.Value.Set", Invalid})
+	}
 	switch {
-	case x.typ == v.typ:
+	case directlyAssignable(v.typ, x.typ):
 		copy(unsafe.Slice((*byte)(v.ptr), v.typ.size), unsafe.Slice((*byte)(x.ptr), v.typ.size))
 	case v.typ.kind == Interface && v.typ.n == 0:
 		*(*any)(v.ptr) = x.Interface()
+	case v.typ.kind == Interface && implementsType(v.typ, x.typ):
+		// A non-empty interface's words: the itab of x's dynamic type and
+		// the interface, and the data (v2 evaluation).
+		e := x.Interface()
+		w := (*[2]unsafe.Pointer)(unsafe.Pointer(&e))
+		dst := (*[2]unsafe.Pointer)(v.ptr)
+		if w[0] == nil {
+			dst[0], dst[1] = nil, nil
+			return
+		}
+		dst[0], dst[1] = implements(unsafe.Pointer(v.typ), w[0]), w[1]
 	default:
-		panic("reflect.Set: Aether does not assign a value of type " + x.typ.str + " to type " + v.typ.str)
+		panic("reflect.Set: value of type " + x.typ.str + " is not assignable to type " + v.typ.str)
 	}
 }
 
@@ -545,4 +559,33 @@ func Indirect(v Value) Value {
 		return v
 	}
 	return v.Elem()
+}
+
+// zeroed returns the address of a new zero value of type t, in words the
+// collector scans.
+func zeroed(t *rtype) unsafe.Pointer {
+	words := make([]unsafe.Pointer, (t.size+7)/8+1)
+	return unsafe.Pointer(&words[0])
+}
+
+// New returns a Value representing a pointer to a new zero value for the
+// specified type.
+func New(typ Type) Value {
+	if typ == nil {
+		panic("reflect: New(nil)")
+	}
+	t := typ.(*rtype)
+	p := new(unsafe.Pointer)
+	*p = zeroed(t)
+	return Value{typ: t.ptrTyp(), ptr: unsafe.Pointer(p)}
+}
+
+// Zero returns a Value representing the zero value for the specified
+// type. The result is not addressable.
+func Zero(typ Type) Value {
+	if typ == nil {
+		panic("reflect: Zero(nil)")
+	}
+	t := typ.(*rtype)
+	return Value{typ: t, ptr: zeroed(t)}
 }

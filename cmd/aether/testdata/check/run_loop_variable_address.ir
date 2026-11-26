@@ -1,0 +1,62 @@
+func main @testdata/check/run_loop_variable_address.go:8:6
+  slot s0 last ptr @9:6
+  slot s1 i ptr @10:6
+  slot s2 tmp ptr @10:2
+  slot s3 tmp ptr @10:2
+  slot s4 tmp ptr @13:11
+b0:
+  v0 = const ptr 0 @9:6
+  store s0, v0 @9:6
+  v1 = const 0 @10:11
+  v2 = const 8 @10:6
+  v3 = alloc noscan, v2 @10:6
+  store s1, v3 @10:6
+  v4 = load s1 @10:6
+  v5 = const 0 @10:6
+  stm v4, v5, v1 @10:6
+  jump b1 @10:2
+b1:
+  v6 = load s1 @10:14
+  v7 = const 0 @10:14
+  v8 = ldm i64, v6, v7 @10:14
+  v9 = const 3 @10:18
+  v10 = lt v8, v9 @10:16
+  branch v10, b2, b3 @10:2
+b2:
+  v11 = load s1 @11:11
+  store s0, v11 @11:3
+  jump b4 @12:2
+b3:
+  v25 = load s0 @13:11
+  store s4, v25 @13:11
+  v26 = const ptr 0 @13:11
+  v27 = eq v25, v26 @13:11
+  branch v27, b5, b6 @13:11
+b4:
+  v12 = load s1 @10:2
+  store s2, v12 @10:2
+  v13 = const 8 @10:2
+  v14 = alloc noscan, v13 @10:2
+  store s3, v14 @10:2
+  v15 = const 0 @10:2
+  v16 = ldm i64, v12, v15 @10:2
+  v17 = const 0 @10:2
+  stm v14, v17, v16 @10:2
+  store s1, v14 @10:2
+  v18 = load s1 @10:21
+  v19 = const 0 @10:21
+  v20 = ldm i64, v18, v19 @10:21
+  v21 = const 1 @10:22
+  v22 = add v20, v21 @10:22
+  v23 = load s1 @10:21
+  v24 = const 0 @10:21
+  stm v23, v24, v22 @10:21
+  jump b1 @10:21
+b5:
+  panic nil @13:11
+b6:
+  v28 = load s4 @13:11
+  v29 = const 0 @13:10
+  v30 = ldm i64, v28, v29 @13:10
+  println v30 @13:2
+  ret @14:1

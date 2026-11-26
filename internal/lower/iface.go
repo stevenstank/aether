@@ -29,6 +29,7 @@ import (
 	"go/ast"
 	"go/types"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/stevenstank/aether/internal/ir"
@@ -71,6 +72,9 @@ type tdesc struct {
 	// interface's .findK, and a defined type's underlying type.
 	find  *ir.Func
 	under *tdesc
+	// With package reflect (v2 evaluation): a map type's access, assign,
+	// and delete functions of reflect's, as static closures.
+	mapFns []*ir.Mem
 }
 
 // itabT is the itab of a type and an interface.
@@ -187,6 +191,9 @@ func (l *lowerer) itab(t, iface types.Type, pos ir.Pos) *itabT {
 // value is copied first: the method may change its receiver, and the
 // interface's copy must not change.
 func (l *lowerer) ifaceMethod(d *tdesc, sel *types.Selection, pos ir.Pos) *ir.Func {
+	if viaIface(sel) {
+		return l.promotedIfaceMethod(d, sel, pos)
+	}
 	f, _ := l.method(nil, sel)
 	t := d.t
 	name := fmt.Sprintf("i%d.%s", d.id, sel.Obj().Name())
@@ -537,10 +544,15 @@ func (l *lowerer) retCall(v *ir.Instr, pos ir.Pos) {
 // ifaceMethodValue lowers x.M of an interface value x: its nil check now,
 // as gc's, then a closure holding tab and data, whose code .biK.M calls M.
 func (l *lowerer) ifaceMethodValue(e *ast.SelectorExpr, sel *types.Selection) *ir.Instr {
+	return l.ifaceBound(e, sel, sel.Recv(), l.value(e.X))
+}
+
+// ifaceBound lowers the method value of sel's method of the interface
+// value w of type t.
+func (l *lowerer) ifaceBound(e *ast.SelectorExpr, sel *types.Selection, t types.Type, w []*ir.Instr) *ir.Instr {
 	pos := l.pos(e, e.Sel.Pos())
-	t, name := sel.Recv(), sel.Obj().Name()
+	name := sel.Obj().Name()
 	ps, rs := l.ifaceWrapperSig(e, sel.Obj().Type().(*types.Signature))
-	w := l.value(e.X)
 	out := l.guard(l.fn.Compare(l.b, ir.Eq, w[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos), ir.PanicNil, pos, w...)
 	f := l.wrapper(fmt.Sprintf("bi%d.%s", l.ifaceKey(t), name), append([]ir.Type{ir.Ptr}, ps...), rs, pos, func(f *ir.Func) {
 		gets := l.enter(f, pos)
@@ -636,12 +648,16 @@ func (l *lowerer) gcName(t types.Type) string {
 			return "struct {}"
 		}
 		var fs []string
-		for f := range t.Fields() {
-			if f.Embedded() {
-				fs = append(fs, l.gcName(f.Type()))
-			} else {
-				fs = append(fs, f.Name()+" "+l.gcName(f.Type()))
+		for i := range t.NumFields() {
+			f := t.Field(i)
+			s := l.gcName(f.Type())
+			if !f.Embedded() {
+				s = f.Name() + " " + s
 			}
+			if tag := t.Tag(i); tag != "" {
+				s += " " + strconv.Quote(tag) // gc's (v2 evaluation)
+			}
+			fs = append(fs, s)
 		}
 		return "struct { " + strings.Join(fs, "; ") + " }"
 	case *types.Signature:
@@ -683,4 +699,126 @@ func (l *lowerer) gcSig(s *types.Signature) string {
 		r += " (" + strings.Join(rs, ", ") + ")"
 	}
 	return r
+}
+
+// Methods promoted through an interface embedded in a struct (v2
+// evaluation): x.M, where the path of embedded fields to M ends at a field
+// of interface type, is x.F.M for that field F. Its receiver, which recvOf
+// selects as for any promoted method, is the interface value's words; a
+// call dispatches through its itab, after the nil check of an interface
+// call.
+
+// viaIface reports whether sel selects a method of an interface embedded
+// in a struct: not of an interface operand, but declared by one.
+func viaIface(sel *types.Selection) bool {
+	return !isIface(sel.Recv()) && isIface(sel.Obj().Type().(*types.Signature).Recv().Type())
+}
+
+// embeddedIface returns the type of the interface field at the end of the
+// path of sel, which viaIface reports.
+func embeddedIface(sel *types.Selection) types.Type {
+	t := sel.Recv()
+	path := sel.Index()
+	for _, k := range path[:len(path)-1] {
+		if e, ok := pointee(t); ok {
+			t = e
+		}
+		t = t.Underlying().(*types.Struct).Field(k).Type()
+	}
+	return t
+}
+
+// promotedCall lowers the call of a method promoted through an embedded
+// interface: the receiver, the arguments, the nil check, and the dispatch.
+func (l *lowerer) promotedCall(call *ast.CallExpr, se *ast.SelectorExpr, sel *types.Selection) *ir.Instr {
+	pos := l.pos(call, call.Pos())
+	w := l.receiver(se, sel)
+	get := func() []*ir.Instr { return w }
+	if l.branches(call.Args) {
+		get = l.spillWords(w, pos)
+	}
+	sig := sel.Obj().Type().(*types.Signature)
+	args := flatten(l.args(call, sig))
+	w = get()
+	out := l.guard(l.fn.Compare(l.b, ir.Eq, w[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos), ir.PanicNil, pos, append(slices.Clone(w), args...)...)
+	return l.dispatch(call, embeddedIface(sel), sel.Obj().Name(), sig, out[0], out[1], out[2:], pos)
+}
+
+// promotedValue lowers the method value x.M of a method promoted through an
+// embedded interface: the interface's method value.
+func (l *lowerer) promotedValue(e *ast.SelectorExpr, sel *types.Selection) *ir.Instr {
+	return l.ifaceBound(e, sel, embeddedIface(sel), l.receiver(e, sel))
+}
+
+// promotedExpr lowers T.M or (*T).M of a method promoted through an
+// embedded interface: a wrapper whose first Go parameter is the operand,
+// whose interface field it calls M of.
+func (l *lowerer) promotedExpr(e *ast.SelectorExpr, sel *types.Selection) *ir.Instr {
+	pos := l.pos(e, e.Sel.Pos())
+	xt := sel.Recv()
+	n, xPtr := xt, false
+	if t, ok := pointee(xt); ok {
+		n, xPtr = t, true
+	}
+	sig := sel.Obj().Type().(*types.Signature)
+	ps, rs := l.ifaceWrapperSig(e, sig)
+	nx := len(l.words(e, xt))
+	params := append(append([]ir.Type{ir.Ptr}, l.words(e, xt)...), ps...)
+	name := fmt.Sprintf("pe%d.%s", l.desc(xt).id, sel.Obj().Name())
+	w := l.wrapper(name, params, rs, pos, func(w *ir.Func) {
+		gets := l.enter(w, pos)
+		x := gets[1]
+		var deref, addr func() place
+		if xPtr {
+			deref = func() place { return l.through(x(), n, pos) }
+		} else if isAggregate(n) {
+			addr = func() place { return l.valuePlace(x(), n, pos) }
+		}
+		r := l.recvOf(e, sel, xPtr, func() []*ir.Instr {
+			var ws []*ir.Instr
+			for _, p := range gets[1 : 1+nx] {
+				ws = append(ws, p())
+			}
+			return ws
+		}, deref, addr, pos)
+		l.callPromoted(e, sel, r, gets[1+nx:], rs, pos)
+	})
+	return l.closure(w, pos)
+}
+
+// promotedIfaceMethod returns the itab wrapper of the descriptor d for the
+// method sel selects through an embedded interface.
+func (l *lowerer) promotedIfaceMethod(d *tdesc, sel *types.Selection, pos ir.Pos) *ir.Func {
+	t := d.t
+	ps, rs := l.ifaceWrapperSig(nil, sel.Obj().Type().(*types.Signature))
+	name := fmt.Sprintf("i%d.%s", d.id, sel.Obj().Name())
+	return l.wrapper(name, append([]ir.Type{ir.Ptr, ir.Ptr}, ps...), rs, pos, func(w *ir.Func) {
+		gets := l.enter(w, pos)
+		data := gets[1]
+		var r []*ir.Instr
+		if isDirect(t) {
+			et, _ := pointee(t)
+			r = l.recvOf(nil, sel, true, func() []*ir.Instr { return []*ir.Instr{data()} },
+				func() place { return l.through(data(), et, pos) }, nil, pos)
+		} else {
+			// The interface field of the interface's own copy, which
+			// nothing changes.
+			r = l.recvOf(nil, sel, false, nil, nil, func() place { return l.valuePlace(data(), t, pos) }, pos)
+		}
+		l.callPromoted(nil, sel, r, gets[2:], rs, pos)
+	})
+}
+
+// callPromoted ends a wrapper with the call of sel's method of the
+// embedded interface value r, with the wrapper's arguments args: its nil
+// check, the dispatch, and the return of its results rs.
+func (l *lowerer) callPromoted(n ast.Node, sel *types.Selection, r []*ir.Instr, args []func() *ir.Instr, rs []ir.Type, pos ir.Pos) {
+	keep := l.keepAll(r, pos)
+	var ws []*ir.Instr
+	for _, g := range args {
+		ws = append(ws, g())
+	}
+	r = []*ir.Instr{keep[0](), keep[1]()}
+	out := l.guard(l.fn.Compare(l.b, ir.Eq, r[0], l.fn.TypedConst(l.b, ir.Ptr, 0, pos), pos), ir.PanicNil, pos, append(r, ws...)...)
+	l.retCall(l.callMethod(n, embeddedIface(sel), sel.Obj().Name(), out[0], out[1], out[2:], rs, pos), pos)
 }

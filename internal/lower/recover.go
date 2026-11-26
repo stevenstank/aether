@@ -272,6 +272,7 @@ func (l *lowerer) classifyMsg(rec func() *ir.Instr, pos ir.Pos) {
 		exact     bool
 	}{
 		{"interface conversion: ", "*runtime.TypeAssertionError", false},
+		{"runtime error: cannot convert slice ", "runtime.boundsError", false}, // aggregate.go
 		{"hash of unhashable type: ", "maps.unhashableTypeError", false},
 		{"assignment to entry in nil map", "runtime.plainError", true},
 		{"value method ", "runtime.plainError", false}, // panicwrap (iface.go)

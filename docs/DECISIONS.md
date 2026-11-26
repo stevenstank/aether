@@ -80,6 +80,7 @@ which also holds the later experiments. Benchmarks were first measured on
 | D-052 | Instances of another package's generic code, hosted (Batch 3) | Accepted (2026-11-25; owner review pending) |
 | D-053 | gc's amd64 Exp and Log in Go, the processor's FMA, GODEBUG, and math/rand (Batch 5) | Accepted (2026-11-25; owner review pending) |
 | D-054 | gc's time over Aether's syscall, with its timers in the scheduler (Batch 4) | Accepted (2026-11-26; owner review pending) |
+| D-055 | Practical evaluation v2 batch: range over functions, per-iteration loop variables, embedded interfaces, slice-to-array conversions, aliases, and reflect for the encoders | Accepted (2026-11-26; owner review pending) |
 
 ## Review log
 
@@ -4755,6 +4756,99 @@ Exercising `$GOROOT/test/maplinear.go` found two quadratic map cases
 (NaN keys, and ranges after deleting the first entries), fixed in
 lowering: a NaN key hashes as the next of a sequence, and a map header
 records where its first live entry may be.
+## D-055: Practical evaluation v2 batch (range over functions, loop variables, embedded interfaces, reflect for the encoders)
+
+**Status:** Accepted (2026-11-26; owner review pending). Written with its
+code, after `eval/practical-v2/REPORT.md` found 0 of 10 new programs
+compiled.
+
+**Context.** Every v2 program used `flag`; six used `encoding/json`,
+`xml`, or `gob`; others used range over functions (directly or through
+`maps`/`slices` iterators), closures over 3-clause `for` variables, an
+interface embedded in a struct (`context`, `sort.Reverse`, `math/big`),
+`net/url`, `crypto/sha256`, `math/big`, `os` directories and temporary
+files, and `runtime/debug`.
+
+**Decision.**
+- **A desugaring stage** (`frontend.Stages.Desugar`, `internal/rangefunc`),
+  after a package's last type check and before the gate: each range over
+  a function becomes a call of the iterator with a function literal whose
+  body is the loop's, `continue`/`break`/`return`/labeled branches and
+  `goto` out of it rewritten through a state variable, and gc's three
+  run-time checks of an iterator kept. The synthesized nodes are recorded
+  in `types.Info` (the loop's own variables are the literal's
+  parameters; new variables are declared just before the loop), so the
+  gate and lowering see ordinary code. A `defer` in such a body is
+  unsupported. Lowering's capture analysis follows the syntax tree, not
+  positions, since the literal's span holds its iterator's.
+- **Per-iteration variables of 3-clause `for` statements** (Go 1.22): a
+  variable that is captured or address-taken is on the heap; before the
+  post statement lowering gives it a new object holding its value
+  (`rebox`). The `loop-variable-address` rejections are gone.
+- **Interfaces embedded in structs**: a method promoted through one is
+  the embedded field's method; `recvOf` selects the field, and calls,
+  method values, method expressions, and itab wrappers dispatch through
+  its itab after the interface call's nil check.
+- **Slice-to-array conversions** (Go 1.20): a length check raising gc's
+  message through `PanicMsg`, classified as `runtime.boundsError` when
+  recovered (no new IR panic kind), then a copy, or the slice's pointer.
+- **Non-generic type aliases** at package level and locally.
+- **reflect for the encoders.** Type descriptors in a reflect program
+  grow (`lower/reflect.go`): the pointer type's descriptor, the name and
+  package path, the `NumMethod` count, an interface's method records, a
+  struct field's tag, and for a map type static closures of reflect's
+  access, assign, and delete functions over the type's own. The overlay
+  adds New, Zero, PointerTo, Name, PkgPath, Implements and AssignableTo
+  (also between interfaces, by method records), FieldByIndex/Name,
+  struct tags, Addr, Slice, SetLen, Grow (Aether's append growth),
+  Append, Copy, IsZero, Equal, Overflow*, maps (MakeMap, MapIndex,
+  MapKeys, SetMapIndex), DeepEqual, Convert/ConvertibleTo for
+  same-layout, numeric, and interface conversions, TypeFor, and
+  TypeAssert. `Value.Call` and `MakeFunc` are declared without bodies:
+  unsupported if reached.
+- **Pruning (amends D-049)**: a reachable type's method is reachable
+  when reachable code names it or a reachable interface type has a
+  method of its identity, as gc's linker decides; `Error` and `String`
+  always, for the printing of panics. A compile-time assertion such as
+  `var _ I = (*T)(nil)` is no longer a root. Without this, `os` on
+  `io/fs` doubled every `fmt` program; with it, a hello-world binary is
+  smaller than before the batch.
+- **Standard-library replacements**, each with gc's results where a
+  program can observe them: `flag` and `log` import Aether's
+  `internal/callers` (a patch's `imports`) in place of `runtime`, whose
+  `Caller` reports no frames, which its contract allows, while a
+  program's own `runtime.Caller` stays unsupported; `runtime/debug` records its settings;
+  `unique` and `crypto/internal/fips140cache` hold their keys strongly
+  (Aether has no weak pointers); `math/big` uses gc's pure-Go arithmetic;
+  the FIPS module's runtime links get bodies (`fatal`, the service
+  indicator, bypass, `sha3Unwrap`), its self-check fails in FIPS mode as
+  gc's does without a checksum, `constanttime`'s intrinsic reads a bool's
+  byte without a branch, and `sysrand` calls getrandom(2); `os` uses
+  `io/fs`'s types and adds Stat, Lstat, ReadDir, directory reading,
+  Readlink, CreateTemp, MkdirTemp, and RemoveAll; a standard-library
+  package's `golang.org/x/...` import is GOROOT's vendored package.
+
+**Alternatives considered.** Range over functions in lowering: the body
+would need a new kind of closure and its own capture rules; the rewrite
+reuses literals. A source rewrite with written types: yield parameters
+can name types a file cannot (the problem D-052 solves). A new IR panic
+kind for slice conversions: changes to the IR contract, interpreter, and
+runtime assembly for one message. Reimplementing Aether's maps in
+reflect's Go: a second copy of D-042's probing and growth.
+
+**Consequences.** `flag`, `log`, `context`, `encoding/json`, `xml`,
+`gob`, `net/url`, `math/big`, hashing `crypto`, and `path/filepath`
+compile. Differences from gc: `log`'s file:line prefixes and `flag`'s
+redefinition message lack positions; weakly held values are never
+reclaimed; a FileInfo's Sys is nil; reflect's pointer and slice types
+made at run time for a type the program never names are not in any
+interface's method set. `$GOROOT/test` runs 793 tests to gc's results,
+from 754, with no failure; one it now reached showed an older lowering
+bug, fixed: a multi-value call's interface results converted as
+arguments branch, which `branches` now sees. Still unsupported: `net` and `net/http` (no
+network poller in Aether's runtime), `crypto/rand` (a 32 MiB array),
+`Value.Call`, `MakeFunc`, and a defer in a range-over-function body.
+
 ---
 
 ## Phase 0 research notes

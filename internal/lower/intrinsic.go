@@ -123,7 +123,7 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 	case "syscall.envString", "math.env", "internal/godebug.env", "runtime.envString":
 		i := l.fn.Param(b, 0, pos)
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvPtr, ir.Ptr, pos, i), l.fn.Sys(b, ir.SysEnvLen, ir.I64, pos, i))
-	case "internal/reflectlite.implements":
+	case "internal/reflectlite.implements", "reflect.implements":
 		// implements(iface, t unsafe.Pointer) unsafe.Pointer: the itab of
 		// the type t and the non-empty interface iface, by iface's .findK,
 		// whose address its descriptor holds (reflect.go, D-050), or nil.

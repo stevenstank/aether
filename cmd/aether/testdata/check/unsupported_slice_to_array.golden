@@ -1,1 +1,0 @@
-testdata/check/unsupported_slice_to_array.go:9:7: unsupported: conversion to [2]int is not supported in subset S1 [conversion]

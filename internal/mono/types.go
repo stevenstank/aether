@@ -164,11 +164,10 @@ func (m *mono) typeExpr1(n ast.Node, t types.Type, pos token.Pos) ast.Expr {
 		fl := &ast.FieldList{Opening: pos, Closing: pos}
 		for i := range t.NumFields() {
 			f := t.Field(i)
-			if t.Tag(i) != "" {
-				m.rejectAt(n, gate.FeatGenericInstance, "type argument "+t.String()+" with a field tag")
-				return nil
-			}
 			field := &ast.Field{Type: sub(f.Type())}
+			if tag := t.Tag(i); tag != "" {
+				field.Tag = &ast.BasicLit{ValuePos: pos, Kind: token.STRING, Value: strconv.Quote(tag)}
+			}
 			if !f.Embedded() {
 				field.Names = []*ast.Ident{{NamePos: pos, Name: f.Name()}}
 			}
@@ -269,12 +268,18 @@ func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) 
 			return "struct {}"
 		}
 		var fs []string
-		for f := range t.Fields() {
-			if f.Embedded() {
-				fs = append(fs, typeName(f.Type(), arg))
-			} else {
-				fs = append(fs, field(f)+" "+typeName(f.Type(), arg))
+		for i := range t.NumFields() {
+			f := t.Field(i)
+			s := typeName(f.Type(), arg)
+			if !f.Embedded() {
+				s = field(f) + " " + s
 			}
+			// Types that differ in tags only are distinct; gc writes a
+			// tag quoted (v2 evaluation).
+			if tag := t.Tag(i); tag != "" {
+				s += " " + strconv.Quote(tag)
+			}
+			fs = append(fs, s)
 		}
 		return "struct { " + strings.Join(fs, "; ") + " }"
 	case *types.Signature:

@@ -36,6 +36,7 @@ type File struct {
 	name       string
 	closed     bool
 	appendMode bool // opened with O_APPEND
+	dir        any  // a directory's *dirState (stat.go), untyped so that a File's type does not keep directory code
 }
 
 // Stdin, Stdout, and Stderr are the files of the standard input, standard

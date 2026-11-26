@@ -2,6 +2,7 @@ package os
 
 import (
 	"internal/oserror"
+	"io/fs"
 	"syscall"
 )
 
@@ -16,22 +17,8 @@ var (
 )
 
 // PathError records an error and the operation and file path that caused
-// it.
-type PathError struct {
-	Op   string
-	Path string
-	Err  error
-}
-
-func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
-
-func (e *PathError) Unwrap() error { return e.Err }
-
-// Timeout reports whether this error represents a timeout.
-func (e *PathError) Timeout() bool {
-	t, ok := e.Err.(timeout)
-	return ok && t.Timeout()
-}
+// it: gc's io/fs PathError (v2 evaluation).
+type PathError = fs.PathError
 
 type timeout interface {
 	Timeout() bool

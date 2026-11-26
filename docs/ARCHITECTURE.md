@@ -30,6 +30,9 @@ Decisions are referenced by ID from [`DECISIONS.md`](DECISIONS.md). Where this d
                    monomorphization (D-045): generic code copied per
                          │   instance, then go/types again ──► unsupported
                          ▼
+                   desugaring (D-055): range over functions rewritten,
+                         │   the new nodes recorded in types.Info
+                         ▼
                    subset gate (D-003) ──► unsupported diagnostics
                          │
                          ▼
@@ -807,6 +810,7 @@ Packages are created only when code exists. Everything lives under one module.
 
 **Implemented in Phase 8:**
 - `internal/mono` (increment 8.8, D-045)
+- `internal/rangefunc` (D-055)
 
 The other rows are still candidates.
 
@@ -817,6 +821,7 @@ The other rows are still candidates.
 | `internal/frontend` | Load, parse, type-check; produce the checked package | `go/*`, `diag` | internal |
 | `internal/gate` | Subset gate | `frontend`, `diag` | internal |
 | `internal/mono` | Monomorphization of generic code (D-045) | `frontend`, `gate`, `diag` | internal |
+| `internal/rangefunc` | Range over functions as calls of the iterator (D-055) | `frontend`, `diag` | internal |
 | `internal/ir` | IR types, builder, verifier, printer; dominator tree, dominance frontiers, and slot promotion to SSA (Phase 5, D-006, D-025) | — (no `go/*`) | **contract:** text format + invariants |
 | `internal/lower` | Typed AST → IR | `frontend`, `ir`, `diag` | internal |
 | `internal/interp` | IR interpreter | `ir` | internal |

@@ -535,6 +535,9 @@ func (l *lowerer) aggValue(e ast.Expr) *ir.Instr {
 		}
 	case *ast.CallExpr:
 		if l.pkg.Info.Types[e.Fun].IsType() {
+			if isSlice(l.pkg.Info.Types[e.Args[0]].Type) {
+				return l.sliceToArray(e) // Go 1.20
+			}
 			// A conversion between types of identical underlying types,
 			// so of the same layout.
 			return l.aggValue(e.Args[0])
@@ -695,4 +698,58 @@ func (l *lowerer) aggregateCompare(e *ast.BinaryExpr, pos ir.Pos) *ir.Instr {
 		return l.fn.Not(l.b, eq, pos)
 	}
 	return eq
+}
+
+// Conversions of a slice to an array or a pointer to an array (Go 1.20,
+// v2 evaluation). A slice shorter than the array panics with gc's
+// run-time error, a runtime.boundsError when recovered.
+
+// sliceArray evaluates the slice operand of the conversion e to an array
+// type or a pointer to one, and checks its length against the array's. It
+// returns the slice's array pointer and the array type.
+func (l *lowerer) sliceArray(e *ast.CallExpr) (*ir.Instr, *types.Array) {
+	pos := l.pos(e, e.Pos())
+	t := l.pkg.Info.Types[e].Type.Underlying()
+	if p, ok := t.(*types.Pointer); ok {
+		t = p.Elem().Underlying()
+	}
+	at, ok := t.(*types.Array)
+	if !ok {
+		l.fail(e, "conversion of a slice to %s", t)
+	}
+	w := l.value(e.Args[0])
+	n := l.fn.Const(l.b, at.Len(), pos)
+	short := l.fn.Compare(l.b, ir.Lt, w[1], n, pos)
+	out := l.guardFn(short, pos, []*ir.Instr{w[0], w[1]}, func(vs []*ir.Instr) {
+		itoaF := l.wrapper("convitoa", []ir.Type{ir.I64, ir.Bool}, []ir.Type{ir.Ptr, ir.I64}, pos, func(f *ir.Func) {
+			l.buildItoa(l.enter(f, pos), pos)
+		})
+		c := l.fn.Call(l.b, itoaF, []*ir.Instr{vs[1], l.fn.BoolConst(l.b, false, pos)}, pos)
+		digits := []*ir.Instr{l.fn.Extract(l.b, c, 0, pos), l.fn.Extract(l.b, c, 1, pos)}
+		l.panicMsg([][]*ir.Instr{
+			l.strWords("runtime error: cannot convert slice with length ", pos), digits,
+			l.strWords(" to array or pointer to array with length "+itoa(int(at.Len())), pos),
+		}, pos)
+	})
+	return out[0], at
+}
+
+// sliceToArray lowers [N]T(s): a copy of the slice's first N elements.
+func (l *lowerer) sliceToArray(e *ast.CallExpr) *ir.Instr {
+	pos := l.pos(e, e.Pos())
+	t := l.pkg.Info.Types[e].Type
+	p, at := l.sliceArray(e)
+	src := l.keep(p, pos)
+	m := l.newMem("tmp", t, pos)
+	if at.Len() > 0 && sizes.Sizeof(at) > 0 {
+		l.copyPlace(l.memPlace(m, t, pos), l.valuePlace(src(), t, pos), pos)
+	}
+	return l.addr(m, pos)
+}
+
+// sliceToArrayPtr lowers (*[N]T)(s): the slice's array pointer, nil for a
+// nil slice.
+func (l *lowerer) sliceToArrayPtr(e *ast.CallExpr) *ir.Instr {
+	p, _ := l.sliceArray(e)
+	return p
 }

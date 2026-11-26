@@ -86,7 +86,7 @@ func TestPackageRejects(t *testing.T) {
 			"--\na/a.go:package a\nvar v = g()\nfunc g() int { return 2 }\nfunc F() int { return v }\nfunc H() { println(1i) }\nvar w = 1i\n",
 			[]string{"main.go"}, 0, ""},
 		{"root initializer in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
-			"--\na/a.go:package a\nvar _ = h()\nfunc h() struct{ error } { return struct{ error }{} }\nfunc F() {}\n",
+			"--\na/a.go:package a\nvar _ = h()\nfunc h() *[1 << 22]int { return nil }\nfunc F() {}\n",
 			[]string{"main.go"}, diag.Unsupported, "a/a.go:2:9: unsupported"},
 		{"no module", "main.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n",
 			[]string{"main.go"}, diag.Unsupported, `main.go:2:8: unsupported: import "m.test/x/a"`},
@@ -325,15 +325,21 @@ func TestStdRejects(t *testing.T) {
 		class     diag.Class
 		want      string
 	}{
-		{"assembly", "package main\nimport \"math/big\"\nfunc main() { println(new(big.Int).Add(big.NewInt(1), big.NewInt(1)).String()) }\n",
-			diag.Unsupported, "$GOROOT/src/math/big/arith_decl.go:25:1: unsupported: function addVV without a body (implemented outside Go)"},
+		// math/big's assembly is replaced by gc's pure-Go arithmetic, and
+		// the FIPS module's links into gc's runtime by Aether's (v2
+		// evaluation); crypto/rand's entropy source has an array larger
+		// than Aether's aggregates.
+		{"math/big", "package main\nimport \"math/big\"\nfunc main() { println(new(big.Int).Add(big.NewInt(1), big.NewInt(1)).String()) }\n", 0, ""},
+		{"crypto", "package main\nimport \"crypto/md5\"\nfunc main() { s := md5.Sum(nil); println(s[0]) }\n", 0, ""},
+		{"crypto/rand", "package main\nimport \"crypto/rand\"\nfunc main() { println(len(rand.Text())) }\n",
+			diag.Unsupported, "$GOROOT/src/crypto/internal/entropy/v1.0.0/entropy.go:25:20: unsupported: type [1 << 25]byte (larger than 16777216 bytes)"},
 		// gc's runtime, os, sync, and sync/atomic have more than Aether's.
 		{"runtime name", "package main\nimport \"runtime\"\nfunc main() { runtime.Goexit() }\n",
 			diag.Unsupported, "p.go:3:23: unsupported: runtime.Goexit, which Aether's package runtime does not have, is not supported in subset S1 [stdlib-package]"},
-		{"os method", "package main\nimport \"os\"\nfunc main() { os.Stdout.Stat() }\n",
-			diag.Unsupported, "p.go:3:25: unsupported: os.File.Stat, which Aether's package os does not have,"},
-		{"os function", "package main\nimport \"os\"\nfunc main() { os.ReadDir(\".\") }\n",
-			diag.Unsupported, "p.go:3:18: unsupported: os.ReadDir, which Aether's package os does not have,"},
+		{"os method", "package main\nimport \"os\"\nfunc main() { os.Stdout.Chmod(0) }\n",
+			diag.Unsupported, "p.go:3:25: unsupported: os.File.Chmod, which Aether's package os does not have,"},
+		{"os function", "package main\nimport \"os\"\nfunc main() { os.Symlink(\"a\", \"b\") }\n",
+			diag.Unsupported, "p.go:3:18: unsupported: os.Symlink, which Aether's package os does not have,"},
 		{"sync type", "package main\nimport \"sync\"\nvar c sync.Cond\nfunc main() {}\n",
 			diag.Unsupported, "p.go:3:12: unsupported: sync.Cond, which Aether's package sync does not have,"},
 		// Declared for type checking, but unsupported if reached (Batch 1).
@@ -341,6 +347,10 @@ func TestStdRejects(t *testing.T) {
 			diag.Unsupported, "$AETHER/runtime/extern.go:55:1: unsupported: function Callers without a body (implemented outside Go)"},
 		{"runtime.Caller", "package main\nimport \"runtime\"\nfunc main() { _, file, _, _ := runtime.Caller(0); println(file) }\n",
 			diag.Unsupported, "$AETHER/runtime/extern.go:63:1: unsupported: function Caller without a body (implemented outside Go)"},
+		// flag and log use Aether's internal/callers (v2 evaluation).
+		{"flag", "package main\nimport \"flag\"\nfunc main() { flag.Parse() }\n", 0, ""},
+		{"internal/callers", "package main\nimport \"internal/callers\"\nfunc main() { runtime.Caller(0) }\n",
+			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/callers not allowed"},
 		{"unexported", "package main\nimport \"sync\"\nfunc main() { var m sync.Mutex; println(m.locked) }\n",
 			diag.Invalid, "p.go:3:43: invalid: m.locked undefined"},
 		{"still invalid", "package main\nimport \"os\"\nfunc main() { os.Exit(\"1\") }\n",
@@ -349,20 +359,18 @@ func TestStdRejects(t *testing.T) {
 			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/strconv not allowed"},
 		{"not in std", "package main\nimport \"nosuch/pkg\"\nfunc main() { pkg.F() }\n",
 			diag.Invalid, "p.go:2:8: invalid: package nosuch/pkg is not in std"},
-		{"unsafe.Slice of an unsupported type", "package main\nimport \"unsafe\"\nfunc main() { var c struct{ error }; println(len(unsafe.Slice(&c, 1))) }\n",
-			diag.Unsupported, "p.go:3:21: unsupported: type struct{error}"},
+		{"unsafe.Slice of an unsupported type", "package main\nimport \"unsafe\"\nfunc main() { var c *[1 << 22]int; println(len(unsafe.Slice(&c, 1))) }\n",
+			diag.Unsupported, "p.go:3:22: unsupported: type [1 << 22]int (larger than 16777216 bytes)"},
 		{"println of unsafe.Pointer", "package main\nimport \"unsafe\"\nfunc main() { println(unsafe.Pointer(nil)) }\n",
 			diag.Unsupported, "p.go:3:30: unsupported: println argument of type unsafe.Pointer"},
 		// Another package's generic code, instantiated with main's types,
 		// which main hosts (D-052).
 		{"errors.AsType", "package main\nimport \"errors\"\ntype E struct{}\nfunc (*E) Error() string { return \"\" }\nfunc main() { _, ok := errors.AsType[*E](errors.New(\"x\")); println(ok) }\n", 0, ""},
 		{"type argument of main", "package main\nimport \"slices\"\ntype T int\nfunc main() { slices.Sort([]T{2, 1}) }\n", 0, ""},
-		{"sort.Reverse", "package main\nimport \"sort\"\nfunc main() { sort.Sort(sort.Reverse(sort.IntSlice{2, 1})) }\n",
-			diag.Unsupported, "$GOROOT/src/sort/sort.go:90:14: unsupported: type struct{Interface}"},
+		{"sort.Reverse", "package main\nimport \"sort\"\nfunc main() { sort.Sort(sort.Reverse(sort.IntSlice{2, 1})) }\n", 0, ""},
 		{"iter.Pull", "package main\nimport \"iter\"\nfunc main() { next, stop := iter.Pull(iter.Seq[int](nil)); _, _ = next, stop }\n",
 			diag.Unsupported, "p.go:3:34: unsupported: iter.Pull, which Aether's package iter does not have,"},
-		{"range over func in slices", "package main\nimport \"slices\"\nfunc main() { println(len(slices.Collect(slices.Values([]int{1})))) }\n",
-			diag.Unsupported, "$GOROOT/src/slices/iter.go:51:2: unsupported: for-range statement"},
+		{"range over func in slices", "package main\nimport \"slices\"\nfunc main() { println(len(slices.Collect(slices.Values([]int{1})))) }\n", 0, ""}, // D-055
 		{"unreachable", "package main\nimport \"strconv\"\nfunc main() { println(strconv.Itoa(7)) }\n", 0, ""},
 	}
 	for _, tt := range tests {

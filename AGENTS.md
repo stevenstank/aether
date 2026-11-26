@@ -27,6 +27,8 @@ changing anything architectural.
 - `internal/gate`: the S2 subset gate (default-deny).
 - `internal/mono`: monomorphization: generic code copied per instance and
   type-checked again, before the gate (D-045).
+- `internal/rangefunc`: range over functions rewritten as calls of the
+  iterator, after the last type check and before the gate (D-055).
 - `internal/ir`: the IR, its printer, and its verifier. No `go/*` imports.
 - `internal/lower`: typed AST to IR.
 - `internal/interp`: the IR interpreter, a test oracle (D-005, D-021).

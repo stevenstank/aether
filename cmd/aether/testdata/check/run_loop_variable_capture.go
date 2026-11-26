@@ -1,10 +1,10 @@
-// aether:expect unsupported loop-variable-address
+// aether:expect run
 
 package main
 
 // Go 1.22 gives each iteration of a for statement its own copy of a
-// variable declared in its init, which a closure capturing it observes
-// (D-040), as a pointer to it does (D-035).
+// variable declared in its init, which a closure capturing it observes:
+// each is a heap object of its own (v2 evaluation).
 
 func main() {
 	var fs []func() int

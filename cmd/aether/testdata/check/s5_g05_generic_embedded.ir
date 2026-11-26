@@ -33,15 +33,16 @@ string s31 "(maps.unhashableTypeError) "
 string s32 "(*runtime.TypeAssertionError) "
 string s33 "(*runtime.PanicNilError) "
 string s34 "interface conversion: "
-string s35 "hash of unhashable type: "
-string s36 "assignment to entry in nil map"
-string s37 "value method "
-string s38 "runtime.errorString"
-string s39 "runtime.boundsError"
-string s40 "runtime.plainError"
-string s41 "maps.unhashableTypeError"
-string s42 "*runtime.TypeAssertionError"
-string s43 "*runtime.PanicNilError"
+string s35 "runtime error: cannot convert slice "
+string s36 "hash of unhashable type: "
+string s37 "assignment to entry in nil map"
+string s38 "value method "
+string s39 "runtime.errorString"
+string s40 "runtime.boundsError"
+string s41 "runtime.plainError"
+string s42 "maps.unhashableTypeError"
+string s43 "*runtime.TypeAssertionError"
+string s44 "*runtime.PanicNilError"
 global g0 .unwinding bool @testdata/check/s5_g05_generic_embedded.go:6:1
 global g1 .panics ptr @testdata/check/s5_g05_generic_embedded.go:6:1
 global g2 .rframe bool @testdata/check/s5_g05_generic_embedded.go:6:1
@@ -2613,6 +2614,9 @@ func .materialize(ptr) @testdata/check/s5_g05_generic_embedded.go:6:1
   slot s114 tmp ptr @6:1
   slot s115 tmp i64 @6:1
   slot s116 tmp ptr @6:1
+  slot s117 tmp ptr @6:1
+  slot s118 tmp i64 @6:1
+  slot s119 tmp ptr @6:1
 b0:
   v0 = param 0 @6:1
   store s0, v0 @6:1
@@ -3975,7 +3979,7 @@ b76:
   v950 = load s0 @6:1
   v951 = const 64 @6:1
   v952 = ldm i64, v950, v951 @6:1
-  v953 = const 25 @6:1
+  v953 = const 36 @6:1
   v954 = ge v952, v953 @6:1
   branch v954, b79, b80 @6:1
 b77:
@@ -4012,14 +4016,14 @@ b78:
   jump b76 @6:1
 b79:
   v955 = str s35 @6:1
-  v956 = const 25 @6:1
+  v956 = const 36 @6:1
   v957 = load s0 @6:1
   v958 = const 56 @6:1
   v959 = ldm ptr, v957, v958 @6:1
   v960 = load s0 @6:1
   v961 = const 64 @6:1
   v962 = ldm i64, v960, v961 @6:1
-  v963 = const 25 @6:1
+  v963 = const 36 @6:1
   v964 = call .streq, v959, v963, v955, v956 @6:1
   branch v964, b81, b82 @6:1
 b80:
@@ -4029,8 +4033,8 @@ b80:
   v988 = load s0 @6:1
   v989 = const 64 @6:1
   v990 = ldm i64, v988, v989 @6:1
-  v991 = const 30 @6:1
-  v992 = eq v990, v991 @6:1
+  v991 = const 25 @6:1
+  v992 = ge v990, v991 @6:1
   branch v992, b83, b84 @6:1
 b81:
   v965 = load s0 @6:1
@@ -4052,7 +4056,7 @@ b81:
   stm v972, v976, v974 @6:1
   v977 = load s0 @6:1
   v978 = const 8 @6:1
-  v979 = addr gm3 @6:1
+  v979 = addr gm1 @6:1
   stm v977, v978, v979 @6:1
   v980 = load s0 @6:1
   v981 = const 16 @6:1
@@ -4066,14 +4070,14 @@ b82:
   jump b80 @6:1
 b83:
   v993 = str s36 @6:1
-  v994 = const 30 @6:1
+  v994 = const 25 @6:1
   v995 = load s0 @6:1
   v996 = const 56 @6:1
   v997 = ldm ptr, v995, v996 @6:1
   v998 = load s0 @6:1
   v999 = const 64 @6:1
   v1000 = ldm i64, v998, v999 @6:1
-  v1001 = const 30 @6:1
+  v1001 = const 25 @6:1
   v1002 = call .streq, v997, v1001, v993, v994 @6:1
   branch v1002, b85, b86 @6:1
 b84:
@@ -4083,8 +4087,8 @@ b84:
   v1026 = load s0 @6:1
   v1027 = const 64 @6:1
   v1028 = ldm i64, v1026, v1027 @6:1
-  v1029 = const 13 @6:1
-  v1030 = ge v1028, v1029 @6:1
+  v1029 = const 30 @6:1
+  v1030 = eq v1028, v1029 @6:1
   branch v1030, b87, b88 @6:1
 b85:
   v1003 = load s0 @6:1
@@ -4106,7 +4110,7 @@ b85:
   stm v1010, v1014, v1012 @6:1
   v1015 = load s0 @6:1
   v1016 = const 8 @6:1
-  v1017 = addr gm2 @6:1
+  v1017 = addr gm3 @6:1
   stm v1015, v1016, v1017 @6:1
   v1018 = load s0 @6:1
   v1019 = const 16 @6:1
@@ -4120,14 +4124,14 @@ b86:
   jump b84 @6:1
 b87:
   v1031 = str s37 @6:1
-  v1032 = const 13 @6:1
+  v1032 = const 30 @6:1
   v1033 = load s0 @6:1
   v1034 = const 56 @6:1
   v1035 = ldm ptr, v1033, v1034 @6:1
   v1036 = load s0 @6:1
   v1037 = const 64 @6:1
   v1038 = ldm i64, v1036, v1037 @6:1
-  v1039 = const 13 @6:1
+  v1039 = const 30 @6:1
   v1040 = call .streq, v1035, v1039, v1031, v1032 @6:1
   branch v1040, b89, b90 @6:1
 b88:
@@ -4137,29 +4141,9 @@ b88:
   v1064 = load s0 @6:1
   v1065 = const 64 @6:1
   v1066 = ldm i64, v1064, v1065 @6:1
-  store s114, v1063 @6:1
-  store s115, v1066 @6:1
-  v1067 = const 16 @6:1
-  v1068 = alloc v1067 @6:1
-  store s116, v1068 @6:1
-  v1069 = load s114 @6:1
-  v1070 = load s115 @6:1
-  v1071 = const 0 @6:1
-  stm v1068, v1071, v1069 @6:1
-  v1072 = const 8 @6:1
-  stm v1068, v1072, v1070 @6:1
-  v1073 = load s0 @6:1
-  v1074 = const 8 @6:1
-  v1075 = addr gm0 @6:1
-  stm v1073, v1074, v1075 @6:1
-  v1076 = load s0 @6:1
-  v1077 = const 16 @6:1
-  stm v1076, v1077, v1068 @6:1
-  v1078 = load s0 @6:1
-  v1079 = const 24 @6:1
-  v1080 = const 0 @6:1
-  stm v1078, v1079, v1080 @6:1
-  ret @6:1
+  v1067 = const 13 @6:1
+  v1068 = ge v1066, v1067 @6:1
+  branch v1068, b91, b92 @6:1
 b89:
   v1041 = load s0 @6:1
   v1042 = const 56 @6:1
@@ -4192,6 +4176,80 @@ b89:
   ret @6:1
 b90:
   jump b88 @6:1
+b91:
+  v1069 = str s38 @6:1
+  v1070 = const 13 @6:1
+  v1071 = load s0 @6:1
+  v1072 = const 56 @6:1
+  v1073 = ldm ptr, v1071, v1072 @6:1
+  v1074 = load s0 @6:1
+  v1075 = const 64 @6:1
+  v1076 = ldm i64, v1074, v1075 @6:1
+  v1077 = const 13 @6:1
+  v1078 = call .streq, v1073, v1077, v1069, v1070 @6:1
+  branch v1078, b93, b94 @6:1
+b92:
+  v1099 = load s0 @6:1
+  v1100 = const 56 @6:1
+  v1101 = ldm ptr, v1099, v1100 @6:1
+  v1102 = load s0 @6:1
+  v1103 = const 64 @6:1
+  v1104 = ldm i64, v1102, v1103 @6:1
+  store s117, v1101 @6:1
+  store s118, v1104 @6:1
+  v1105 = const 16 @6:1
+  v1106 = alloc v1105 @6:1
+  store s119, v1106 @6:1
+  v1107 = load s117 @6:1
+  v1108 = load s118 @6:1
+  v1109 = const 0 @6:1
+  stm v1106, v1109, v1107 @6:1
+  v1110 = const 8 @6:1
+  stm v1106, v1110, v1108 @6:1
+  v1111 = load s0 @6:1
+  v1112 = const 8 @6:1
+  v1113 = addr gm0 @6:1
+  stm v1111, v1112, v1113 @6:1
+  v1114 = load s0 @6:1
+  v1115 = const 16 @6:1
+  stm v1114, v1115, v1106 @6:1
+  v1116 = load s0 @6:1
+  v1117 = const 24 @6:1
+  v1118 = const 0 @6:1
+  stm v1116, v1117, v1118 @6:1
+  ret @6:1
+b93:
+  v1079 = load s0 @6:1
+  v1080 = const 56 @6:1
+  v1081 = ldm ptr, v1079, v1080 @6:1
+  v1082 = load s0 @6:1
+  v1083 = const 64 @6:1
+  v1084 = ldm i64, v1082, v1083 @6:1
+  store s114, v1081 @6:1
+  store s115, v1084 @6:1
+  v1085 = const 16 @6:1
+  v1086 = alloc v1085 @6:1
+  store s116, v1086 @6:1
+  v1087 = load s114 @6:1
+  v1088 = load s115 @6:1
+  v1089 = const 0 @6:1
+  stm v1086, v1089, v1087 @6:1
+  v1090 = const 8 @6:1
+  stm v1086, v1090, v1088 @6:1
+  v1091 = load s0 @6:1
+  v1092 = const 8 @6:1
+  v1093 = addr gm2 @6:1
+  stm v1091, v1092, v1093 @6:1
+  v1094 = load s0 @6:1
+  v1095 = const 16 @6:1
+  stm v1094, v1095, v1086 @6:1
+  v1096 = load s0 @6:1
+  v1097 = const 24 @6:1
+  v1098 = const 0 @6:1
+  stm v1096, v1097, v1098 @6:1
+  ret @6:1
+b94:
+  jump b92 @6:1
 
 func .gorecover(bool) (ptr, ptr) @testdata/check/s5_g05_generic_embedded.go:6:1
   slot s0 tmp bool @6:1
@@ -4480,7 +4538,7 @@ b0:
   stm v0, v1, v2 @6:1
   v3 = addr gm0 @6:1
   v4 = const 0 @6:1
-  v5 = str s38 @6:1
+  v5 = str s39 @6:1
   stm v3, v4, v5 @6:1
   v6 = const 8 @6:1
   v7 = const 19 @6:1
@@ -4490,7 +4548,7 @@ b0:
   stm v3, v8, v9 @6:1
   v10 = addr gm1 @6:1
   v11 = const 0 @6:1
-  v12 = str s39 @6:1
+  v12 = str s40 @6:1
   stm v10, v11, v12 @6:1
   v13 = const 8 @6:1
   v14 = const 19 @6:1
@@ -4500,7 +4558,7 @@ b0:
   stm v10, v15, v16 @6:1
   v17 = addr gm2 @6:1
   v18 = const 0 @6:1
-  v19 = str s40 @6:1
+  v19 = str s41 @6:1
   stm v17, v18, v19 @6:1
   v20 = const 8 @6:1
   v21 = const 18 @6:1
@@ -4510,7 +4568,7 @@ b0:
   stm v17, v22, v23 @6:1
   v24 = addr gm3 @6:1
   v25 = const 0 @6:1
-  v26 = str s41 @6:1
+  v26 = str s42 @6:1
   stm v24, v25, v26 @6:1
   v27 = const 8 @6:1
   v28 = const 24 @6:1
@@ -4520,7 +4578,7 @@ b0:
   stm v24, v29, v30 @6:1
   v31 = addr gm4 @6:1
   v32 = const 0 @6:1
-  v33 = str s42 @6:1
+  v33 = str s43 @6:1
   stm v31, v32, v33 @6:1
   v34 = const 8 @6:1
   v35 = const 27 @6:1
@@ -4530,7 +4588,7 @@ b0:
   stm v31, v36, v37 @6:1
   v38 = addr gm5 @6:1
   v39 = const 0 @6:1
-  v40 = str s43 @6:1
+  v40 = str s44 @6:1
   stm v38, v39, v40 @6:1
   v41 = const 8 @6:1
   v42 = const 22 @6:1

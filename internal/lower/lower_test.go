@@ -212,7 +212,6 @@ func TestLowerInit(t *testing.T) {
 func TestLowerUnexpected(t *testing.T) {
 	tests := []struct{ name, src, want string }{
 		{"statement", "func main() { for range func(func() bool) {} {} }", "p.go:2:15: internal: lowering: range over func(func() bool)"},
-		{"slice to array", "func main() { s := []int{1, 2}; a := [2]int(s); println(a[0]) }", "p.go:2:45: internal: lowering: s is not an array or struct variable"},
 		{"builtin call statement", "func main() { defer recover() }", "p.go:2:15: internal: lowering: call of builtin recover in a defer or go statement"},
 		{"no body", "func main()", "p.go:2:1: internal: lowering: unexpected top-level declaration"},
 	}

@@ -29,16 +29,8 @@ func (c *checker) funcLit(e *ast.FuncLit) {
 	}
 }
 
-// capture reports whether the use id of the variable v is allowed: not
-// inside a function literal that captures v, if v is declared in a for
-// statement's init. It rejects it if not.
-func (c *checker) capture(id *ast.Ident, v *types.Var) bool {
-	if len(c.lits) == 0 || !c.forVars[v] {
-		return true
-	}
-	if lit := c.lits[len(c.lits)-1]; v.Pos() >= lit.Pos() && v.Pos() < lit.End() {
-		return true // declared in the literal itself
-	}
-	c.reject(id, FeatLoopVarAddr, "the capture of "+id.Name+", a variable declared in a for statement's init, by a function literal")
-	return false
-}
+// capture reports whether the use id of the variable v is allowed. A
+// variable declared in a for statement's init is each iteration's own
+// (Go 1.22): lowering gives each a new heap object when a literal captures
+// it (v2 evaluation), so every capture is.
+func (c *checker) capture(id *ast.Ident, v *types.Var) bool { return true }

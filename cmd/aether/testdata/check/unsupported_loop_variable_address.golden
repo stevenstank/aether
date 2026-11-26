@@ -1,1 +1,0 @@
-testdata/check/unsupported_loop_variable_address.go:11:11: unsupported: the address of i, of a variable declared in a for statement's init is not supported in subset S1 [loop-variable-address]

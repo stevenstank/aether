@@ -1,0 +1,228 @@
+func main @testdata/check/run_loop_variable_capture.go:9:6
+  slot s0 fs ptr @10:6
+  slot s1 fs i64 @10:6
+  slot s2 fs i64 @10:6
+  slot s3 i ptr @11:6
+  slot s4 tmp ptr @12:8
+  slot s5 tmp i64 @12:8
+  slot s6 tmp i64 @12:8
+  slot s7 tmp ptr @12:8
+  slot s8 tmp i64 @12:8
+  slot s9 ptr ptr @12:8
+  slot s10 cap i64 @12:8
+  slot s11 newcap i64 @12:8
+  slot s12 tmp ptr @11:2
+  slot s13 tmp ptr @11:2
+  slot s14 tmp ptr @14:10
+  slot s15 tmp i64 @14:10
+  slot s16 tmp i64 @14:12
+  slot s17 tmp ptr @14:10
+  slot s18 tmp i64 @14:10
+  slot s19 tmp ptr @14:19
+  slot s20 tmp i64 @14:19
+  slot s21 tmp i64 @14:21
+  slot s22 tmp ptr @14:19
+b0:
+  v0 = const ptr 0 @10:6
+  store s0, v0 @10:6
+  v1 = const 0 @10:6
+  store s1, v1 @10:6
+  v2 = const 0 @10:6
+  store s2, v2 @10:6
+  v3 = const 0 @11:11
+  v4 = const 8 @11:6
+  v5 = alloc noscan, v4 @11:6
+  store s3, v5 @11:6
+  v6 = load s3 @11:6
+  v7 = const 0 @11:6
+  stm v6, v7, v3 @11:6
+  jump b1 @11:2
+b1:
+  v8 = load s3 @11:14
+  v9 = const 0 @11:14
+  v10 = ldm i64, v8, v9 @11:14
+  v11 = const 3 @11:18
+  v12 = lt v10, v11 @11:16
+  branch v12, b2, b3 @11:2
+b2:
+  v13 = load s0 @12:15
+  v14 = load s1 @12:15
+  v15 = load s2 @12:15
+  v16 = load s3 @12:19
+  v17 = const 16 @12:19
+  v18 = alloc v17 @12:19
+  v19 = const 0 @12:19
+  v20 = funcaddr .lit1 @12:19
+  stm v18, v19, v20 @12:19
+  v21 = const 8 @12:19
+  stm v18, v21, v16 @12:19
+  store s4, v13 @12:8
+  store s5, v14 @12:8
+  store s6, v15 @12:8
+  store s7, v18 @12:8
+  v22 = const 1 @12:8
+  v23 = add v14, v22 @12:8
+  store s8, v23 @12:8
+  store s9, v13 @12:8
+  store s10, v15 @12:8
+  v24 = load s10 @12:8
+  v25 = gt v23, v24 @12:8
+  branch v25, b5, b6 @12:8
+b3:
+  v71 = load s0 @14:10
+  v72 = load s1 @14:10
+  v73 = load s2 @14:10
+  store s14, v71 @14:10
+  store s15, v72 @14:10
+  v74 = const 0 @14:13
+  store s16, v74 @14:12
+  v75 = conv u64, v74 @14:12
+  v76 = conv u64, v72 @14:12
+  v77 = ge v75, v76 @14:12
+  branch v77, b11, b12 @14:12
+b4:
+  v58 = load s3 @11:2
+  store s12, v58 @11:2
+  v59 = const 8 @11:2
+  v60 = alloc noscan, v59 @11:2
+  store s13, v60 @11:2
+  v61 = const 0 @11:2
+  v62 = ldm i64, v58, v61 @11:2
+  v63 = const 0 @11:2
+  stm v60, v63, v62 @11:2
+  store s3, v60 @11:2
+  v64 = load s3 @11:21
+  v65 = const 0 @11:21
+  v66 = ldm i64, v64, v65 @11:21
+  v67 = const 1 @11:22
+  v68 = add v66, v67 @11:22
+  v69 = load s3 @11:21
+  v70 = const 0 @11:21
+  stm v69, v70, v68 @11:21
+  jump b1 @11:21
+b5:
+  v26 = load s8 @12:8
+  store s11, v26 @12:8
+  v27 = load s10 @12:8
+  v28 = load s10 @12:8
+  v29 = add v27, v28 @12:8
+  v30 = load s11 @12:8
+  v31 = gt v29, v30 @12:8
+  branch v31, b7, b8 @12:8
+b6:
+  v48 = load s7 @12:8
+  v49 = load s9 @12:8
+  v50 = load s5 @12:8
+  v51 = const 0 @12:8
+  v52 = add v50, v51 @12:8
+  v53 = const 8 @12:8
+  v54 = mul v52, v53 @12:8
+  stm v49, v54, v48 @12:8
+  v55 = load s9 @12:8
+  v56 = load s8 @12:8
+  v57 = load s10 @12:8
+  store s0, v55 @12:3
+  store s1, v56 @12:3
+  store s2, v57 @12:3
+  jump b4 @13:2
+b7:
+  v32 = load s10 @12:8
+  v33 = load s10 @12:8
+  v34 = add v32, v33 @12:8
+  store s11, v34 @12:8
+  jump b8 @12:8
+b8:
+  v35 = const 4 @12:8
+  v36 = load s11 @12:8
+  v37 = gt v35, v36 @12:8
+  branch v37, b9, b10 @12:8
+b9:
+  v38 = const 4 @12:8
+  store s11, v38 @12:8
+  jump b10 @12:8
+b10:
+  v39 = load s11 @12:8
+  v40 = const 8 @12:8
+  v41 = mul v39, v40 @12:8
+  v42 = alloc v41 @12:8
+  v43 = load s9 @12:8
+  v44 = load s5 @12:8
+  v45 = const 8 @12:8
+  v46 = mul v44, v45 @12:8
+  move v42, v43, v46 @12:8
+  store s9, v42 @12:8
+  v47 = load s11 @12:8
+  store s10, v47 @12:8
+  jump b6 @12:8
+b11:
+  v78 = load s16 @14:12
+  v79 = load s15 @14:10
+  panic index, v78, v79 @14:12
+b12:
+  v80 = load s14 @14:10
+  v81 = load s16 @14:12
+  v82 = const 8 @14:10
+  v83 = mul v81, v82 @14:10
+  v84 = ldm ptr, v80, v83 @14:10
+  v85 = const ptr 0 @14:10
+  v86 = eq v84, v85 @14:10
+  store s17, v84 @14:10
+  branch v86, b13, b14 @14:10
+b13:
+  panic nil @14:10
+b14:
+  v87 = load s17 @14:10
+  v88 = const 0 @14:10
+  v89 = ldm ptr, v87, v88 @14:10
+  v90 = callind func(ptr) i64, v89, v87 @14:10
+  store s18, v90 @14:10
+  v91 = load s0 @14:19
+  v92 = load s1 @14:19
+  v93 = load s2 @14:19
+  store s19, v91 @14:19
+  store s20, v92 @14:19
+  v94 = const 2 @14:22
+  store s21, v94 @14:21
+  v95 = conv u64, v94 @14:21
+  v96 = conv u64, v92 @14:21
+  v97 = ge v95, v96 @14:21
+  branch v97, b15, b16 @14:21
+b15:
+  v98 = load s21 @14:21
+  v99 = load s20 @14:19
+  panic index, v98, v99 @14:21
+b16:
+  v100 = load s19 @14:19
+  v101 = load s21 @14:21
+  v102 = const 8 @14:19
+  v103 = mul v101, v102 @14:19
+  v104 = ldm ptr, v100, v103 @14:19
+  v105 = const ptr 0 @14:19
+  v106 = eq v104, v105 @14:19
+  store s22, v104 @14:19
+  branch v106, b17, b18 @14:19
+b17:
+  panic nil @14:19
+b18:
+  v107 = load s22 @14:19
+  v108 = const 0 @14:19
+  v109 = ldm ptr, v107, v108 @14:19
+  v110 = callind func(ptr) i64, v109, v107 @14:19
+  v111 = load s18 @14:10
+  println v111, v110 @14:2
+  ret @15:1
+
+func .lit1(ptr) i64 @testdata/check/run_loop_variable_capture.go:12:19
+  slot s0 closure ptr @12:19
+  slot s1 i ptr @12:19
+b0:
+  v0 = param 0 @12:19
+  store s0, v0 @12:19
+  v1 = load s0 @12:19
+  v2 = const 8 @12:19
+  v3 = ldm ptr, v1, v2 @12:19
+  store s1, v3 @12:19
+  v4 = load s1 @12:39
+  v5 = const 0 @12:39
+  v6 = ldm i64, v4, v5 @12:39
+  ret v6 @12:32

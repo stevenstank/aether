@@ -55,6 +55,9 @@ type Stages struct {
 	Prepare func(p *Package, wants []Want, collect bool) (*Package, []Want, []diag.Diagnostic)
 	// Reject returns the Unsupported diagnostic of an import.
 	Reject func(pos diag.Pos, feature, what string) diag.Diagnostic
+	// Desugar rewrites a prepared package in place, after its last type
+	// check, recording the nodes it makes in its Info (D-055).
+	Desugar func(p *Package) []diag.Diagnostic
 }
 
 // A Want is an instance of a generic function or type of the package Path
@@ -146,6 +149,11 @@ func (ld *loader) prepare(orig *Package, collect bool) (*Package, []diag.Diagnos
 			return nil, ld.checkFailed(path, ds)
 		}
 	}
+	if !collect && pkg != nil && ld.stages.Desugar != nil {
+		if ds := ld.stages.Desugar(pkg); len(ds) > 0 {
+			return nil, ds
+		}
+	}
 	return pkg, nil
 }
 
@@ -170,6 +178,9 @@ func (o origImporter) Import(path string) (*types.Package, error) {
 	}
 	if p := o.ld.origs[path]; p != nil {
 		return p.Types, nil
+	}
+	if p := o.ld.origs["vendor/"+path]; p != nil && !isStd(path) {
+		return p.Types, nil // vendored in GOROOT (importSpec)
 	}
 	return nil, errors.New("package not loaded: " + path)
 }
@@ -252,6 +263,9 @@ func (ld *loader) Import(path string) (*types.Package, error) {
 	}
 	if p := ld.pkgs[path]; p != nil {
 		return p.Types, nil
+	}
+	if p := ld.pkgs["vendor/"+path]; p != nil && !isStd(path) {
+		return p.Types, nil // vendored in GOROOT (importSpec)
 	}
 	return nil, errors.New("package not loaded: " + path)
 }
@@ -377,11 +391,26 @@ func (ld *loader) missing(pkg *Package) (diag.Diagnostic, bool) {
 // library. Other imports are unsupported.
 func (ld *loader) importSpec(from string, imp *ast.ImportSpec) []diag.Diagnostic {
 	path, err := strconv.Unquote(imp.Path.Value)
-	if err != nil || path == "C" || ld.origs[path] != nil {
+	if err != nil || path == "C" {
 		return nil // go/types reports a malformed path; Precheck, cgo
 	}
 	at := Position(ld.fset, imp.Pos())
 	fromStd := from != "main" && isStd(from)
+	if fromStd && !isStd(path) {
+		// A package GOROOT vendors for the standard library, as go build
+		// resolves it (v2 evaluation).
+		if ld.root == "" {
+			if ld.root, ld.err = GOROOT(); ld.err != nil {
+				return nil
+			}
+		}
+		if st, err := os.Stat(filepath.Join(ld.root, "src", "vendor", filepath.FromSlash(path))); err == nil && st.IsDir() {
+			path = "vendor/" + path
+		}
+	}
+	if ld.origs[path] != nil {
+		return nil
+	}
 	if ld.loading[path] {
 		return []diag.Diagnostic{{Class: diag.Invalid, Pos: at, Message: "import cycle not allowed"}}
 	}

@@ -443,7 +443,7 @@ brackets. The names are a stable contract (D-018), used by tests and the
 | Declarations and assignment | `local-type-declaration`, `blank-identifier`, `assignment-target`, `multi-value-assignment` |
 | Types | `non-int-type`, `type-expression`, `frame-size` |
 | Literals and identifiers | `predeclared-identifier` |
-| Operators | `operator-receive`, `operator-other`, `complex-arithmetic`, `loop-variable-address` |
+| Operators | `operator-receive`, `operator-other`, `complex-arithmetic` |
 | Calls | `call`, `conversion`, `builtin`, `println-argument-type`, `variadic-call` |
 | Other expressions | `composite-literal`, `selector`, `index-expression`, `slice-expression`, `expression` |
 
@@ -811,9 +811,7 @@ elements, parameters, and results (D-035).
   pointer types whose base types have identical underlying types.
 
 Still `unsupported`: printing a pointer (`println-argument-type`), whose
-address gc prints and which varies; the address of a variable declared in a
-`for` statement's init, which Go 1.22 copies for each iteration
-(`loop-variable-address`); `new` of a value, which Go 1.26 added (`builtin`);
+address gc prints and which varies; `new` of a value, which Go 1.26 added (`builtin`);
 defined pointer types, as `type P *int` (`local-type-declaration`,
 `package-level-declaration`); pointer arithmetic and `unsafe` (`import`). The
 feature names `operator-address` and `pointer-dereference` no longer exist.
@@ -985,9 +983,8 @@ returns. Each captured variable lives on the heap (V-5), and making a
 closure that captures variables allocates. A literal called at once,
 `func(...) {...}(args)`, is a call of a func value.
 
-Still `unsupported`: capturing a variable declared in a for statement's
-init (`loop-variable-address`), of which Go 1.22 gives each iteration its
-own copy.
+A variable declared in a for statement's init may be captured or have its
+address taken: each iteration has its own (Go 1.22; D-055, below).
 
 ## Interfaces (Phase 8 increment 8.4)
 
@@ -1017,8 +1014,8 @@ The gate also accepts interfaces (D-041):
 - **Type switches** with cases of one or several types, `nil`, and
   `default`, binding the switch's variable to each clause's type.
 
-Still `unsupported`: an interface embedded in a struct (`non-int-type`),
-whose methods would be promoted; a switch statement on an interface, or
+An interface embedded in a struct is supported since D-055 (below). Still
+`unsupported`: a switch statement on an interface, or
 with a case value of interface type (`non-int-type`); `print` and
 `println` of an interface (`println-argument-type`), which gc prints as
 two addresses.
@@ -1181,8 +1178,9 @@ D-049. These supersede the rejections that earlier sections list for them.
   `=`, a `select` receive, and a `range` assignment. Each value is
   evaluated, in order, and discarded. A function, method, or type named `_`
   stays `blank-identifier`.
-- Still `unsupported`: type aliases and generic type declarations
-  (`package-level-declaration`, `local-type-declaration`), and a method
+- Still `unsupported`: generic type aliases and generic type declarations
+  (`package-level-declaration`, `local-type-declaration`; non-generic
+  aliases are supported since D-055), and a method
   expression of a type that is neither defined nor an interface, as
   `struct{ T }.m` (`selector`).
 
@@ -1205,8 +1203,8 @@ D-049. These supersede the rejections earlier sections list for them.
   type switch, and `select` statements, and `goto`, forward and backward.
 - **`init` functions**, any number, run after every package variable is
   initialized, in source order, before `main`.
-- Still `unsupported`: `fallthrough` and range over functions
-  (`for-range`). The feature names `label`, `goto`, and `init-function`
+- Still `unsupported`: `fallthrough`. Range over functions is supported
+  since D-055 (below). The feature names `label`, `goto`, and `init-function`
   are no longer reported and were removed.
 
 
@@ -1364,8 +1362,7 @@ package's generic code is `unsupported`.
   `Swapper` over the type descriptors, which are then full as with
   `reflect`. A non-slice argument panics with gc's message.
 - `unsupported`: `iter.Pull` and `iter.Pull2` (`stdlib-package`);
-  everything ranging over an iterator (`slices.Collect`, `maps.Keys`, ...,
-  `for-range`); `sort.Reverse` (a struct embedding an interface).
+  ranging over iterators and `sort.Reverse` are supported since D-055.
 
 ## unsafe, strings, and bytes (Phase 11 increment 11.7, second part)
 
@@ -1622,8 +1619,54 @@ D-054.
 - Maps, found with `$GOROOT/test/maplinear.go`, which `time` makes
   testable: NaN keys and a range that deletes the first key it visits,
   repeated, took quadratic time; both are linear now.
-- Still `unsupported`, for reasons of their own: `log` (`runtime.Caller`),
-  `flag` (`reflect.New`), and `context` (a struct embedding an interface).
+- `log`, `flag`, and `context` compile since D-055 (below).
+
+## Practical evaluation v2 batch
+
+D-055, after `eval/practical-v2/REPORT.md`. Language:
+- **Range over functions** (`for k, v := range seq`, Go 1.23), with
+  `break`, `continue`, `return`, labeled branches, and `goto` out of the
+  body, and gc's run-time errors for an iterator that continues after the
+  loop ended, after it exited, or after recovering the body's panic
+  (Aether's are `panic` strings with gc's text, not `runtime.Error`s).
+  `unsupported` (`for-range`): a `defer` in such a body.
+- **Per-iteration variables** of 3-clause `for` statements (Go 1.22): a
+  captured or address-taken variable is each iteration's own.
+- **Interfaces embedded in structs**: their methods are promoted, through
+  calls, method values and expressions, and the struct's method set.
+- **Slice-to-array conversions** `[N]T(s)` and `(*[N]T)(s)` (Go 1.20),
+  with gc's run-time error for a short slice.
+- **Non-generic type aliases**, at package level and locally.
+
+Library:
+- **`reflect`**: the API `encoding/json`, `xml`, and `gob` use (D-055
+  lists it). `Value.Call` and `MakeFunc` are `function-without-body`.
+  Pointer and slice types reflect makes for a type the program never
+  names implement no interface with methods.
+- **`flag`**, **`log`**: they find their callers' positions through
+  Aether's `internal/callers`, which finds none, so `log`'s
+  `Lshortfile`/`Llongfile` prefixes are `???:0` where gc prints the
+  caller, and `flag`'s message for a flag set before it was defined has
+  `?:0`. A program's own `runtime.Caller`, `Callers`, and `CallersFrames`
+  stay `function-without-body`.
+- **`runtime/debug`**: `SetMaxStack`, `SetGCPercent`, `SetMemoryLimit`
+  record their settings and return the previous ones (Aether's stacks and
+  collector keep their own, V-2); `FreeOSMemory` collects. The rest of the
+  package is not declared.
+- **`unique`**, **`crypto/internal/fips140cache`**: canonical values and
+  cache entries are never reclaimed (no weak pointers).
+- **`math/big`** (gc's pure-Go arithmetic), **`net/url`**, **`context`**,
+  **`crypto/md5`, `sha1`, `sha256`, `sha512`, `hmac`, `subtle`**.
+  `crypto/rand` stays `unsupported` (an array larger than 16 MiB).
+- **`os`** uses `io/fs`'s `FileMode`, `PathError`, `FileInfo`, and
+  `DirEntry`, and adds `Stat`, `Lstat`, `File.Stat`, `SameFile`,
+  `ReadDir`, `File.ReadDir`, `Readdir`, `Readdirnames`, `Readlink`,
+  `CreateTemp`, `MkdirTemp`, and `RemoveAll`; a FileInfo's `Sys` is nil.
+  `path/filepath` compiles.
+- A standard-library package's import of `golang.org/x/...` is GOROOT's
+  vendored copy.
+- Still `unsupported`: `net`, `net/http`, and what imports them (no
+  network poller).
 
 ## Support matrix
 
@@ -1680,6 +1723,7 @@ D-054.
 | Complex numbers as values (no arithmetic); `reflect` in part | Numeric types, Manipulating complex numbers, Package reflect | Phase 11 / 11.8 | Supported (native) | `s7_c01_complex`, `unsupported_complex_arithmetic`; `TestStdPrograms` (`reflect`); gate tests |
 | `fmt`, with `internal/fmtsort` | Package fmt | Phase 11 / 11.8 | Supported (native) | `TestStdPrograms` (`fmt`, against gc, natively and in the interpreter); `TestStdin` |
 | `min` and `max` of floats and strings; `sync/atomic` `Pointer` and `Value`; `sync` `Map`, `OnceFunc`, `OnceValue`, `OnceValues`; `runtime` `Frame` and `Frames`; `reflect` `Indirect` and `CanSet`; `hash/crc32`; `encoding/binary`; `errors.As` with `internal/reflectlite` | Min and max; the packages' documentation | Batch 1 | Supported (native) | `s7_l04_minmax_ordered`; `TestStdPrograms` (`minmax`, `atomicvalue`, `syncmap`, `syncmappanic`, `oncepanic`, `frames`, `crc32`, `binary`, `errorsas`, `errorsaspanic`); `TestStdRejects`; gate tests |
+| Range over functions; per-iteration `for` variables; interfaces embedded in structs; slice-to-array conversions; non-generic type aliases; `flag`, `log`, `context`, `runtime/debug`, `unique`, `math/big`, `net/url`, hashing `crypto`; `os` files and directories over `io/fs`; `reflect` for `encoding/json`, `xml`, `gob` | For statements with range clause, Struct types, Conversions, Alias declarations; the packages' documentation | D-055 (practical evaluation v2) | Supported (native) | `TestStdPrograms` (`rangefunc`, `rangefunc2`, `loopvar`, `loopvar2`, `embedif`, `embedif2`, `slicetoarray`, `slicetoarraypanic`, `flag`, `log`, `crypto`, `json`, `taggedinstance`, `alias`, `multivalueiface`); corpus `run_embedded_interface`, `run_slice_to_array`, `run_loop_variable_address`, `run_loop_variable_capture`; `eval/practical-v2` |
 | Instances of another package's generic code with any package's types, and gc's names of type arguments | Instantiation; the packages' documentation | Batch 3 | Supported (native) | `TestPackagePrograms` (`hosted`, against gc); `TestPackageRejects`; `TestStdRejects`; `TestPathPrefix` |
 | `os` files by name (`Open`, `Create`, `OpenFile`, `ReadFile`, `WriteFile`, `Mkdir`, `MkdirAll`, `Remove`, `Rename`, `Getwd`, `Chdir`), `File` methods (`Close`, `ReadAt`, `WriteAt`, `Seek`, `Sync`, `Truncate`, `Fd`), the environment, and `os`'s errors | The package's documentation | Batch 2 | Supported (native) | `TestOSPrograms` (`testdata/osprog`, against gc, natively and in the interpreter, comparing the directory left); `TestStdRejects`; `TestSysOps` |
 | Everything else | — | — | Unsupported | gate tests, corpus |

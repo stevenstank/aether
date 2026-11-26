@@ -1,0 +1,310 @@
+string s0 "runtime error: cannot convert slice with length "
+string s1 " to array or pointer to array with length 2"
+string s2 " to array or pointer to array with length 3"
+
+func main @testdata/check/run_slice_to_array.go:8:6
+  slot s0 tmp ptr @9:7
+  slot s1 s ptr @9:2
+  slot s2 s i64 @9:2
+  slot s3 s i64 @9:2
+  slot s4 tmp ptr @10:7
+  slot s5 tmp i64 @10:7
+  slot s6 tmp ptr @10:7
+  slot s7 tmp ptr @10:7
+  slot s8 tmp ptr @11:7
+  slot s9 tmp i64 @11:7
+  slot s10 p ptr @11:2
+  slot s11 tmp ptr @12:2
+  slot s12 tmp i64 @12:2
+  slot s13 tmp i64 @12:3
+  slot s14 tmp i64 @12:2
+  slot s15 tmp ptr @13:2
+  slot s16 tmp i64 @13:2
+  slot s17 tmp i64 @14:10
+  slot s18 tmp i64 @14:16
+  slot s19 tmp ptr @14:22
+  slot s20 tmp i64 @14:22
+  slot s21 tmp ptr @14:28
+  slot s22 tmp i64 @14:28
+  slot s23 tmp i64 @14:29
+  mem m0 tmp 16 align 8 @10:7
+  mem m1 a 16 align 8 @10:2
+b0:
+  v0 = const 24 @9:7
+  v1 = alloc noscan, v0 @9:7
+  store s0, v1 @9:7
+  v2 = const 1 @9:13
+  v3 = const 0 @9:13
+  stm v1, v3, v2 @9:13
+  v4 = const 2 @9:16
+  v5 = const 8 @9:16
+  stm v1, v5, v4 @9:16
+  v6 = const 3 @9:19
+  v7 = const 16 @9:19
+  stm v1, v7, v6 @9:19
+  v8 = const 3 @9:7
+  v9 = const 3 @9:7
+  store s1, v1 @9:2
+  store s2, v8 @9:2
+  store s3, v9 @9:2
+  v10 = load s1 @10:14
+  v11 = load s2 @10:14
+  v12 = load s3 @10:14
+  v13 = const 2 @10:7
+  v14 = lt v11, v13 @10:7
+  store s4, v10 @10:7
+  store s5, v11 @10:7
+  branch v14, b1, b2 @10:7
+b1:
+  v15 = load s4 @10:7
+  v16 = load s5 @10:7
+  v17 = const false @10:7
+  v18 = call .convitoa, v16, v17 @10:7
+  v19 = extract 0, v18 @10:7
+  v20 = extract 1, v18 @10:7
+  v21 = str s0 @10:7
+  v22 = const 48 @10:7
+  v23 = str s1 @10:7
+  v24 = const 43 @10:7
+  v25 = add v22, v20 @10:7
+  v26 = add v25, v24 @10:7
+  v27 = alloc noscan, v26 @10:7
+  v28 = const 0 @10:7
+  v29 = padd v27, v28 @10:7
+  move v29, v21, v22 @10:7
+  v30 = add v28, v22 @10:7
+  v31 = padd v27, v30 @10:7
+  move v31, v19, v20 @10:7
+  v32 = add v30, v20 @10:7
+  v33 = padd v27, v32 @10:7
+  move v33, v23, v24 @10:7
+  panic msg, v27, v26 @10:7
+b2:
+  v34 = load s4 @10:7
+  v35 = load s5 @10:7
+  store s6, v34 @10:7
+  store s7, v34 @10:7
+  v36 = const 0 @10:7
+  v37 = ldm i64, v34, v36 @10:7
+  v38 = addr m0 @10:7
+  v39 = const 0 @10:7
+  stm v38, v39, v37 @10:7
+  v40 = const 8 @10:7
+  v41 = ldm i64, v34, v40 @10:7
+  v42 = const 8 @10:7
+  stm v38, v42, v41 @10:7
+  v43 = const 0 @10:2
+  v44 = ldm i64, v38, v43 @10:2
+  v45 = addr m1 @10:2
+  v46 = const 0 @10:2
+  stm v45, v46, v44 @10:2
+  v47 = const 8 @10:2
+  v48 = ldm i64, v38, v47 @10:2
+  v49 = const 8 @10:2
+  stm v45, v49, v48 @10:2
+  v50 = load s1 @11:17
+  v51 = load s2 @11:17
+  v52 = load s3 @11:17
+  v53 = const 3 @11:7
+  v54 = lt v51, v53 @11:7
+  store s8, v50 @11:7
+  store s9, v51 @11:7
+  branch v54, b3, b4 @11:7
+b3:
+  v55 = load s8 @11:7
+  v56 = load s9 @11:7
+  v57 = const false @11:7
+  v58 = call .convitoa, v56, v57 @11:7
+  v59 = extract 0, v58 @11:7
+  v60 = extract 1, v58 @11:7
+  v61 = str s0 @11:7
+  v62 = const 48 @11:7
+  v63 = str s2 @11:7
+  v64 = const 43 @11:7
+  v65 = add v62, v60 @11:7
+  v66 = add v65, v64 @11:7
+  v67 = alloc noscan, v66 @11:7
+  v68 = const 0 @11:7
+  v69 = padd v67, v68 @11:7
+  move v69, v61, v62 @11:7
+  v70 = add v68, v62 @11:7
+  v71 = padd v67, v70 @11:7
+  move v71, v59, v60 @11:7
+  v72 = add v70, v60 @11:7
+  v73 = padd v67, v72 @11:7
+  move v73, v63, v64 @11:7
+  panic msg, v67, v66 @11:7
+b4:
+  v74 = load s8 @11:7
+  v75 = load s9 @11:7
+  store s10, v74 @11:2
+  v76 = load s1 @12:2
+  v77 = load s2 @12:2
+  v78 = load s3 @12:2
+  store s11, v76 @12:2
+  store s12, v77 @12:2
+  v79 = const 0 @12:4
+  store s13, v79 @12:3
+  v80 = const 9 @12:9
+  store s14, v80 @12:2
+  v81 = conv u64, v79 @12:3
+  v82 = conv u64, v77 @12:3
+  v83 = ge v81, v82 @12:3
+  branch v83, b5, b6 @12:3
+b5:
+  v84 = load s13 @12:3
+  v85 = load s12 @12:2
+  panic index, v84, v85 @12:3
+b6:
+  v86 = load s14 @12:2
+  v87 = load s11 @12:2
+  v88 = load s13 @12:3
+  v89 = const 8 @12:2
+  v90 = mul v88, v89 @12:2
+  stm v87, v90, v86 @12:2
+  v91 = load s10 @13:2
+  store s15, v91 @13:2
+  v92 = const 7 @13:9
+  store s16, v92 @13:2
+  v93 = const ptr 0 @13:2
+  v94 = eq v91, v93 @13:2
+  branch v94, b7, b8 @13:2
+b7:
+  panic nil @13:2
+b8:
+  v95 = load s16 @13:2
+  v96 = load s15 @13:2
+  v97 = const 16 @13:2
+  stm v96, v97, v95 @13:2
+  v98 = addr m1 @14:10
+  v99 = const 0 @14:10
+  v100 = ldm i64, v98, v99 @14:10
+  store s17, v100 @14:10
+  v101 = const 8 @14:16
+  v102 = ldm i64, v98, v101 @14:16
+  store s18, v102 @14:16
+  v103 = load s10 @14:22
+  store s19, v103 @14:22
+  v104 = const ptr 0 @14:22
+  v105 = eq v103, v104 @14:22
+  branch v105, b9, b10 @14:22
+b9:
+  panic nil @14:22
+b10:
+  v106 = load s19 @14:22
+  v107 = const 0 @14:22
+  v108 = ldm i64, v106, v107 @14:22
+  store s20, v108 @14:22
+  v109 = load s1 @14:28
+  v110 = load s2 @14:28
+  v111 = load s3 @14:28
+  store s21, v109 @14:28
+  store s22, v110 @14:28
+  v112 = const 2 @14:30
+  store s23, v112 @14:29
+  v113 = conv u64, v112 @14:29
+  v114 = conv u64, v110 @14:29
+  v115 = ge v113, v114 @14:29
+  branch v115, b11, b12 @14:29
+b11:
+  v116 = load s23 @14:29
+  v117 = load s22 @14:28
+  panic index, v116, v117 @14:29
+b12:
+  v118 = load s21 @14:28
+  v119 = load s23 @14:29
+  v120 = const 8 @14:28
+  v121 = mul v119, v120 @14:28
+  v122 = ldm i64, v118, v121 @14:28
+  v123 = const 0 @14:34
+  v124 = load s17 @14:10
+  v125 = load s18 @14:16
+  v126 = load s20 @14:22
+  println v124, v125, v126, v122, v123 @14:2
+  ret @15:1
+
+func .convitoa(i64, bool) (ptr, i64) @testdata/check/run_slice_to_array.go:10:7
+  slot s0 tmp i64 @10:7
+  slot s1 tmp bool @10:7
+  slot s2 tmp ptr @10:7
+  slot s3 buf ptr @10:7
+  slot s4 i i64 @10:7
+  slot s5 u u64 @10:7
+  slot s6 neg bool @10:7
+b0:
+  v0 = param 0 @10:7
+  v1 = param 1 @10:7
+  store s0, v0 @10:7
+  store s1, v1 @10:7
+  v2 = const 20 @10:7
+  v3 = alloc noscan, v2 @10:7
+  store s2, v3 @10:7
+  store s3, v3 @10:7
+  v4 = const 20 @10:7
+  store s4, v4 @10:7
+  v5 = load s0 @10:7
+  v6 = conv u64, v5 @10:7
+  store s5, v6 @10:7
+  v7 = const false @10:7
+  store s6, v7 @10:7
+  v8 = load s1 @10:7
+  branch v8, b2, b3 @10:7
+b1:
+  v16 = load s4 @10:7
+  v17 = const 1 @10:7
+  v18 = sub v16, v17 @10:7
+  store s4, v18 @10:7
+  v19 = const u64 10 @10:7
+  v20 = load s5 @10:7
+  v21 = rem v20, v19 @10:7
+  v22 = const u64 48 @10:7
+  v23 = add v21, v22 @10:7
+  v24 = load s3 @10:7
+  v25 = load s4 @10:7
+  v26 = conv u8, v23 @10:7
+  stm v24, v25, v26 @10:7
+  v27 = load s5 @10:7
+  v28 = const u64 10 @10:7
+  v29 = div v27, v28 @10:7
+  store s5, v29 @10:7
+  v30 = load s5 @10:7
+  v31 = const u64 0 @10:7
+  v32 = ne v30, v31 @10:7
+  branch v32, b1, b6 @10:7
+b2:
+  v9 = load s0 @10:7
+  v10 = const 0 @10:7
+  v11 = lt v9, v10 @10:7
+  branch v11, b4, b5 @10:7
+b3:
+  jump b1 @10:7
+b4:
+  v12 = const true @10:7
+  store s6, v12 @10:7
+  v13 = load s0 @10:7
+  v14 = neg v13 @10:7
+  v15 = conv u64, v14 @10:7
+  store s5, v15 @10:7
+  jump b1 @10:7
+b5:
+  jump b1 @10:7
+b6:
+  v33 = load s6 @10:7
+  branch v33, b7, b8 @10:7
+b7:
+  v34 = load s4 @10:7
+  v35 = const 1 @10:7
+  v36 = sub v34, v35 @10:7
+  store s4, v36 @10:7
+  v37 = load s3 @10:7
+  v38 = load s4 @10:7
+  v39 = const u8 45 @10:7
+  stm v37, v38, v39 @10:7
+  jump b8 @10:7
+b8:
+  v40 = load s4 @10:7
+  v41 = load s3 @10:7
+  v42 = padd v41, v40 @10:7
+  v43 = const 20 @10:7
+  v44 = sub v43, v40 @10:7
+  ret v42, v44 @10:7

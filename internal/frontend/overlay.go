@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -32,6 +33,9 @@ type patch struct {
 	// runtime implements (//go:linkname), the body "return target(its
 	// parameters)", target an overlay function of the package (D-054).
 	bodies map[string]string
+	// imports gives import paths of the package's GOROOT files replaced by
+	// other packages of the same name (v2 evaluation).
+	imports map[string]string
 }
 
 // patches are the standard-library packages Aether changes (D-049). Each
@@ -54,6 +58,10 @@ var patches = map[string]patch{
 	// exactly, so the results are the same (Batch 1).
 	"hash/crc32": {use: map[string]string{"crc32_amd64.go": "crc32_otherarch.go"}},
 	"strconv":    {use: map[string]string{"bytealg.go": "bytealg_bootstrap.go"}},
+	// gc's pure-Go vector arithmetic (its math_big_pure_go build), in
+	// place of its assembly: the same exact integer results (v2
+	// evaluation).
+	"math/big": {exclude: []string{"arith_amd64.go"}, use: map[string]string{"arith_decl.go": "arith_decl_pure.go"}},
 	// gc's portable files, and Aether's for its assembly and runtime (11.7).
 	"internal/bytealg": {exclude: []string{"equal_native.go", "index_native.go"}, use: map[string]string{
 		"compare_native.go": "compare_generic.go", "count_native.go": "count_generic.go", "indexbyte_native.go": "indexbyte_generic.go"}},
@@ -65,6 +73,22 @@ var patches = map[string]patch{
 	"internal/reflectlite": {replace: true}, // ValueOf, Len, and Swapper, for sort (R.6)
 	"internal/godebug":     {replace: true}, // $GODEBUG at startup, without gc's runtime hooks (D-053)
 	"syscall":              {replace: true}, // what time and os use, over D-051's primitive (D-054)
+	"runtime/debug":        {replace: true}, // the settings a program reads back (v2 evaluation)
+	// flag and log take their callers' positions from Aether's
+	// internal/callers, which finds none, so that a program's own use of
+	// runtime.Caller stays unsupported (v2 evaluation).
+	"flag":             {imports: map[string]string{"runtime": "internal/callers"}},
+	"log":              {imports: map[string]string{"runtime": "internal/callers"}},
+	"internal/callers": {replace: true},
+	"unique":           {replace: true}, // canonical values without weak pointers (v2 evaluation)
+	// getrandom(2) over Aether's syscall, and gc's runtime fatal (v2
+	// evaluation).
+	"crypto/internal/sysrand":     {bodies: map[string]string{"fatal": "aetherFatal"}},
+	"crypto/fips140":              {bodies: map[string]string{"setBypass": "aetherSetBypass", "unsetBypass": "aetherUnsetBypass", "isBypassed": "aetherIsBypassed"}},
+	"crypto/internal/fips140hash": {bodies: map[string]string{"sha3Unwrap": "aetherSha3Unwrap"}},
+	"crypto/internal/boring/sig":  {bodies: map[string]string{"BoringCrypto": "aetherMark", "FIPSOnly": "aetherMark", "StandardCrypto": "aetherMark"}},
+	"crypto/internal/fips140": {bodies: map[string]string{"fatal": "aetherFatal",
+		"getIndicator": "aetherGetIndicator", "setIndicator": "aetherSetIndicator"}},
 	// gc's time, its runtime's part in Aether's runtime.go (D-054).
 	"time": {bodies: map[string]string{"now": "runtimeClock", "runtimeNow": "runtimeClock", "runtimeNano": "nanotime",
 		"runtimeIsBubbled": "isBubbled", "Sleep": "sleep", "newTimer": "newRuntimeTimer", "stopTimer": "stopRuntimeTimer",
@@ -85,6 +109,7 @@ var Intrinsics = map[string]bool{
 	"math.cpuFMA": true, "math.envc": true, "math.env": true,
 	"internal/godebug.envc": true, "internal/godebug.env": true, "math/rand.runtime_rand": true,
 	"internal/reflectlite.implements": true,
+	"reflect.implements":              true, // as internal/reflectlite's (v2 evaluation)
 }
 
 // GOROOTIntrinsics are the intrinsics declared without a body in GOROOT's
@@ -173,6 +198,11 @@ func hasOverlay(p, name string) bool {
 // body calling its target with its parameters, returning its results: as
 // written in the source, at the declaration's name (D-054).
 func giveBodies(p string, f *ast.File) {
+	for _, imp := range f.Imports {
+		if to, ok := patches[p].imports[strings.Trim(imp.Path.Value, `"`)]; ok {
+			imp.Path.Value = strconv.Quote(to)
+		}
+	}
 	bodies := patches[p].bodies
 	for _, d := range f.Decls {
 		fd, ok := d.(*ast.FuncDecl)
