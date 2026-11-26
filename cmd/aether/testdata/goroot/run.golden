@@ -321,7 +321,7 @@ fixedbugs/issue14636.go unsupported stdlib-package
 fixedbugs/issue14646.go unsupported function-without-body
 fixedbugs/issue14651.go pass
 fixedbugs/issue14725.go pass
-fixedbugs/issue15002.go unsupported stdlib-package
+fixedbugs/issue15002.go pass
 fixedbugs/issue15039.go pass
 fixedbugs/issue15042.go pass
 fixedbugs/issue15175.go pass
@@ -437,7 +437,7 @@ fixedbugs/issue26495.go pass
 fixedbugs/issue27201.go unsupported stdlib-package
 fixedbugs/issue27278.go pass
 fixedbugs/issue27289.go pass
-fixedbugs/issue27518a.go unsupported stdlib-package
+fixedbugs/issue27518a.go pass
 fixedbugs/issue27518b.go unsupported stdlib-package
 fixedbugs/issue27695.go unsupported stdlib-package
 fixedbugs/issue27695b.go unsupported stdlib-package
@@ -1006,4 +1006,4 @@ varinit.go pass
 winbatch.go pass
 zerodivide.go unsupported stdlib-package
 zerosize.go unsupported println-argument-type
-# 1008 tests, 3 skipped, 1005 run: 793 pass (78.9%), 212 unsupported, 0 bug
+# 1008 tests, 3 skipped, 1005 run: 795 pass (79.1%), 210 unsupported, 0 bug

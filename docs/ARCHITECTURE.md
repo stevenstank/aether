@@ -705,6 +705,10 @@ so none can be read as an option.
     `time.maybeRunChan`, `blockTimerChan`, and `unblockTimerChan`.
     Lowering generates these calls only if the program can make a timer
     (`frontend.RuntimeHooks`).
+  - The network poller (D-056) is Go, in Aether's
+    `internal/poll/aether.go`: edge-triggered epoll, which
+    `time.runTimers` polls at one switch in 61 and waits on with every
+    goroutine blocked; a program with it has the timer hooks too.
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
       (`aether.write`) that continues short writes, retries `EINTR`, and

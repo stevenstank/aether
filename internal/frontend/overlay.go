@@ -72,8 +72,28 @@ var patches = map[string]patch{
 	"iter":                 {replace: true}, // gc's Pull and Pull2 use its runtime's coroutines (11.7)
 	"internal/reflectlite": {replace: true}, // ValueOf, Len, and Swapper, for sort (R.6)
 	"internal/godebug":     {replace: true}, // $GODEBUG at startup, without gc's runtime hooks (D-053)
-	"syscall":              {replace: true}, // what time and os use, over D-051's primitive (D-054)
-	"runtime/debug":        {replace: true}, // the settings a program reads back (v2 evaluation)
+	// gc's syscall, its runtime's part in Aether's aether.go, and
+	// internal/runtime/syscall/linux's Syscall6 over D-051's primitive:
+	// sockets, descriptors, and the types of internal/poll and net (D-056).
+	"syscall": {exclude: []string{"env_unix.go", "rlimit_stub.go"}, bodies: map[string]string{
+		"runtime_entersyscall": "aetherEnterSyscall", "runtime_exitsyscall": "aetherExitSyscall",
+		"rawSyscallNoError": "aetherRawSyscallNoError", "Getpagesize": "aetherGetpagesize", "Exit": "aetherExit",
+		"gettimeofday": "aetherGettimeofday"}},
+	// gc's runtime network poller and semaphores, in Aether's aether.go
+	// (D-056).
+	"internal/poll": {imports: map[string]string{"runtime": "internal/cleanups"}, bodies: map[string]string{"runtime_Semacquire": "aetherSemacquire", "runtime_Semrelease": "aetherSemrelease",
+		"runtime_pollServerInit": "aetherPollServerInit", "runtime_pollOpen": "aetherPollOpen", "runtime_pollClose": "aetherPollClose",
+		"runtime_pollWait": "aetherPollWait", "runtime_pollWaitCanceled": "aetherPollWaitCanceled", "runtime_pollReset": "aetherPollReset",
+		"runtime_pollSetDeadline": "aetherPollSetDeadline", "runtime_pollUnblock": "aetherPollUnblock",
+		"runtime_isPollServerDescriptor": "aetherIsPollServerDescriptor"}},
+	// net and internal/poll's finalizers and cleanups, which never run,
+	// from Aether's internal/cleanups, so that a program's own stay
+	// unsupported (D-056).
+	"net":                            {imports: map[string]string{"runtime": "internal/cleanups"}},
+	"internal/cleanups":              {replace: true},
+	"internal/syscall/unix":          {bodies: map[string]string{"fcntl": "aetherFcntl"}},
+	"internal/runtime/syscall/linux": {bodies: map[string]string{"Syscall6": "aetherSyscall6"}},
+	"runtime/debug":                  {replace: true}, // the settings a program reads back (v2 evaluation)
 	// flag and log take their callers' positions from Aether's
 	// internal/callers, which finds none, so that a program's own use of
 	// runtime.Caller stays unsupported (v2 evaluation).
@@ -104,18 +124,36 @@ var Intrinsics = map[string]bool{
 	"runtime.GC": true, "runtime.Gosched": true, "runtime.NumGoroutine": true,
 	"os.argc": true, "os.arg": true, "os.Exit": true, "os.write": true, "os.read": true,
 	"os.syscall6": true, "sync.fatal": true,
-	"syscall.rawSyscall6": true, "syscall.envc": true, "syscall.envString": true,
+	"internal/runtime/syscall/linux.syscall6": true, "syscall.envc": true, "syscall.envString": true,
 	"time.syscall6": true, "time.setChanTimer": true, "runtime.envc": true, "runtime.envString": true,
 	"math.cpuFMA": true, "math.envc": true, "math.env": true,
 	"internal/godebug.envc": true, "internal/godebug.env": true, "math/rand.runtime_rand": true,
+	"net.runtime_rand":                true, // D-056
 	"internal/reflectlite.implements": true,
 	"reflect.implements":              true, // as internal/reflectlite's (v2 evaluation)
+}
+
+// Linknames are the functions GOROOT's files declare without a body that
+// gc's linker makes a function of another package (//go:linkname), by
+// package path and name: lowering makes each the function it names, which
+// is reachable whenever it is (D-056).
+var Linknames = map[string]string{
+	"internal/syscall/unix.RecvfromInet4": "syscall.recvfromInet4",
+	"internal/syscall/unix.RecvfromInet6": "syscall.recvfromInet6",
+	"internal/syscall/unix.SendtoInet4":   "syscall.sendtoInet4",
+	"internal/syscall/unix.SendtoInet6":   "syscall.sendtoInet6",
+	"internal/syscall/unix.SendmsgNInet4": "syscall.sendmsgNInet4",
+	"internal/syscall/unix.SendmsgNInet6": "syscall.sendmsgNInet6",
+	"internal/syscall/unix.RecvmsgInet4":  "syscall.recvmsgInet4",
+	"internal/syscall/unix.RecvmsgInet6":  "syscall.recvmsgInet6",
+	"internal/poll.runtimeNano":           "time.nanotime",
+	"internal/poll.setNetpoll":            "time.setNetpoll",
 }
 
 // GOROOTIntrinsics are the intrinsics declared without a body in GOROOT's
 // own files, not Aether's: math/rand's runtime_rand, which gc's linker
 // makes runtime.rand (D-053).
-var GOROOTIntrinsics = map[string]bool{"math/rand.runtime_rand": true}
+var GOROOTIntrinsics = map[string]bool{"math/rand.runtime_rand": true, "net.runtime_rand": true}
 
 // isStd reports whether an import path names a standard-library package:
 // its first element has no dot.

@@ -9,3 +9,7 @@ import "unsafe"
 func NoEscape(p unsafe.Pointer) unsafe.Pointer {
 	return p
 }
+
+// Type is gc's type descriptor, which Aether's are not: opaque, for the
+// signatures of internal/race, whose functions do nothing (D-056).
+type Type struct{}

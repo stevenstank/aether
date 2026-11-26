@@ -4,6 +4,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
+	"strings"
 )
 
 // prune replaces each package of prog besides main by the declarations
@@ -44,6 +46,7 @@ func prune(prog *Program) {
 	r.infos = make([]*types.Info, len(prog.Packages))
 	for i, p := range prog.Packages {
 		r.infos[i] = p.Info
+		r.pkgs = append(r.pkgs, p.Types)
 	}
 	for _, f := range main.Files {
 		r.walk(f)
@@ -64,7 +67,10 @@ func prune(prog *Program) {
 	// program can make what they serve (D-054).
 	for _, p := range prog.Packages {
 		hooks := RuntimeHooks[p.Types.Path()]
-		if trigger := p.Types.Scope().Lookup(hooks.Trigger); trigger == nil || !r.seen[trigger] {
+		if !slices.ContainsFunc(hooks.Triggers, func(name string) bool {
+			trigger := p.Types.Scope().Lookup(name)
+			return trigger != nil && r.seen[trigger]
+		}) {
 			continue
 		}
 		for _, name := range hooks.Funcs {
@@ -78,23 +84,25 @@ func prune(prog *Program) {
 	}
 }
 
-// Hooks are a package's functions lowering's scheduler calls, if Trigger
-// is reachable.
+// Hooks are a package's functions lowering's scheduler calls, if one of
+// Triggers is reachable.
 type Hooks struct {
-	Trigger string
-	Funcs   []string
+	Triggers []string
+	Funcs    []string
 }
 
 // RuntimeHooks are the functions of time that lowering's scheduler and
-// channels call, by package path, if the program can make a timer: the
-// part of gc's runtime that is Aether's time/runtime.go (D-054).
+// channels call, by package path, if the program can make a timer or has
+// the network poller: the part of gc's runtime that is Aether's
+// time/runtime.go (D-054, D-056).
 var RuntimeHooks = map[string]Hooks{
-	"time": {Trigger: "newRuntimeTimer", Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}},
+	"time": {Triggers: []string{"newRuntimeTimer", "setNetpoll"}, Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}},
 }
 
 type reacher struct {
 	info    *types.Info   // while indexing
 	infos   []*types.Info // every package's
+	pkgs    []*types.Package
 	decls   map[types.Object]ast.Node
 	methods map[*types.TypeName][]types.Object
 	seen    map[types.Object]bool
@@ -243,6 +251,25 @@ func (r *reacher) mark(obj types.Object) {
 	if d := r.decls[obj]; d != nil {
 		r.walk(d)
 	}
+	if fn, ok := obj.(*types.Func); ok && fn.Pkg() != nil {
+		if to := Linknames[fn.Pkg().Path()+"."+fn.Name()]; to != "" {
+			if t := r.lookup(to); t != nil {
+				r.mark(t)
+			}
+		}
+	}
+}
+
+// lookup returns the package-level object named by key, its package path
+// and name.
+func (r *reacher) lookup(key string) types.Object {
+	i := strings.LastIndexByte(key, '.')
+	for _, p := range r.pkgs {
+		if p.Path() == key[:i] {
+			return p.Scope().Lookup(key[i+1:])
+		}
+	}
+	return nil
 }
 
 // markType marks the defined types t involves.

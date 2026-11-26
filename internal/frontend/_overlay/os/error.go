@@ -2,6 +2,7 @@ package os
 
 import (
 	"internal/oserror"
+	"internal/poll"
 	"io/fs"
 	"syscall"
 )
@@ -14,6 +15,10 @@ var (
 	ErrExist      = oserror.ErrExist
 	ErrNotExist   = oserror.ErrNotExist
 	ErrClosed     = oserror.ErrClosed
+
+	// internal/poll's, which net's descriptors return (D-056).
+	ErrNoDeadline       = poll.ErrNoDeadline
+	ErrDeadlineExceeded = poll.ErrDeadlineExceeded
 )
 
 // PathError records an error and the operation and file path that caused

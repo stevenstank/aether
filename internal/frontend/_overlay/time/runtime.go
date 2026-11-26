@@ -251,9 +251,27 @@ func unblockTimerChan(p unsafe.Pointer) {
 // every goroutine blocked, and when a select with a default case finds no
 // case ready, so that a loop polling a timer's channel sees it fire, as
 // gc's runtime runs timers on its own (D-054).
+//
+// With the network poller (D-056), it first polls: when every goroutine is
+// blocked and one waits on a descriptor, it waits there until an event or
+// the next timer, and then reports true.
 func runTimers(block bool) bool {
+	polled := false
+	if netpoll != nil {
+		if block {
+			delay := int64(-1)
+			if len(timers) > 0 {
+				delay = max(0, timers[0].when-nanotime())
+			}
+			if netpoll(delay) >= 0 {
+				polled, block = true, false
+			}
+		} else {
+			polled = netpoll(0) > 0
+		}
+	}
 	if len(timers) == 0 {
-		return false
+		return polled
 	}
 	now := nanotime()
 	if block && timers[0].when > now {
@@ -266,5 +284,14 @@ func runTimers(block bool) bool {
 		timers[0].run(now)
 		ran = true
 	}
-	return block || ran
+	return block || ran || polled
 }
+
+// netpoll is internal/poll's poller, once a program has one (D-056): it
+// waits up to delay nanoseconds, -1 for no limit, for the descriptors
+// goroutines wait on, and returns how many goroutines it made runnable,
+// or -1 if none waits.
+var netpoll func(delay int64) int
+
+// setNetpoll is how internal/poll gives its poller (frontend.Linknames).
+func setNetpoll(f func(delay int64) int) { netpoll = f }

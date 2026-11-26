@@ -1618,6 +1618,9 @@ func (c *checker) intrinsic(d *ast.FuncDecl) bool {
 	if obj != nil {
 		key = obj.Pkg().Path() + "." + obj.Name()
 	}
+	if obj != nil && d.Recv == nil && frontend.Linknames[key] != "" {
+		return true // made another package's function (D-056)
+	}
 	return obj != nil && d.Recv == nil && frontend.Intrinsics[key] &&
 		(strings.HasPrefix(file, "$AETHER/") || frontend.GOROOTIntrinsics[key] && strings.HasPrefix(file, "$GOROOT/"))
 }

@@ -1602,7 +1602,7 @@ D-054.
   sleeps until the next timer; with no timer, it ends in deadlock as
   before. `GODEBUG=asynctimerchan=1` gives gc's earlier buffered timer
   channels.
-- **`syscall`** is Aether's: the environment (`Getenv`, `Setenv`,
+- **`syscall`** was Aether's (gc's since D-056): the environment (`Getenv`, `Setenv`,
   `Unsetenv`, `Clearenv`, `Environ`), which `os` now uses, `Errno` with
   gc's messages and `Is`, `Signal`, `Open`, `Read`, `Write`, `Close`,
   `Seek`, `Getpid`, `Kill`, `Syscall`, `Syscall6`, `RawSyscall`, and
@@ -1666,7 +1666,29 @@ Library:
 - A standard-library package's import of `golang.org/x/...` is GOROOT's
   vendored copy.
 - Still `unsupported`: `net`, `net/http`, and what imports them (no
-  network poller).
+  network poller; `net` since D-056, below).
+
+## The network poller
+
+D-056.
+- **`net`** is gc's, over Aether's network poller: TCP and UDP sockets,
+  `Listen`, `Dial`, `Accept`, reads and writes that wait for their
+  descriptor, read and write deadlines (`os.ErrDeadlineExceeded`), and a
+  listener or connection closed while a goroutine waits on it. While
+  every goroutine is blocked and one waits on a descriptor, the program
+  waits for the descriptor or the next timer.
+- **`syscall`** is gc's (it was Aether's since D-054), but for the
+  environment, which stays Aether's, and the open-file limit, which gc
+  raises at startup and Aether does not.
+- **`runtime`** adds `KeepAlive`. `net`'s finalizers, which close a
+  connection nobody closed, never run (gc does not promise they will), so
+  such a descriptor stays open until the program exits; a program's own
+  `SetFinalizer` and `AddCleanup` stay `unsupported`. **`os`** adds
+  `Hostname`, `ErrNoDeadline`, and `ErrDeadlineExceeded`.
+- Differences: the poller is polled at one goroutine switch in 61 and
+  when every goroutine is blocked; a goroutine that never blocks delays
+  it, as it delays timers.
+- Still `unsupported`: `net/http` (`crypto/tls`).
 
 ## Support matrix
 
@@ -1726,6 +1748,7 @@ Library:
 | Range over functions; per-iteration `for` variables; interfaces embedded in structs; slice-to-array conversions; non-generic type aliases; `flag`, `log`, `context`, `runtime/debug`, `unique`, `math/big`, `net/url`, hashing `crypto`; `os` files and directories over `io/fs`; `reflect` for `encoding/json`, `xml`, `gob` | For statements with range clause, Struct types, Conversions, Alias declarations; the packages' documentation | D-055 (practical evaluation v2) | Supported (native) | `TestStdPrograms` (`rangefunc`, `rangefunc2`, `loopvar`, `loopvar2`, `embedif`, `embedif2`, `slicetoarray`, `slicetoarraypanic`, `flag`, `log`, `crypto`, `json`, `taggedinstance`, `alias`, `multivalueiface`); corpus `run_embedded_interface`, `run_slice_to_array`, `run_loop_variable_address`, `run_loop_variable_capture`; `eval/practical-v2` |
 | Instances of another package's generic code with any package's types, and gc's names of type arguments | Instantiation; the packages' documentation | Batch 3 | Supported (native) | `TestPackagePrograms` (`hosted`, against gc); `TestPackageRejects`; `TestStdRejects`; `TestPathPrefix` |
 | `os` files by name (`Open`, `Create`, `OpenFile`, `ReadFile`, `WriteFile`, `Mkdir`, `MkdirAll`, `Remove`, `Rename`, `Getwd`, `Chdir`), `File` methods (`Close`, `ReadAt`, `WriteAt`, `Seek`, `Sync`, `Truncate`, `Fd`), the environment, and `os`'s errors | The package's documentation | Batch 2 | Supported (native) | `TestOSPrograms` (`testdata/osprog`, against gc, natively and in the interpreter, comparing the directory left); `TestStdRejects`; `TestSysOps` |
+| `net` over the network poller (TCP, UDP, deadlines), `syscall` (gc's) | The packages' documentation | D-056 | Supported (native) | `TestNetPrograms` (`testdata/net`, against gc, natively, with and without `-O0` and collector stress); `TestStdPrograms` |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

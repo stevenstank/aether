@@ -91,7 +91,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 	l.prog = prog
 	// Every function and global is created before any body is lowered, so
 	// that a use can refer to one declared later.
-	var decls []*ast.FuncDecl
+	var decls, links []*ast.FuncDecl
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
 			if gd, ok := d.(*ast.GenDecl); ok {
@@ -102,12 +102,19 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 			if ok && l.generic(fd) {
 				continue
 			}
+			if ok && fd.Body == nil && frontend.Linknames[intrinsicKey(l.pkg.Info, fd)] != "" {
+				links = append(links, fd)
+				continue
+			}
 			if !ok || fd.Body == nil && !frontend.Intrinsics[intrinsicKey(l.pkg.Info, fd)] || fd.Type.TypeParams != nil {
 				l.fail(d, "unexpected top-level declaration")
 			}
 			l.declare(prog, fd)
 			decls = append(decls, fd)
 		}
+	}
+	for _, fd := range links {
+		l.linkname(fd)
 	}
 	for _, f := range pkg.Files {
 		l.wantRecover = l.wantRecover || l.unwinds && programRecovers(f, pkg.Info)

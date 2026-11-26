@@ -4846,8 +4846,65 @@ interface's method set. `$GOROOT/test` runs 793 tests to gc's results,
 from 754, with no failure; one it now reached showed an older lowering
 bug, fixed: a multi-value call's interface results converted as
 arguments branch, which `branches` now sees. Still unsupported: `net` and `net/http` (no
-network poller in Aether's runtime), `crypto/rand` (a 32 MiB array),
+network poller in Aether's runtime; `net` since D-056), `crypto/rand` (a 32 MiB array),
 `Value.Call`, `MakeFunc`, and a defer in a range-over-function body.
+
+---
+
+## D-056: gc's syscall, and a network poller for package net
+
+**Status:** Accepted (2026-11-26; owner review pending). Written with its
+code, the first increment toward `net/http` (`eval/practical-v2`,
+`10-httpapi`).
+
+**Context.** `net` stands on `internal/poll`, which declares without
+bodies the runtime's network poller (`runtime_pollOpen`, `pollWait`,
+`pollSetDeadline`, ...) and semaphores, and on `internal/syscall/unix`
+and `syscall`'s sockets, socket addresses, `Stat_t`, and more. Aether's
+`syscall` (D-054) had only what `time` and `os` used.
+
+**Decision.**
+- **gc's `syscall`** (amends D-054), compiled from GOROOT, but for its
+  `env_unix.go` (Aether's `env.go` stays) and `rlimit.go` (Aether's,
+  without the startup raise of the open-file limit). Its runtime
+  functions get bodies in Aether's `aether.go`; under it, gc's
+  `internal/runtime/syscall/linux`, whose assembly `Syscall6` is D-051's
+  primitive. `internal/abi.Type` is an opaque type for `internal/race`'s
+  signatures; `runtime` adds `KeepAlive`. `net` and `internal/poll`
+  import Aether's `internal/cleanups` for `runtime` (a patch's
+  `imports`), whose `SetFinalizer` and `AddCleanup` never run their
+  functions, which gc allows: a program's own stay unsupported, since it
+  may depend on them running (GOROOT's `stackobj.go` and others do).
+- **Linknames** (`frontend.Linknames`): a function declared without a
+  body that gc's linker makes another package's function (such as
+  `internal/syscall/unix.RecvfromInet4`, `syscall.recvfromInet4`) is
+  that function in lowering, reachable whenever it is; the gate accepts
+  the declaration. Patch `bodies` (D-054) stay for targets in the same
+  package.
+- **The poller**, Go in Aether's `internal/poll/aether.go`: gc's
+  edge-triggered epoll design, a goroutine waiting on a channel of its
+  descriptor, deadlines as `time` timers, and semaphores over channels.
+  `time.runTimers`, the scheduler's hook, calls it through a function
+  `internal/poll` registers (`setNetpoll`, a linkname): every 61st
+  switch without waiting, and, with every goroutine blocked and one
+  waiting on a descriptor, waiting in `epoll_wait` until an event or the
+  next timer. A program with the poller has the scheduler hooks even
+  without timers (`Hooks.Triggers`).
+- `os` adds `Hostname`, `ErrNoDeadline`, and `ErrDeadlineExceeded`
+  (`internal/poll`'s, as gc's).
+
+**Alternatives considered.** Extending Aether's `syscall`: hundreds of
+lines copied from gc's for `net` alone. A poller in lowered IR, or a
+second scheduler hook: the hook would need the next timer, which is
+`time`'s. Polling at every switch: a system call per switch while a
+goroutine waits on a descriptor.
+
+**Consequences.** `net` compiles and runs TCP and UDP over loopback, with
+deadlines, against gc (`TestNetPrograms`, natively only: the interpreter
+makes no socket system calls). `$GOROOT/test` runs 795 tests to gc's
+results, from 793, with no failure. A goroutine that never blocks delays the
+poller as it delays timers (D-049). `net/http` still stops at
+`crypto/tls` (`weak`).
 
 ---
 

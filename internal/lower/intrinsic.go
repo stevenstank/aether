@@ -3,6 +3,7 @@ package lower
 import (
 	"go/ast"
 	"go/types"
+	"strings"
 
 	"github.com/stevenstank/aether/internal/frontend"
 	"github.com/stevenstank/aether/internal/ir"
@@ -44,6 +45,25 @@ func (l *lowerer) yield(pos ir.Pos) {
 	l.runqPut(m.v("g", l.fn.Call(l.b, sc.getg, nil, pos)), pos)
 	l.fn.Call(l.b, sc.park, nil, pos)
 	m.join(done)
+}
+
+// linkname makes fd, a function GOROOT declares without a body, the
+// function of another package frontend.Linknames names (D-056).
+func (l *lowerer) linkname(fd *ast.FuncDecl) {
+	obj := l.pkg.Info.Defs[fd.Name].(*types.Func)
+	key := frontend.Linknames[intrinsicKey(l.pkg.Info, fd)]
+	i := strings.LastIndexByte(key, '.')
+	for _, u := range l.units {
+		if u.Types.Path() != key[:i] {
+			continue
+		}
+		to, ok := u.Types.Scope().Lookup(key[i+1:]).(*types.Func)
+		if ok && l.funcs[to] != nil && types.Identical(to.Type(), obj.Type()) {
+			l.funcs[obj] = l.funcs[to]
+			return
+		}
+	}
+	l.fail(fd, "linkname %s of %s: no such function of its signature", obj.Name(), key)
 }
 
 // intrinsic generates the body of fd, a function an overlay file declares
@@ -105,14 +125,14 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 		c, t := l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos)
 		l.fn.StM(b, c, l.fn.Const(b, chTimer, pos), t, pos)
 		l.fn.Ret(b, pos)
-	case "os.syscall6", "syscall.rawSyscall6", "time.syscall6":
+	case "os.syscall6", "internal/runtime/syscall/linux.syscall6", "time.syscall6":
 		// syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) int (D-051).
 		args := make([]*ir.Instr, 7)
 		for i := range args {
 			args[i] = l.fn.Param(b, i, pos)
 		}
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCall, ir.I64, pos, args...))
-	case "math/rand.runtime_rand":
+	case "math/rand.runtime_rand", "net.runtime_rand":
 		// runtime_rand() uint64, gc's runtime.rand (D-053).
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysRand, ir.U64, pos))
 	case "syscall.envc", "math.envc", "internal/godebug.envc", "runtime.envc":
