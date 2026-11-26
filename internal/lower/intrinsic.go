@@ -132,7 +132,11 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 			args[i] = l.fn.Param(b, i, pos)
 		}
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCall, ir.I64, pos, args...))
-	case "math/rand.runtime_rand", "net.runtime_rand":
+	case "runtime.setSpecials":
+		// setSpecials(t *specialTable) (D-057).
+		l.fn.Sys(b, ir.SysSpecials, ir.NoType, pos, l.fn.Param(b, 0, pos))
+		l.fn.Ret(b, pos)
+	case "math/rand.runtime_rand", "net.runtime_rand", "math/rand/v2.runtime_rand":
 		// runtime_rand() uint64, gc's runtime.rand (D-053).
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysRand, ir.U64, pos))
 	case "syscall.envc", "math.envc", "internal/godebug.envc", "runtime.envc":

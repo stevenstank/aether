@@ -86,6 +86,11 @@ type mono struct {
 	seen     map[diag.Pos]bool
 	rejects  int             // rejections made, seen or not
 	wants    []frontend.Want // of other packages' generic code
+	// hoisted are the identifiers of the types declared in this package's
+	// functions that are type arguments, moved to the package level
+	// (D-057); hoistSpecs their declarations there.
+	hoisted    map[*types.TypeName]string
+	hoistSpecs []*ast.TypeSpec
 }
 
 // Instantiate returns pkg with its generic declarations replaced by their
@@ -113,6 +118,7 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 	if len(m.ds) > 0 {
 		return nil, nil, m.ds
 	}
+	m.hoistLocals()
 	for _, w := range wants {
 		src := m.own
 		if w.Path != pkg.Types.Path() {
@@ -155,6 +161,7 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 			}
 		}
 	}
+	m.hoistedSpecs()
 	for len(m.queue) > 0 && len(m.ds) == 0 {
 		in := m.queue[0]
 		m.queue = m.queue[1:]
@@ -211,7 +218,7 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 		return nil
 	}
 	for _, w := range m.written {
-		if tv, ok := out.Info.Types[w.e]; !ok || !tv.IsType() || typeNameIn(tv.Type, false, home) != w.name {
+		if tv, ok := out.Info.Types[w.e]; !ok || !tv.IsType() || typeNameIn(tv.Type, false, home, nil) != w.name {
 			m.reject(frontend.Position(pkg.Fset, w.e.Pos()), gate.FeatGenericInstance,
 				"type argument "+w.name+" whose name is shadowed in generic code")
 		}
@@ -223,10 +230,10 @@ func Instantiate(pkg *frontend.Package, wants []frontend.Want, collect bool) (*f
 }
 
 // instName returns the name of the instance of obj with args.
-func instName(obj types.Object, args []types.Type) string {
+func (m *mono) instName(obj types.Object, args []types.Type) string {
 	names := make([]string, len(args))
 	for i, a := range args {
-		names[i] = typeName(a, true)
+		names[i] = typeNameIn(a, true, nil, m.hoisted)
 	}
 	return obj.Name() + "[" + strings.Join(names, ",") + "]"
 }
@@ -422,7 +429,7 @@ func (m *mono) instance(n ast.Node, obj types.Object, args []types.Type) *instan
 		// another package's want was made against.
 		obj = m.pkg.Types.Scope().Lookup(obj.Name())
 	}
-	name := instName(obj, args)
+	name := m.instName(obj, args)
 	key := obj.Pkg().Path() + "." + name
 	if src != m.own {
 		name = frontend.HostedName(name, obj.Pkg().Path())
@@ -540,7 +547,7 @@ func (m *mono) files() []*ast.File {
 						}
 					}
 					if keep {
-						nf.Decls = append(nf.Decls, d)
+						nf.Decls = append(nf.Decls, kept(d))
 					}
 				case tn != nil:
 					for _, in := range m.order {
@@ -549,7 +556,7 @@ func (m *mono) files() []*ast.File {
 						}
 					}
 					if keep {
-						nf.Decls = append(nf.Decls, d)
+						nf.Decls = append(nf.Decls, kept(d))
 					}
 				default:
 					nf.Decls = append(nf.Decls, m.copies[d].(ast.Decl))
@@ -593,6 +600,22 @@ func (m *mono) files() []*ast.File {
 		}
 	}
 	return files
+}
+
+// kept returns the generic function or method d as a package besides
+// main keeps it: its declaration, for importers to type-check against,
+// with the body panic(nil). The body is never lowered, and as written it
+// may not type-check in the prepared package, whose non-generic code
+// uses the instances' types in place of the generic types' (D-057).
+func kept(d *ast.FuncDecl) *ast.FuncDecl {
+	if d.Body == nil {
+		return d
+	}
+	pos := d.Body.Lbrace
+	call := &ast.CallExpr{Fun: &ast.Ident{NamePos: pos, Name: "panic"}, Lparen: pos,
+		Args: []ast.Expr{&ast.Ident{NamePos: pos, Name: "nil"}}, Rparen: pos}
+	return &ast.FuncDecl{Recv: d.Recv, Name: d.Name, Type: d.Type,
+		Body: &ast.BlockStmt{Lbrace: pos, List: []ast.Stmt{&ast.ExprStmt{X: call}}, Rbrace: d.Body.Rbrace}}
 }
 
 var commentGroup = reflect.TypeFor[*ast.CommentGroup]()
@@ -663,10 +686,35 @@ func (m *mono) rewrite(n ast.Node, e env) ast.Node {
 		if n.TypeParams != nil {
 			return n
 		}
+	case *ast.DeclStmt:
+		// A hoisted type's declaration is at the package level (D-057).
+		if g, ok := n.Decl.(*ast.GenDecl); ok && g.Tok == token.TYPE && len(m.hoisted) > 0 {
+			var keep []ast.Spec
+			for _, sp := range g.Specs {
+				if tn, ok := m.info.Defs[sp.(*ast.TypeSpec).Name].(*types.TypeName); !ok || m.hoisted[tn] == "" {
+					keep = append(keep, sp)
+				}
+			}
+			if len(keep) == len(g.Specs) {
+				return nil
+			}
+			if len(keep) == 0 {
+				return &ast.EmptyStmt{Semicolon: n.Pos(), Implicit: true}
+			}
+			c := *g
+			c.Specs = nil
+			for _, sp := range keep {
+				c.Specs = append(c.Specs, m.copy(sp, e).(ast.Spec))
+			}
+			return &ast.DeclStmt{Decl: &c}
+		}
 	case *ast.Ident:
 		if tn, ok := m.info.Uses[n].(*types.TypeName); ok {
 			if tp, ok := tn.Type().(*types.TypeParam); ok {
 				return m.typeExpr(n, m.subst(n, tp, e), n.Pos(), true)
+			}
+			if id := m.hoisted[tn]; id != "" {
+				return &ast.Ident{NamePos: n.Pos(), Name: id}
 			}
 		}
 		if in, ok := m.info.Instances[n]; ok {

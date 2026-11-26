@@ -1,1 +1,1 @@
-testdata/check/unsupported_generic_local_type_arg.go:9:10: unsupported: type argument local declared in a function is not supported in subset S1 [generic-instance]
+testdata/check/unsupported_generic_local_type_arg.go:11:9: unsupported: type argument local declared in a function is not supported in subset S1 [generic-instance]

@@ -3,6 +3,7 @@ package amd64
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -275,5 +276,20 @@ main.main:
 		if got != tt.want || code != tt.code {
 			t.Errorf("%s: exit %d, stderr %q; want exit %d, %q", tt.name, code, got, tt.code, tt.want)
 		}
+	}
+}
+
+// TestParseInstrsQuoted checks that an operand separator inside a quoted
+// symbol, which an instance's name with a func type argument has, does
+// not split the operand (D-057).
+func TestParseInstrsQuoted(t *testing.T) {
+	got := parseInstrs([]byte("\tcall\t\"main.F[func(string, int)]\"\n\tmovq\t%rax, 8(%rsp)\n\tleaq\t\"a, b\\\"c, d\"(%rip), %rcx\n"))
+	want := []asmInstr{
+		{"call", `"main.F[func(string, int)]"`, ""},
+		{"movq", "%rax", "8(%rsp)"},
+		{"leaq", `"a, b\"c, d"(%rip)`, "%rcx"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("parseInstrs = %q, want %q", got, want)
 	}
 }

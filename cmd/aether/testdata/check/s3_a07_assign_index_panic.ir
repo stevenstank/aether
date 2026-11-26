@@ -1,6 +1,6 @@
 string s0 "i"
 string s1 "f"
-mem gm0 a 24 align 8 @testdata/check/s3_a07_assign_index_panic.go:10:5
+mem gm0 a 24 align 8 noscan @testdata/check/s3_a07_assign_index_panic.go:10:5
 
 func i() i64 @testdata/check/s3_a07_assign_index_panic.go:12:6
 b0:

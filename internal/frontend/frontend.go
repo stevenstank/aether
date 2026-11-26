@@ -19,6 +19,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 
 	"github.com/stevenstank/aether/internal/diag"
@@ -210,10 +211,22 @@ const hostedMark = "·of·"
 func HostedName(name, path string) string { return name + hostedMark + path }
 
 // SourceName returns name, an object's identifier, as the source names
-// it: a hosted instance's without its home's path.
+// it: a hosted instance's without its home's path, and a hoisted local
+// type's without its number (LocalName).
 func SourceName(name string) string {
 	if i := strings.Index(name, hostedMark); i >= 0 {
 		return name[:i]
 	}
+	if i := strings.LastIndex(name, "·"); i > 0 && i+len("·") < len(name) &&
+		strings.Trim(name[i+len("·"):], "0123456789") == "" {
+		return name[:i]
+	}
 	return name
 }
+
+// LocalName returns the identifier of a type declared in a function that
+// monomorphization moves to the package level, the package's n-th such
+// declaration in source order: its name, "·", and n, as gc writes the
+// type in the name of an instance it is a type argument of (D-057). No
+// source can write it.
+func LocalName(name string, n int) string { return name + "·" + strconv.Itoa(n) }

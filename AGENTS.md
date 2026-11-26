@@ -46,11 +46,11 @@ changing anything architectural.
 ```
 gofmt -l $(git ls-files -co --exclude-standard '*.go' | grep -v /testdata/)
 go vet ./...
-go test -timeout 30m ./...
+go test -timeout 45m ./...
 ```
 
 - The full suite runs longer than `go test`'s default 10-minute timeout, so
-  always pass `-timeout 30m`.
+  always pass `-timeout 45m` (since D-057 it takes over 30 minutes).
 
 - The gofmt command must print nothing. Corpus files under `testdata/` are
   deliberately not gofmt-clean.
@@ -73,7 +73,7 @@ go test -timeout 30m ./...
 ## Code quality
 
 - Go 1.26, standard library only (D-013). `gofmt`, `go vet ./...`, and
-  `go test -timeout 30m ./...` must pass.
+  `go test -timeout 45m ./...` must pass.
 - No placeholder packages, empty files, stub implementations, or speculative
   interfaces. A package or abstraction is created only with real code and tests
   that use it (D-016).

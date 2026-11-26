@@ -3,5 +3,5 @@
 package main
 
 func main() {
-	println(len([][1 << 22]int{{}}))
+	println(len([][1 << 28]int{{}}))
 }

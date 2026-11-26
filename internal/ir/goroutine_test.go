@@ -110,7 +110,7 @@ func TestSysOps(t *testing.T) {
 		break_ func(in []*Instr)
 		want   string
 	}{
-		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 13"},
+		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 14"},
 		{"cpufma of a ptr", func(in []*Instr) { in[13].Type = Ptr }, "want i64"},
 		{"rand of an i64", func(in []*Instr) { in[14].Type = I64 }, "want u64"},
 		{"syscall of six words", func(in []*Instr) { in[12].Args = in[12].Args[:6] }, "has 6 operands, want 7"},

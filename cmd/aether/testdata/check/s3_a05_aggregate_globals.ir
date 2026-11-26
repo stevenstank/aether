@@ -3,8 +3,8 @@ string s1 "b"
 global g0 total i64 @testdata/check/s3_a05_aggregate_globals.go:15:5
 mem gm0 accounts 192 align 8 @testdata/check/s3_a05_aggregate_globals.go:14:5
 mem gm1 first 48 align 8 @testdata/check/s3_a05_aggregate_globals.go:16:5
-mem gm2 table 48 align 8 @testdata/check/s3_a05_aggregate_globals.go:17:5
-mem gm3 origin 16 align 8 @testdata/check/s3_a05_aggregate_globals.go:18:5
+mem gm2 table 48 align 8 noscan @testdata/check/s3_a05_aggregate_globals.go:17:5
+mem gm3 origin 16 align 8 noscan @testdata/check/s3_a05_aggregate_globals.go:18:5
 
 func squares(ptr) @testdata/check/s3_a05_aggregate_globals.go:20:6
   slot s0 result ptr @20:6

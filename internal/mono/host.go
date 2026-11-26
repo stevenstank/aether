@@ -106,7 +106,7 @@ func (m *mono) foreignInst(n ast.Node, obj types.Object, args []types.Type, pos 
 	case m.pkg.Types.Path():
 		return &ast.Ident{NamePos: pos, Name: m.instance(n, obj, args).name}
 	}
-	name := instName(obj, args)
+	name := m.instName(obj, args)
 	if host != obj.Pkg().Path() {
 		name = frontend.HostedName(name, obj.Pkg().Path())
 	}
@@ -147,7 +147,7 @@ func (m *mono) host(n ast.Node, obj types.Object, args []types.Type) string {
 		}
 	}
 	for _, a := range args {
-		if bad, local := unnameableIn(a, host); bad != "" {
+		if bad, local := unnameableIn(a, host, m.hoisted); bad != "" {
 			if local {
 				m.rejectAt(n, gate.FeatGenericInstance, "type argument "+bad+" declared in a function")
 			} else {
@@ -210,14 +210,17 @@ func owners(t types.Type, ps []string) []string {
 // unnameableIn returns the name of a type in t that a copy in the package
 // host cannot write, or "": a type declared in a function (local), or an
 // unexported type, field, or method of another package.
-func unnameableIn(t types.Type, host string) (bad string, local bool) {
+func unnameableIn(t types.Type, host string, hoisted map[*types.TypeName]string) (bad string, local bool) {
+	unnameableIn := func(t types.Type, host string) (string, bool) { return unnameableIn(t, host, hoisted) }
 	switch t := t.(type) {
 	case *types.Alias:
 		return unnameableIn(types.Unalias(t), host)
 	case *types.Named:
 		obj := t.Obj()
 		if obj.Pkg() != nil {
-			if obj.Parent() != obj.Pkg().Scope() {
+			// A hoisted local type is a package-level one of its package
+			// (D-057).
+			if obj.Parent() != obj.Pkg().Scope() && (hoisted[obj] == "" || obj.Pkg().Path() != host) {
 				return typeName(t, true), true
 			}
 			if !obj.Exported() && obj.Pkg().Path() != host {
@@ -357,6 +360,9 @@ func (m *mono) viewImports() *ast.GenDecl {
 func (m *mono) hostedFile() *ast.File {
 	var decls, funcs []ast.Decl
 	g := &ast.GenDecl{Tok: token.TYPE, Lparen: 1}
+	for _, s := range m.hoistSpecs {
+		g.Specs = append(g.Specs, s)
+	}
 	for _, in := range m.order {
 		if in.src == m.own {
 			continue
@@ -478,3 +484,148 @@ var viewName = regexp.MustCompile(`·view[0-9]+\.|` + viewPrefix + `|·of·[^\s(
 // sourceNames returns msg, a type checker's message about copies, with
 // the names of views' declarations written as the source writes them.
 func sourceNames(msg string) string { return viewName.ReplaceAllString(msg, "") }
+
+// hoistLocals finds the types declared in this package's functions that
+// are type arguments of instances, and those their types use, and gives
+// each its identifier at the package level (D-057): a copy of generic
+// code, at the package level, could not name it otherwise. gc numbers
+// every type declared in a function, in source order, and writes the
+// number in the name of an instance; frontend.LocalName does too. A type
+// that involves a type parameter is not hoisted, and stays unsupported.
+func (m *mono) hoistLocals() {
+	nums := map[*types.TypeName]int{}
+	for _, f := range m.pkg.Files {
+		for _, d := range f.Decls {
+			ast.Inspect(d, func(n ast.Node) bool {
+				if s, ok := n.(*ast.TypeSpec); ok {
+					if tn, ok := m.info.Defs[s.Name].(*types.TypeName); ok && tn.Parent() != tn.Pkg().Scope() {
+						nums[tn] = len(nums) + 1
+					}
+				}
+				return true
+			})
+		}
+	}
+	if len(nums) == 0 {
+		return
+	}
+	var walk func(t types.Type)
+	walk = func(t types.Type) {
+		switch t := t.(type) {
+		case *types.Alias:
+			walk(types.Unalias(t))
+		case *types.Named:
+			obj := t.Obj()
+			if n := nums[obj]; n > 0 && m.hoisted[obj] == "" && t.TypeParams().Len() == 0 && !hasTypeParam(t.Underlying()) {
+				if m.hoisted == nil {
+					m.hoisted = map[*types.TypeName]string{}
+				}
+				m.hoisted[obj] = frontend.LocalName(obj.Name(), n)
+				walk(t.Underlying())
+			}
+			for a := range t.TypeArgs().Types() {
+				walk(a)
+			}
+		case *types.Pointer:
+			walk(t.Elem())
+		case *types.Slice:
+			walk(t.Elem())
+		case *types.Array:
+			walk(t.Elem())
+		case *types.Chan:
+			walk(t.Elem())
+		case *types.Map:
+			walk(t.Key())
+			walk(t.Elem())
+		case *types.Signature:
+			for v := range t.Params().Variables() {
+				walk(v.Type())
+			}
+			for v := range t.Results().Variables() {
+				walk(v.Type())
+			}
+		case *types.Struct:
+			for f := range t.Fields() {
+				walk(f.Type())
+			}
+		case *types.Interface:
+			for f := range t.Methods() {
+				walk(f.Type())
+			}
+		}
+	}
+	for _, in := range m.info.Instances {
+		for a := range in.TypeArgs.Types() {
+			if !hasTypeParam(a) {
+				walk(a)
+			}
+		}
+	}
+}
+
+// hoistedSpecs writes the declarations of the hoisted types, in the order
+// of their numbers: their underlying types, as typeExpr writes a type
+// argument, so that a name local to the function is not needed.
+func (m *mono) hoistedSpecs() {
+	var tns []*types.TypeName
+	for tn := range m.hoisted {
+		tns = append(tns, tn)
+	}
+	slices.SortFunc(tns, func(a, b *types.TypeName) int { return cmp.Compare(a.Pos(), b.Pos()) })
+	for _, tn := range tns {
+		pos := tn.Pos()
+		m.hoistSpecs = append(m.hoistSpecs, &ast.TypeSpec{Name: &ast.Ident{NamePos: pos, Name: m.hoisted[tn]},
+			Type: m.typeExpr(&ast.Ident{NamePos: pos, Name: tn.Name()}, tn.Type().Underlying(), pos, false)})
+	}
+}
+
+// hasTypeParam reports whether t involves a type parameter.
+func hasTypeParam(t types.Type) bool {
+	found := false
+	var walk func(t types.Type)
+	seen := map[types.Type]bool{}
+	walk = func(t types.Type) {
+		if found || seen[t] {
+			return
+		}
+		seen[t] = true
+		switch t := t.(type) {
+		case *types.TypeParam:
+			found = true
+		case *types.Alias:
+			walk(types.Unalias(t))
+		case *types.Named:
+			for a := range t.TypeArgs().Types() {
+				walk(a)
+			}
+		case *types.Pointer:
+			walk(t.Elem())
+		case *types.Slice:
+			walk(t.Elem())
+		case *types.Array:
+			walk(t.Elem())
+		case *types.Chan:
+			walk(t.Elem())
+		case *types.Map:
+			walk(t.Key())
+			walk(t.Elem())
+		case *types.Signature:
+			for v := range t.Params().Variables() {
+				walk(v.Type())
+			}
+			for v := range t.Results().Variables() {
+				walk(v.Type())
+			}
+		case *types.Struct:
+			for f := range t.Fields() {
+				walk(f.Type())
+			}
+		case *types.Interface:
+			for f := range t.Methods() {
+				walk(f.Type())
+			}
+		}
+	}
+	walk(t)
+	return found
+}

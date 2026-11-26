@@ -1,0 +1,36 @@
+func id[main.local·1](ptr, ptr) @testdata/check/run_generic_local_type_arg.go:8:6
+  slot s0 x ptr @8:16
+  slot s1 result ptr @8:6
+  mem m0 tmp 8 align 8 @8:32
+b0:
+  v0 = param 0 @8:16
+  store s0, v0 @8:16
+  v1 = param 1 @8:6
+  store s1, v1 @8:6
+  v2 = load s0 @8:32
+  v3 = const 0 @8:32
+  v4 = ldm i64, v2, v3 @8:32
+  v5 = addr m0 @8:32
+  v6 = const 0 @8:32
+  stm v5, v6, v4 @8:32
+  v7 = const 0 @8:25
+  v8 = ldm i64, v5, v7 @8:25
+  v9 = load s1 @8:25
+  v10 = const 0 @8:25
+  stm v9, v10, v8 @8:25
+  ret @8:25
+
+func main @testdata/check/run_generic_local_type_arg.go:10:6
+  mem m0 tmp 8 align 8 @12:13
+  mem m1 tmp 8 align 8 @12:10
+b0:
+  v0 = const 1 @12:19
+  v1 = addr m0 @12:13
+  v2 = const 0 @12:19
+  stm v1, v2, v0 @12:19
+  v3 = addr m1 @12:10
+  call id[main.local·1], v1, v3 @12:10
+  v4 = const 0 @12:10
+  v5 = ldm i64, v3, v4 @12:10
+  println v5 @12:2
+  ret @13:1

@@ -1,12 +1,18 @@
 package reflect
 
 // DeepEqual and conversions (v2 evaluation). DeepEqual is gc's algorithm
-// over Aether's Values. Value.Call and MakeFunc are not declared: a
-// method without a body would be reached by every program whose
-// reflect.Value methods are, and Aether cannot call or make a function
-// of a signature known only at run time.
+// over Aether's Values.
 
 import "unsafe"
+
+// Call and MakeFunc are declared without a body: Aether cannot call or
+// make a function of a signature known only at run time, so a program
+// that reaches either is unsupported (function-without-body). Since
+// D-055's pruning, a method is reached only where code names it, such
+// as net/http/httptrace's ClientTrace.compose (D-057).
+func (v Value) Call(in []Value) []Value
+
+func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value
 
 // visit records a pair of values deepValueEqual is comparing, so that
 // cyclic structures compare equal.

@@ -1,7 +1,7 @@
 string s0 "noisy"
-mem gm0 count 8 align 8 @testdata/check/s3_p03_pointer_aggregates.go:28:5
-mem gm1 origin 8 align 4 @testdata/check/s3_p03_pointer_aggregates.go:29:5
-mem gm2 grid 16 align 1 @testdata/check/s3_p03_pointer_aggregates.go:30:5
+mem gm0 count 8 align 8 noscan @testdata/check/s3_p03_pointer_aggregates.go:28:5
+mem gm1 origin 8 align 4 noscan @testdata/check/s3_p03_pointer_aggregates.go:29:5
+mem gm2 grid 16 align 1 noscan @testdata/check/s3_p03_pointer_aggregates.go:30:5
 
 func bump() ptr @testdata/check/s3_p03_pointer_aggregates.go:32:6
 b0:

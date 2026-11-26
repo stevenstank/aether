@@ -709,6 +709,14 @@ so none can be read as an option.
     `internal/poll/aether.go`: edge-triggered epoll, which
     `time.runTimers` polls at one switch in 61 and waits on with every
     goroutine blocked; a program with it has the timer hooks too.
+  - Weak pointers and cleanups (D-057): package runtime's table of
+    records (`runtime/special.go`), which `aether.setspecials`
+    (`ir.SysSpecials`) gives the collector; after marking, `.Lspecials`
+    in `rt/heap.s` clears weak handles and queues cleanups of objects not
+    marked, and lowering's scheduler calls `runtime.specialsPoll` at
+    every switch to start the goroutine running them. Global memory
+    objects without pointers (`ir.Mem.NoScan`) are in section
+    `aether_noscan`, which the collector's scan of `.bss` skips.
   - `rt/print.s`: `aether.printint`, `aether.printsp`, `aether.printnl`.
     - They write to fd 2 with raw `write` syscalls, through a local routine
       (`aether.write`) that continues short writes, retries `EINTR`, and

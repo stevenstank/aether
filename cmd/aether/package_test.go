@@ -86,7 +86,7 @@ func TestPackageRejects(t *testing.T) {
 			"--\na/a.go:package a\nvar v = g()\nfunc g() int { return 2 }\nfunc F() int { return v }\nfunc H() { println(1i) }\nvar w = 1i\n",
 			[]string{"main.go"}, 0, ""},
 		{"root initializer in a package", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n" +
-			"--\na/a.go:package a\nvar _ = h()\nfunc h() *[1 << 22]int { return nil }\nfunc F() {}\n",
+			"--\na/a.go:package a\nvar _ = h()\nfunc h() *[1 << 28]int { return nil }\nfunc F() {}\n",
 			[]string{"main.go"}, diag.Unsupported, "a/a.go:2:9: unsupported"},
 		{"no module", "main.go:package main\nimport \"m.test/x/a\"\nfunc main() { a.F() }\n",
 			[]string{"main.go"}, diag.Unsupported, `main.go:2:8: unsupported: import "m.test/x/a"`},
@@ -115,9 +115,14 @@ func TestPackageRejects(t *testing.T) {
 		{"type argument of main", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\ntype T int\nfunc main() { println(a.Id(T(1)) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
 			[]string{"main.go"}, 0, ""},
+		// A local type is moved to the package level (D-057), unless it
+		// involves a type parameter.
 		{"local type argument", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc main() { type T int; println(a.Id(T(1)) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
-			[]string{"main.go"}, diag.Unsupported, "main.go:3:35: unsupported: type argument main.T declared in a function is not supported in subset S1 [generic-instance]"},
+			[]string{"main.go"}, 0, ""},
+		{"local type argument of a type parameter", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nfunc g[P any](x P) P { type L struct{ v P }; return a.Id(L{x}).v }\nfunc main() { println(g(1)) }\n" +
+			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n",
+			[]string{"main.go"}, diag.Unsupported, "main.go:3:53: unsupported: type argument main.L declared in a function is not supported in subset S1 [generic-instance]"},
 		{"unexported type argument", mod + "--\nmain.go:package main\nimport \"m.test/x/a\"\nimport \"m.test/x/b\"\nfunc main() { println(b.F() == 1, a.Id(1) == 1) }\n" +
 			"--\na/a.go:package a\nfunc Id[T any](x T) T { return x }\n" +
 			"--\nb/b.go:package b\nimport \"m.test/x/a\"\ntype t int\nfunc F() t { return a.Id(t(1)) }\n",
@@ -327,12 +332,20 @@ func TestStdRejects(t *testing.T) {
 	}{
 		// math/big's assembly is replaced by gc's pure-Go arithmetic, and
 		// the FIPS module's links into gc's runtime by Aether's (v2
-		// evaluation); crypto/rand's entropy source has an array larger
-		// than Aether's aggregates.
+		// evaluation); crypto/rand's entropy source has a package-level
+		// array larger than a frame's objects (D-057).
 		{"math/big", "package main\nimport \"math/big\"\nfunc main() { println(new(big.Int).Add(big.NewInt(1), big.NewInt(1)).String()) }\n", 0, ""},
 		{"crypto", "package main\nimport \"crypto/md5\"\nfunc main() { s := md5.Sum(nil); println(s[0]) }\n", 0, ""},
-		{"crypto/rand", "package main\nimport \"crypto/rand\"\nfunc main() { println(len(rand.Text())) }\n",
-			diag.Unsupported, "$GOROOT/src/crypto/internal/entropy/v1.0.0/entropy.go:25:20: unsupported: type [1 << 25]byte (larger than 16777216 bytes)"},
+		{"crypto/rand", "package main\nimport \"crypto/rand\"\nfunc main() { println(len(rand.Text())) }\n", 0, ""},
+		{"net/http", "package main\nimport \"net/http\"\nfunc main() { println(http.StatusText(404)) }\n", 0, ""},
+		// Arrays and structs larger than 16 MiB: at the package level and
+		// on the heap, not in a frame (D-057).
+		{"large global", "package main\nvar a [1 << 22]int\nfunc main() { p := &a; p[5] = 3; println(a[5], len(a)) }\n", 0, ""},
+		{"large on the heap", "package main\nfunc main() { p := new([1 << 22]int); p[7] = 1; println(p[7]) }\n", 0, ""},
+		{"large local", "package main\nfunc main() { var a [1 << 22]int; a[0] = 1; println(a[0]) }\n",
+			diag.Unsupported, "p.go:2:6: unsupported: function main, which needs a value of type [4194304]int (more than 16777216 bytes) in its frame"},
+		{"large copy", "package main\nvar a, b [1 << 22]int\nfunc main() { a = b; println(a[0]) }\n",
+			diag.Unsupported, "p.go:3:6: unsupported: function main, which needs a value of type [4194304]int (more than 16777216 bytes) in its frame"},
 		// gc's runtime, os, sync, and sync/atomic have more than Aether's.
 		{"runtime name", "package main\nimport \"runtime\"\nfunc main() { runtime.Goexit() }\n",
 			diag.Unsupported, "p.go:3:23: unsupported: runtime.Goexit, which Aether's package runtime does not have, is not supported in subset S1 [stdlib-package]"},
@@ -340,8 +353,10 @@ func TestStdRejects(t *testing.T) {
 			diag.Unsupported, "p.go:3:25: unsupported: os.File.Chmod, which Aether's package os does not have,"},
 		{"os function", "package main\nimport \"os\"\nfunc main() { os.Symlink(\"a\", \"b\") }\n",
 			diag.Unsupported, "p.go:3:18: unsupported: os.Symlink, which Aether's package os does not have,"},
-		{"sync type", "package main\nimport \"sync\"\nvar c sync.Cond\nfunc main() {}\n",
-			diag.Unsupported, "p.go:3:12: unsupported: sync.Cond, which Aether's package sync does not have,"},
+		// A program's own finalizer: Aether cannot call a function whose
+		// type is known only at run time (D-057).
+		{"runtime.SetFinalizer", "package main\nimport \"runtime\"\nfunc main() { runtime.SetFinalizer(new(int), func(*int) {}) }\n",
+			diag.Unsupported, "p.go:3:23: unsupported: runtime.SetFinalizer, which Aether's package runtime does not have,"},
 		// Declared for type checking, but unsupported if reached (Batch 1).
 		{"runtime.Callers", "package main\nimport \"runtime\"\nfunc main() { pc := make([]uintptr, 4); println(runtime.Callers(0, pc)) }\n",
 			diag.Unsupported, "$AETHER/runtime/extern.go:55:1: unsupported: function Callers without a body (implemented outside Go)"},
@@ -359,8 +374,8 @@ func TestStdRejects(t *testing.T) {
 			diag.Invalid, "p.go:2:8: invalid: use of internal package internal/strconv not allowed"},
 		{"not in std", "package main\nimport \"nosuch/pkg\"\nfunc main() { pkg.F() }\n",
 			diag.Invalid, "p.go:2:8: invalid: package nosuch/pkg is not in std"},
-		{"unsafe.Slice of an unsupported type", "package main\nimport \"unsafe\"\nfunc main() { var c *[1 << 22]int; println(len(unsafe.Slice(&c, 1))) }\n",
-			diag.Unsupported, "p.go:3:22: unsupported: type [1 << 22]int (larger than 16777216 bytes)"},
+		{"unsafe.Slice of an unsupported type", "package main\nimport \"unsafe\"\nfunc main() { var c *[1 << 28]int; println(len(unsafe.Slice(&c, 1))) }\n",
+			diag.Unsupported, "p.go:3:22: unsupported: type [1 << 28]int (larger than 1073741824 bytes)"},
 		{"println of unsafe.Pointer", "package main\nimport \"unsafe\"\nfunc main() { println(unsafe.Pointer(nil)) }\n",
 			diag.Unsupported, "p.go:3:30: unsupported: println argument of type unsafe.Pointer"},
 		// Another package's generic code, instantiated with main's types,

@@ -4871,7 +4871,7 @@ and `syscall`'s sockets, socket addresses, `Stat_t`, and more. Aether's
   `internal/runtime/syscall/linux`, whose assembly `Syscall6` is D-051's
   primitive. `internal/abi.Type` is an opaque type for `internal/race`'s
   signatures; `runtime` adds `KeepAlive`. `net` and `internal/poll`
-  import Aether's `internal/cleanups` for `runtime` (a patch's
+  import Aether's `internal/cleanups` (removed by D-057) for `runtime` (a patch's
   `imports`), whose `SetFinalizer` and `AddCleanup` never run their
   functions, which gc allows: a program's own stay unsupported, since it
   may depend on them running (GOROOT's `stackobj.go` and others do).
@@ -4900,11 +4900,103 @@ second scheduler hook: the hook would need the next timer, which is
 goroutine waits on a descriptor.
 
 **Consequences.** `net` compiles and runs TCP and UDP over loopback, with
-deadlines, against gc (`TestNetPrograms`, natively only: the interpreter
+deadlines, against gc (`TestNetPrograms`, since D-057 `TestNativePrograms`, natively only: the interpreter
 makes no socket system calls). `$GOROOT/test` runs 795 tests to gc's
 results, from 793, with no failure. A goroutine that never blocks delays the
 poller as it delays timers (D-049). `net/http` still stops at
-`crypto/tls` (`weak`).
+`crypto/tls` (`weak`); since D-057 it compiles.
+
+---
+
+## D-057: net/http: weak pointers and cleanups, large static arrays, hoisted local types
+
+**Status:** Accepted (2026-11-26; owner review pending). Written with its
+code, the second increment toward `net/http` after D-056.
+
+**Context.** Past `net`, `net/http` needed: `weak` (in `crypto/tls`'s
+certificate cache) and `runtime.AddCleanup`, both of which need the
+collector; `crypto/rand`, whose FIPS DRBG has a 32 MiB package-level
+entropy buffer, past the gate's 16 MiB aggregate bound; `sync.Cond`;
+`runtime.Stack`, `Callers`, `CallersFrames`; `reflect.MakeFunc` and
+`Value.Call` declared (`net/http/httptrace`); the bodies of gc's
+assembly or runtime functions (`internal/chacha8rand.block`,
+`math/rand/v2.runtime_rand`, `crypto/rand.fatal`). Monomorphization
+failed on `crypto/internal/fips140/ecdsa` twice, and on the evaluation's
+`10-httpapi`, which sorts a slice of a type declared in a function.
+
+**Decision.**
+- **Weak pointers and cleanups in the collector.** Package runtime keeps
+  a table of records, uintptrs in an object without pointers (D-047),
+  which it gives the collector (`ir.SysSpecials`, `aether.setspecials`).
+  After marking, the collector clears each weak handle whose object is
+  not marked, and queues each cleanup whose object is not marked; an
+  address outside the heap is always live. The scheduler calls
+  `runtime.specialsPoll` at every switch (`frontend.RuntimeHooks`, if a
+  program can add a record): one goroutine runs the queued cleanups in
+  turn. Handles are canonical per pointer, as gc's; every other word
+  holding an object's address holds it complemented, so the conservative
+  collector (D-046) never sees it. `AddCleanup` is generic only in its
+  closure: a hosted instance cannot write `Cleanup`'s fields (D-052).
+  Not detected, where gc panics: an `arg` or cleanup that keeps `ptr`
+  reachable (the cleanup never runs).
+- **Finalizers.** A program's own `runtime.SetFinalizer` stays
+  unsupported: its function's type is known only at run time, which
+  Aether cannot call. D-056's `internal/cleanups` is gone: `net`'s
+  `fd_posix.go` is gc's with a cleanup in place of its finalizer (gc's
+  TODO), closing a collected connection's descriptor through
+  `internal/poll`'s `Leaked`, which holds only the descriptor and its
+  poller slot; `Close` stops it.
+- **Large arrays and structs.** A type may be up to `ir.MaxMemSize`
+  (1 GiB); each array or struct object in a frame stays at most 16 MiB
+  (`frameBytes` rejects a larger one, `frame-size`), so a larger one is a
+  package-level variable or on the heap, as gc puts it there. A global
+  memory object without pointers is `noscan` (`ir.Mem.NoScan`, the
+  printer's `noscan`), in section `aether_noscan` inside `.bss`'s range,
+  which the collector skips (`__start_`/`__stop_aether_noscan`).
+- **Local types as type arguments.** A type declared in a function of
+  the package that hosts the instance, not involving a type parameter,
+  is moved to the package level by monomorphization, named `T·N` as gc
+  names it in an instance (`main.Box[main.tc·1]`), N its number among the
+  package's local type declarations in source order; `T` alone in its own
+  name (`%T`, `reflect`). Others stay unsupported.
+- **Monomorphization fixes.** A type argument of another package is
+  written through a view (D-052) even when the package imports it: the
+  file the copy is in may not. A generic declaration kept for importers
+  is type-checked with the body `panic(nil)`: the original, never
+  lowered, could call non-generic code returning instance types.
+- **Library.** `sync.Cond` (Aether's, over channels). `net/http` uses
+  `internal/callers` for `runtime` (`Caller`, `Callers`, `Stack` report
+  nothing: a handler's panic is logged without a stack). `reflect`'s
+  `Value.Call` and `MakeFunc` are declared without bodies (unsupported if
+  reached, as `httptrace`'s `ClientTrace` composition does). gc's Go
+  versions or Aether bodies for `chacha8rand.block`, `runtime_rand`, and
+  `crypto/rand.fatal`. `abi.Escape`. Pruning walks each declaration with
+  its own package's `types.Info` (a `net/http` build: 26 s to 17 s,
+  same output). The ABI-R1 checker parses quoted symbols with ", ".
+
+**Alternatives considered.** Weak pointers as Go maps in the runtime: a
+map's entries are scanned, so its keys would keep their objects alive.
+Finalizers with resurrection in the collector: only usable with a
+function Aether can call, and `net` was the only user. Lifting the
+16 MiB bound everywhere: a large local would overflow a stack gc does not
+use for it. Keeping `drbg.memory` in `.bss`: every collection would scan
+32 MiB of zeros.
+
+**Consequences.** `net/http` (client, server, `ServeMux` patterns,
+keep-alive, concurrency, cancellation, timeouts, `httptest`, TLS 1.3,
+HTTP/2), `crypto/tls`, `crypto/rand`, and `weak` compile and run against
+gc (`TestNativePrograms`, natively only). The evaluation's
+`10-httpapi` builds and runs its six cases to gc's results. Weak pointers
+and cleanups depend on the conservative collector: a stale word keeps
+an object, so a pointer may stay set and a cleanup not run, which gc
+allows. A connection a program never closes is now closed after it is
+collected. `$GOROOT/test` runs 798 tests to gc's results, from 795, with
+no failure. Practical evaluation v2 (2026-11-26): all ten programs
+build, `10-httpapi` passes its six cases in both modes; `09-scheme`'s
+`deep` (and, with `-O0`, `control`) still end in a stack overflow where
+gc reports the program's own depth limit, as before this change.
+Evaluation v1 passes every case. The full suite now runs longer than 30
+minutes: `AGENTS.md` gives `-timeout 45m`.
 
 ---
 

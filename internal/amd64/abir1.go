@@ -189,7 +189,21 @@ func parseInstrs(text []byte) []asmInstr {
 			continue
 		}
 		op, rest, _ := strings.Cut(l, "\t")
-		src, dst, _ := strings.Cut(rest, ", ")
+		src, dst := rest, ""
+		// The operands' separator, outside a quoted symbol, whose name
+		// may have ", " (an instance's func type argument, D-045).
+		quoted := false
+		for i := 0; i+1 < len(rest); i++ {
+			switch {
+			case rest[i] == '\\' && quoted:
+				i++
+			case rest[i] == '"':
+				quoted = !quoted
+			case !quoted && rest[i] == ',' && rest[i+1] == ' ':
+				src, dst = rest[:i], rest[i+2:]
+				i = len(rest)
+			}
+		}
 		out = append(out, asmInstr{op, src, dst})
 	}
 	return out

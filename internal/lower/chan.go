@@ -108,7 +108,7 @@ func (l *lowerer) timers() *timeHooks {
 	l.hooksKnown = true
 	for _, u := range l.units {
 		h := frontend.RuntimeHooks[u.Types.Path()]
-		if len(h.Funcs) == 0 {
+		if u.Types.Path() != "time" {
 			continue
 		}
 		var fs []*ir.Func
@@ -135,6 +135,21 @@ func (l *lowerer) timerOf(c func() *ir.Instr, hook func(h *timeHooks) *ir.Func, 
 	none := m.when(m.cmp(ir.Ne, t(), m.nilPtr()))
 	l.fn.Call(l.b, hook(h), []*ir.Instr{t()}, pos)
 	m.join(none)
+}
+
+// specialsPoll returns runtime.specialsPoll, which the scheduler calls at
+// every switch in a program with weak pointers or cleanups (D-057,
+// frontend.RuntimeHooks), or nil.
+func (l *lowerer) specialsPoll() *ir.Func {
+	for _, u := range l.units {
+		if u.Types.Path() != "runtime" {
+			continue
+		}
+		if fn, ok := u.Types.Scope().Lookup("specialsPoll").(*types.Func); ok {
+			return l.funcs[fn]
+		}
+	}
+	return nil
 }
 
 func maybeRun(h *timeHooks) *ir.Func { return h.maybeRunChan }
@@ -201,9 +216,17 @@ func (l *lowerer) sched() *sched {
 		if h != nil {
 			// The due timers run at every switch (D-054).
 			l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos)
+		}
+		poll := l.specialsPoll()
+		if h != nil || poll != nil {
 			head = l.fn.NewBlock()
 			l.fn.Jump(l.b, head, pos)
 			l.b = head
+		}
+		if poll != nil {
+			// The goroutine running queued cleanups starts at a switch,
+			// also after waiting for timers or the poller (D-057).
+			l.fn.Call(l.b, poll, nil, pos)
 		}
 		g := m.v("g", l.fn.GLoad(l.b, sc.runnext, pos))
 		queue := m.when(m.cmp(ir.Ne, g.get(), m.nilPtr()))

@@ -231,6 +231,9 @@ type checker struct {
 	forVars map[*types.Var]bool
 	// lits are the function literals being checked, innermost last (D-040).
 	lits []*ast.FuncLit
+	// bigObject is the type of the first array or struct object frameBytes
+	// found larger than maxFrameObject (D-057).
+	bigObject types.Type
 }
 
 func (c *checker) pos(p token.Pos) diag.Pos { return frontend.Position(c.pkg.Fset, p) }
@@ -383,12 +386,35 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 			ok = c.typeExpr(field.Type) && ok
 		}
 	}
+	// Parameters and results are values in frames: at most
+	// maxFrameObject bytes each (D-057).
+	if fn, isFn := c.info.Defs[d.Name].(*types.Func); isFn && ok && len(c.ds) == mark {
+		sig := fn.Type().(*types.Signature)
+		vars := []*types.Var{}
+		if sig.Recv() != nil {
+			vars = append(vars, sig.Recv())
+		}
+		for _, tuple := range []*types.Tuple{sig.Params(), sig.Results()} {
+			for v := range tuple.Variables() {
+				vars = append(vars, v)
+			}
+		}
+		for _, v := range vars {
+			if n := sizes.Sizeof(v.Type()); n > maxFrameObject {
+				c.reject(d.Name, FeatNonIntType, fmt.Sprintf("function %s, whose parameter or result of type %s is larger than %d bytes,", name, v.Type(), maxFrameObject))
+				return
+			}
+		}
+	}
 	if len(c.ds) > mark || !ok || d.Body == nil {
 		return
 	}
 	c.stmts(d.Body.List)
 	if len(c.ds) == mark {
-		if n := c.funcBytes(d.Type, d.Body); n > maxFrameObjects {
+		if n := c.funcBytes(d.Type, d.Body); c.bigObject != nil {
+			c.reject(d.Name, FeatFrameSize, fmt.Sprintf("function %s, which needs a value of type %s (more than %d bytes) in its frame", name, c.bigObject, maxFrameObject))
+			c.bigObject = nil
+		} else if n > maxFrameObjects {
 			c.reject(d.Name, FeatFrameSize, fmt.Sprintf("function %s, whose arrays and structs may need %d bytes of stack (more than %d)", name, n, maxFrameObjects))
 		}
 	}
@@ -429,7 +455,15 @@ func (c *checker) frameBytes(n ast.Node) int64 {
 		// Lowering keeps a complex number as an aggregate of its two
 		// parts (D-049, increment 11.8).
 		if isAggregate(t) || isComplex(t) {
-			total += sizes.Sizeof(t) + 8
+			n := sizes.Sizeof(t)
+			if n > maxFrameObject {
+				// Rejected by the caller (D-057); counted past every bound.
+				if c.bigObject == nil {
+					c.bigObject = t
+				}
+				n = maxFrameObjects + 1
+			}
+			total += n + 8
 		}
 	}
 	elem := func(ch ast.Expr) {
@@ -610,6 +644,11 @@ func (c *checker) initFrame() {
 			for _, spec := range gd.Specs {
 				for _, v := range spec.(*ast.ValueSpec).Values {
 					total += c.frameBytes(v)
+					if c.bigObject != nil {
+						c.reject(v, FeatFrameSize, fmt.Sprintf("package initialization, which needs a value of type %s (more than %d bytes) in its frame", c.bigObject, maxFrameObject))
+						c.bigObject = nil
+						return
+					}
 					if total > maxFrameObjects {
 						c.reject(v, FeatFrameSize, fmt.Sprintf("package initialization, whose arrays and structs may need %d bytes of stack (more than %d)", total, maxFrameObjects))
 						return
@@ -892,10 +931,16 @@ func elemOfVariadic(t ast.Expr) ast.Expr {
 	return t
 }
 
-// maxAggregate bounds the size of an array or struct type, so that the
-// objects a function needs for its variables and temporaries fit its frame
-// (D-034).
-const maxAggregate = 1 << 24
+// maxAggregate bounds the size of an array or struct type: that of a
+// memory object (ir.MaxMemSize, D-034). Such a value may be in a frame
+// only if it is at most maxFrameObject bytes (frameBytes), so a larger one
+// is a package-level variable or on the heap (D-057).
+const maxAggregate = 1 << 30
+
+// maxFrameObject bounds each array or struct variable or temporary in a
+// frame, so that the objects a function needs fit its frame (D-034) as
+// they fit gc's stack: gc puts a larger variable on the heap.
+const maxFrameObject = 1 << 24
 
 // sized reports whether the array or struct type of e, or the type a
 // pointer type e points to, is at most maxAggregate bytes, rejecting it if
@@ -1758,10 +1803,14 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 	case *types.Pointer:
 		return c.sizedType(t.Elem(), seen)
 	case *types.Slice:
-		return c.sizedType(t.Elem(), seen)
+		// Elements, keys, and parameters are values in the frames of the
+		// code lowering generates, which frameBytes does not see: at most
+		// maxFrameObject bytes each (D-057).
+		return c.sizedType(t.Elem(), seen) && sizes.Sizeof(t.Elem()) <= maxFrameObject
 	case *types.Map:
 		// A map (D-042): go/types has checked that its key is comparable.
-		return c.sizedType(t.Key(), seen) && c.sizedType(t.Elem(), seen)
+		return c.sizedType(t.Key(), seen) && c.sizedType(t.Elem(), seen) &&
+			sizes.Sizeof(t.Key()) <= maxFrameObject && sizes.Sizeof(t.Elem()) <= maxFrameObject
 	case *types.Chan:
 		// A channel (D-048), of an element gc accepts.
 		return c.sizedType(t.Elem(), seen) && sizes.Sizeof(t.Elem()) <= maxChanElem
@@ -1787,7 +1836,7 @@ func (c *checker) composite(t types.Type, seen map[*types.Named]bool) bool {
 		}
 		for _, tuple := range []*types.Tuple{t.Params(), t.Results()} {
 			for v := range tuple.Variables() {
-				if !c.sizedType(v.Type(), seen) {
+				if !c.sizedType(v.Type(), seen) || sizes.Sizeof(v.Type()) > maxFrameObject {
 					return false
 				}
 			}

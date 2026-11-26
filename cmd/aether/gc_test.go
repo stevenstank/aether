@@ -97,8 +97,10 @@ func TestGCStress(t *testing.T) {
 	t.Logf("%d programs", len(progs))
 }
 
-// checkWritable fails unless .bss is the only writable section exe loads:
-// the collector's roots are the stack and .bss (D-046).
+// checkWritable fails unless .bss is the only writable section exe loads
+// that may hold pointers: the collector's roots are the stack and .bss
+// (D-046), less aether_noscan, the global objects without pointers, which
+// must lie within .bss's bounds (D-057).
 func checkWritable(t *testing.T, exe string) {
 	t.Helper()
 	f, err := elf.Open(exe)
@@ -106,10 +108,20 @@ func checkWritable(t *testing.T, exe string) {
 		t.Fatal(err)
 	}
 	defer f.Close()
+	var bss *elf.Section
 	for _, s := range f.Sections {
-		if s.Flags&elf.SHF_ALLOC != 0 && s.Flags&elf.SHF_WRITE != 0 && s.Name != ".bss" {
-			t.Errorf("%s: writable section %s, which the collector does not scan", exe, s.Name)
+		if s.Name == ".bss" {
+			bss = s
 		}
+	}
+	for _, s := range f.Sections {
+		if s.Flags&elf.SHF_ALLOC == 0 || s.Flags&elf.SHF_WRITE == 0 || s.Name == ".bss" {
+			continue
+		}
+		if s.Name == "aether_noscan" && s.Type == elf.SHT_NOBITS && bss != nil && s.Addr >= bss.Addr {
+			continue
+		}
+		t.Errorf("%s: writable section %s, which the collector does not scan", exe, s.Name)
 	}
 }
 

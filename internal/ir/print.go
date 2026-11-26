@@ -57,7 +57,11 @@ func (p *Program) String() string {
 		fmt.Fprintf(&b, "global g%d %s %s @%s:%s\n", g.ID, g.Name, g.Type, g.File, g.Pos)
 	}
 	for _, m := range p.Mems {
-		fmt.Fprintf(&b, "mem %s %s %d align %d @%s:%s\n", m, m.Name, m.Size, m.Align, m.File, m.Pos)
+		noscan := ""
+		if m.NoScan {
+			noscan = " noscan"
+		}
+		fmt.Fprintf(&b, "mem %s %s %d align %d%s @%s:%s\n", m, m.Name, m.Size, m.Align, noscan, m.File, m.Pos)
 	}
 	for i, f := range p.Funcs {
 		if i > 0 || len(p.Globals)+len(p.Strings)+len(p.Mems) > 0 {

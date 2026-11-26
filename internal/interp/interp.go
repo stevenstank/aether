@@ -556,8 +556,9 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 				} else {
 					fr.values[in.ID] = sys.arg(mem, i)
 				}
-			case ir.SysGC:
-				// The interpreter frees no heap object (D-035).
+			case ir.SysGC, ir.SysSpecials:
+				// The interpreter frees no heap object (D-035): no weak
+				// pointer is cleared, no cleanup runs (D-057).
 			case ir.SysEnvc:
 				fr.values[in.ID] = int64(len(sys.env))
 			case ir.SysCPUFMA:

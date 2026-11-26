@@ -43,6 +43,11 @@
 	.set	.Lgcmin, 4194304	# 4 MiB
 	.set	.Lstressmin, 8192
 
+	# The global objects that hold no pointer (D-057, amd64.go): the
+	# linker defines the section's bounds only if a program has one.
+	.weak	__start_aether_noscan
+	.weak	__stop_aether_noscan
+
 	.text
 	.globl	aether.allocnoscan
 	.type	aether.allocnoscan, @function
@@ -306,7 +311,20 @@ aether.gc:
 	addq	$7, %r12
 	andq	$-8, %r12
 	leaq	_end(%rip), %r13
+	movabsq	$__start_aether_noscan, %rax	# 0 without such objects
+	testq	%rax, %rax
+	jz	3f
+	cmpq	%r12, %rax
+	jb	3f
+	cmpq	%r13, %rax
+	ja	3f
+	movq	%rax, %r13		# .bss up to the objects without pointers,
 	call	.Lscan
+	movabsq	$__stop_aether_noscan, %r12	# and after them (D-057)
+	addq	$7, %r12
+	andq	$-8, %r12
+	leaq	_end(%rip), %r13
+3:	call	.Lscan
 	call	.Lscangs
 1:	cmpq	.Lmark(%rip), %r14	# the marked objects' words
 	je	2f
@@ -322,7 +340,8 @@ aether.gc:
 	addq	$8, %r12
 	call	.Lscan
 	jmp	1b
-2:	call	.Lsweep
+2:	call	.Lspecials
+	call	.Lsweep
 	popq	%rdi
 	popq	%r15
 	popq	%r14
@@ -332,6 +351,104 @@ aether.gc:
 	popq	%rbx
 	ret
 	.size	.Lgc, .-.Lgc
+
+# aether.setspecials records %rdi as the table of weak pointers and
+# cleanups (ir.SysSpecials, D-057): package runtime's specialTable,
+#	0	ready: set to 1 when a collection queues a cleanup
+#	8	the records' address, 16 their number; each record, 32 bytes:
+#		0 the object's address, 8 its kind (1 weak, 3 cleanup, else
+#		none), 16 its state (1: a queued cleanup), 24 for a weak
+#		pointer the address of its handle, a word holding the object's
+#		address.
+# The records are in an object that holds no pointer (D-047), so they keep
+# nothing alive. It follows the helper interface.
+	.globl	aether.setspecials
+	.type	aether.setspecials, @function
+aether.setspecials:
+	movq	%rdi, .Lspecialtab(%rip)
+	ret
+	.size	aether.setspecials, .-aether.setspecials
+
+# .Lspecials runs after marking: a weak pointer whose object is not marked
+# is cleared (its handle's word zeroed, its record's kind 0), and a
+# cleanup whose object is not marked is queued (its state 1, and ready
+# set). It uses %r9-%r11 and what .Llive clobbers.
+	.type	.Lspecials, @function
+.Lspecials:
+	movq	.Lspecialtab(%rip), %r9
+	testq	%r9, %r9
+	jz	9f
+	movq	8(%r9), %r10
+	movq	16(%r9), %r11
+	shlq	$5, %r11
+	addq	%r10, %r11		# the records' end
+1:	cmpq	%r11, %r10
+	jae	9f
+	cmpq	$1, 8(%r10)
+	je	3f
+	cmpq	$3, 8(%r10)
+	jne	5f
+	cmpq	$0, 16(%r10)
+	jne	5f			# queued already
+	movq	(%r10), %rax
+	call	.Llive
+	testq	%rax, %rax
+	jnz	5f
+	movq	$1, 16(%r10)		# a cleanup to run
+	movq	$1, (%r9)
+	jmp	5f
+3:	movq	(%r10), %rax		# a weak pointer
+	call	.Llive
+	testq	%rax, %rax
+	jnz	5f
+	movq	24(%r10), %rcx
+	movq	$0, (%rcx)
+	movq	$0, 8(%r10)
+5:	addq	$32, %r10
+	jmp	1b
+9:	ret
+	.size	.Lspecials, .-.Lspecials
+
+# .Llive sets %rax to 0 if the address %rax is in an allocated object of
+# the heap that is not marked, else to 1: an address outside the heap
+# (a global, aether.zerobase) is always live. It clobbers %rcx, %rdx,
+# %rsi, and %r8, as .Lmarkword does, whose search it repeats.
+	.type	.Llive, @function
+.Llive:
+	movq	%rax, %rcx
+	subq	%r15, %rcx		# the offset in the heap
+	cmpq	%rbp, %rcx
+	jae	8f
+	movq	%rcx, %rdx
+	shrq	$13, %rdx		# the page
+	movq	(%rbx,%rdx,8), %rsi
+	testq	%rsi, %rsi
+	jz	8f			# free
+	jns	1f
+	addq	%rsi, %rdx		# a large object's first page
+	movq	(%rbx,%rdx,8), %rsi
+1:	shlq	$13, %rdx
+	leaq	(%r15,%rdx), %r8	# the page's address
+	cmpq	$.Lpage, %rsi
+	jae	2f			# a large object starts it
+	subq	%rdx, %rcx		# the offset in the page
+	movq	%rcx, %rax
+	xorl	%edx, %edx
+	divq	%rsi
+	imulq	%rsi, %rax		# the object's offset
+	leaq	(%rax,%rsi), %rdx
+	cmpq	$.Lpage, %rdx
+	ja	8f			# the page's tail
+	addq	%rax, %r8
+2:	movq	(%r8), %rax
+	andl	$3, %eax
+	cmpl	$1, %eax
+	jne	8f			# free, or marked
+	xorl	%eax, %eax
+	ret
+8:	movl	$1, %eax
+	ret
+	.size	.Llive, .-.Llive
 
 # .Lscangs scans the stack of every live goroutine that is not running
 # (D-048, goroutine.s), from its saved %rsp, below which it pushed its
@@ -593,6 +710,8 @@ aether.gc:
 .Lallocated:				# bytes allocated since the last collection
 	.zero	8
 .Lnextgc:
+	.zero	8
+.Lspecialtab:				# package runtime's specialTable, or 0
 	.zero	8
 .Lfree:
 	.zero	8*.Lnclass

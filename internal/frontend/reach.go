@@ -28,7 +28,7 @@ func prune(prog *Program) {
 	if len(prog.Packages) == 1 {
 		return
 	}
-	r := &reacher{decls: map[types.Object]ast.Node{}, methods: map[*types.TypeName][]types.Object{},
+	r := &reacher{decls: map[types.Object]ast.Node{}, declInfo: map[ast.Node]*types.Info{}, methods: map[*types.TypeName][]types.Object{},
 		seen: map[types.Object]bool{}, types: map[types.Type]bool{},
 		ifaceIDs: map[string]bool{"Error": true, "String": true}, pending: map[string][]types.Object{}}
 	main := prog.Main()
@@ -41,27 +41,22 @@ func prune(prog *Program) {
 			}
 		}
 	}
-	// Info's maps are shared by every walk: their keys are distinct in
-	// each package, and the merged lookups below go to the right one.
-	r.infos = make([]*types.Info, len(prog.Packages))
-	for i, p := range prog.Packages {
-		r.infos[i] = p.Info
+	for _, p := range prog.Packages {
 		r.pkgs = append(r.pkgs, p.Types)
 	}
 	for _, f := range main.Files {
-		r.walk(f)
+		r.walk(f, main.Info)
 	}
 	for _, n := range roots {
+		info := r.declInfo[n]
 		if s, ok := n.(*ast.ValueSpec); ok {
 			for _, id := range s.Names {
-				for _, info := range r.infos {
-					if obj := info.Defs[id]; obj != nil {
-						r.seen[obj] = true
-					}
+				if obj := info.Defs[id]; obj != nil {
+					r.seen[obj] = true
 				}
 			}
 		}
-		r.walk(n)
+		r.walk(n, info)
 	}
 	// The functions lowering's scheduler calls are reachable if the
 	// program can make what they serve (D-054).
@@ -96,17 +91,20 @@ type Hooks struct {
 // the network poller: the part of gc's runtime that is Aether's
 // time/runtime.go (D-054, D-056).
 var RuntimeHooks = map[string]Hooks{
-	"time": {Triggers: []string{"newRuntimeTimer", "setNetpoll"}, Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}},
+	// Weak pointers and cleanups (D-057).
+	"runtime": {Triggers: []string{"addSpecial"}, Funcs: []string{"specialsPoll"}},
+	"time":    {Triggers: []string{"newRuntimeTimer", "setNetpoll"}, Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}},
 }
 
 type reacher struct {
-	info    *types.Info   // while indexing
-	infos   []*types.Info // every package's
-	pkgs    []*types.Package
-	decls   map[types.Object]ast.Node
-	methods map[*types.TypeName][]types.Object
-	seen    map[types.Object]bool
-	types   map[types.Type]bool
+	info  *types.Info // while indexing
+	pkgs  []*types.Package
+	decls map[types.Object]ast.Node
+	// declInfo is the types.Info of the package of each declaration.
+	declInfo map[ast.Node]*types.Info
+	methods  map[*types.TypeName][]types.Object
+	seen     map[types.Object]bool
+	types    map[types.Type]bool
 	// The method identities of the reachable interfaces, and the methods
 	// of reachable types not yet reachable, by identity.
 	ifaceIDs map[string]bool
@@ -124,6 +122,7 @@ func (r *reacher) index(d ast.Decl) []ast.Node {
 			return nil
 		}
 		r.decls[obj] = d
+		r.declInfo[d] = r.info
 		if d.Recv == nil && d.Name.Name == "init" {
 			roots = append(roots, d)
 		}
@@ -144,6 +143,7 @@ func (r *reacher) index(d ast.Decl) []ast.Node {
 					if obj := r.info.Defs[id]; obj != nil {
 						r.decls[obj] = s
 					}
+					r.declInfo[s] = r.info
 				}
 				for _, v := range s.Values {
 					if !pure(r.info, v) {
@@ -155,6 +155,7 @@ func (r *reacher) index(d ast.Decl) []ast.Node {
 				if obj := r.info.Defs[s.Name]; obj != nil {
 					r.decls[obj] = s
 				}
+				r.declInfo[s] = r.info
 			}
 		}
 	}
@@ -198,31 +199,23 @@ func pure(info *types.Info, e ast.Expr) bool {
 	return false
 }
 
-// walk marks every object n names, and the types of its expressions.
-func (r *reacher) walk(n ast.Node) {
+// walk marks every object n names, and the types of its expressions: n is
+// code of the package whose types.Info is info.
+func (r *reacher) walk(n ast.Node, info *types.Info) {
 	ast.Inspect(n, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.Ident:
-			for _, info := range r.infos {
-				if obj := info.Uses[n]; obj != nil {
-					r.mark(obj)
-					break
-				}
+			if obj := info.Uses[n]; obj != nil {
+				r.mark(obj)
 			}
 		case *ast.SelectorExpr:
-			for _, info := range r.infos {
-				if sel := info.Selections[n]; sel != nil {
-					r.mark(sel.Obj())
-					break
-				}
+			if sel := info.Selections[n]; sel != nil {
+				r.mark(sel.Obj())
 			}
 		}
 		if e, ok := n.(ast.Expr); ok {
-			for _, info := range r.infos {
-				if tv, ok := info.Types[e]; ok {
-					r.markType(tv.Type)
-					break
-				}
+			if tv, ok := info.Types[e]; ok {
+				r.markType(tv.Type)
 			}
 		}
 		return true
@@ -249,7 +242,7 @@ func (r *reacher) mark(obj types.Object) {
 		}
 	}
 	if d := r.decls[obj]; d != nil {
-		r.walk(d)
+		r.walk(d, r.declInfo[d])
 	}
 	if fn, ok := obj.(*types.Func); ok && fn.Pkg() != nil {
 		if to := Linknames[fn.Pkg().Path()+"."+fn.Name()]; to != "" {

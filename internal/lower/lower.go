@@ -345,6 +345,8 @@ func (l *lowerer) global(prog *ir.Program, d *ast.GenDecl) {
 			file := frontend.Position(l.pkg.Fset, id.Pos()).File
 			if isAggregate(v.Type()) || l.addrTaken[v] {
 				l.mems[v] = prog.NewMem(l.qualify(v, id.Name), sizes.Sizeof(v.Type()), sizes.Alignof(v.Type()), file, l.pos(id, id.Pos()))
+				// A variable that holds no pointer is not scanned (D-057).
+				l.mems[v].NoScan = !hasPointers(v.Type())
 				continue
 			}
 			// A string's or slice's words are the globals name.ptr,

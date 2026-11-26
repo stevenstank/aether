@@ -136,17 +136,22 @@ func (m *mono) typeExpr1(n ast.Node, t types.Type, pos token.Pos) ast.Expr {
 			}
 			return ident(m.instance(n, t.Origin().Obj(), args).name)
 		case obj.Pkg().Path() != m.pkg.Types.Path():
+			// Through a view, which every file imports (D-052): the file
+			// the copy is in may not import the package, though another
+			// file of the package does (D-057).
+			if m.pkg.Others != nil && obj.Exported() && obj.Parent() == obj.Pkg().Scope() {
+				return m.viewRef(obj.Pkg().Path(), obj.Name(), pos)
+			}
 			if !m.hosting && imports(m.pkg.Types, obj) {
 				// Named as the file imports it, by its package name.
 				return &ast.SelectorExpr{X: ident(obj.Pkg().Name()), Sel: &ast.Ident{NamePos: pos, Name: obj.Name()}}
-			}
-			if m.pkg.Others != nil && obj.Exported() && obj.Parent() == obj.Pkg().Scope() {
-				return m.viewRef(obj.Pkg().Path(), obj.Name(), pos) // D-052
 			}
 			m.rejectAt(n, gate.FeatGenericInstance, "type argument "+typeName(t, true)+" of a package "+m.pkg.Types.Path()+" does not import")
 			return nil
 		case obj.Parent() == obj.Pkg().Scope():
 			return ident(obj.Name())
+		case m.hoisted[obj] != "":
+			return ident(m.hoisted[obj]) // D-057
 		}
 		m.rejectAt(n, gate.FeatGenericInstance, "type argument "+obj.Name()+" declared in a function")
 		return nil
@@ -213,12 +218,14 @@ func (m *mono) funcType(n ast.Node, s *types.Signature, pos token.Pos) *ast.Func
 // typeName returns the name of t as gc writes it: in a type argument
 // (arg), with defined types qualified by their package's path, not its
 // name, and unexported field and method names qualified too.
-func typeName(t types.Type, arg bool) string { return typeNameIn(t, arg, nil) }
+func typeName(t types.Type, arg bool) string { return typeNameIn(t, arg, nil, nil) }
 
 // typeNameIn is typeName with home, if not nil, giving the package whose
-// name a declaration has, if not its own (D-052).
-func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) string {
-	typeName := func(t types.Type, arg bool) string { return typeNameIn(t, arg, home) }
+// name a declaration has, if not its own (D-052), and local the
+// identifiers of the types declared in functions that are hoisted
+// (D-057): in a type argument, gc writes such a type with its number.
+func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package, local map[*types.TypeName]string) string {
+	typeName := func(t types.Type, arg bool) string { return typeNameIn(t, arg, home, local) }
 	qual := func(v types.Object) string {
 		p := v.Pkg()
 		if home != nil {
@@ -244,6 +251,11 @@ func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) 
 		return types.Typ[t.Kind()].Name()
 	case *types.Named:
 		name := frontend.SourceName(t.Obj().Name())
+		if id, ok := local[t.Obj()]; ok && arg {
+			name = id
+		} else if arg && name != t.Obj().Name() && !strings.Contains(t.Obj().Name(), "·of·") {
+			name = t.Obj().Name() // hoisted already (frontend.LocalName)
+		}
 		if t.TypeArgs().Len() > 0 {
 			var as []string
 			for a := range t.TypeArgs().Types() {
@@ -283,14 +295,14 @@ func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) 
 		}
 		return "struct { " + strings.Join(fs, "; ") + " }"
 	case *types.Signature:
-		return "func" + sigName(t, arg, home)
+		return "func" + sigName(t, arg, home, local)
 	case *types.Interface:
 		if t.NumMethods() == 0 {
 			return "interface {}"
 		}
 		var ms []string
 		for f := range t.Methods() {
-			ms = append(ms, field(f)+sigName(f.Type().(*types.Signature), arg, home))
+			ms = append(ms, field(f)+sigName(f.Type().(*types.Signature), arg, home, local))
 		}
 		return "interface { " + strings.Join(ms, "; ") + " }"
 	}
@@ -298,8 +310,8 @@ func typeNameIn(t types.Type, arg bool, home func(types.Object) *types.Package) 
 }
 
 // sigName returns a signature as gc writes it after "func".
-func sigName(s *types.Signature, arg bool, home func(types.Object) *types.Package) string {
-	typeName := func(t types.Type, arg bool) string { return typeNameIn(t, arg, home) }
+func sigName(s *types.Signature, arg bool, home func(types.Object) *types.Package, local map[*types.TypeName]string) string {
+	typeName := func(t types.Type, arg bool) string { return typeNameIn(t, arg, home, local) }
 	var ps []string
 	for i := range s.Params().Len() {
 		pt := s.Params().At(i).Type()

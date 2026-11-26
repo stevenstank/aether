@@ -1,4 +1,4 @@
-mem gm0 g 12 align 2 @testdata/check/s3_l02_slice_expressions.go:8:5
+mem gm0 g 12 align 2 noscan @testdata/check/s3_l02_slice_expressions.go:8:5
 
 func window(ptr, i64, i64) (ptr, i64, i64) @testdata/check/s3_l02_slice_expressions.go:15:6
   slot s0 a ptr @15:13

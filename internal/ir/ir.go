@@ -396,11 +396,16 @@ const (
 	// distributed, from a generator the kernel's entropy seeds. No args
 	// (D-053).
 	SysRand
+	// SysSpecials gives the collector the table of weak pointers and
+	// cleanups at args[0], a Ptr: package runtime's specialTable, whose
+	// records it updates at each collection (D-057). No value. The
+	// interpreter, which frees nothing, ignores it.
+	SysSpecials
 )
 
 // SysNames are the system calls' names, as the printer writes them.
 var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read",
-	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand"}
+	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand", SysSpecials: "specials"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",
@@ -566,8 +571,11 @@ type Mem struct {
 	Name        string // the source name, for printing and symbols
 	Size, Align int64
 	Global      bool
-	File        string // for a global one, the source file of Pos
-	Pos         Pos
+	// NoScan, for a global one, says it never holds a Ptr, so the
+	// collector need not scan it (D-057), as Alloc's noscan (D-047).
+	NoScan bool
+	File   string // for a global one, the source file of Pos
+	Pos    Pos
 }
 
 // Intern returns the index of s in p.Strings, adding it if it is new. s

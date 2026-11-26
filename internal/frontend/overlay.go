@@ -81,16 +81,13 @@ var patches = map[string]patch{
 		"gettimeofday": "aetherGettimeofday"}},
 	// gc's runtime network poller and semaphores, in Aether's aether.go
 	// (D-056).
-	"internal/poll": {imports: map[string]string{"runtime": "internal/cleanups"}, bodies: map[string]string{"runtime_Semacquire": "aetherSemacquire", "runtime_Semrelease": "aetherSemrelease",
+	"internal/poll": {bodies: map[string]string{"runtime_Semacquire": "aetherSemacquire", "runtime_Semrelease": "aetherSemrelease",
 		"runtime_pollServerInit": "aetherPollServerInit", "runtime_pollOpen": "aetherPollOpen", "runtime_pollClose": "aetherPollClose",
 		"runtime_pollWait": "aetherPollWait", "runtime_pollWaitCanceled": "aetherPollWaitCanceled", "runtime_pollReset": "aetherPollReset",
 		"runtime_pollSetDeadline": "aetherPollSetDeadline", "runtime_pollUnblock": "aetherPollUnblock",
 		"runtime_isPollServerDescriptor": "aetherIsPollServerDescriptor"}},
-	// net and internal/poll's finalizers and cleanups, which never run,
-	// from Aether's internal/cleanups, so that a program's own stay
-	// unsupported (D-056).
-	"net":                            {imports: map[string]string{"runtime": "internal/cleanups"}},
-	"internal/cleanups":              {replace: true},
+	// gc's portable Go in place of its assembly, the same results (D-057).
+	"internal/chacha8rand":           {bodies: map[string]string{"block": "block_generic"}},
 	"internal/syscall/unix":          {bodies: map[string]string{"fcntl": "aetherFcntl"}},
 	"internal/runtime/syscall/linux": {bodies: map[string]string{"Syscall6": "aetherSyscall6"}},
 	"runtime/debug":                  {replace: true}, // the settings a program reads back (v2 evaluation)
@@ -99,10 +96,12 @@ var patches = map[string]patch{
 	// runtime.Caller stays unsupported (v2 evaluation).
 	"flag":             {imports: map[string]string{"runtime": "internal/callers"}},
 	"log":              {imports: map[string]string{"runtime": "internal/callers"}},
+	"net/http":         {imports: map[string]string{"runtime": "internal/callers"}},
 	"internal/callers": {replace: true},
 	"unique":           {replace: true}, // canonical values without weak pointers (v2 evaluation)
 	// getrandom(2) over Aether's syscall, and gc's runtime fatal (v2
 	// evaluation).
+	"crypto/rand":                 {bodies: map[string]string{"fatal": "aetherFatal"}}, // D-057
 	"crypto/internal/sysrand":     {bodies: map[string]string{"fatal": "aetherFatal"}},
 	"crypto/fips140":              {bodies: map[string]string{"setBypass": "aetherSetBypass", "unsetBypass": "aetherUnsetBypass", "isBypassed": "aetherIsBypassed"}},
 	"crypto/internal/fips140hash": {bodies: map[string]string{"sha3Unwrap": "aetherSha3Unwrap"}},
@@ -129,6 +128,8 @@ var Intrinsics = map[string]bool{
 	"math.cpuFMA": true, "math.envc": true, "math.env": true,
 	"internal/godebug.envc": true, "internal/godebug.env": true, "math/rand.runtime_rand": true,
 	"net.runtime_rand":                true, // D-056
+	"runtime.setSpecials":             true, // D-057
+	"math/rand/v2.runtime_rand":       true, // D-057
 	"internal/reflectlite.implements": true,
 	"reflect.implements":              true, // as internal/reflectlite's (v2 evaluation)
 }
@@ -148,12 +149,15 @@ var Linknames = map[string]string{
 	"internal/syscall/unix.RecvmsgInet6":  "syscall.recvmsgInet6",
 	"internal/poll.runtimeNano":           "time.nanotime",
 	"internal/poll.setNetpoll":            "time.setNetpoll",
+	// Weak pointers over Aether's collector (D-057).
+	"weak.runtime_registerWeakPointer": "runtime.registerWeakPointer",
+	"weak.runtime_makeStrongFromWeak":  "runtime.makeStrongFromWeak",
 }
 
 // GOROOTIntrinsics are the intrinsics declared without a body in GOROOT's
 // own files, not Aether's: math/rand's runtime_rand, which gc's linker
 // makes runtime.rand (D-053).
-var GOROOTIntrinsics = map[string]bool{"math/rand.runtime_rand": true, "net.runtime_rand": true}
+var GOROOTIntrinsics = map[string]bool{"math/rand.runtime_rand": true, "net.runtime_rand": true, "math/rand/v2.runtime_rand": true}
 
 // isStd reports whether an import path names a standard-library package:
 // its first element has no dot.

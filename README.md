@@ -63,7 +63,7 @@ registers, with every value in a stack cell. See D-022 and D-028.
 The IR interpreter is a test oracle and has no command. Tests compare the
 interpreter and the built executables with the gc-built binary.
 
-Run the tests with `go test -timeout 30m ./...`; the full suite needs more than
+Run the tests with `go test -timeout 45m ./...`; the full suite needs more than
 the default 10 minutes. `go test -short ./...` skips the gc
 cross-check, the gc differential test, the binary test, and the GOROOT corpus
 sweep.

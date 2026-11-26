@@ -2,7 +2,7 @@ string s0 ":"
 string s1 " "
 string s2 "aé\xff"
 string s3 "A"
-mem gm0 lits 40 align 4 @testdata/check/s3_c12_runes.go:11:5
+mem gm0 lits 40 align 4 noscan @testdata/check/s3_c12_runes.go:11:5
 
 func show(ptr, i64) @testdata/check/s3_c12_runes.go:13:6
   slot s0 s ptr @13:11

@@ -1657,7 +1657,8 @@ Library:
   cache entries are never reclaimed (no weak pointers).
 - **`math/big`** (gc's pure-Go arithmetic), **`net/url`**, **`context`**,
   **`crypto/md5`, `sha1`, `sha256`, `sha512`, `hmac`, `subtle`**.
-  `crypto/rand` stays `unsupported` (an array larger than 16 MiB).
+  `crypto/rand` stays `unsupported` (an array larger than 16 MiB; since
+  D-057, supported).
 - **`os`** uses `io/fs`'s `FileMode`, `PathError`, `FileInfo`, and
   `DirEntry`, and adds `Stat`, `Lstat`, `File.Stat`, `SameFile`,
   `ReadDir`, `File.ReadDir`, `Readdir`, `Readdirnames`, `Readlink`,
@@ -1681,14 +1682,49 @@ D-056.
   environment, which stays Aether's, and the open-file limit, which gc
   raises at startup and Aether does not.
 - **`runtime`** adds `KeepAlive`. `net`'s finalizers, which close a
-  connection nobody closed, never run (gc does not promise they will), so
-  such a descriptor stays open until the program exits; a program's own
-  `SetFinalizer` and `AddCleanup` stay `unsupported`. **`os`** adds
-  `Hostname`, `ErrNoDeadline`, and `ErrDeadlineExceeded`.
+  connection nobody closed, never ran (gc does not promise they will);
+  since D-057 a cleanup closes it. A program's own `SetFinalizer` stays
+  `unsupported`. **`os`** adds `Hostname`, `ErrNoDeadline`, and
+  `ErrDeadlineExceeded`.
 - Differences: the poller is polled at one goroutine switch in 61 and
   when every goroutine is blocked; a goroutine that never blocks delays
-  it, as it delays timers.
-- Still `unsupported`: `net/http` (`crypto/tls`).
+  it, as it delays timers. Reading a file or a terminal (`os.Stdin`)
+  blocks every goroutine, as before: only sockets are on the poller.
+- `net/http` since D-057 (below).
+
+## net/http, weak pointers, cleanups, large arrays
+
+D-057.
+- **`net/http`** is gc's: `Server` and `ServeMux` (method and wildcard
+  patterns, `PathValue`), `Client` and `Transport` with keep-alive
+  connections reused, concurrent requests, cancellation by a request's
+  context, `Client.Timeout` and the server's timeouts, `Shutdown`,
+  `net/http/httptest`'s servers and recorder, TLS (`crypto/tls`, gc's,
+  with gc's cryptography), and HTTP/2 over TLS. Differences: a handler's
+  panic is logged without its stack, and the "superfluous WriteHeader"
+  message without its caller (Aether's binaries have no tables to find
+  them); `httptrace`'s composition of two `ClientTrace`s
+  (`WithClientTrace` on a context that has one) is `function-without-body`
+  (`reflect.MakeFunc`, `Value.Call`).
+- **`weak`** and **`runtime.AddCleanup`** over Aether's collector:
+  `weak.Make` gives equal pointers for equal pointers, `Value` is nil once
+  the object was collected; a cleanup runs once, on a goroutine of its
+  own, after its object was collected, unless `Stop`ped first. The
+  collector is conservative (D-046): an object a stale word points to is
+  kept, so its weak pointer stays set and its cleanup does not run, which
+  gc allows. Unlike gc, an `arg` or cleanup function that keeps `ptr`
+  reachable is not detected (no panic; the cleanup never runs).
+  `runtime.SetFinalizer` stays `unsupported`.
+- **`crypto/rand`**, **`sync.Cond`**, **`math/rand/v2`'s** global
+  functions.
+- **Arrays and structs larger than 16 MiB** (up to 1 GiB) as package-level
+  variables, behind pointers, and on the heap; a function or package
+  initialization that would hold one in its frame is `unsupported`
+  (`frame-size`), where gc puts it on the heap.
+- **Types declared in functions as type arguments** of generic code
+  (`slices.SortFunc` of a local struct type), named as gc names them
+  (`main.Box[main.tc·1]`). A local type that involves a type parameter
+  stays `unsupported` (`generic-instance`).
 
 ## Support matrix
 
@@ -1748,7 +1784,8 @@ D-056.
 | Range over functions; per-iteration `for` variables; interfaces embedded in structs; slice-to-array conversions; non-generic type aliases; `flag`, `log`, `context`, `runtime/debug`, `unique`, `math/big`, `net/url`, hashing `crypto`; `os` files and directories over `io/fs`; `reflect` for `encoding/json`, `xml`, `gob` | For statements with range clause, Struct types, Conversions, Alias declarations; the packages' documentation | D-055 (practical evaluation v2) | Supported (native) | `TestStdPrograms` (`rangefunc`, `rangefunc2`, `loopvar`, `loopvar2`, `embedif`, `embedif2`, `slicetoarray`, `slicetoarraypanic`, `flag`, `log`, `crypto`, `json`, `taggedinstance`, `alias`, `multivalueiface`); corpus `run_embedded_interface`, `run_slice_to_array`, `run_loop_variable_address`, `run_loop_variable_capture`; `eval/practical-v2` |
 | Instances of another package's generic code with any package's types, and gc's names of type arguments | Instantiation; the packages' documentation | Batch 3 | Supported (native) | `TestPackagePrograms` (`hosted`, against gc); `TestPackageRejects`; `TestStdRejects`; `TestPathPrefix` |
 | `os` files by name (`Open`, `Create`, `OpenFile`, `ReadFile`, `WriteFile`, `Mkdir`, `MkdirAll`, `Remove`, `Rename`, `Getwd`, `Chdir`), `File` methods (`Close`, `ReadAt`, `WriteAt`, `Seek`, `Sync`, `Truncate`, `Fd`), the environment, and `os`'s errors | The package's documentation | Batch 2 | Supported (native) | `TestOSPrograms` (`testdata/osprog`, against gc, natively and in the interpreter, comparing the directory left); `TestStdRejects`; `TestSysOps` |
-| `net` over the network poller (TCP, UDP, deadlines), `syscall` (gc's) | The packages' documentation | D-056 | Supported (native) | `TestNetPrograms` (`testdata/net`, against gc, natively, with and without `-O0` and collector stress); `TestStdPrograms` |
+| `net` over the network poller (TCP, UDP, deadlines), `syscall` (gc's) | The packages' documentation | D-056 | Supported (native) | `TestNativePrograms` (`testdata/net`, against gc, natively, with and without `-O0` and collector stress); `TestStdPrograms` |
+| `net/http` (client, server, TLS, HTTP/2, `httptest`), `crypto/tls`, `crypto/rand`, `weak`, `runtime.AddCleanup`, `sync.Cond`; arrays and structs up to 1 GiB outside frames; local types as type arguments | The packages' documentation; Instantiations | D-057 | Supported (native) | `TestNativePrograms` (`testdata/net/http.go`, `leak.go`, `testdata/native`, against gc, natively, with and without `-O0` and collector stress); `TestStdPrograms` (`synccond`, `largearray`, `localtypes`); `TestStdRejects`; `TestPackagePrograms` (`cmd/curve`); corpus `run_generic_local_type_arg`; `eval/practical-v2` (`10-httpapi`) |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

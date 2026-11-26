@@ -95,7 +95,7 @@ const symPanicIndex = "aether.panicindex"
 var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
 	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread",
 	ir.SysCall: "aether.syscall6", ir.SysEnvc: "aether.envc", ir.SysEnvPtr: "aether.envptr", ir.SysEnvLen: "aether.envlen",
-	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand"}
+	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand", ir.SysSpecials: "aether.setspecials"}
 
 // sysOutgoing is the outgoing area a Sys needs: SysCall's args.
 func sysOutgoing(in *ir.Instr) int {
@@ -335,18 +335,34 @@ func emitMems(b *bytes.Buffer, prog *ir.Program) error {
 	for _, g := range prog.Globals {
 		syms[globalSym(g)] = true
 	}
-	b.WriteString("\t.bss\n")
-	for _, m := range prog.Mems {
-		sym := memSym(m)
-		if syms[sym] {
-			return fmt.Errorf("amd64: global memory object %s: symbol %s is not unique", m, sym)
+	// Those that hold no pointer are in a section of their own, which the
+	// collector does not scan (D-057, heap.s).
+	for _, noscan := range []bool{false, true} {
+		if noscan {
+			b.WriteString("\t.section\t" + noscanSection + ",\"aw\",@nobits\n")
+		} else {
+			b.WriteString("\t.bss\n")
 		}
-		syms[sym] = true
-		fmt.Fprintf(b, "\t.p2align\t%d\n\t.type\t%s, @object\n\t.size\t%s, %d\n%s:\n\t.zero\t%d\n",
-			bits.TrailingZeros64(uint64(m.Align)), sym, sym, m.Size, sym, m.Size)
+		for _, m := range prog.Mems {
+			if m.NoScan != noscan {
+				continue
+			}
+			sym := memSym(m)
+			if syms[sym] {
+				return fmt.Errorf("amd64: global memory object %s: symbol %s is not unique", m, sym)
+			}
+			syms[sym] = true
+			fmt.Fprintf(b, "\t.p2align\t%d\n\t.type\t%s, @object\n\t.size\t%s, %d\n%s:\n\t.zero\t%d\n",
+				bits.TrailingZeros64(uint64(m.Align)), sym, sym, m.Size, sym, m.Size)
+		}
 	}
 	return nil
 }
+
+// noscanSection is the section of the global memory objects that hold no
+// pointer: the linker places it among .bss's, from __start_aether_noscan
+// to __stop_aether_noscan, which the collector skips (D-057).
+const noscanSection = "aether_noscan"
 
 // emitFunc emits f, the program's function number fi, and returns its
 // frame.

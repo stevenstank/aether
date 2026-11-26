@@ -8,12 +8,13 @@ import (
 	"testing"
 )
 
-// TestNetPrograms builds each program of testdata/net, which use package
-// net over Aether's network poller (D-056), with gc and with Aether, with
-// and without -O0, and compares what they do, also under the collector's
-// stress mode. They run natively only: the interpreter makes no socket
-// system calls (D-051).
-func TestNetPrograms(t *testing.T) {
+// TestNativePrograms builds each program of testdata/net, which use
+// packages net and net/http over Aether's network poller (D-056, D-057),
+// and of testdata/native, which use weak pointers and cleanups (D-057),
+// with gc and with Aether, with and without -O0, and compares what they
+// do, also under the collector's stress mode. They run natively only: the
+// interpreter makes no socket system calls (D-051) and frees nothing.
+func TestNativePrograms(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds with gc")
 	}
@@ -22,9 +23,13 @@ func TestNetPrograms(t *testing.T) {
 	if err != nil {
 		t.Skip("go command not found")
 	}
-	files, err := filepath.Glob(filepath.Join("testdata", "net", "*.go"))
-	if err != nil || len(files) == 0 {
-		t.Fatal(files, err)
+	var files []string
+	for _, dir := range []string{"net", "native"} {
+		fs, err := filepath.Glob(filepath.Join("testdata", dir, "*.go"))
+		if err != nil || len(fs) == 0 {
+			t.Fatal(dir, fs, err)
+		}
+		files = append(files, fs...)
 	}
 	progs := map[string][]byte{}
 	for _, f := range files {

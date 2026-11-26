@@ -718,6 +718,8 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			want, args = I64, []Type{U64, U64, U64, U64, U64, U64, U64}
 		case SysRand:
 			want = U64
+		case SysSpecials:
+			args = []Type{Ptr}
 		case SysGC:
 		default:
 			v.errorf(bi, i, in, "sys of unknown kind %d", in.Index)
