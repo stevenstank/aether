@@ -126,6 +126,7 @@ b0:
   store s8, v10 @16:2
   jump b1 @16:2
 b1:
+  preempt @16:2
   v11 = load s8 @16:2
   v12 = load s7 @16:2
   v13 = lt v11, v12 @16:2
@@ -781,6 +782,8 @@ func main @testdata/check/s5_d14_defer_builtins_variadic.go:50:6
   mem m4 recv 8 align 8 @55:12
   mem m5 recv 8 align 8 @59:16
 b0:
+  v132 = funcaddr .preempt @50:6
+  sys preempt, v132 @50:6
   v0 = const false @50:13
   gstore g2, v0 @50:13
   v1 = const 64 @51:16
@@ -803,62 +806,62 @@ b0:
   v12 = load s1 @51:16
   v13 = call .mapassign0, v11, v12 @51:16
   store s31, v13 @51:16
-  v133 = gload g0 @51:16
-  branch v133, b8, b7 @51:16
+  v134 = gload g0 @51:16
+  branch v134, b8, b7 @51:16
 b1:
-  v134 = const 0 @61:2
   v135 = const 0 @61:2
-  v136 = const false @61:2
-  v137 = const ptr 0 @61:2
-  v138 = const 0 @61:2
-  v139 = const 6 @61:2
-  call .raise, v139, v134, v135, v136, v137, v138 @61:2
+  v136 = const 0 @61:2
+  v137 = const false @61:2
+  v138 = const ptr 0 @61:2
+  v139 = const 0 @61:2
+  v140 = const 6 @61:2
+  call .raise, v140, v135, v136, v137, v138, v139 @61:2
   jump b8 @61:2
 b2:
   v117 = load s28 @61:2
   v118 = const 0 @61:2
   v119 = ldm ptr, v117, v118 @61:2
   callind func(ptr), v119, v117 @61:2
-  v140 = gload g0 @61:2
-  branch v140, b8, b9 @61:2
+  v141 = gload g0 @61:2
+  branch v141, b8, b9 @61:2
 b3:
-  v141 = const 0 @67:2
   v142 = const 0 @67:2
-  v143 = const false @67:2
-  v144 = const ptr 0 @67:2
-  v145 = const 0 @67:2
-  v146 = const 6 @67:2
-  call .raise, v146, v141, v142, v143, v144, v145 @67:2
+  v143 = const 0 @67:2
+  v144 = const false @67:2
+  v145 = const ptr 0 @67:2
+  v146 = const 0 @67:2
+  v147 = const 6 @67:2
+  call .raise, v147, v142, v143, v144, v145, v146 @67:2
   jump b8 @67:2
 b4:
   v123 = load s29 @67:2
   v124 = const 0 @67:2
   v125 = ldm ptr, v123, v124 @67:2
   callind func(ptr), v125, v123 @67:2
-  v147 = gload g0 @67:2
-  branch v147, b8, b10 @67:2
+  v148 = gload g0 @67:2
+  branch v148, b8, b10 @67:2
 b5:
-  v148 = const 0 @76:2
   v149 = const 0 @76:2
-  v150 = const false @76:2
-  v151 = const ptr 0 @76:2
-  v152 = const 0 @76:2
-  v153 = const 6 @76:2
-  call .raise, v153, v148, v149, v150, v151, v152 @76:2
+  v150 = const 0 @76:2
+  v151 = const false @76:2
+  v152 = const ptr 0 @76:2
+  v153 = const 0 @76:2
+  v154 = const 6 @76:2
+  call .raise, v154, v149, v150, v151, v152, v153 @76:2
   jump b8 @76:2
 b6:
   v129 = load s30 @76:2
   v130 = const 0 @76:2
   v131 = ldm ptr, v129, v130 @76:2
   callind func(ptr), v131, v129 @76:2
-  v154 = gload g0 @76:2
-  branch v154, b8, b11 @76:2
+  v155 = gload g0 @76:2
+  branch v155, b8, b11 @76:2
 b7:
-  v132 = load s31 @51:16
-  store s3, v132 @51:16
+  v133 = load s31 @51:16
+  store s3, v133 @51:16
   v14 = load s2 @51:16
   v15 = const 0 @51:16
-  stm v132, v15, v14 @51:16
+  stm v133, v15, v14 @51:16
   v16 = const 2 @51:31
   v17 = addr m1 @51:30
   v18 = const 0 @51:31
@@ -876,8 +879,8 @@ b7:
   v25 = load s4 @51:16
   v26 = call .mapassign0, v24, v25 @51:16
   store s32, v26 @51:16
-  v156 = gload g0 @51:16
-  branch v156, b8, b12 @51:16
+  v157 = gload g0 @51:16
+  branch v157, b8, b12 @51:16
 b8:
   call .printpanics @50:6
   panic exit @50:6
@@ -896,11 +899,11 @@ b10:
 b11:
   ret @86:1
 b12:
-  v155 = load s32 @51:16
-  store s6, v155 @51:16
+  v156 = load s32 @51:16
+  store s6, v156 @51:16
   v27 = load s5 @51:16
   v28 = const 0 @51:16
-  stm v155, v28, v27 @51:16
+  stm v156, v28, v27 @51:16
   v29 = load s0 @51:16
   store s7, v29 @51:2
   v30 = const 0 @52:8
@@ -909,11 +912,11 @@ b12:
   v33 = const true @52:8
   v34 = call .makechan, v32, v31, v33 @52:8
   store s33, v34 @52:8
-  v158 = gload g0 @52:8
-  branch v158, b8, b13 @52:8
+  v159 = gload g0 @52:8
+  branch v159, b8, b13 @52:8
 b13:
-  v157 = load s33 @52:8
-  store s8, v157 @52:2
+  v158 = load s33 @52:8
+  store s8, v158 @52:2
   v35 = str s5 @53:10
   v36 = const 4 @53:10
   store s9, v35 @53:10
@@ -922,11 +925,11 @@ b13:
   v38 = load s8 @53:26
   v39 = call work, v37, v38 @53:18
   store s34, v39 @53:18
-  v160 = gload g0 @53:18
-  branch v160, b8, b14 @53:18
+  v161 = gload g0 @53:18
+  branch v161, b8, b14 @53:18
 b14:
-  v159 = load s34 @53:18
-  store s11, v159 @53:18
+  v160 = load s34 @53:18
+  store s11, v160 @53:18
   v40 = load s7 @53:35
   v41 = call .maplen, v40 @53:31
   store s12, v41 @53:31
@@ -976,11 +979,11 @@ b14:
   v74 = const true @57:10
   v75 = call .makechan, v73, v72, v74 @57:10
   store s35, v75 @57:10
-  v162 = gload g0 @57:10
-  branch v162, b8, b15 @57:10
+  v163 = gload g0 @57:10
+  branch v163, b8, b15 @57:10
 b15:
-  v161 = load s35 @57:10
-  store s19, v161 @57:2
+  v162 = load s35 @57:10
+  store s19, v162 @57:2
   v76 = load s19 @58:10
   store s20, v76 @58:5
   v77 = const 24 @58:16
@@ -9097,6 +9100,72 @@ b0:
   v20 = xor v17, v19 @76:2
   v21 = conv i64, v20 @76:2
   ret v21 @76:2
+
+func .preempt @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
+  slot s0 g ptr @7:1
+  slot s1 tail ptr @7:1
+b0:
+  v0 = sys ticks @7:1
+  v1 = conv u64, v0 @7:1
+  v2 = gload g7 @7:1
+  v3 = sub v1, v2 @7:1
+  v4 = const u64 16777216 @7:1
+  v5 = ge v3, v4 @7:1
+  branch v5, b1, b2 @7:1
+b1:
+  v6 = gload g4 @7:1
+  v7 = const ptr 0 @7:1
+  v8 = eq v6, v7 @7:1
+  branch v8, b4, b5 @7:1
+b2:
+  ret @7:1
+b3:
+  v12 = sys ticks @7:1
+  v13 = conv u64, v12 @7:1
+  gstore g7, v13 @7:1
+  v14 = call .getg @7:1
+  store s0, v14 @7:1
+  v15 = load s0 @7:1
+  v16 = const ptr 0 @7:1
+  v17 = const 16 @7:1
+  stm v15, v17, v16 @7:1
+  v18 = gload g6 @7:1
+  store s1, v18 @7:1
+  v19 = load s1 @7:1
+  v20 = const ptr 0 @7:1
+  v21 = eq v19, v20 @7:1
+  branch v21, b9, b10 @7:1
+b4:
+  v9 = gload g5 @7:1
+  v10 = const ptr 0 @7:1
+  v11 = eq v9, v10 @7:1
+  branch v11, b6, b7 @7:1
+b5:
+  jump b3 @7:1
+b6:
+  jump b8 @7:1
+b7:
+  jump b3 @7:1
+b8:
+  jump b2 @7:1
+b9:
+  v22 = load s0 @7:1
+  gstore g5, v22 @7:1
+  v23 = sys ticks @7:1
+  v24 = conv u64, v23 @7:1
+  gstore g7, v24 @7:1
+  jump b11 @7:1
+b10:
+  v25 = load s1 @7:1
+  v26 = load s0 @7:1
+  v27 = const 16 @7:1
+  stm v25, v27, v26 @7:1
+  jump b11 @7:1
+b11:
+  v28 = load s0 @7:1
+  gstore g6, v28 @7:1
+  call .park @7:1
+  jump b8 @7:1
 
 func init @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 b0:

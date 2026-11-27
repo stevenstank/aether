@@ -1048,7 +1048,8 @@ repeated in each phase below:
   - channels, `select`
   - the optimizer constraint from `SEMANTICS.md`
   - `sync` and `sync/atomic` need imports, so they move to Phase 11. OS
-    threads and preemption need a new decision.
+    threads and preemption need a new decision (preemption at loop back
+    edges: D-059).
 - **Acceptance criteria:**
   - Differential agreement with gc on concurrent programs whose output does
     not depend on the schedule.

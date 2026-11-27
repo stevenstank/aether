@@ -351,6 +351,12 @@ const (
 	// increment 11.6), made by the runtime. It is an effect, a call of the
 	// runtime.
 	Sys
+	// Preempt is a preemption point at a loop's back edge (D-059): if a
+	// preemption is requested, it calls the function SysPreempt
+	// registered, which may run other goroutines. No args, no value. It
+	// is an effect, but not a call: every value keeps its location across
+	// it. Before any SysPreempt, or with none requested, it does nothing.
+	Preempt
 )
 
 // The system calls of Sys, with their args and value.
@@ -406,11 +412,17 @@ const (
 	// call; gc's runtime.cputicks. The scheduler measures its time slices
 	// and its polls of the network with it (D-058). No args.
 	SysTicks
+	// SysPreempt registers args[0], the FuncAddr of a function with no
+	// parameters and no results, as the one a requested Preempt calls,
+	// and starts requesting preemptions (D-059): natively, every 10 ms
+	// of the process's CPU time. No value.
+	SysPreempt
 )
 
 // SysNames are the system calls' names, as the printer writes them.
 var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read",
-	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand", SysSpecials: "specials", SysTicks: "ticks"}
+	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand", SysSpecials: "specials", SysTicks: "ticks",
+	SysPreempt: "preempt"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",
@@ -425,7 +437,7 @@ var opNames = [...]string{
 	IToF: "itof", FToF: "ftof", FToI: "ftoi", Str: "str", LoadB: "loadb",
 	Addr: "addr", LdM: "ldm", StM: "stm", Alloc: "alloc", PAdd: "padd", Move: "move",
 	FuncAddr: "funcaddr", CallInd: "callind",
-	GoNew: "gonew", GoSwitch: "goswitch", GoExit: "goexit", Sys: "sys",
+	GoNew: "gonew", GoSwitch: "goswitch", GoExit: "goexit", Sys: "sys", Preempt: "preempt",
 }
 
 func (op Op) String() string {
@@ -955,6 +967,11 @@ func (f *Func) GoNew(b *Block, callee *Func, pos Pos) *Instr {
 // GoSwitch appends a switch to the goroutine whose handle is h.
 func (f *Func) GoSwitch(b *Block, h *Instr, pos Pos) *Instr {
 	return f.add(b, &Instr{Op: GoSwitch, Args: []*Instr{h}, Pos: pos})
+}
+
+// Preempt appends a preemption point (D-059).
+func (f *Func) Preempt(b *Block, pos Pos) *Instr {
+	return f.add(b, &Instr{Op: Preempt, Pos: pos})
 }
 
 // GoExit appends the end of the running goroutine and a switch to h.

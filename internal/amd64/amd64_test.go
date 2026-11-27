@@ -206,12 +206,12 @@ func TestRuntimeFiles(t *testing.T) {
 		names = append(names, f.Name)
 		all += string(f.Data)
 	}
-	if strings.Join(names, " ") != "float.s goroutine.s heap.s pow10.s print.s slice.s start.s" {
+	if strings.Join(names, " ") != "float.s goroutine.s heap.s pow10.s preempt.s print.s slice.s start.s" {
 		t.Fatalf("runtime files %v", names)
 	}
 	for _, sym := range []string{"_start", symPrintInt, symPrintSpace, symPrintNL, symAlloc, panicSyms[ir.PanicNil],
 		symMemmove, symPanicBounds, panicSyms[ir.PanicMakeLen], panicSyms[ir.PanicMakeCap], panicSyms[ir.PanicGrowLen],
-		symGoNew, symGoSwitch, symGoExit} {
+		symGoNew, symGoSwitch, symGoExit, symPreempt, symPreemptReq, symSys[ir.SysPreempt]} {
 		if !strings.Contains(all, "\t.globl\t"+sym+"\n") || !strings.Contains(all, "\n"+sym+":\n") {
 			t.Errorf("runtime does not define %s", sym)
 		}

@@ -166,6 +166,10 @@ const maxChanBytes = 1<<48 - 96
 type sched struct {
 	curg, runnext, runqHead, runqTail *ir.Global
 	sliceStart                        *ir.Global // SysTicks when the running slice began
+	// inHooks is true while a switch or a yield runs the switch hooks,
+	// which a Preempt in code they call must not re-enter (D-059); nil
+	// without hooks.
+	inHooks                           *ir.Global
 	ngo                               *ir.Global // the goroutines besides main, if counted
 	getg, ready, next, newproc, entry *ir.Func
 	park                              *ir.Func
@@ -193,6 +197,9 @@ func (l *lowerer) sched() *sched {
 	if l.countG {
 		sc.ngo = l.prog.NewGlobal(".ngo", ir.I64, file, pos)
 	}
+	if h, io, poll := l.switchHooks(); h != nil || io != nil || poll != nil {
+		sc.inHooks = l.prog.NewGlobal(".inhooks", ir.Bool, file, pos)
+	}
 	sc.getg = l.genFunc("getg", nil, []ir.Type{ir.Ptr}, func(_ []func() *ir.Instr, pos ir.Pos) {
 		m := mb{l, pos}
 		g := m.v("g", l.fn.GLoad(l.b, sc.curg, pos))
@@ -216,6 +223,7 @@ func (l *lowerer) sched() *sched {
 		m := mb{l, pos}
 		h, io, poll := l.switchHooks()
 		var head *ir.Block
+		l.hooking(true, pos)
 		if h != nil {
 			// The due timers run at every switch (D-054).
 			l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos)
@@ -235,6 +243,7 @@ func (l *lowerer) sched() *sched {
 			// also after waiting for timers or the poller (D-057).
 			l.fn.Call(l.b, poll, nil, pos)
 		}
+		l.hooking(false, pos)
 		g := m.v("g", l.fn.GLoad(l.b, sc.runnext, pos))
 		queue := m.when(m.cmp(ir.Ne, g.get(), m.nilPtr()))
 		// runnext inherits the time slice, as gc's does: once the
@@ -265,6 +274,7 @@ func (l *lowerer) sched() *sched {
 		l.fn.GStore(l.b, sc.sliceStart, l.ticks(pos), pos)
 		l.fn.Ret(l.b, pos, g.get())
 		l.b = dead
+		l.hooking(true, pos)
 		if h != nil {
 			// Every goroutine is blocked: wait for the next timer, unless
 			// there is none.
@@ -340,6 +350,13 @@ func (l *lowerer) sched() *sched {
 		l.fn.Ret(l.b, pos)
 	})
 	return sc
+}
+
+// hooking sets .inhooks to on, if the program has switch hooks.
+func (l *lowerer) hooking(on bool, pos ir.Pos) {
+	if g := l.sch.inHooks; g != nil {
+		l.fn.GStore(l.b, g, l.fn.BoolConst(l.b, on, pos), pos)
+	}
 }
 
 // switchHooks returns what a switch calls before it chooses the next
@@ -1028,6 +1045,7 @@ func (l *lowerer) chanRange(s *ast.RangeStmt) {
 	head, body, exit := l.fn.NewBlock(), l.fn.NewBlock(), l.fn.NewBlock()
 	l.fn.Jump(l.b, head, pos)
 	l.b = head
+	l.backEdge(pos)
 	tmp := l.newMem("recv", t, pos)
 	ok := l.fn.Call(l.b, l.chanFunc("chanrecv"), []*ir.Instr{c(), l.addr(tmp, pos)}, pos)
 	l.fn.Branch(l.b, ok, body, exit, pos)

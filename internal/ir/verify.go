@@ -702,6 +702,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 		}
 	case GoSwitch, GoExit:
 		args = []Type{I64}
+	case Preempt:
 	case Sys:
 		switch in.Index {
 		case SysExit:
@@ -720,6 +721,12 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			want = U64
 		case SysSpecials:
 			args = []Type{Ptr}
+		case SysPreempt:
+			args = []Type{Ptr}
+			if a := in.Args; len(a) == 1 && a[0] != nil && a[0].Op == FuncAddr && a[0].Callee != nil &&
+				(len(a[0].Callee.Params) != 0 || len(a[0].Callee.Results) != 0) {
+				v.errorf(bi, i, in, "sys preempt of %s, which has parameters or results", a[0].Callee.Name)
+			}
 		case SysGC:
 		default:
 			v.errorf(bi, i, in, "sys of unknown kind %d", in.Index)

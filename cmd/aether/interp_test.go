@@ -32,12 +32,17 @@ func interpret(name string, src []byte) (result, []diag.Diagnostic, error) {
 
 // interpretIn is interpret with stdin as the standard input.
 func interpretIn(name string, src []byte, stdin io.Reader) (result, []diag.Diagnostic, error) {
+	return interpretSteps(name, src, stdin, interpSteps)
+}
+
+// interpretSteps is interpretIn with a step budget of its own.
+func interpretSteps(name string, src []byte, stdin io.Reader, steps int64) (result, []diag.Diagnostic, error) {
 	prog, ds := compile([]source{{name, src}})
 	if len(ds) > 0 {
 		return result{}, ds, nil
 	}
 	var stdout, stderr bytes.Buffer
-	code, err := interp.RunOptions(prog, &stderr, interp.Options{Stdin: stdin, Stdout: &stdout, Steps: interpSteps})
+	code, err := interp.RunOptions(prog, &stderr, interp.Options{Stdin: stdin, Stdout: &stdout, Steps: steps})
 	return result{stdout: stdout.String(), stderr: stderr.String(), exit: code}, nil, err
 }
 

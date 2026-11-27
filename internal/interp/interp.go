@@ -156,7 +156,16 @@ type process struct {
 	fds map[int64]vfd
 	dir string // Options.Dir
 	cwd int    // the host descriptor of the working directory, -1 until used
+	// preempt is the function SysPreempt registered, nil before, and
+	// polls the Preempts since it last ran (D-059).
+	preempt *ir.Func
+	polls   int
 }
+
+// preemptEvery is how many Preempts request a preemption: the
+// interpreter's stand-in, deterministic, for the native timer's 10 ms of
+// CPU time (D-059). The function called decides by the time slice.
+const preemptEvery = 1024
 
 // vfd is one of the program's file descriptors: a standard file of the
 // run (std 0, 1, or 2) or, for std -1, the host's descriptor host.
@@ -557,6 +566,12 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 				} else {
 					fr.values[in.ID] = sys.arg(mem, i)
 				}
+			case ir.SysPreempt:
+				f := mem.funcs[arg(0)]
+				if f == nil || len(f.Params) != 0 || len(f.Results) != 0 {
+					return 0, fmt.Errorf("interp: func %s: %s: %#x is not a function without parameters and results", fr.f.Name, in, arg(0))
+				}
+				sys.preempt = f
 			case ir.SysGC, ir.SysSpecials:
 				// The interpreter frees no heap object (D-035): no weak
 				// pointer is cleared, no cleanup runs (D-057).
@@ -591,6 +606,19 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 				}
 				fr.values[in.ID] = r
 			}
+		case ir.Preempt:
+			if sys.preempt == nil {
+				break
+			}
+			if sys.polls++; sys.polls < preemptEvery {
+				break
+			}
+			sys.polls = 0
+			if len(stack) == MaxDepth {
+				_, _ = io.WriteString(stderr, stackOverflow)
+				return 2, nil
+			}
+			stack = append(stack, newFrame(sys.preempt, nil))
 		case ir.GoSwitch, ir.GoExit:
 			h := arg(0)
 			if !gs.valid(h) {

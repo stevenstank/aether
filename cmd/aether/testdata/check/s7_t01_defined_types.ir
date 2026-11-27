@@ -225,6 +225,7 @@ b0:
   store s4, v5 @28:6
   jump b1 @28:2
 b1:
+  preempt @28:2
   v6 = load s4 @28:14
   v7 = load s0 @28:22
   v8 = load s1 @28:22
@@ -810,6 +811,8 @@ func main @testdata/check/s7_t01_defined_types.go:64:6
   mem m2 tmp 40 align 8 @101:7
   mem m3 tmp 40 align 8 @102:18
 b0:
+  v793 = funcaddr .preempt @64:6
+  sys preempt, v793 @64:6
   v0 = const false @64:13
   gstore g2, v0 @64:13
   v1 = const ptr 0 @64:13
@@ -825,8 +828,8 @@ b0:
   stm v6, v7, v3 @65:6
   v8 = load s2 @66:2
   call Count.Inc, v8 @66:2
-  v793 = gload g0 @66:2
-  branch v793, b1, b53 @66:2
+  v794 = gload g0 @66:2
+  branch v794, b1, b53 @66:2
 b1:
   v774 = load s0 @123:1
   v775 = const ptr 0 @123:1
@@ -835,14 +838,14 @@ b1:
 b2:
   v87 = load s15 @75:38
   v88 = load s16 @75:38
-  v794 = const 0 @75:38
   v795 = const 0 @75:38
-  v796 = const false @75:38
-  v797 = const ptr 0 @75:38
-  v798 = const 0 @75:38
-  v799 = const true @75:38
-  v800 = const 5 @75:38
-  call .raise, v800, v87, v88, v799, v797, v798 @75:38
+  v796 = const 0 @75:38
+  v797 = const false @75:38
+  v798 = const ptr 0 @75:38
+  v799 = const 0 @75:38
+  v800 = const true @75:38
+  v801 = const 5 @75:38
+  call .raise, v801, v87, v88, v800, v798, v799 @75:38
   jump b1 @75:38
 b3:
   v89 = load s14 @75:38
@@ -862,14 +865,14 @@ b3:
 b4:
   v98 = load s20 @75:51
   v99 = load s19 @75:51
-  v801 = const 0 @75:51
   v802 = const 0 @75:51
-  v803 = const false @75:51
-  v804 = const ptr 0 @75:51
-  v805 = const 0 @75:51
-  v806 = const true @75:51
-  v807 = const 9 @75:51
-  call .raise, v807, v98, v99, v806, v804, v805 @75:51
+  v803 = const 0 @75:51
+  v804 = const false @75:51
+  v805 = const ptr 0 @75:51
+  v806 = const 0 @75:51
+  v807 = const true @75:51
+  v808 = const 9 @75:51
+  call .raise, v808, v98, v99, v807, v805, v806 @75:51
   jump b1 @75:51
 b5:
   v100 = load s19 @75:51
@@ -968,8 +971,8 @@ b7:
   v183 = load s25 @80:10
   v184 = call Ints.Sum, v181, v182, v183 @80:10
   store s198, v184 @80:10
-  v809 = gload g0 @80:10
-  branch v809, b1, b54 @80:10
+  v810 = gload g0 @80:10
+  branch v810, b1, b54 @80:10
 b8:
   v155 = load s32 @79:7
   v156 = load s32 @79:7
@@ -1002,14 +1005,14 @@ b11:
 b12:
   v200 = load s39 @80:45
   v201 = load s38 @80:43
-  v810 = const 0 @80:45
   v811 = const 0 @80:45
-  v812 = const false @80:45
-  v813 = const ptr 0 @80:45
-  v814 = const 0 @80:45
-  v815 = const true @80:45
-  v816 = const 5 @80:45
-  call .raise, v816, v200, v201, v815, v813, v814 @80:45
+  v812 = const 0 @80:45
+  v813 = const false @80:45
+  v814 = const ptr 0 @80:45
+  v815 = const 0 @80:45
+  v816 = const true @80:45
+  v817 = const 5 @80:45
+  call .raise, v817, v200, v201, v816, v814, v815 @80:45
   jump b1 @80:45
 b13:
   v202 = load s37 @80:43
@@ -1031,16 +1034,16 @@ b13:
   v215 = const 1 @82:8
   v216 = const 1 @82:13
   call Table.Add, v213, v214, v215, v216 @82:2
-  v817 = gload g0 @82:2
-  branch v817, b1, b55 @82:2
+  v818 = gload g0 @82:2
+  branch v818, b1, b55 @82:2
 b14:
-  v818 = const 0 @87:23
   v819 = const 0 @87:23
-  v820 = const false @87:23
-  v821 = const ptr 0 @87:23
-  v822 = const 0 @87:23
-  v823 = const 6 @87:23
-  call .raise, v823, v818, v819, v820, v821, v822 @87:23
+  v820 = const 0 @87:23
+  v821 = const false @87:23
+  v822 = const ptr 0 @87:23
+  v823 = const 0 @87:23
+  v824 = const 6 @87:23
+  call .raise, v824, v819, v820, v821, v822, v823 @87:23
   jump b1 @87:23
 b15:
   v263 = load s55 @87:23
@@ -1049,16 +1052,16 @@ b15:
   v266 = ldm ptr, v263, v265 @87:23
   v267 = callind func(ptr, i64) i64, v266, v263, v264 @87:23
   store s199, v267 @87:23
-  v825 = gload g0 @87:23
-  branch v825, b1, b56 @87:23
+  v826 = gload g0 @87:23
+  branch v826, b1, b56 @87:23
 b16:
-  v826 = const 0 @93:3
   v827 = const 0 @93:3
-  v828 = const false @93:3
-  v829 = const ptr 0 @93:3
-  v830 = const 0 @93:3
-  v831 = const 6 @93:3
-  call .raise, v831, v826, v827, v828, v829, v830 @93:3
+  v828 = const 0 @93:3
+  v829 = const false @93:3
+  v830 = const ptr 0 @93:3
+  v831 = const 0 @93:3
+  v832 = const 6 @93:3
+  call .raise, v832, v827, v828, v829, v830, v831 @93:3
   jump b1 @93:3
 b17:
   v302 = load s63 @93:2
@@ -1121,13 +1124,13 @@ b17:
   store s78, v335 @97:10
   branch v337, b18, b19 @97:10
 b18:
-  v832 = const 0 @97:10
   v833 = const 0 @97:10
-  v834 = const false @97:10
-  v835 = const ptr 0 @97:10
-  v836 = const 0 @97:10
-  v837 = const 6 @97:10
-  call .raise, v837, v832, v833, v834, v835, v836 @97:10
+  v834 = const 0 @97:10
+  v835 = const false @97:10
+  v836 = const ptr 0 @97:10
+  v837 = const 0 @97:10
+  v838 = const 6 @97:10
+  call .raise, v838, v833, v834, v835, v836, v837 @97:10
   jump b1 @97:10
 b19:
   v338 = load s77 @97:10
@@ -1139,16 +1142,16 @@ b19:
   v344 = extract 1, v342 @97:10
   store s200, v343 @97:10
   store s201, v344 @97:10
-  v840 = gload g0 @97:10
-  branch v840, b1, b57 @97:10
+  v841 = gload g0 @97:10
+  branch v841, b1, b57 @97:10
 b20:
-  v841 = const 0 @97:21
   v842 = const 0 @97:21
-  v843 = const false @97:21
-  v844 = const ptr 0 @97:21
-  v845 = const 0 @97:21
-  v846 = const 6 @97:21
-  call .raise, v846, v841, v842, v843, v844, v845 @97:21
+  v843 = const 0 @97:21
+  v844 = const false @97:21
+  v845 = const ptr 0 @97:21
+  v846 = const 0 @97:21
+  v847 = const 6 @97:21
+  call .raise, v847, v842, v843, v844, v845, v846 @97:21
   jump b1 @97:21
 b21:
   v349 = load s81 @97:21
@@ -1157,16 +1160,16 @@ b21:
   v352 = ldm ptr, v349, v351 @97:21
   v353 = callind func(ptr, ptr) i64, v352, v349, v350 @97:21
   store s202, v353 @97:21
-  v848 = gload g0 @97:21
-  branch v848, b1, b58 @97:21
+  v849 = gload g0 @97:21
+  branch v849, b1, b58 @97:21
 b22:
-  v849 = const 0 @104:10
   v850 = const 0 @104:10
-  v851 = const false @104:10
-  v852 = const ptr 0 @104:10
-  v853 = const 0 @104:10
-  v854 = const 6 @104:10
-  call .raise, v854, v849, v850, v851, v852, v853 @104:10
+  v851 = const 0 @104:10
+  v852 = const false @104:10
+  v853 = const ptr 0 @104:10
+  v854 = const 0 @104:10
+  v855 = const 6 @104:10
+  call .raise, v855, v850, v851, v852, v853, v854 @104:10
   jump b1 @104:10
 b23:
   v451 = load s100 @104:10
@@ -1177,16 +1180,16 @@ b23:
   v456 = extract 1, v454 @104:10
   store s203, v455 @104:10
   store s204, v456 @104:10
-  v857 = gload g0 @104:10
-  branch v857, b1, b59 @104:10
+  v858 = gload g0 @104:10
+  branch v858, b1, b59 @104:10
 b24:
-  v858 = const 0 @104:16
   v859 = const 0 @104:16
-  v860 = const false @104:16
-  v861 = const ptr 0 @104:16
-  v862 = const 0 @104:16
-  v863 = const 6 @104:16
-  call .raise, v863, v858, v859, v860, v861, v862 @104:16
+  v860 = const 0 @104:16
+  v861 = const false @104:16
+  v862 = const ptr 0 @104:16
+  v863 = const 0 @104:16
+  v864 = const 6 @104:16
+  call .raise, v864, v859, v860, v861, v862, v863 @104:16
   jump b1 @104:16
 b25:
   v462 = load s103 @104:16
@@ -1199,16 +1202,16 @@ b25:
   v469 = extract 1, v467 @104:16
   store s205, v468 @104:16
   store s206, v469 @104:16
-  v866 = gload g0 @104:16
-  branch v866, b1, b60 @104:16
+  v867 = gload g0 @104:16
+  branch v867, b1, b60 @104:16
 b26:
-  v867 = const 0 @104:24
   v868 = const 0 @104:24
-  v869 = const false @104:24
-  v870 = const ptr 0 @104:24
-  v871 = const 0 @104:24
-  v872 = const 6 @104:24
-  call .raise, v872, v867, v868, v869, v870, v871 @104:24
+  v869 = const 0 @104:24
+  v870 = const false @104:24
+  v871 = const ptr 0 @104:24
+  v872 = const 0 @104:24
+  v873 = const 6 @104:24
+  call .raise, v873, v868, v869, v870, v871, v872 @104:24
   jump b1 @104:24
 b27:
   v476 = load s108 @104:24
@@ -1219,16 +1222,16 @@ b27:
   v481 = ldm ptr, v476, v480 @104:24
   v482 = callind func(ptr, ptr, i64, i64) i64, v481, v476, v477, v478, v479 @104:24
   store s207, v482 @104:24
-  v874 = gload g0 @104:24
-  branch v874, b1, b61 @104:24
+  v875 = gload g0 @104:24
+  branch v875, b1, b61 @104:24
 b28:
-  v875 = const 0 @104:51
   v876 = const 0 @104:51
-  v877 = const false @104:51
-  v878 = const ptr 0 @104:51
-  v879 = const 0 @104:51
-  v880 = const 6 @104:51
-  call .raise, v880, v875, v876, v877, v878, v879 @104:51
+  v877 = const 0 @104:51
+  v878 = const false @104:51
+  v879 = const ptr 0 @104:51
+  v880 = const 0 @104:51
+  v881 = const 6 @104:51
+  call .raise, v881, v876, v877, v878, v879, v880 @104:51
   jump b1 @104:51
 b29:
   v506 = load s116 @104:51
@@ -1237,16 +1240,16 @@ b29:
   v509 = ldm ptr, v506, v508 @104:51
   v510 = callind func(ptr, ptr) i64, v509, v506, v507 @104:51
   store s208, v510 @104:51
-  v882 = gload g0 @104:51
-  branch v882, b1, b62 @104:51
+  v883 = gload g0 @104:51
+  branch v883, b1, b62 @104:51
 b30:
-  v883 = const 0 @104:61
   v884 = const 0 @104:61
-  v885 = const false @104:61
-  v886 = const ptr 0 @104:61
-  v887 = const 0 @104:61
-  v888 = const 6 @104:61
-  call .raise, v888, v883, v884, v885, v886, v887 @104:61
+  v885 = const 0 @104:61
+  v886 = const false @104:61
+  v887 = const ptr 0 @104:61
+  v888 = const 0 @104:61
+  v889 = const 6 @104:61
+  call .raise, v889, v884, v885, v886, v887, v888 @104:61
   jump b1 @104:61
 b31:
   v515 = load s119 @104:61
@@ -1258,8 +1261,8 @@ b31:
   v521 = extract 1, v519 @104:61
   store s209, v520 @104:61
   store s210, v521 @104:61
-  v891 = gload g0 @104:61
-  branch v891, b1, b63 @104:61
+  v892 = gload g0 @104:61
+  branch v892, b1, b63 @104:61
 b32:
   v615 = load s157 @113:12
   v616 = load s158 @113:12
@@ -1293,8 +1296,8 @@ b36:
   v647 = load s160 @113:12
   v648 = callind func(ptr, ptr, ptr) bool, v643, v640, v645, v647 @113:12
   store s211, v648 @113:12
-  v893 = gload g0 @113:12
-  branch v893, b1, b64 @113:12
+  v894 = gload g0 @113:12
+  branch v894, b1, b64 @113:12
 b37:
   v626 = str s16 @113:12
   v627 = const 43 @113:12
@@ -1312,13 +1315,13 @@ b37:
   v638 = add v636, v627 @113:12
   v639 = padd v635, v638 @113:12
   move v639, v631, v633 @113:12
-  v894 = const 0 @113:12
   v895 = const 0 @113:12
-  v896 = const false @113:12
-  v897 = const ptr 0 @113:12
-  v898 = const 0 @113:12
-  v899 = const 17 @113:12
-  call .raise, v899, v894, v895, v896, v635, v634 @113:12
+  v896 = const 0 @113:12
+  v897 = const false @113:12
+  v898 = const ptr 0 @113:12
+  v899 = const 0 @113:12
+  v900 = const 17 @113:12
+  call .raise, v900, v895, v896, v897, v635, v634 @113:12
   jump b1 @113:12
 b38:
   v649 = load s161 @113:12
@@ -1383,8 +1386,8 @@ b43:
   v699 = load s171 @113:20
   v700 = callind func(ptr, ptr, ptr) bool, v695, v692, v697, v699 @113:20
   store s212, v700 @113:20
-  v901 = gload g0 @113:20
-  branch v901, b1, b65 @113:20
+  v902 = gload g0 @113:20
+  branch v902, b1, b65 @113:20
 b44:
   v678 = str s16 @113:20
   v679 = const 43 @113:20
@@ -1402,13 +1405,13 @@ b44:
   v690 = add v688, v679 @113:20
   v691 = padd v687, v690 @113:20
   move v691, v683, v685 @113:20
-  v902 = const 0 @113:20
   v903 = const 0 @113:20
-  v904 = const false @113:20
-  v905 = const ptr 0 @113:20
-  v906 = const 0 @113:20
-  v907 = const 17 @113:20
-  call .raise, v907, v902, v903, v904, v687, v686 @113:20
+  v904 = const 0 @113:20
+  v905 = const false @113:20
+  v906 = const ptr 0 @113:20
+  v907 = const 0 @113:20
+  v908 = const 17 @113:20
+  call .raise, v908, v903, v904, v905, v687, v686 @113:20
   jump b1 @113:20
 b45:
   v701 = load s172 @113:20
@@ -1428,8 +1431,8 @@ b45:
   v710 = load s174 @114:21
   v711 = call .mapassign1, v709, v710 @114:21
   store s213, v711 @114:21
-  v909 = gload g0 @114:21
-  branch v909, b1, b66 @114:21
+  v910 = gload g0 @114:21
+  branch v910, b1, b66 @114:21
 b46:
   v777 = load s0 @123:1
   store s196, v777 @123:1
@@ -1473,11 +1476,11 @@ b52:
 b53:
   v9 = load s2 @67:4
   call Count.Inc, v9 @67:2
-  v910 = gload g0 @67:2
-  branch v910, b1, b67 @67:2
+  v911 = gload g0 @67:2
+  branch v911, b1, b67 @67:2
 b54:
-  v808 = load s198 @80:10
-  store s34, v808 @80:10
+  v809 = load s198 @80:10
+  store s34, v809 @80:10
   v185 = load s23 @80:24
   v186 = load s24 @80:24
   v187 = load s25 @80:24
@@ -1505,28 +1508,28 @@ b55:
   v219 = const 1 @83:8
   v220 = const 2 @83:13
   call Table.Add, v217, v218, v219, v220 @83:2
-  v911 = gload g0 @83:2
-  branch v911, b1, b68 @83:2
+  v912 = gload g0 @83:2
+  branch v912, b1, b68 @83:2
 b56:
-  v824 = load s199 @87:23
+  v825 = load s199 @87:23
   v268 = load s53 @87:30
   v269 = const ptr 0 @87:36
   v270 = ne v268, v269 @87:33
   v271 = load s54 @87:10
-  println v271, v824, v270 @87:2
+  println v271, v825, v270 @87:2
   v272 = const 0 @88:7
   v273 = const 1 @88:18
   v274 = const 8 @88:7
   v275 = const true @88:7
   v276 = call .makechan, v274, v273, v275 @88:7
   store s214, v276 @88:7
-  v913 = gload g0 @88:7
-  branch v913, b1, b69 @88:7
+  v914 = gload g0 @88:7
+  branch v914, b1, b69 @88:7
 b57:
-  v838 = load s200 @97:10
-  v839 = load s201 @97:10
-  store s79, v838 @97:10
-  store s80, v839 @97:10
+  v839 = load s200 @97:10
+  v840 = load s201 @97:10
+  store s79, v839 @97:10
+  store s80, v840 @97:10
   v345 = load s75 @97:21
   v346 = load s76 @97:21
   v347 = const ptr 0 @97:21
@@ -1535,10 +1538,10 @@ b57:
   store s82, v346 @97:21
   branch v348, b20, b21 @97:21
 b58:
-  v847 = load s202 @97:21
+  v848 = load s202 @97:21
   v354 = load s79 @97:10
   v355 = load s80 @97:10
-  println v354, v355, v847 @97:2
+  println v354, v355, v848 @97:2
   v356 = load s7 @98:8
   v357 = load s8 @98:8
   store s83, v356 @98:10
@@ -1679,10 +1682,10 @@ b58:
   store s100, v448 @104:10
   branch v450, b22, b23 @104:10
 b59:
-  v855 = load s203 @104:10
-  v856 = load s204 @104:10
-  store s101, v855 @104:10
-  store s102, v856 @104:10
+  v856 = load s203 @104:10
+  v857 = load s204 @104:10
+  store s101, v856 @104:10
+  store s102, v857 @104:10
   v457 = load s87 @104:16
   v458 = str s15 @104:18
   v459 = const 1 @104:18
@@ -1693,10 +1696,10 @@ b59:
   store s105, v459 @104:16
   branch v461, b24, b25 @104:16
 b60:
-  v864 = load s205 @104:16
-  v865 = load s206 @104:16
-  store s106, v864 @104:16
-  store s107, v865 @104:16
+  v865 = load s205 @104:16
+  v866 = load s206 @104:16
+  store s106, v865 @104:16
+  store s107, v866 @104:16
   v470 = load s88 @104:24
   v471 = load s23 @104:26
   v472 = load s24 @104:26
@@ -1709,8 +1712,8 @@ b60:
   store s111, v473 @104:24
   branch v475, b26, b27 @104:24
 b61:
-  v873 = load s207 @104:24
-  store s112, v873 @104:24
+  v874 = load s207 @104:24
+  store s112, v874 @104:24
   v483 = load s90 @104:31
   v484 = const 0 @104:33
   v485 = ldm ptr, v483, v484 @104:33
@@ -1733,11 +1736,11 @@ b61:
   v500 = ldm i64, v498, v499 @104:44
   v501 = call Ints.Sum, v494, v497, v500 @104:42
   store s215, v501 @104:42
-  v915 = gload g0 @104:42
-  branch v915, b1, b70 @104:42
+  v916 = gload g0 @104:42
+  branch v916, b1, b70 @104:42
 b62:
-  v881 = load s208 @104:51
-  store s118, v881 @104:51
+  v882 = load s208 @104:51
+  store s118, v882 @104:51
   v511 = load s98 @104:61
   v512 = load s99 @104:61
   v513 = const ptr 0 @104:61
@@ -1746,8 +1749,8 @@ b62:
   store s120, v512 @104:61
   branch v514, b30, b31 @104:61
 b63:
-  v889 = load s209 @104:61
-  v890 = load s210 @104:61
+  v890 = load s209 @104:61
+  v891 = load s210 @104:61
   v522 = load s101 @104:10
   v523 = load s102 @104:10
   v524 = load s106 @104:16
@@ -1757,7 +1760,7 @@ b63:
   v528 = load s114 @104:31
   v529 = load s115 @104:42
   v530 = load s118 @104:51
-  println v522, v523, v524, v525, v526, v527, v528, v529, v530, v889, v890 @104:2
+  println v522, v523, v524, v525, v526, v527, v528, v529, v530, v890, v891 @104:2
   v531 = load s2 @105:11
   v532 = const 0 @105:11
   v533 = ldm i64, v531, v532 @105:11
@@ -1902,22 +1905,22 @@ b63:
   v613 = eq v609, v611 @113:12
   branch v613, b32, b33 @113:12
 b64:
-  v892 = load s211 @113:12
-  store s161, v892 @113:12
+  v893 = load s211 @113:12
+  store s161, v893 @113:12
   jump b38 @113:12
 b65:
-  v900 = load s212 @113:20
-  store s172, v900 @113:20
+  v901 = load s212 @113:20
+  store s172, v901 @113:20
   jump b45 @113:20
 b66:
-  v908 = load s213 @114:21
-  store s177, v908 @114:21
+  v909 = load s213 @114:21
+  store s177, v909 @114:21
   v712 = load s175 @114:21
   v713 = load s176 @114:21
   v714 = const 0 @114:21
-  stm v908, v714, v712 @114:21
+  stm v909, v714, v712 @114:21
   v715 = const 8 @114:21
-  stm v908, v715, v713 @114:21
+  stm v909, v715, v713 @114:21
   v716 = const 2 @114:32
   store s178, v716 @114:21
   v717 = str s18 @114:35
@@ -1928,8 +1931,8 @@ b66:
   v720 = load s178 @114:21
   v721 = call .mapassign1, v719, v720 @114:21
   store s216, v721 @114:21
-  v917 = gload g0 @114:21
-  branch v917, b1, b71 @114:21
+  v918 = gload g0 @114:21
+  branch v918, b1, b71 @114:21
 b67:
   v10 = const 1024 @68:7
   v11 = load s2 @68:2
@@ -2044,11 +2047,11 @@ b68:
   v227 = load s44 @84:3
   v228 = call .mapassign0, v225, v226, v227 @84:3
   store s217, v228 @84:3
-  v919 = gload g0 @84:3
-  branch v919, b1, b72 @84:3
+  v920 = gload g0 @84:3
+  branch v920, b1, b72 @84:3
 b69:
-  v912 = load s214 @88:7
-  store s57, v912 @88:2
+  v913 = load s214 @88:7
+  store s57, v913 @88:2
   v277 = load s57 @89:2
   store s58, v277 @89:4
   v278 = const 7 @89:7
@@ -2059,11 +2062,11 @@ b69:
   stm v280, v281, v279 @89:4
   v282 = load s58 @89:4
   call .chansend, v282, v280 @89:4
-  v920 = gload g0 @89:4
-  branch v920, b1, b73 @89:4
+  v921 = gload g0 @89:4
+  branch v921, b1, b73 @89:4
 b70:
-  v914 = load s215 @104:42
-  store s115, v914 @104:42
+  v915 = load s215 @104:42
+  store s115, v915 @104:42
   v502 = load s95 @104:51
   v503 = load s96 @104:51
   v504 = const ptr 0 @104:51
@@ -2072,14 +2075,14 @@ b70:
   store s117, v503 @104:51
   branch v505, b28, b29 @104:51
 b71:
-  v916 = load s216 @114:21
-  store s181, v916 @114:21
+  v917 = load s216 @114:21
+  store s181, v917 @114:21
   v722 = load s179 @114:21
   v723 = load s180 @114:21
   v724 = const 0 @114:21
-  stm v916, v724, v722 @114:21
+  stm v917, v724, v722 @114:21
   v725 = const 8 @114:21
-  stm v916, v725, v723 @114:21
+  stm v917, v725, v723 @114:21
   v726 = load s173 @114:21
   store s182, v726 @114:2
   v727 = load s182 @115:10
@@ -2152,8 +2155,8 @@ b71:
   call .gopanic, v772, v773 @122:2
   jump b1 @122:2
 b72:
-  v918 = load s217 @84:3
-  store s45, v918 @84:3
+  v919 = load s217 @84:3
+  store s45, v919 @84:3
   v229 = load s46 @84:2
   v230 = load s45 @84:3
   v231 = const 0 @84:2
@@ -2194,8 +2197,8 @@ b72:
   v257 = const 2 @87:19
   v258 = call Op.Twice, v256, v257 @87:10
   store s218, v258 @87:10
-  v922 = gload g0 @87:10
-  branch v922, b1, b74 @87:10
+  v923 = gload g0 @87:10
+  branch v923, b1, b74 @87:10
 b73:
   v283 = load s57 @90:12
   v284 = addr m1 @90:10
@@ -2224,8 +2227,8 @@ b73:
   v301 = eq v298, v300 @93:3
   branch v301, b16, b17 @93:3
 b74:
-  v921 = load s218 @87:10
-  store s54, v921 @87:10
+  v922 = load s218 @87:10
+  store s54, v922 @87:10
   v259 = load s53 @87:23
   v260 = const 1 @87:26
   v261 = const ptr 0 @87:23
@@ -8673,6 +8676,72 @@ b0:
   v4 = extract 0, v3 @3:1
   v5 = extract 1, v3 @3:1
   ret v4, v5 @3:1
+
+func .preempt @testdata/check/s7_t01_defined_types.go:3:1
+  slot s0 g ptr @3:1
+  slot s1 tail ptr @3:1
+b0:
+  v0 = sys ticks @3:1
+  v1 = conv u64, v0 @3:1
+  v2 = gload g7 @3:1
+  v3 = sub v1, v2 @3:1
+  v4 = const u64 16777216 @3:1
+  v5 = ge v3, v4 @3:1
+  branch v5, b1, b2 @3:1
+b1:
+  v6 = gload g4 @3:1
+  v7 = const ptr 0 @3:1
+  v8 = eq v6, v7 @3:1
+  branch v8, b4, b5 @3:1
+b2:
+  ret @3:1
+b3:
+  v12 = sys ticks @3:1
+  v13 = conv u64, v12 @3:1
+  gstore g7, v13 @3:1
+  v14 = call .getg @3:1
+  store s0, v14 @3:1
+  v15 = load s0 @3:1
+  v16 = const ptr 0 @3:1
+  v17 = const 16 @3:1
+  stm v15, v17, v16 @3:1
+  v18 = gload g6 @3:1
+  store s1, v18 @3:1
+  v19 = load s1 @3:1
+  v20 = const ptr 0 @3:1
+  v21 = eq v19, v20 @3:1
+  branch v21, b9, b10 @3:1
+b4:
+  v9 = gload g5 @3:1
+  v10 = const ptr 0 @3:1
+  v11 = eq v9, v10 @3:1
+  branch v11, b6, b7 @3:1
+b5:
+  jump b3 @3:1
+b6:
+  jump b8 @3:1
+b7:
+  jump b3 @3:1
+b8:
+  jump b2 @3:1
+b9:
+  v22 = load s0 @3:1
+  gstore g5, v22 @3:1
+  v23 = sys ticks @3:1
+  v24 = conv u64, v23 @3:1
+  gstore g7, v24 @3:1
+  jump b11 @3:1
+b10:
+  v25 = load s1 @3:1
+  v26 = load s0 @3:1
+  v27 = const 16 @3:1
+  stm v25, v27, v26 @3:1
+  jump b11 @3:1
+b11:
+  v28 = load s0 @3:1
+  gstore g6, v28 @3:1
+  call .park @3:1
+  jump b8 @3:1
 
 func init @testdata/check/s7_t01_defined_types.go:3:1
 b0:

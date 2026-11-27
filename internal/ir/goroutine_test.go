@@ -111,7 +111,7 @@ func TestSysOps(t *testing.T) {
 		break_ func(in []*Instr)
 		want   string
 	}{
-		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 15"},
+		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 16"},
 		{"ticks of a u64", func(in []*Instr) { in[15].Type = U64 }, "want i64"},
 		{"cpufma of a ptr", func(in []*Instr) { in[13].Type = Ptr }, "want i64"},
 		{"rand of an i64", func(in []*Instr) { in[14].Type = I64 }, "want u64"},
@@ -127,6 +127,60 @@ func TestSysOps(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := build()
 			tt.break_(p.Funcs[0].Blocks[0].Instrs)
+			errs := Verify(p)
+			for _, err := range errs {
+				if strings.Contains(err.Error(), tt.want) {
+					return
+				}
+			}
+			t.Errorf("errors %v, want one containing %q", errs, tt.want)
+		})
+	}
+}
+
+// TestPreemptOps checks that the verifier accepts Preempt and SysPreempt
+// (D-059), prints them, and rejects their misuse.
+func TestPreemptOps(t *testing.T) {
+	build := func() *Program {
+		p := &Program{}
+		pos := Pos{1, 1}
+		g := p.NewFunc("g", "p.go", pos)
+		g.Ret(g.Entry(), pos)
+		h := p.NewFunc("h", "p.go", pos)
+		h.Params = []Type{I64}
+		h.Ret(h.Entry(), pos)
+		f := p.NewFunc("main", "p.go", pos)
+		b := f.Entry()
+		f.Sys(b, SysPreempt, NoType, pos, f.FuncAddr(b, g, pos))
+		f.Preempt(b, pos)
+		f.FuncAddr(b, h, pos)
+		f.Ret(b, pos)
+		return p
+	}
+	p := build()
+	if errs := Verify(p); len(errs) != 0 {
+		t.Fatalf("rejected: %v", errs)
+	}
+	text := p.String()
+	for _, want := range []string{"sys preempt, v0 @", "  preempt @"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("printed IR lacks %q:\n%s", want, text)
+		}
+	}
+	tests := []struct {
+		name   string
+		break_ func(in []*Instr)
+		want   string
+	}{
+		{"preempt of a function with parameters", func(in []*Instr) { in[1].Args[0] = in[3] }, "sys preempt of h, which has parameters or results"},
+		{"preempt of an i64", func(in []*Instr) { in[1].Args[0].Type = I64 }, "want ptr"},
+		{"preempt with an operand", func(in []*Instr) { in[2].Args = []*Instr{in[0]} }, "preempt has 1 operands, want 0"},
+		{"preempt with a value", func(in []*Instr) { in[2].Type, in[2].ID = I64, 9 }, "preempt has result type i64"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := build()
+			tt.break_(p.Funcs[2].Blocks[0].Instrs)
 			errs := Verify(p)
 			for _, err := range errs {
 				if strings.Contains(err.Error(), tt.want) {

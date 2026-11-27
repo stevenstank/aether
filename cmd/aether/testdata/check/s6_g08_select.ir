@@ -259,6 +259,8 @@ func main @testdata/check/s6_g08_select.go:19:6
   mem m25 cases 96 align 8 @116:2
   mem m26 recv 8 align 8 @121:10
 b0:
+  v522 = funcaddr .preempt @19:6
+  sys preempt, v522 @19:6
   v0 = const false @19:13
   gstore g2, v0 @19:13
   v1 = const 0 @20:7
@@ -266,8 +268,8 @@ b0:
   v3 = const true @20:7
   v4 = call .makechan, v2, v1, v3 @20:7
   store s85, v4 @20:7
-  v523 = gload g0 @20:7
-  branch v523, b61, b60 @20:7
+  v524 = gload g0 @20:7
+  branch v524, b61, b60 @20:7
 b1:
   v30 = const 8 @27:6
   v31 = alloc v30 @27:6
@@ -278,8 +280,8 @@ b1:
   v35 = const true @28:7
   v36 = call .makechan, v34, v33, v35 @28:7
   store s86, v36 @28:7
-  v525 = gload g0 @28:7
-  branch v525, b61, b62 @28:7
+  v526 = gload g0 @28:7
+  branch v526, b61, b62 @28:7
 b2:
   v28 = str s4 @25:11
   v29 = const 7 @25:11
@@ -320,8 +322,8 @@ b5:
   v116 = extract 1, v114 @38:2
   store s87, v115 @38:2
   store s88, v116 @38:2
-  v528 = gload g0 @38:2
-  branch v528, b61, b63 @38:2
+  v529 = gload g0 @38:2
+  branch v529, b61, b63 @38:2
 b6:
   v89 = str s6 @32:11
   v90 = const 3 @32:11
@@ -365,8 +367,8 @@ b12:
   v124 = const true @44:12
   v125 = call .makechan, v123, v122, v124 @44:12
   store s89, v125 @44:12
-  v530 = gload g0 @44:12
-  branch v530, b61, b64 @44:12
+  v531 = gload g0 @44:12
+  branch v531, b61, b64 @44:12
 b13:
   v120 = str s9 @41:11
   v121 = const 7 @41:11
@@ -418,6 +420,7 @@ b19:
   store s28, v176 @57:7
   jump b20 @58:2
 b20:
+  preempt @58:2
   v177 = load s21 @58:6
   v178 = const 0 @58:6
   v179 = ldm ptr, v177, v178 @58:6
@@ -461,8 +464,8 @@ b21:
   v212 = extract 1, v210 @59:3
   store s90, v211 @59:3
   store s91, v212 @59:3
-  v533 = gload g0 @59:3
-  branch v533, b61, b65 @59:3
+  v534 = gload g0 @59:3
+  branch v534, b61, b65 @59:3
 b22:
   v251 = load s27 @76:10
   v252 = load s28 @76:15
@@ -472,8 +475,8 @@ b22:
   v255 = const true @78:9
   v256 = call .makechan, v254, v253, v255 @78:9
   store s92, v256 @78:9
-  v535 = gload g0 @78:9
-  branch v535, b61, b66 @78:9
+  v536 = gload g0 @78:9
+  branch v536, b61, b66 @78:9
 b23:
   v182 = load s22 @58:19
   v183 = const 0 @58:19
@@ -559,6 +562,7 @@ b35:
   store s42, v289 @93:6
   jump b36 @93:2
 b36:
+  preempt @93:2
   v290 = load s42 @93:14
   v291 = const 10 @93:18
   v292 = lt v290, v291 @93:16
@@ -609,8 +613,8 @@ b37:
   v324 = extract 1, v322 @94:3
   store s93, v323 @94:3
   store s94, v324 @94:3
-  v538 = gload g0 @94:3
-  branch v538, b61, b67 @94:3
+  v539 = gload g0 @94:3
+  branch v539, b61, b67 @94:3
 b38:
   v333 = load s39 @98:2
   v334 = const 0 @98:2
@@ -624,8 +628,8 @@ b38:
   stm v338, v339, v337 @98:7
   v340 = load s48 @98:7
   call .chansend, v340, v338 @98:7
-  v539 = gload g0 @98:7
-  branch v539, b61, b68 @98:7
+  v540 = gload g0 @98:7
+  branch v540, b61, b68 @98:7
 b39:
   v330 = load s42 @93:22
   v331 = const 1 @93:23
@@ -661,8 +665,8 @@ b43:
   v401 = extract 1, v399 @110:2
   store s95, v400 @110:2
   store s96, v401 @110:2
-  v542 = gload g0 @110:2
-  branch v542, b61, b69 @110:2
+  v543 = gload g0 @110:2
+  branch v543, b61, b69 @110:2
 b44:
   v382 = addr m18 @108:7
   v383 = const 0 @108:7
@@ -702,8 +706,8 @@ b46:
   v436 = const true @115:7
   v437 = call .makechan, v435, v434, v436 @115:7
   store s97, v437 @115:7
-  v544 = gload g0 @115:7
-  branch v544, b61, b70 @115:7
+  v545 = gload g0 @115:7
+  branch v545, b61, b70 @115:7
 b47:
   v407 = addr m20 @111:7
   v408 = const 0 @111:7
@@ -722,8 +726,8 @@ b47:
   v416 = load s68 @111:8
   v417 = call .mapassign0, v414, v415, v416 @111:8
   store s98, v417 @111:8
-  v546 = gload g0 @111:8
-  branch v546, b61, b71 @111:8
+  v547 = gload g0 @111:8
+  branch v547, b61, b71 @111:8
 b48:
   v405 = str s5 @110:2
   v406 = const 37 @110:2
@@ -768,21 +772,21 @@ b55:
   v490 = const 37 @116:2
   panic fatal, v489, v490 @116:2
 b56:
-  v547 = const 0 @123:2
   v548 = const 0 @123:2
-  v549 = const false @123:2
-  v550 = const ptr 0 @123:2
-  v551 = const 0 @123:2
-  v552 = const 6 @123:2
-  call .raise, v552, v547, v548, v549, v550, v551 @123:2
+  v549 = const 0 @123:2
+  v550 = const false @123:2
+  v551 = const ptr 0 @123:2
+  v552 = const 0 @123:2
+  v553 = const 6 @123:2
+  call .raise, v553, v548, v549, v550, v551, v552 @123:2
   jump b61 @123:2
 b57:
   v504 = load s82 @123:2
   v505 = const 0 @123:2
   v506 = ldm ptr, v504, v505 @123:2
   callind func(ptr), v506, v504 @123:2
-  v553 = gload g0 @123:2
-  branch v553, b61, b72 @123:2
+  v554 = gload g0 @123:2
+  branch v554, b61, b72 @123:2
 b58:
   v517 = str s10 @132:2
   v518 = const 20 @132:2
@@ -795,8 +799,8 @@ b59:
   println v520, v521 @133:2
   ret @134:1
 b60:
-  v522 = load s85 @20:7
-  store s0, v522 @20:2
+  v523 = load s85 @20:7
+  store s0, v523 @20:2
   v5 = load s0 @22:14
   store s1, v5 @22:2
   v6 = addr m1 @21:2
@@ -817,14 +821,14 @@ b60:
   v18 = extract 1, v16 @21:2
   store s99, v17 @21:2
   store s100, v18 @21:2
-  v556 = gload g0 @21:2
-  branch v556, b61, b73 @21:2
+  v557 = gload g0 @21:2
+  branch v557, b61, b73 @21:2
 b61:
   call .printpanics @19:6
   panic exit @19:6
 b62:
-  v524 = load s86 @28:7
-  store s6, v524 @28:2
+  v525 = load s86 @28:7
+  store s6, v525 @28:2
   v37 = load s6 @29:2
   store s7, v37 @29:4
   v38 = const 7 @29:7
@@ -835,56 +839,56 @@ b62:
   stm v40, v41, v39 @29:4
   v42 = load s7 @29:4
   call .chansend, v42, v40 @29:4
-  v557 = gload g0 @29:4
-  branch v557, b61, b74 @29:4
+  v558 = gload g0 @29:4
+  branch v558, b61, b74 @29:4
 b63:
-  v526 = load s87 @38:2
-  v527 = load s88 @38:2
-  store s18, v526 @38:2
-  store s19, v527 @38:2
+  v527 = load s87 @38:2
+  v528 = load s88 @38:2
+  store s18, v527 @38:2
+  store s19, v528 @38:2
   v117 = load s18 @38:2
   v118 = const 0 @38:2
   v119 = eq v117, v118 @38:2
   branch v119, b14, b15 @38:2
 b64:
-  v529 = load s89 @44:12
-  store s20, v529 @44:12
+  v530 = load s89 @44:12
+  store s20, v530 @44:12
   v126 = const 0 @44:28
   v127 = const 8 @44:28
   v128 = const true @44:28
   v129 = call .makechan, v127, v126, v128 @44:28
   store s101, v129 @44:28
-  v559 = gload g0 @44:28
-  branch v559, b61, b75 @44:28
+  v560 = gload g0 @44:28
+  branch v560, b61, b75 @44:28
 b65:
-  v531 = load s90 @59:3
-  v532 = load s91 @59:3
-  store s32, v531 @59:3
-  store s33, v532 @59:3
+  v532 = load s90 @59:3
+  v533 = load s91 @59:3
+  store s32, v532 @59:3
+  store s33, v533 @59:3
   v213 = load s32 @59:3
   v214 = const 0 @59:3
   v215 = eq v213, v214 @59:3
   branch v215, b26, b27 @59:3
 b66:
-  v534 = load s92 @78:9
+  v535 = load s92 @78:9
   v257 = const 8 @78:2
   v258 = alloc v257 @78:2
   store s38, v258 @78:2
   v259 = load s38 @78:2
   v260 = const 0 @78:2
-  stm v259, v260, v534 @78:2
+  stm v259, v260, v535 @78:2
   v261 = const 0 @79:10
   v262 = const 1 @79:10
   v263 = const true @79:10
   v264 = call .makechan, v262, v261, v263 @79:10
   store s102, v264 @79:10
-  v561 = gload g0 @79:10
-  branch v561, b61, b76 @79:10
+  v562 = gload g0 @79:10
+  branch v562, b61, b76 @79:10
 b67:
-  v536 = load s93 @94:3
-  v537 = load s94 @94:3
-  store s46, v536 @94:3
-  store s47, v537 @94:3
+  v537 = load s93 @94:3
+  v538 = load s94 @94:3
+  store s46, v537 @94:3
+  store s47, v538 @94:3
   v325 = load s46 @94:3
   v326 = const 0 @94:3
   v327 = eq v325, v326 @94:3
@@ -910,20 +914,20 @@ b68:
   v354 = const true @104:7
   v355 = call .makechan, v353, v352, v354 @104:7
   store s103, v355 @104:7
-  v563 = gload g0 @104:7
-  branch v563, b61, b77 @104:7
+  v564 = gload g0 @104:7
+  branch v564, b61, b77 @104:7
 b69:
-  v540 = load s95 @110:2
-  v541 = load s96 @110:2
-  store s63, v540 @110:2
-  store s64, v541 @110:2
+  v541 = load s95 @110:2
+  v542 = load s96 @110:2
+  store s63, v541 @110:2
+  store s64, v542 @110:2
   v402 = load s63 @110:2
   v403 = const 0 @110:2
   v404 = eq v402, v403 @110:2
   branch v404, b47, b48 @110:2
 b70:
-  v543 = load s97 @115:7
-  store s74, v543 @115:2
+  v544 = load s97 @115:7
+  store s74, v544 @115:2
   v438 = const 1 @117:10
   v439 = const ptr 0 @117:13
   v440 = call ch, v438, v439 @117:7
@@ -984,11 +988,11 @@ b70:
   v479 = extract 1, v477 @116:2
   store s104, v478 @116:2
   store s105, v479 @116:2
-  v566 = gload g0 @116:2
-  branch v566, b61, b78 @116:2
+  v567 = gload g0 @116:2
+  branch v567, b61, b78 @116:2
 b71:
-  v545 = load s98 @111:8
-  store s69, v545 @111:8
+  v546 = load s98 @111:8
+  store s69, v546 @111:8
   v418 = load s70 @111:7
   v419 = load s69 @111:8
   v420 = const 0 @111:7
@@ -1011,10 +1015,10 @@ b72:
   v516 = eq v514, v515 @132:2
   branch v516, b58, b59 @132:2
 b73:
-  v554 = load s99 @21:2
-  v555 = load s100 @21:2
-  store s2, v554 @21:2
-  store s3, v555 @21:2
+  v555 = load s99 @21:2
+  v556 = load s100 @21:2
+  store s2, v555 @21:2
+  store s3, v556 @21:2
   v19 = load s2 @21:2
   v20 = const 0 @21:2
   v21 = eq v19, v20 @21:2
@@ -1071,10 +1075,10 @@ b74:
   v77 = extract 1, v75 @30:2
   store s106, v76 @30:2
   store s107, v77 @30:2
-  v569 = gload g0 @30:2
-  branch v569, b61, b79 @30:2
+  v570 = gload g0 @30:2
+  branch v570, b61, b79 @30:2
 b75:
-  v558 = load s101 @44:28
+  v559 = load s101 @44:28
   v130 = load s20 @44:12
   v131 = const 8 @44:2
   v132 = alloc v131 @44:2
@@ -1087,7 +1091,7 @@ b75:
   store s22, v136 @44:6
   v137 = load s22 @44:6
   v138 = const 0 @44:6
-  stm v137, v138, v558 @44:6
+  stm v137, v138, v559 @44:6
   v139 = load s21 @45:5
   v140 = const 16 @45:5
   v141 = alloc v140 @45:5
@@ -1111,13 +1115,13 @@ b75:
   v153 = eq v151, v152 @45:2
   branch v153, b16, b17 @45:2
 b76:
-  v560 = load s102 @79:10
+  v561 = load s102 @79:10
   v265 = const 8 @79:2
   v266 = alloc v265 @79:2
   store s39, v266 @79:2
   v267 = load s39 @79:2
   v268 = const 0 @79:2
-  stm v267, v268, v560 @79:2
+  stm v267, v268, v561 @79:2
   v269 = load s38 @80:5
   v270 = load s39 @80:5
   v271 = const 24 @80:5
@@ -1144,8 +1148,8 @@ b76:
   v285 = eq v283, v284 @80:2
   branch v285, b34, b35 @80:2
 b77:
-  v562 = load s103 @104:7
-  store s54, v562 @104:2
+  v563 = load s103 @104:7
+  store s54, v563 @104:2
   v356 = load s54 @105:2
   store s55, v356 @105:4
   v357 = const 5 @105:7
@@ -1156,22 +1160,22 @@ b77:
   stm v359, v360, v358 @105:4
   v361 = load s55 @105:4
   call .chansend, v361, v359 @105:4
-  v570 = gload g0 @105:4
-  branch v570, b61, b80 @105:4
+  v571 = gload g0 @105:4
+  branch v571, b61, b80 @105:4
 b78:
-  v564 = load s104 @116:2
-  v565 = load s105 @116:2
-  store s80, v564 @116:2
-  store s81, v565 @116:2
+  v565 = load s104 @116:2
+  v566 = load s105 @116:2
+  store s80, v565 @116:2
+  store s81, v566 @116:2
   v480 = load s80 @116:2
   v481 = const 0 @116:2
   v482 = eq v480, v481 @116:2
   branch v482, b50, b51 @116:2
 b79:
-  v567 = load s106 @30:2
-  v568 = load s107 @30:2
-  store s13, v567 @30:2
-  store s14, v568 @30:2
+  v568 = load s106 @30:2
+  v569 = load s107 @30:2
+  store s13, v568 @30:2
+  store s14, v569 @30:2
   v78 = load s13 @30:2
   v79 = const 0 @30:2
   v80 = eq v78, v79 @30:2
@@ -1179,8 +1183,8 @@ b79:
 b80:
   v362 = load s54 @106:8
   call .closechan, v362 @106:2
-  v571 = gload g0 @106:2
-  branch v571, b61, b81 @106:2
+  v572 = gload g0 @106:2
+  branch v572, b61, b81 @106:2
 b81:
   v363 = load s54 @108:17
   store s57, v363 @108:2
@@ -1202,13 +1206,13 @@ b81:
   v376 = extract 1, v374 @107:2
   store s108, v375 @107:2
   store s109, v376 @107:2
-  v574 = gload g0 @107:2
-  branch v574, b61, b82 @107:2
+  v575 = gload g0 @107:2
+  branch v575, b61, b82 @107:2
 b82:
-  v572 = load s108 @107:2
-  v573 = load s109 @107:2
-  store s58, v572 @107:2
-  store s59, v573 @107:2
+  v573 = load s108 @107:2
+  v574 = load s109 @107:2
+  store s58, v573 @107:2
+  store s59, v574 @107:2
   v377 = load s58 @107:2
   v378 = const 0 @107:2
   v379 = eq v377, v378 @107:2
@@ -5455,6 +5459,7 @@ b0:
   store s2, v5 @46:7
   jump b1 @46:3
 b1:
+  preempt @46:3
   v6 = load s2 @46:15
   v7 = const 100 @46:20
   v8 = le v6, v7 @46:17
@@ -5548,6 +5553,7 @@ b0:
   store s2, v5 @52:7
   jump b1 @52:3
 b1:
+  preempt @52:3
   v6 = load s2 @52:15
   v7 = const 50 @52:20
   v8 = le v6, v7 @52:17
@@ -5658,6 +5664,7 @@ b0:
   store s3, v8 @81:3
   jump b1 @82:3
 b1:
+  preempt @82:3
   jump b2 @82:3
 b2:
   v9 = load s1 @84:16
@@ -7876,6 +7883,72 @@ b0:
   v4 = extract 0, v3 @3:1
   v5 = extract 1, v3 @3:1
   ret v4, v5 @3:1
+
+func .preempt @testdata/check/s6_g08_select.go:3:1
+  slot s0 g ptr @3:1
+  slot s1 tail ptr @3:1
+b0:
+  v0 = sys ticks @3:1
+  v1 = conv u64, v0 @3:1
+  v2 = gload g7 @3:1
+  v3 = sub v1, v2 @3:1
+  v4 = const u64 16777216 @3:1
+  v5 = ge v3, v4 @3:1
+  branch v5, b1, b2 @3:1
+b1:
+  v6 = gload g4 @3:1
+  v7 = const ptr 0 @3:1
+  v8 = eq v6, v7 @3:1
+  branch v8, b4, b5 @3:1
+b2:
+  ret @3:1
+b3:
+  v12 = sys ticks @3:1
+  v13 = conv u64, v12 @3:1
+  gstore g7, v13 @3:1
+  v14 = call .getg @3:1
+  store s0, v14 @3:1
+  v15 = load s0 @3:1
+  v16 = const ptr 0 @3:1
+  v17 = const 16 @3:1
+  stm v15, v17, v16 @3:1
+  v18 = gload g6 @3:1
+  store s1, v18 @3:1
+  v19 = load s1 @3:1
+  v20 = const ptr 0 @3:1
+  v21 = eq v19, v20 @3:1
+  branch v21, b9, b10 @3:1
+b4:
+  v9 = gload g5 @3:1
+  v10 = const ptr 0 @3:1
+  v11 = eq v9, v10 @3:1
+  branch v11, b6, b7 @3:1
+b5:
+  jump b3 @3:1
+b6:
+  jump b8 @3:1
+b7:
+  jump b3 @3:1
+b8:
+  jump b2 @3:1
+b9:
+  v22 = load s0 @3:1
+  gstore g5, v22 @3:1
+  v23 = sys ticks @3:1
+  v24 = conv u64, v23 @3:1
+  gstore g7, v24 @3:1
+  jump b11 @3:1
+b10:
+  v25 = load s1 @3:1
+  v26 = load s0 @3:1
+  v27 = const 16 @3:1
+  stm v25, v27, v26 @3:1
+  jump b11 @3:1
+b11:
+  v28 = load s0 @3:1
+  gstore g6, v28 @3:1
+  call .park @3:1
+  jump b8 @3:1
 
 func init @testdata/check/s6_g08_select.go:3:1
 b0:

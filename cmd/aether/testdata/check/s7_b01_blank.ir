@@ -378,6 +378,7 @@ b7:
   v173 = const 37 @56:2
   panic fatal, v172, v173 @56:2
 b8:
+  preempt @61:2
   v178 = load s44 @61:2
   v179 = addr m12 @61:2
   v180 = call .chanrecv, v178, v179 @61:2
@@ -414,6 +415,7 @@ b11:
 b12:
   jump b13 @63:2
 b13:
+  preempt @63:2
   v197 = load s45 @63:2
   v198 = load s46 @63:2
   v199 = load s48 @63:2
@@ -474,6 +476,7 @@ b16:
 b17:
   jump b18 @67:2
 b18:
+  preempt @67:2
   v233 = load s54 @67:2
   v234 = load s55 @67:2
   v235 = load s57 @67:2
@@ -6144,89 +6147,91 @@ b4:
 
 func init @testdata/check/s7_b01_blank.go:3:1
 b0:
-  v13 = addr gm9 @3:1
-  v14 = const 0 @3:1
-  v15 = funcaddr .lit1 @3:1
-  stm v13, v14, v15 @3:1
-  v16 = addr gm0 @3:1
-  v17 = const 0 @3:1
-  v18 = str s60 @3:1
-  stm v16, v17, v18 @3:1
-  v19 = const 8 @3:1
-  v20 = const 19 @3:1
-  stm v16, v19, v20 @3:1
-  v21 = const 16 @3:1
-  v22 = funcaddr .eq0 @3:1
-  stm v16, v21, v22 @3:1
-  v23 = addr gm1 @3:1
-  v24 = const 0 @3:1
-  v25 = str s61 @3:1
-  stm v23, v24, v25 @3:1
-  v26 = const 8 @3:1
-  v27 = const 19 @3:1
-  stm v23, v26, v27 @3:1
-  v28 = const 16 @3:1
-  v29 = funcaddr .eq1 @3:1
-  stm v23, v28, v29 @3:1
-  v30 = addr gm2 @3:1
-  v31 = const 0 @3:1
-  v32 = str s62 @3:1
-  stm v30, v31, v32 @3:1
-  v33 = const 8 @3:1
-  v34 = const 18 @3:1
-  stm v30, v33, v34 @3:1
-  v35 = const 16 @3:1
-  v36 = funcaddr .eq2 @3:1
-  stm v30, v35, v36 @3:1
-  v37 = addr gm3 @3:1
-  v38 = const 0 @3:1
-  v39 = str s63 @3:1
-  stm v37, v38, v39 @3:1
-  v40 = const 8 @3:1
-  v41 = const 24 @3:1
-  stm v37, v40, v41 @3:1
-  v42 = const 16 @3:1
-  v43 = funcaddr .eq3 @3:1
-  stm v37, v42, v43 @3:1
-  v44 = addr gm4 @3:1
-  v45 = const 0 @3:1
-  v46 = str s64 @3:1
-  stm v44, v45, v46 @3:1
-  v47 = const 8 @3:1
-  v48 = const 27 @3:1
-  stm v44, v47, v48 @3:1
-  v49 = const 16 @3:1
-  v50 = funcaddr .eq4 @3:1
-  stm v44, v49, v50 @3:1
-  v51 = addr gm5 @3:1
-  v52 = const 0 @3:1
-  v53 = str s65 @3:1
-  stm v51, v52, v53 @3:1
-  v54 = const 8 @3:1
-  v55 = const 22 @3:1
-  stm v51, v54, v55 @3:1
-  v56 = const 16 @3:1
-  v57 = funcaddr .eq5 @3:1
-  stm v51, v56, v57 @3:1
-  v58 = addr gm6 @3:1
-  v59 = const 0 @3:1
-  v60 = str s66 @3:1
-  stm v58, v59, v60 @3:1
-  v61 = const 8 @3:1
-  v62 = const 6 @3:1
-  stm v58, v61, v62 @3:1
-  v63 = const 16 @3:1
-  v64 = funcaddr .eq6 @3:1
-  stm v58, v63, v64 @3:1
-  v65 = addr gm7 @3:1
-  v66 = const 0 @3:1
-  v67 = addr gm6 @3:1
-  stm v65, v66, v67 @3:1
-  v68 = const 8 @3:1
-  v69 = funcaddr .i6.M @3:1
-  stm v65, v68, v69 @3:1
+  v14 = addr gm9 @3:1
+  v15 = const 0 @3:1
+  v16 = funcaddr .lit1 @3:1
+  stm v14, v15, v16 @3:1
+  v17 = addr gm0 @3:1
+  v18 = const 0 @3:1
+  v19 = str s60 @3:1
+  stm v17, v18, v19 @3:1
+  v20 = const 8 @3:1
+  v21 = const 19 @3:1
+  stm v17, v20, v21 @3:1
+  v22 = const 16 @3:1
+  v23 = funcaddr .eq0 @3:1
+  stm v17, v22, v23 @3:1
+  v24 = addr gm1 @3:1
+  v25 = const 0 @3:1
+  v26 = str s61 @3:1
+  stm v24, v25, v26 @3:1
+  v27 = const 8 @3:1
+  v28 = const 19 @3:1
+  stm v24, v27, v28 @3:1
+  v29 = const 16 @3:1
+  v30 = funcaddr .eq1 @3:1
+  stm v24, v29, v30 @3:1
+  v31 = addr gm2 @3:1
+  v32 = const 0 @3:1
+  v33 = str s62 @3:1
+  stm v31, v32, v33 @3:1
+  v34 = const 8 @3:1
+  v35 = const 18 @3:1
+  stm v31, v34, v35 @3:1
+  v36 = const 16 @3:1
+  v37 = funcaddr .eq2 @3:1
+  stm v31, v36, v37 @3:1
+  v38 = addr gm3 @3:1
+  v39 = const 0 @3:1
+  v40 = str s63 @3:1
+  stm v38, v39, v40 @3:1
+  v41 = const 8 @3:1
+  v42 = const 24 @3:1
+  stm v38, v41, v42 @3:1
+  v43 = const 16 @3:1
+  v44 = funcaddr .eq3 @3:1
+  stm v38, v43, v44 @3:1
+  v45 = addr gm4 @3:1
+  v46 = const 0 @3:1
+  v47 = str s64 @3:1
+  stm v45, v46, v47 @3:1
+  v48 = const 8 @3:1
+  v49 = const 27 @3:1
+  stm v45, v48, v49 @3:1
+  v50 = const 16 @3:1
+  v51 = funcaddr .eq4 @3:1
+  stm v45, v50, v51 @3:1
+  v52 = addr gm5 @3:1
+  v53 = const 0 @3:1
+  v54 = str s65 @3:1
+  stm v52, v53, v54 @3:1
+  v55 = const 8 @3:1
+  v56 = const 22 @3:1
+  stm v52, v55, v56 @3:1
+  v57 = const 16 @3:1
+  v58 = funcaddr .eq5 @3:1
+  stm v52, v57, v58 @3:1
+  v59 = addr gm6 @3:1
+  v60 = const 0 @3:1
+  v61 = str s66 @3:1
+  stm v59, v60, v61 @3:1
+  v62 = const 8 @3:1
+  v63 = const 6 @3:1
+  stm v59, v62, v63 @3:1
+  v64 = const 16 @3:1
+  v65 = funcaddr .eq6 @3:1
+  stm v59, v64, v65 @3:1
+  v66 = addr gm7 @3:1
+  v67 = const 0 @3:1
+  v68 = addr gm6 @3:1
+  stm v66, v67, v68 @3:1
+  v69 = const 8 @3:1
+  v70 = funcaddr .i6.M @3:1
+  stm v66, v69, v70 @3:1
   jump b1 @3:1
 b1:
+  v13 = funcaddr .preempt @3:1
+  sys preempt, v13 @3:1
   v0 = str s15 @19:11
   v1 = const 7 @19:11
   v2 = call f, v0, v1 @19:9
@@ -7069,3 +7074,69 @@ b0:
   v4 = extract 0, v3 @3:1
   v5 = extract 1, v3 @3:1
   ret v4, v5 @3:1
+
+func .preempt @testdata/check/s7_b01_blank.go:3:1
+  slot s0 g ptr @3:1
+  slot s1 tail ptr @3:1
+b0:
+  v0 = sys ticks @3:1
+  v1 = conv u64, v0 @3:1
+  v2 = gload g11 @3:1
+  v3 = sub v1, v2 @3:1
+  v4 = const u64 16777216 @3:1
+  v5 = ge v3, v4 @3:1
+  branch v5, b1, b2 @3:1
+b1:
+  v6 = gload g8 @3:1
+  v7 = const ptr 0 @3:1
+  v8 = eq v6, v7 @3:1
+  branch v8, b4, b5 @3:1
+b2:
+  ret @3:1
+b3:
+  v12 = sys ticks @3:1
+  v13 = conv u64, v12 @3:1
+  gstore g11, v13 @3:1
+  v14 = call .getg @3:1
+  store s0, v14 @3:1
+  v15 = load s0 @3:1
+  v16 = const ptr 0 @3:1
+  v17 = const 16 @3:1
+  stm v15, v17, v16 @3:1
+  v18 = gload g10 @3:1
+  store s1, v18 @3:1
+  v19 = load s1 @3:1
+  v20 = const ptr 0 @3:1
+  v21 = eq v19, v20 @3:1
+  branch v21, b9, b10 @3:1
+b4:
+  v9 = gload g9 @3:1
+  v10 = const ptr 0 @3:1
+  v11 = eq v9, v10 @3:1
+  branch v11, b6, b7 @3:1
+b5:
+  jump b3 @3:1
+b6:
+  jump b8 @3:1
+b7:
+  jump b3 @3:1
+b8:
+  jump b2 @3:1
+b9:
+  v22 = load s0 @3:1
+  gstore g9, v22 @3:1
+  v23 = sys ticks @3:1
+  v24 = conv u64, v23 @3:1
+  gstore g11, v24 @3:1
+  jump b11 @3:1
+b10:
+  v25 = load s1 @3:1
+  v26 = load s0 @3:1
+  v27 = const 16 @3:1
+  stm v25, v27, v26 @3:1
+  jump b11 @3:1
+b11:
+  v28 = load s0 @3:1
+  gstore g10, v28 @3:1
+  call .park @3:1
+  jump b8 @3:1

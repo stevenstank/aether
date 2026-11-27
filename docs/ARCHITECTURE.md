@@ -723,6 +723,12 @@ so none can be read as an option.
     head before `runnext` once the queue has waited `sliceTicks` since
     the slice began (`.slicestart`). `runtime.Gosched` and `GC` with
     nothing else runnable run the switch's hooks first.
+  - Preemption (D-059): lowering's `ir.Preempt` at each loop head and
+    backward `goto` outside overlay files; natively a test of
+    `aether.preemptreq`, which a `SIGURG` from a CPU-time timer sets
+    every 10 ms (`rt/preempt.s`), and a call of `aether.preempt`, which
+    saves every register and calls the scheduler's `.preempt`
+    (`lower/preempt.go`), registered by `ir.SysPreempt` in `Init`.
   - Weak pointers and cleanups (D-057): package runtime's table of
     records (`runtime/special.go`), which `aether.setspecials`
     (`ir.SysSpecials`) gives the collector; after marking, `.Lspecials`

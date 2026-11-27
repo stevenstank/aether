@@ -5125,6 +5125,97 @@ standard files: it changes them for the processes sharing them.
 
 ---
 
+## D-059: Cooperative preemption at loop back edges
+
+**Status:** Accepted (2026-11-27; owner review pending). Written with its
+code, after D-058; D-048's "there is no preemption" is superseded for
+loops.
+
+**Context.** Goroutines switched only in channel operations, `select`,
+`Gosched`, and at their end (D-048), so a goroutine computing in a loop
+kept every other goroutine, the timers, the poller, and the cleanups
+from running for as long as it looped, forever for `for {}`; a program
+relying on gc's preemption hung (V-10). gc preempts asynchronously, with
+a signal (`SIGURG`) and the stack maps of every instruction; Aether's
+conservative collector (D-046) has no maps, but needs none to scan
+registers saved on a stack.
+
+**Decision.**
+- **IR.** `Preempt` (no args, no value) is a preemption point: an
+  effect, but not a call, so every value keeps its location across it.
+  `SysPreempt` registers the function a requested `Preempt` calls (the
+  `FuncAddr` of one with no parameters and no results) and starts the
+  requests.
+- **Where.** Lowering puts a `Preempt` at the head of every `for` and
+  range loop (slices, strings, arrays, integers, maps, channels), so that
+  every iteration, `continue` included, passes one, and before every
+  backward `goto`, in the functions of the program and of GOROOT's
+  packages. Aether's overlay files, whose runtime code relies on running
+  without a switch between its statements (D-049), get none, nor do the
+  functions lowering generates (scheduler, channels, maps). Recursion
+  without a loop is not a preemption point.
+- **When.** A program without a scheduler has nothing to switch to: its
+  `Preempt`s are removed. Otherwise `Init`, or `main` without it, first
+  registers the scheduler's `.preempt`, which returns at once while
+  `.inhooks` is set (the switch hooks are running, so the scheduler is
+  never re-entered), and otherwise yields as `Gosched` does once the
+  running slice (D-058's `sliceTicks`, from `.slicestart`) is over.
+  A yield now starts a fresh slice, so that a goroutine the hooks made
+  runnable runs first, as gc's does after `Gosched` or a preemption.
+- **Native.** `Preempt` is `cmpb $0, aether.preemptreq(%rip)` and a `jne`
+  to a call of `aether.preempt` after the function's blocks.
+  `aether.preempt` (`rt/preempt.s`) clears the request, saves every
+  general register on the goroutine's stack, where the collector scans
+  them, and calls the registered function. No XMM register holds a value
+  across instructions. `aether.preemptstart` installs a `SIGURG` handler
+  (`SA_ONSTACK|SA_RESTART`, on a 64 KiB alternate stack it maps) that
+  only sets the request, and a POSIX timer on the process's CPU-time
+  clock that sends `SIGURG` every 10 ms. A process waiting in a system
+  call uses no CPU time, so the timer does not interrupt it; `SIGURG` is
+  ignored by default, and POSIX timers end at `execve`. If any of it
+  fails, the program runs without preemption.
+- **Interpreter.** Every 1024th `Preempt` after `SysPreempt` calls the
+  registered function: a deterministic stand-in for the timer. The
+  function decides by the time slice, as natively.
+
+**Alternatives considered.** A counter decremented at every back edge,
+with no signal: a load, a store, and a branch per iteration, whose
+store-to-load dependency slows a tight loop more than a flag that never
+changes. Asynchronous preemption at any instruction, as gc's: it needs
+the frame's state at every instruction, or a way to resume code that
+holds untracked derived pointers, and the scheduler's overlay code
+would have to mask signals. The check on the latch (`cmpb` and a
+conditional jump back in place of the jump): 4% faster than at the head
+in a two-instruction loop (0.48 against 0.50 ns per iteration), not
+worth a block per loop for `continue`. A wall-clock timer: it would
+wake a program blocked in `poll(2)` every 10 ms. Exempting loops of
+constant trip count: the gain is in loops that already run briefly, and
+the guarantee would need an analysis of the loop's variable.
+
+**Consequences.** Measured on the D-057 host (AMD Ryzen 7 7435HS, WSL2,
+2026-11-27):
+- `testdata/native/preempt.go` (goroutines spinning in `for {}`, `for`,
+  `goto`, range-over-map, and range-over-int loops; nested computations
+  preempted with integer and floating-point values in registers; a list
+  held only in registers while the collector runs) matches gc in both
+  modes and under the collector's stress mode; `TestPreemption` runs it
+  in the interpreter, both modes, and ABI-R1. Before D-059 it never
+  ended.
+- With three goroutines spinning, a 1 ms `time.Sleep` wakes about 10.6 ms
+  late, and a TCP echo round trip takes about 20 ms (gc with
+  `GOMAXPROCS=1`: 19 ms and 121 ms; before D-059: never).
+- A loop's iteration costs one more load, compare, and branch: about one
+  cycle in a one-cycle loop (summing a slice: 0.23 to 0.46 ns per
+  element; an empty counting loop: 0.53 to 0.69 ns), nothing measurable
+  in a loop of a few cycles. The benchmark workloads, with a goroutine
+  added so that they have a scheduler, change by -16% to +12%, most
+  within 1%, which code layout dominates. Programs without a scheduler
+  are unchanged.
+- A goroutine computing in a function that recurses without a loop is
+  still not preempted.
+
+---
+
 ## Phase 0 research notes
 
 Experiments E1–E12 ran in a scratch directory outside the repository on

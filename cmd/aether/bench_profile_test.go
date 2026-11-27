@@ -178,7 +178,7 @@ func account(r *regionStat, line string, slots int, irOp string) error {
 		switch last := i == len(ops)-1; {
 		case last && isMov:
 			r.stores[c]++
-		case last && (mn == "cmpq" || mn == "testq"):
+		case last && (mn == "cmpq" || mn == "testq" || mn == "cmpb"): // cmpb: a Preempt (D-059)
 			r.loads[c]++
 		case last:
 			return fmt.Errorf("read-modify-write memory destination in %q", line)

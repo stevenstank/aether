@@ -37,6 +37,7 @@ func reached(pkg *frontend.Package, key string) bool {
 // it first does what a switch does before choosing (D-058): runs the due
 // timers, polls the descriptors waited on, and starts the queued
 // cleanups, any of which may make a goroutine runnable, as gc's would run.
+// Runtime.Gosched and runtime.GC yield, and so does a preemption (D-059).
 func (l *lowerer) yield(pos ir.Pos) {
 	sc, m := l.sched(), mb{l, pos}
 	switchTo := l.fn.NewBlock()
@@ -52,6 +53,7 @@ func (l *lowerer) yield(pos ir.Pos) {
 	}
 	l.b = idle()
 	if h, io, poll := l.switchHooks(); h != nil || io != nil || poll != nil {
+		l.hooking(true, pos)
 		if h != nil {
 			l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos)
 		}
@@ -61,11 +63,16 @@ func (l *lowerer) yield(pos ir.Pos) {
 		if poll != nil {
 			l.fn.Call(l.b, poll, nil, pos)
 		}
+		l.hooking(false, pos)
 		l.b = idle()
 	}
 	done := l.fn.NewBlock()
 	m.join(done)
 	l.b = switchTo
+	// The yielding goroutine's time slice ends: the next starts its own,
+	// so that a goroutine the hooks made runnext runs first, as gc's
+	// would after a Gosched or a preemption (D-059).
+	l.fn.GStore(l.b, sc.sliceStart, l.ticks(pos), pos)
 	l.runqPut(m.v("g", l.fn.Call(l.b, sc.getg, nil, pos)), pos)
 	l.fn.Call(l.b, sc.park, nil, pos)
 	m.join(done)

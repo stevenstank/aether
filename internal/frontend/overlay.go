@@ -237,6 +237,10 @@ func stdFiles(root, p string) ([]Source, error) {
 	return srcs, nil
 }
 
+// IsOverlay reports whether file, a source position's file name, is one of
+// Aether's overlay files.
+func IsOverlay(file string) bool { return strings.HasPrefix(file, "$AETHER/") }
+
 func hasOverlay(p, name string) bool {
 	_, err := fs.Stat(overlayFS, "_overlay/"+p+"/"+name)
 	return err == nil

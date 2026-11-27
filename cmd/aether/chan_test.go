@@ -14,7 +14,14 @@ import (
 // without gc.
 func checkPinned(t *testing.T, name string, src []byte, want result) {
 	t.Helper()
-	got, ds, err := interpret(name+".go", src)
+	checkPinnedSteps(t, name, src, want, interpSteps)
+}
+
+// checkPinnedSteps is checkPinned with an interpreter step budget of its
+// own.
+func checkPinnedSteps(t *testing.T, name string, src []byte, want result, steps int64) {
+	t.Helper()
+	got, ds, err := interpretSteps(name+".go", src, nil, steps)
 	if len(ds) > 0 || err != nil {
 		t.Fatalf("not interpreted: %v %v", ds, err)
 	}

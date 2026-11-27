@@ -410,6 +410,8 @@ func main @testdata/check/s5_i08_assign_iface.go:38:6
   mem m13 send 16 align 8 @81:6
   mem m14 recv 16 align 8 @83:2
 b0:
+  v435 = funcaddr .preempt @38:6
+  sys preempt, v435 @38:6
   v0 = const ptr 0 @39:6
   store s0, v0 @39:6
   v1 = const ptr 0 @39:6
@@ -479,6 +481,7 @@ b1:
 b2:
   jump b3 @41:2
 b3:
+  preempt @41:2
   v41 = load s11 @41:2
   v42 = load s12 @41:2
   v43 = load s14 @41:2
@@ -612,6 +615,7 @@ b5:
   store s3, v88 @41:9
   jump b3 @42:2
 b6:
+  preempt @46:2
   v127 = load s34 @46:2
   v128 = const 2 @46:2
   v129 = lt v127, v128 @46:2
@@ -675,6 +679,7 @@ b9:
   store s47, v159 @50:2
   jump b10 @50:2
 b10:
+  preempt @50:2
   v160 = load s47 @50:2
   v161 = load s46 @50:2
   v162 = lt v160, v161 @50:2
@@ -739,6 +744,7 @@ b13:
   store s60, v193 @54:2
   jump b14 @54:2
 b14:
+  preempt @54:2
   v194 = load s60 @54:2
   v195 = load s59 @54:2
   v196 = lt v194, v195 @54:2
@@ -790,6 +796,7 @@ b17:
   store s71, v219 @58:2
   jump b18 @58:2
 b18:
+  preempt @58:2
   v220 = load s71 @58:2
   v221 = load s70 @58:2
   v222 = lt v220, v221 @58:2
@@ -1120,6 +1127,7 @@ b34:
   v368 = const 37 @75:2
   panic fatal, v367, v368 @75:2
 b35:
+  preempt @83:2
   v414 = load s129 @83:2
   v415 = addr m14 @83:2
   v416 = call .chanrecv, v414, v415 @83:2
@@ -4028,6 +4036,72 @@ b9:
   jump b10 @3:1
 b10:
   jump b1 @3:1
+
+func .preempt @testdata/check/s5_i08_assign_iface.go:3:1
+  slot s0 g ptr @3:1
+  slot s1 tail ptr @3:1
+b0:
+  v0 = sys ticks @3:1
+  v1 = conv u64, v0 @3:1
+  v2 = gload g4 @3:1
+  v3 = sub v1, v2 @3:1
+  v4 = const u64 16777216 @3:1
+  v5 = ge v3, v4 @3:1
+  branch v5, b1, b2 @3:1
+b1:
+  v6 = gload g1 @3:1
+  v7 = const ptr 0 @3:1
+  v8 = eq v6, v7 @3:1
+  branch v8, b4, b5 @3:1
+b2:
+  ret @3:1
+b3:
+  v12 = sys ticks @3:1
+  v13 = conv u64, v12 @3:1
+  gstore g4, v13 @3:1
+  v14 = call .getg @3:1
+  store s0, v14 @3:1
+  v15 = load s0 @3:1
+  v16 = const ptr 0 @3:1
+  v17 = const 16 @3:1
+  stm v15, v17, v16 @3:1
+  v18 = gload g3 @3:1
+  store s1, v18 @3:1
+  v19 = load s1 @3:1
+  v20 = const ptr 0 @3:1
+  v21 = eq v19, v20 @3:1
+  branch v21, b9, b10 @3:1
+b4:
+  v9 = gload g2 @3:1
+  v10 = const ptr 0 @3:1
+  v11 = eq v9, v10 @3:1
+  branch v11, b6, b7 @3:1
+b5:
+  jump b3 @3:1
+b6:
+  jump b8 @3:1
+b7:
+  jump b3 @3:1
+b8:
+  jump b2 @3:1
+b9:
+  v22 = load s0 @3:1
+  gstore g2, v22 @3:1
+  v23 = sys ticks @3:1
+  v24 = conv u64, v23 @3:1
+  gstore g4, v24 @3:1
+  jump b11 @3:1
+b10:
+  v25 = load s1 @3:1
+  v26 = load s0 @3:1
+  v27 = const 16 @3:1
+  stm v25, v27, v26 @3:1
+  jump b11 @3:1
+b11:
+  v28 = load s0 @3:1
+  gstore g3, v28 @3:1
+  call .park @3:1
+  jump b8 @3:1
 
 func init @testdata/check/s5_i08_assign_iface.go:3:1
 b0:

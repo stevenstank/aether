@@ -88,6 +88,13 @@ const (
 
 const symPanicIndex = "aether.panicindex"
 
+// A Preempt tests the byte symPreemptReq and, if it is set, calls
+// symPreempt, which preserves every general register (D-059, preempt.s).
+const (
+	symPreemptReq = "aether.preemptreq"
+	symPreempt    = "aether.preempt"
+)
+
 // symSys are the system calls of ir.Sys (D-049, increment 11.6), under the
 // helper interface: their args in %rdi, %rsi, and %rdx, their value in
 // %rax. SysCall's seven args do not fit: they go through the outgoing area,
@@ -95,7 +102,8 @@ const symPanicIndex = "aether.panicindex"
 var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
 	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread",
 	ir.SysCall: "aether.syscall6", ir.SysEnvc: "aether.envc", ir.SysEnvPtr: "aether.envptr", ir.SysEnvLen: "aether.envlen",
-	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand", ir.SysSpecials: "aether.setspecials", ir.SysTicks: "aether.cputicks"}
+	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand", ir.SysSpecials: "aether.setspecials", ir.SysTicks: "aether.cputicks",
+	ir.SysPreempt: "aether.preemptstart"}
 
 // sysOutgoing is the outgoing area a Sys needs: SysCall's args.
 func sysOutgoing(in *ir.Instr) int {
@@ -471,6 +479,9 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	if err := e.err; err != nil {
 		return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
 	}
+	for n := range e.preempts {
+		fmt.Fprintf(b, ".L%d.p%d:\n\tcall\t%s\n\tjmp\t.L%d.r%d\n", fi, n, symPreempt, fi, n)
+	}
 	if err := e.checkArith(); err != nil {
 		return Frame{}, fmt.Errorf("amd64: func %s: two-address: %v", f.Name, err)
 	}
@@ -517,6 +528,7 @@ type emitter struct {
 	r1       *abiR1      // ABI-R1's state, or nil for ABI-S0 (abir1.go)
 	next     *ir.Block   // the block emitted after the current one, or nil
 	arith    []arithSite // the register-form sequences (arith.go)
+	preempts int         // the Preempts emitted
 	err      error       // the first error of the current function
 }
 
@@ -871,6 +883,15 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("leaq\t%s(%%rip), %%rdi", funcSym(in.Callee))
 		op("call\t%s", symGoNew)
 		e.finish(in, "%rax")
+	case ir.Preempt:
+		// Not a call: the request is tested inline, and the call, which
+		// preserves every register, is out of line after the function's
+		// blocks (emitFunc), so that a loop's iterations run straight on.
+		n := e.preempts
+		e.preempts++
+		op("cmpb\t$0, %s(%%rip)", symPreemptReq)
+		op("jne\t.L%d.p%d", e.fi, n)
+		fmt.Fprintf(b, ".L%d.r%d:\n", e.fi, n)
 	case ir.GoSwitch, ir.GoExit:
 		e.load(in.Args[0], "%rdi")
 		if in.Op == ir.GoSwitch {

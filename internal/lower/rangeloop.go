@@ -96,6 +96,7 @@ func (l *lowerer) rangeStmt(s *ast.RangeStmt) {
 	head, body, next, exit := l.fn.NewBlock(), l.fn.NewBlock(), l.fn.NewBlock(), l.fn.NewBlock()
 	l.fn.Jump(l.b, head, pos)
 	l.b = head
+	l.backEdge(pos)
 	l.fn.Branch(l.b, l.compare(ir.Lt, l.fn.Load(l.b, hi, pos), n(), pos), body, exit, pos)
 	l.b, l.done = body, false
 

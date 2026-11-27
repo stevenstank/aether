@@ -795,6 +795,7 @@ func (l *lowerer) mapRange(s *ast.RangeStmt) {
 	l.fn.Jump(l.b, head, pos)
 	l.b = isNil
 	m.join(head)
+	l.backEdge(pos)
 	r := l.fn.Call(l.b, l.mapNextFunc(mt, pos), []*ir.Instr{hdr.get(), ents.get(), i.get(), clears.get()}, pos)
 	e := m.v("e", l.fn.Extract(l.b, r, 0, pos))
 	i.set(l.fn.Extract(l.b, r, 1, pos))

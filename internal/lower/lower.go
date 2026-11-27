@@ -134,6 +134,7 @@ func LowerProgram(program *frontend.Program) (prog *ir.Program, ds []diag.Diagno
 		l.panics() // before the late functions: they include .printval
 	}
 	l.buildLate()
+	l.preemption(prog)
 	l.initStatics()
 	if l.unwinds {
 		l.unwind()
@@ -241,6 +242,8 @@ type lowerer struct {
 	// internal/reflectlite, whose type descriptors describe their types
 	// in full (reflect.go).
 	reflect bool
+
+	preempts bool // a Preempt was added (preempt.go)
 
 	wantRecover bool     // the program unwinds and calls recover
 	dfr         *deferFn // the defer state of the function being lowered, if it has a defer statement
@@ -959,7 +962,12 @@ func (l *lowerer) stmt(s ast.Stmt) {
 			return
 		}
 		if s.Tok == token.GOTO {
-			l.fn.Jump(l.b, l.labelBlock(l.pkg.Info.Uses[s.Label].(*types.Label)), l.pos(s, s.Pos()))
+			lab := l.pkg.Info.Uses[s.Label].(*types.Label)
+			if l.labeled[lab] != nil {
+				// A backward goto: its label's statement is lowered.
+				l.backEdge(l.pos(s, s.Pos()))
+			}
+			l.fn.Jump(l.b, l.labelBlock(lab), l.pos(s, s.Pos()))
 			l.done = true
 			return
 		}
@@ -1082,6 +1090,7 @@ func (l *lowerer) forStmt(s *ast.ForStmt) {
 	pos := l.pos(s, s.For)
 	l.fn.Jump(l.b, head, pos)
 	l.b = head
+	l.backEdge(pos)
 	if s.Cond != nil {
 		l.fn.Branch(l.b, l.expr(s.Cond), body, exit, pos)
 	} else {
