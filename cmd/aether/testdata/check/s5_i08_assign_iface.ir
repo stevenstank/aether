@@ -23,7 +23,8 @@ global g0 .curg ptr @testdata/check/s5_i08_assign_iface.go:3:1
 global g1 .runnext ptr @testdata/check/s5_i08_assign_iface.go:3:1
 global g2 .runqhead ptr @testdata/check/s5_i08_assign_iface.go:3:1
 global g3 .runqtail ptr @testdata/check/s5_i08_assign_iface.go:3:1
-global g4 .randstate u64 @testdata/check/s5_i08_assign_iface.go:13:12
+global g4 .slicestart u64 @testdata/check/s5_i08_assign_iface.go:3:1
+global g5 .randstate u64 @testdata/check/s5_i08_assign_iface.go:13:12
 mem gm0 .t0 32 align 8 @testdata/check/s5_i08_assign_iface.go:17:6
 mem gm1 .t1 32 align 8 @testdata/check/s5_i08_assign_iface.go:17:6
 mem gm2 .t2 32 align 8 @testdata/check/s5_i08_assign_iface.go:17:6
@@ -2249,21 +2250,25 @@ b2:
 b3:
   v13 = load s1 @3:1
   gstore g2, v13 @3:1
+  v14 = sys ticks @3:1
+  v15 = conv u64, v14 @3:1
+  gstore g4, v15 @3:1
   jump b5 @3:1
 b4:
-  v14 = load s2 @3:1
-  v15 = load s1 @3:1
-  v16 = const 16 @3:1
-  stm v14, v16, v15 @3:1
+  v16 = load s2 @3:1
+  v17 = load s1 @3:1
+  v18 = const 16 @3:1
+  stm v16, v18, v17 @3:1
   jump b5 @3:1
 b5:
-  v17 = load s1 @3:1
-  gstore g3, v17 @3:1
+  v19 = load s1 @3:1
+  gstore g3, v19 @3:1
   ret @3:1
 
 func .nextg() ptr @testdata/check/s5_i08_assign_iface.go:3:1
   slot s0 g ptr @3:1
-  slot s1 next ptr @3:1
+  slot s1 tail ptr @3:1
+  slot s2 next ptr @3:1
 b0:
   v0 = gload g1 @3:1
   store s0, v0 @3:1
@@ -2272,39 +2277,89 @@ b0:
   v3 = ne v1, v2 @3:1
   branch v3, b1, b2 @3:1
 b1:
-  v4 = const ptr 0 @3:1
-  gstore g1, v4 @3:1
-  v5 = load s0 @3:1
-  ret v5 @3:1
+  v4 = gload g2 @3:1
+  v5 = const ptr 0 @3:1
+  v6 = ne v4, v5 @3:1
+  branch v6, b4, b5 @3:1
 b2:
-  v6 = gload g2 @3:1
-  store s0, v6 @3:1
-  v7 = load s0 @3:1
-  v8 = const ptr 0 @3:1
-  v9 = ne v7, v8 @3:1
-  branch v9, b3, b4 @3:1
+  v30 = gload g2 @3:1
+  store s0, v30 @3:1
+  v31 = load s0 @3:1
+  v32 = const ptr 0 @3:1
+  v33 = ne v31, v32 @3:1
+  branch v33, b11, b12 @3:1
 b3:
-  v10 = load s0 @3:1
-  v11 = const 16 @3:1
-  v12 = ldm ptr, v10, v11 @3:1
-  store s1, v12 @3:1
-  v13 = load s1 @3:1
-  gstore g2, v13 @3:1
-  v14 = load s1 @3:1
-  v15 = const ptr 0 @3:1
-  v16 = eq v14, v15 @3:1
-  branch v16, b5, b6 @3:1
+  v28 = const ptr 0 @3:1
+  gstore g1, v28 @3:1
+  v29 = load s0 @3:1
+  ret v29 @3:1
 b4:
-  v19 = str s12 @3:1
-  v20 = const 37 @3:1
-  panic fatal, v19, v20 @3:1
+  v7 = sys ticks @3:1
+  v8 = conv u64, v7 @3:1
+  v9 = gload g4 @3:1
+  v10 = sub v8, v9 @3:1
+  v11 = const u64 16777216 @3:1
+  v12 = ge v10, v11 @3:1
+  branch v12, b6, b7 @3:1
 b5:
-  v17 = const ptr 0 @3:1
-  gstore g3, v17 @3:1
-  jump b6 @3:1
+  jump b3 @3:1
 b6:
-  v18 = load s0 @3:1
-  ret v18 @3:1
+  v13 = const ptr 0 @3:1
+  gstore g1, v13 @3:1
+  v14 = load s0 @3:1
+  v15 = const ptr 0 @3:1
+  v16 = const 16 @3:1
+  stm v14, v16, v15 @3:1
+  v17 = gload g3 @3:1
+  store s1, v17 @3:1
+  v18 = load s1 @3:1
+  v19 = const ptr 0 @3:1
+  v20 = eq v18, v19 @3:1
+  branch v20, b8, b9 @3:1
+b7:
+  jump b3 @3:1
+b8:
+  v21 = load s0 @3:1
+  gstore g2, v21 @3:1
+  v22 = sys ticks @3:1
+  v23 = conv u64, v22 @3:1
+  gstore g4, v23 @3:1
+  jump b10 @3:1
+b9:
+  v24 = load s1 @3:1
+  v25 = load s0 @3:1
+  v26 = const 16 @3:1
+  stm v24, v26, v25 @3:1
+  jump b10 @3:1
+b10:
+  v27 = load s0 @3:1
+  gstore g3, v27 @3:1
+  jump b2 @3:1
+b11:
+  v34 = load s0 @3:1
+  v35 = const 16 @3:1
+  v36 = ldm ptr, v34, v35 @3:1
+  store s2, v36 @3:1
+  v37 = load s2 @3:1
+  gstore g2, v37 @3:1
+  v38 = load s2 @3:1
+  v39 = const ptr 0 @3:1
+  v40 = eq v38, v39 @3:1
+  branch v40, b13, b14 @3:1
+b12:
+  v45 = str s12 @3:1
+  v46 = const 37 @3:1
+  panic fatal, v45, v46 @3:1
+b13:
+  v41 = const ptr 0 @3:1
+  gstore g3, v41 @3:1
+  jump b14 @3:1
+b14:
+  v42 = sys ticks @3:1
+  v43 = conv u64, v42 @3:1
+  gstore g4, v43 @3:1
+  v44 = load s0 @3:1
+  ret v44 @3:1
 
 func .goentry @testdata/check/s5_i08_assign_iface.go:3:1
   slot s0 g ptr @3:1
@@ -3742,7 +3797,7 @@ b12:
 func .rand() u64 @testdata/check/s5_i08_assign_iface.go:3:1
   slot s0 x u64 @3:1
 b0:
-  v0 = gload g4 @3:1
+  v0 = gload g5 @3:1
   store s0, v0 @3:1
   v1 = load s0 @3:1
   v2 = const u64 0 @3:1
@@ -3772,7 +3827,7 @@ b2:
   v19 = xor v15, v18 @3:1
   store s0, v19 @3:1
   v20 = load s0 @3:1
-  gstore g4, v20 @3:1
+  gstore g5, v20 @3:1
   v21 = load s0 @3:1
   ret v21 @3:1
 

@@ -33,15 +33,39 @@ func reached(pkg *frontend.Package, key string) bool {
 }
 
 // yield puts the running goroutine at the run queue's tail, after the
-// others, and runs the next, unless there is no other to run.
+// others, and runs the next, unless there is no other to run. With none,
+// it first does what a switch does before choosing (D-058): runs the due
+// timers, polls the descriptors waited on, and starts the queued
+// cleanups, any of which may make a goroutine runnable, as gc's would run.
 func (l *lowerer) yield(pos ir.Pos) {
 	sc, m := l.sched(), mb{l, pos}
-	other := m.when(m.cmp(ir.Eq, l.fn.GLoad(l.b, sc.runnext, pos), m.nilPtr()))
-	queued := m.when(m.cmp(ir.Eq, l.fn.GLoad(l.b, sc.runqHead, pos), m.nilPtr()))
+	switchTo := l.fn.NewBlock()
+	idle := func() *ir.Block {
+		other := m.when(m.cmp(ir.Eq, l.fn.GLoad(l.b, sc.runnext, pos), m.nilPtr()))
+		queued := m.when(m.cmp(ir.Eq, l.fn.GLoad(l.b, sc.runqHead, pos), m.nilPtr()))
+		none := l.b
+		l.b = other
+		m.join(switchTo)
+		l.b = queued
+		m.join(switchTo)
+		return none
+	}
+	l.b = idle()
+	if h, io, poll := l.switchHooks(); h != nil || io != nil || poll != nil {
+		if h != nil {
+			l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos)
+		}
+		if io != nil {
+			l.fn.Call(l.b, io, []*ir.Instr{m.c(0)}, pos)
+		}
+		if poll != nil {
+			l.fn.Call(l.b, poll, nil, pos)
+		}
+		l.b = idle()
+	}
 	done := l.fn.NewBlock()
 	m.join(done)
-	l.b = queued
-	m.join(other)
+	l.b = switchTo
 	l.runqPut(m.v("g", l.fn.Call(l.b, sc.getg, nil, pos)), pos)
 	l.fn.Call(l.b, sc.park, nil, pos)
 	m.join(done)
@@ -125,7 +149,7 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 		c, t := l.fn.Param(b, 0, pos), l.fn.Param(b, 1, pos)
 		l.fn.StM(b, c, l.fn.Const(b, chTimer, pos), t, pos)
 		l.fn.Ret(b, pos)
-	case "os.syscall6", "internal/runtime/syscall/linux.syscall6", "time.syscall6":
+	case "os.syscall6", "internal/runtime/syscall/linux.syscall6", "time.syscall6", "runtime.syscall6":
 		// syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) int (D-051).
 		args := make([]*ir.Instr, 7)
 		for i := range args {
@@ -141,6 +165,9 @@ func (l *lowerer) intrinsic(fd *ast.FuncDecl) {
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysRand, ir.U64, pos))
 	case "syscall.envc", "math.envc", "internal/godebug.envc", "runtime.envc":
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysEnvc, ir.I64, pos))
+	case "runtime.cputicks":
+		// cputicks() int64 (D-058).
+		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysTicks, ir.I64, pos))
 	case "math.cpuFMA":
 		// cpuFMA() int (D-053).
 		l.fn.Ret(b, pos, l.fn.Sys(b, ir.SysCPUFMA, ir.I64, pos))

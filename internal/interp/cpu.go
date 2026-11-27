@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 )
 
 // hostCPUFMA is ir.SysCPUFMA's value (D-053): 1 if the host's processor and
@@ -29,3 +30,6 @@ var hostCPUFMA = sync.OnceValue(func() int64 {
 	}
 	return 0
 })
+
+// ticksBase is when ir.SysTicks counts from (D-058).
+var ticksBase = time.Now()

@@ -401,11 +401,16 @@ const (
 	// records it updates at each collection (D-057). No value. The
 	// interpreter, which frees nothing, ignores it.
 	SysSpecials
+	// SysTicks is the processor's time-stamp counter, an I64 that grows at
+	// a constant rate, of the order of a nanosecond, and costs no system
+	// call; gc's runtime.cputicks. The scheduler measures its time slices
+	// and its polls of the network with it (D-058). No args.
+	SysTicks
 )
 
 // SysNames are the system calls' names, as the printer writes them.
 var SysNames = [...]string{SysExit: "exit", SysWrite: "write", SysArgc: "argc", SysArgPtr: "argptr", SysArgLen: "arglen", SysGC: "gc", SysRead: "read",
-	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand", SysSpecials: "specials"}
+	SysCall: "syscall", SysEnvc: "envc", SysEnvPtr: "envptr", SysEnvLen: "envlen", SysCPUFMA: "cpufma", SysRand: "rand", SysSpecials: "specials", SysTicks: "ticks"}
 
 var opNames = [...]string{
 	invalidOp: "invalid", Const: "const", Load: "load", Store: "store",

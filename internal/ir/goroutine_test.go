@@ -90,6 +90,7 @@ func TestSysOps(t *testing.T) {
 		f.Sys(b, SysCall, I64, pos, w, w, w, w, w, w, w)
 		f.Sys(b, SysCPUFMA, I64, pos)
 		f.Sys(b, SysRand, U64, pos)
+		f.Sys(b, SysTicks, I64, pos)
 		f.Ret(b, pos)
 		return p
 	}
@@ -100,7 +101,7 @@ func TestSysOps(t *testing.T) {
 	text := p.String()
 	for _, want := range []string{"v0 = sys argc @", "v4 = sys write, v2, v1, v3 @", "sys gc @", "sys exit, v0 @", "v5 = sys read, v0, v1, v0 @",
 		"v6 = sys envc @", "v7 = sys envptr, v6 @", "v8 = sys envlen, v6 @", "v10 = sys syscall, v9, v9, v9, v9, v9, v9, v9 @",
-		"v11 = sys cpufma @", "v12 = sys rand @"} {
+		"v11 = sys cpufma @", "v12 = sys rand @", "v13 = sys ticks @"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("printed IR lacks %q:\n%s", want, text)
 		}
@@ -110,7 +111,8 @@ func TestSysOps(t *testing.T) {
 		break_ func(in []*Instr)
 		want   string
 	}{
-		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 14"},
+		{"unknown kind", func(in []*Instr) { in[0].Index = len(SysNames) }, "sys of unknown kind 15"},
+		{"ticks of a u64", func(in []*Instr) { in[15].Type = U64 }, "want i64"},
 		{"cpufma of a ptr", func(in []*Instr) { in[13].Type = Ptr }, "want i64"},
 		{"rand of an i64", func(in []*Instr) { in[14].Type = I64 }, "want u64"},
 		{"syscall of six words", func(in []*Instr) { in[12].Args = in[12].Args[:6] }, "has 6 operands, want 7"},

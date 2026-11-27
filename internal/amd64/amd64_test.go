@@ -904,20 +904,28 @@ func TestNativeGlobals(t *testing.T) {
 
 // TestInitStack checks that aether.mainstack covers main.init's frame when
 // it is larger than main.main's: _start calls both from the stack top.
+// Its 800,000 bytes are a memory object, written at its far end: dead
+// values would share one cell (D-058).
 func TestInitStack(t *testing.T) {
 	p := program(func(*ir.Func, *ir.Block) {})
 	p.Init = p.NewFunc("init", "p.go", p1)
 	ib := p.Init.Entry()
-	for range 100_000 {
-		p.Init.Const(ib, 1, p1)
-	}
+	m := p.Init.NewMem("big", 800_000, 8, p1)
+	p.Init.StM(ib, p.Init.Addr(ib, m, p1), p.Init.Const(ib, 799_992, p1), p.Init.Const(ib, 1, p1), p1)
 	p.Init.Ret(ib, p1)
 	asm, err := Emit(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := fmt.Sprintf("%s:\n\t.quad\t%d\n", symMainStack, 16+800_000); !bytes.Contains(asm, []byte(want)) {
-		t.Errorf("assembly does not declare %q", want)
+	var stack int
+	if i := bytes.Index(asm, []byte(symMainStack+":\n\t.quad\t")); i < 0 {
+		t.Fatal("no aether.mainstack")
+	} else if _, err := fmt.Sscan(string(asm[i+len(symMainStack)+8:]), &stack); err != nil {
+		t.Fatal(err)
+	}
+	// The object, the return address and saved %rbp, and a few cells.
+	if stack < 16+800_000 || stack > 16+800_000+64 {
+		t.Errorf("aether.mainstack is %d, want about %d", stack, 16+800_000)
 	}
 	if got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil); code != 0 || got != "" {
 		t.Errorf("exit %d, %q; want exit 0, no output", code, got)
@@ -1008,5 +1016,24 @@ func TestSysNative(t *testing.T) {
 	got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil)
 	if code != wantCode || got != want.String() {
 		t.Errorf("native: exit %d, %q; interpreter: exit %d, %q", code, got, wantCode, want.String())
+	}
+}
+
+// TestTicks checks SysTicks, the time-stamp counter (D-058): it grows,
+// across a system call that takes a microsecond or more.
+func TestTicks(t *testing.T) {
+	p := program(func(f *ir.Func, b *ir.Block) {
+		t0 := f.Sys(b, ir.SysTicks, ir.I64, p1)
+		w := func(v int64) *ir.Instr { return f.TypedConst(b, ir.U64, v, p1) }
+		f.Sys(b, ir.SysCall, ir.I64, p1, w(35), w(0), w(0), w(0), w(0), w(0), w(0)) // nanosleep(NULL): EFAULT
+		t1 := f.Sys(b, ir.SysTicks, ir.I64, p1)
+		f.Println(b, []*ir.Instr{f.Compare(b, ir.Gt, t1, t0, p1), f.Compare(b, ir.Gt, t0, f.Const(b, 0, p1), p1)}, p1)
+	})
+	asm, err := Emit(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, code := execute(t, link(t, t.TempDir(), withRuntime(asm)), nil); code != 0 || got != "true true\n" {
+		t.Errorf("exit %d, %q; want exit 0, %q", code, got, "true true\n")
 	}
 }

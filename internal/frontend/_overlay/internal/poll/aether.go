@@ -8,10 +8,10 @@
 // once for reading and writing; an event marks it ready, and a goroutine
 // waiting on it runs; reading or writing first clears the mark
 // (pollReset), and waits only after EAGAIN. A goroutine waits on a
-// channel of its descriptor. The scheduler polls without waiting every
-// pollEvery switches, and, when every goroutine is blocked and one waits
-// on a descriptor, waits in epoll_wait until an event or the next timer
-// (package time's runTimers calls netpoll). Deadlines are time's timers.
+// channel of its descriptor. The scheduler polls without waiting at one
+// switch in 61, or once about 50 µs have passed, and, when every goroutine is
+// blocked and one waits on a descriptor, waits in epoll_wait until an
+// event or the next timer (runtime's ioPoll calls netpoll, D-058). Deadlines are time's timers.
 // An Aether program's goroutines never run in parallel (D-049), so
 // nothing here is locked.
 
@@ -22,9 +22,9 @@ import (
 	"time"
 )
 
-// setNetpoll gives package time's scheduler hook the poller: time's
-// setNetpoll (frontend.Linknames).
-func setNetpoll(f func(delay int64) int)
+// setNetpoll gives the scheduler's poll of descriptors the poller and its
+// epoll descriptor: runtime's setNetpoll (frontend.Linknames, D-058).
+func setNetpoll(f func(delay int64) int, epfd int)
 
 // A runtimePD is gc's runtime pollDesc: a descriptor on the poller.
 type runtimePD struct {
@@ -58,7 +58,7 @@ func aetherPollServerInit() {
 		panic("runtime: netpollinit failed")
 	}
 	epfd = fd
-	setNetpoll(netpoll)
+	setNetpoll(netpoll, fd)
 }
 
 func aetherIsPollServerDescriptor(fd uintptr) bool {
@@ -226,29 +226,16 @@ func (pd *runtimePD) setDeadline(dl *int64, t **time.Timer, wait *chan struct{},
 	*t = timer
 }
 
-// pollEvery is how many of the scheduler's switches poll once without
-// waiting, so that a goroutine waiting on a descriptor runs although
-// others never block.
-const pollEvery = 61
-
-var switches int
-
-// netpoll is the scheduler's poll, which package time's runTimers calls:
-// with delay 0 at a switch, and when every goroutine is blocked with the
-// nanoseconds until the next timer, or -1 for none. Unless a goroutine
-// waits on a descriptor it returns -1 at once. Else it waits for events,
-// up to delay (only after pollEvery switches if 0), makes the goroutines
-// waiting on ready descriptors runnable, and returns how many.
+// netpoll is the poll runtime's ioPoll makes (D-058): with delay 0 at a
+// switch, once its pollTicks have passed, and when every goroutine is
+// blocked with the nanoseconds until the next timer, or -1 for none.
+// Unless a goroutine waits on a descriptor it returns -1 at once. Else it
+// waits for events, up to delay, makes the goroutines waiting on ready
+// descriptors runnable, and returns how many.
 func netpoll(delay int64) int {
 	if waiting == 0 {
 		return -1
 	}
-	if delay == 0 {
-		if switches++; switches < pollEvery {
-			return 0
-		}
-	}
-	switches = 0
 	ms := -1
 	switch {
 	case delay == 0:

@@ -292,7 +292,7 @@ func (e *emitter) checkR1() error {
 				return fmt.Errorf("%s: %s holds %s, not %s", in, e.val(in), got, argRegs[in.Index])
 			}
 		case in.Op == ir.Store && i < last:
-			s := fmt.Sprintf("%d(%%rbp)", e.fr.SlotOffset(in.Slot.ID))
+			s := fmt.Sprintf("%d(%%rbp)", e.fr.SlotOffset(e.slotWord[in.Slot.ID]))
 			sim := &r1Sim{map[string]string{}, func(d string) bool { return d == "%rax" || d == s }}
 			if err := sim.run(site(in)); err != nil {
 				return fmt.Errorf("%s: %v", in, err)

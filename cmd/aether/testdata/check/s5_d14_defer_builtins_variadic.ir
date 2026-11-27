@@ -69,6 +69,7 @@ global g3 .curg ptr @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 global g4 .runnext ptr @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 global g5 .runqhead ptr @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 global g6 .runqtail ptr @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
+global g7 .slicestart u64 @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 mem gm0 .t0 32 align 8 @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 mem gm1 .t1 32 align 8 @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
 mem gm2 .t2 32 align 8 @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
@@ -4450,21 +4451,25 @@ b2:
 b3:
   v13 = load s1 @7:1
   gstore g5, v13 @7:1
+  v14 = sys ticks @7:1
+  v15 = conv u64, v14 @7:1
+  gstore g7, v15 @7:1
   jump b5 @7:1
 b4:
-  v14 = load s2 @7:1
-  v15 = load s1 @7:1
-  v16 = const 16 @7:1
-  stm v14, v16, v15 @7:1
+  v16 = load s2 @7:1
+  v17 = load s1 @7:1
+  v18 = const 16 @7:1
+  stm v16, v18, v17 @7:1
   jump b5 @7:1
 b5:
-  v17 = load s1 @7:1
-  gstore g6, v17 @7:1
+  v19 = load s1 @7:1
+  gstore g6, v19 @7:1
   ret @7:1
 
 func .nextg() ptr @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
   slot s0 g ptr @7:1
-  slot s1 next ptr @7:1
+  slot s1 tail ptr @7:1
+  slot s2 next ptr @7:1
 b0:
   v0 = gload g4 @7:1
   store s0, v0 @7:1
@@ -4473,39 +4478,89 @@ b0:
   v3 = ne v1, v2 @7:1
   branch v3, b1, b2 @7:1
 b1:
-  v4 = const ptr 0 @7:1
-  gstore g4, v4 @7:1
-  v5 = load s0 @7:1
-  ret v5 @7:1
+  v4 = gload g5 @7:1
+  v5 = const ptr 0 @7:1
+  v6 = ne v4, v5 @7:1
+  branch v6, b4, b5 @7:1
 b2:
-  v6 = gload g5 @7:1
-  store s0, v6 @7:1
-  v7 = load s0 @7:1
-  v8 = const ptr 0 @7:1
-  v9 = ne v7, v8 @7:1
-  branch v9, b3, b4 @7:1
+  v30 = gload g5 @7:1
+  store s0, v30 @7:1
+  v31 = load s0 @7:1
+  v32 = const ptr 0 @7:1
+  v33 = ne v31, v32 @7:1
+  branch v33, b11, b12 @7:1
 b3:
-  v10 = load s0 @7:1
-  v11 = const 16 @7:1
-  v12 = ldm ptr, v10, v11 @7:1
-  store s1, v12 @7:1
-  v13 = load s1 @7:1
-  gstore g5, v13 @7:1
-  v14 = load s1 @7:1
-  v15 = const ptr 0 @7:1
-  v16 = eq v14, v15 @7:1
-  branch v16, b5, b6 @7:1
+  v28 = const ptr 0 @7:1
+  gstore g4, v28 @7:1
+  v29 = load s0 @7:1
+  ret v29 @7:1
 b4:
-  v19 = str s13 @7:1
-  v20 = const 37 @7:1
-  panic fatal, v19, v20 @7:1
+  v7 = sys ticks @7:1
+  v8 = conv u64, v7 @7:1
+  v9 = gload g7 @7:1
+  v10 = sub v8, v9 @7:1
+  v11 = const u64 16777216 @7:1
+  v12 = ge v10, v11 @7:1
+  branch v12, b6, b7 @7:1
 b5:
-  v17 = const ptr 0 @7:1
-  gstore g6, v17 @7:1
-  jump b6 @7:1
+  jump b3 @7:1
 b6:
-  v18 = load s0 @7:1
-  ret v18 @7:1
+  v13 = const ptr 0 @7:1
+  gstore g4, v13 @7:1
+  v14 = load s0 @7:1
+  v15 = const ptr 0 @7:1
+  v16 = const 16 @7:1
+  stm v14, v16, v15 @7:1
+  v17 = gload g6 @7:1
+  store s1, v17 @7:1
+  v18 = load s1 @7:1
+  v19 = const ptr 0 @7:1
+  v20 = eq v18, v19 @7:1
+  branch v20, b8, b9 @7:1
+b7:
+  jump b3 @7:1
+b8:
+  v21 = load s0 @7:1
+  gstore g5, v21 @7:1
+  v22 = sys ticks @7:1
+  v23 = conv u64, v22 @7:1
+  gstore g7, v23 @7:1
+  jump b10 @7:1
+b9:
+  v24 = load s1 @7:1
+  v25 = load s0 @7:1
+  v26 = const 16 @7:1
+  stm v24, v26, v25 @7:1
+  jump b10 @7:1
+b10:
+  v27 = load s0 @7:1
+  gstore g6, v27 @7:1
+  jump b2 @7:1
+b11:
+  v34 = load s0 @7:1
+  v35 = const 16 @7:1
+  v36 = ldm ptr, v34, v35 @7:1
+  store s2, v36 @7:1
+  v37 = load s2 @7:1
+  gstore g5, v37 @7:1
+  v38 = load s2 @7:1
+  v39 = const ptr 0 @7:1
+  v40 = eq v38, v39 @7:1
+  branch v40, b13, b14 @7:1
+b12:
+  v45 = str s13 @7:1
+  v46 = const 37 @7:1
+  panic fatal, v45, v46 @7:1
+b13:
+  v41 = const ptr 0 @7:1
+  gstore g6, v41 @7:1
+  jump b14 @7:1
+b14:
+  v42 = sys ticks @7:1
+  v43 = conv u64, v42 @7:1
+  gstore g7, v43 @7:1
+  v44 = load s0 @7:1
+  ret v44 @7:1
 
 func .goentry @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
   slot s0 g ptr @7:1

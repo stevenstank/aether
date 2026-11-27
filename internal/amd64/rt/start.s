@@ -376,6 +376,17 @@ aether.rand:
 	ret
 	.size	aether.rand, .-aether.rand
 
+# aether.cputicks (D-058) returns the time-stamp counter, as gc's
+# runtime.cputicks: RDTSC's %edx:%eax.
+	.globl	aether.cputicks
+	.type	aether.cputicks, @function
+aether.cputicks:
+	rdtsc
+	shlq	$32, %rdx
+	orq	%rdx, %rax
+	ret
+	.size	aether.cputicks, .-aether.cputicks
+
 	.globl	aether.envc
 	.type	aether.envc, @function
 aether.envc:

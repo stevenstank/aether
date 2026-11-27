@@ -414,7 +414,9 @@ func TestSelectShapes(t *testing.T) {
 }
 
 // TestSelectNoLarger checks that selection never makes a function longer or
-// its frame larger than registers alone, on the S2 suite and the workloads.
+// its frame larger than registers alone, on the S2 suite and the workloads,
+// with a cell for each value (D-058): shared cells would compare how each
+// happens to be colored.
 func TestSelectNoLarger(t *testing.T) {
 	progs, _ := s2Suite(t)
 	for _, w := range benchWorkloads(t) {
@@ -422,8 +424,8 @@ func TestSelectNoLarger(t *testing.T) {
 	}
 	var before, after codeStats
 	for _, p := range progs {
-		sel, sStack := measureAsm(t, emitPromoted(t, p.name, p.src, amd64.EmitOptions{Registers: true, Select: true}))
-		reg, rStack := measureAsm(t, emitRegisters(t, p.name, p.src))
+		sel, sStack := measureAsm(t, emitPromoted(t, p.name, p.src, amd64.EmitOptions{Registers: true, Select: true, UniqueCells: true}))
+		reg, rStack := measureAsm(t, emitPromoted(t, p.name, p.src, amd64.EmitOptions{Registers: true, UniqueCells: true}))
 		before.mainStack += rStack
 		after.mainStack += sStack
 		for _, fn := range slices.Sorted(maps.Keys(reg)) {

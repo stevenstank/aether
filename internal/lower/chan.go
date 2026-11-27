@@ -107,7 +107,7 @@ func (l *lowerer) timers() *timeHooks {
 	}
 	l.hooksKnown = true
 	for _, u := range l.units {
-		h := frontend.RuntimeHooks[u.Types.Path()]
+		h := frontend.RuntimeHooks["time"][0]
 		if u.Types.Path() != "time" {
 			continue
 		}
@@ -137,15 +137,16 @@ func (l *lowerer) timerOf(c func() *ir.Instr, hook func(h *timeHooks) *ir.Func, 
 	m.join(none)
 }
 
-// specialsPoll returns runtime.specialsPoll, which the scheduler calls at
-// every switch in a program with weak pointers or cleanups (D-057,
-// frontend.RuntimeHooks), or nil.
-func (l *lowerer) specialsPoll() *ir.Func {
+// runtimeHook returns the function of package runtime the scheduler calls
+// if the program reaches it (frontend.RuntimeHooks), or nil: specialsPoll
+// at every switch in a program with weak pointers or cleanups (D-057), and
+// ioPoll in one whose goroutines can wait on descriptors (D-058).
+func (l *lowerer) runtimeHook(name string) *ir.Func {
 	for _, u := range l.units {
 		if u.Types.Path() != "runtime" {
 			continue
 		}
-		if fn, ok := u.Types.Scope().Lookup("specialsPoll").(*types.Func); ok {
+		if fn, ok := u.Types.Scope().Lookup(name).(*types.Func); ok {
 			return l.funcs[fn]
 		}
 	}
@@ -164,6 +165,7 @@ const maxChanBytes = 1<<48 - 96
 // first use.
 type sched struct {
 	curg, runnext, runqHead, runqTail *ir.Global
+	sliceStart                        *ir.Global // SysTicks when the running slice began
 	ngo                               *ir.Global // the goroutines besides main, if counted
 	getg, ready, next, newproc, entry *ir.Func
 	park                              *ir.Func
@@ -187,6 +189,7 @@ func (l *lowerer) sched() *sched {
 	sc.runnext = l.prog.NewGlobal(".runnext", ir.Ptr, file, pos)
 	sc.runqHead = l.prog.NewGlobal(".runqhead", ir.Ptr, file, pos)
 	sc.runqTail = l.prog.NewGlobal(".runqtail", ir.Ptr, file, pos)
+	sc.sliceStart = l.prog.NewGlobal(".slicestart", ir.U64, file, pos)
 	if l.countG {
 		sc.ngo = l.prog.NewGlobal(".ngo", ir.I64, file, pos)
 	}
@@ -211,14 +214,18 @@ func (l *lowerer) sched() *sched {
 	})
 	sc.next = l.genFunc("nextg", nil, []ir.Type{ir.Ptr}, func(_ []func() *ir.Instr, pos ir.Pos) {
 		m := mb{l, pos}
-		h := l.timers()
+		h, io, poll := l.switchHooks()
 		var head *ir.Block
 		if h != nil {
 			// The due timers run at every switch (D-054).
 			l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, false, pos)}, pos)
 		}
-		poll := l.specialsPoll()
-		if h != nil || poll != nil {
+		if io != nil {
+			// The descriptors goroutines wait on are polled at a switch,
+			// by runTimers if there are timers (D-058).
+			l.fn.Call(l.b, io, []*ir.Instr{m.c(0)}, pos)
+		}
+		if h != nil || poll != nil || io != nil {
 			head = l.fn.NewBlock()
 			l.fn.Jump(l.b, head, pos)
 			l.b = head
@@ -230,6 +237,21 @@ func (l *lowerer) sched() *sched {
 		}
 		g := m.v("g", l.fn.GLoad(l.b, sc.runnext, pos))
 		queue := m.when(m.cmp(ir.Ne, g.get(), m.nilPtr()))
+		// runnext inherits the time slice, as gc's does: once the
+		// queue's goroutines have waited sliceTicks, since the slice
+		// started at the queue's head or the queue was empty, the head
+		// runs next, and runnext after the others (D-058).
+		take := l.fn.NewBlock()
+		alone := m.when(m.cmp(ir.Ne, l.fn.GLoad(l.b, sc.runqHead, pos), m.nilPtr()))
+		ran := m.bin(ir.Sub, l.ticks(pos), l.fn.GLoad(l.b, sc.sliceStart, pos))
+		fresh := m.when(m.cmp(ir.Ge, ran, l.fn.TypedConst(l.b, ir.U64, sliceTicks, pos)))
+		l.fn.GStore(l.b, sc.runnext, m.nilPtr(), pos)
+		l.runqPut(g, pos)
+		m.join(queue)
+		l.b = fresh
+		m.join(take)
+		l.b = alone
+		m.join(take)
 		l.fn.GStore(l.b, sc.runnext, m.nilPtr(), pos)
 		l.fn.Ret(l.b, pos, g.get())
 		l.b = queue
@@ -240,12 +262,19 @@ func (l *lowerer) sched() *sched {
 		keep := m.when(m.cmp(ir.Eq, nx.get(), m.nilPtr()))
 		l.fn.GStore(l.b, sc.runqTail, m.nilPtr(), pos)
 		m.join(keep)
+		l.fn.GStore(l.b, sc.sliceStart, l.ticks(pos), pos)
 		l.fn.Ret(l.b, pos, g.get())
 		l.b = dead
 		if h != nil {
 			// Every goroutine is blocked: wait for the next timer, unless
 			// there is none.
 			none := m.when(l.fn.Call(l.b, h.runTimers, []*ir.Instr{l.fn.BoolConst(l.b, true, pos)}, pos))
+			l.fn.Jump(l.b, head, pos)
+			l.b = none
+		}
+		if io != nil {
+			// Or wait for a descriptor, unless none is waited on.
+			none := m.when(m.cmp(ir.Ge, l.fn.Call(l.b, io, []*ir.Instr{m.c(-1)}, pos), m.c(0)))
 			l.fn.Jump(l.b, head, pos)
 			l.b = none
 		}
@@ -313,6 +342,28 @@ func (l *lowerer) sched() *sched {
 	return sc
 }
 
+// switchHooks returns what a switch calls before it chooses the next
+// goroutine, each nil if the program has none: the timers' hooks; else
+// runtime's ioPoll, if goroutines can wait on descriptors (D-058); and
+// runtime's specialsPoll (D-057).
+func (l *lowerer) switchHooks() (*timeHooks, *ir.Func, *ir.Func) {
+	h := l.timers()
+	var io *ir.Func
+	if h == nil {
+		io = l.runtimeHook("ioPoll")
+	}
+	return h, io, l.runtimeHook("specialsPoll")
+}
+
+// sliceTicks is the time slice of the goroutines a switch makes runnext,
+// about 10 ms, as gc's, at a time-stamp counter of 1.6 GHz.
+const sliceTicks = 1 << 24
+
+// ticks is SysTicks, the time-stamp counter, as a U64.
+func (l *lowerer) ticks(pos ir.Pos) *ir.Instr {
+	return l.fn.Conv(l.b, ir.U64, l.fn.Sys(l.b, ir.SysTicks, ir.I64, pos), pos)
+}
+
 // runqPut appends the G g to the tail of the run queue.
 func (l *lowerer) runqPut(g mvar, pos ir.Pos) {
 	m, sc := mb{l, pos}, l.sch
@@ -320,6 +371,8 @@ func (l *lowerer) runqPut(g mvar, pos ir.Pos) {
 	tail := m.v("tail", l.fn.GLoad(l.b, sc.runqTail, pos))
 	after := m.when(m.cmp(ir.Eq, tail.get(), m.nilPtr()))
 	l.fn.GStore(l.b, sc.runqHead, g.get(), pos)
+	// A goroutine now waits in the queue: the running slice starts.
+	l.fn.GStore(l.b, sc.sliceStart, l.ticks(pos), pos)
 	join := l.fn.NewBlock()
 	m.join(join)
 	l.b = after

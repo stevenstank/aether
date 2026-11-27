@@ -129,6 +129,8 @@ var Intrinsics = map[string]bool{
 	"internal/godebug.envc": true, "internal/godebug.env": true, "math/rand.runtime_rand": true,
 	"net.runtime_rand":                true, // D-056
 	"runtime.setSpecials":             true, // D-057
+	"runtime.syscall6":                true, // D-058
+	"runtime.cputicks":                true, // D-058
 	"math/rand/v2.runtime_rand":       true, // D-057
 	"internal/reflectlite.implements": true,
 	"reflect.implements":              true, // as internal/reflectlite's (v2 evaluation)
@@ -148,7 +150,12 @@ var Linknames = map[string]string{
 	"internal/syscall/unix.RecvmsgInet4":  "syscall.recvmsgInet4",
 	"internal/syscall/unix.RecvmsgInet6":  "syscall.recvmsgInet6",
 	"internal/poll.runtimeNano":           "time.nanotime",
-	"internal/poll.setNetpoll":            "time.setNetpoll",
+	"internal/poll.setNetpoll":            "runtime.setNetpoll",
+	// Descriptors waited on by the scheduler (D-058).
+	"time.ioPoll": "runtime.ioPoll",
+	"os.ioReady":  "runtime.ioReady",
+	"os.ioWait":   "runtime.ioWait",
+	"os.ioClose":  "runtime.ioClose",
 	// Weak pointers over Aether's collector (D-057).
 	"weak.runtime_registerWeakPointer": "runtime.registerWeakPointer",
 	"weak.runtime_makeStrongFromWeak":  "runtime.makeStrongFromWeak",

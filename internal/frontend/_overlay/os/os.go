@@ -36,6 +36,7 @@ type File struct {
 	name       string
 	closed     bool
 	appendMode bool // opened with O_APPEND
+	kind       int8 // fileUnknown, fileBlocking, or filePollable
 	dir        any  // a directory's *dirState (stat.go), untyped so that a File's type does not keep directory code
 }
 
@@ -85,6 +86,16 @@ func (f *File) Read(b []byte) (n int, err error) {
 	if len(b) > maxRW {
 		b = b[:maxRW]
 	}
+	// A pipe, a terminal, or a socket may have nothing to read: the other
+	// goroutines run until it has (D-058).
+	if f.pollable() {
+		for !ioReady(f.fd, false) {
+			ioWait(f.fd, false)
+			if f.closed {
+				return 0, f.wrapErr("read", ErrClosed)
+			}
+		}
+	}
 	for {
 		m := read(f.fd, b)
 		if m == -eintr {
@@ -102,6 +113,38 @@ func (f *File) Read(b []byte) (n int, err error) {
 
 // maxRW is the most bytes gc reads at once (internal/poll).
 const maxRW = 1 << 30
+
+// The kinds of a File's descriptor, which pollable finds.
+const (
+	fileUnknown  = 0
+	fileBlocking = 1 // a regular file, a directory, or a block device, always ready
+	filePollable = 2 // a pipe, a character device, or a socket
+)
+
+// pollable reports whether a read of the file can wait for data, which
+// poll(2) can tell: its descriptor is a pipe, a character device such as
+// a terminal, or a socket.
+func (f *File) pollable() bool {
+	if f.kind == fileUnknown {
+		f.kind = fileBlocking
+		var w statWords
+		if _, err := call(sysFstat, uintptr(f.fd), uintptr(unsafe.Pointer(&w)), 0, 0); err == nil {
+			switch w.stat().mode & 0xf000 {
+			case 0x1000, 0x2000, 0xc000: // S_IFIFO, S_IFCHR, S_IFSOCK
+				f.kind = filePollable
+			}
+		}
+	}
+	return f.kind == filePollable
+}
+
+// ioReady, ioWait, and ioClose are runtime's (frontend.Linknames, D-058):
+// whether fd is ready to read without waiting; a wait, running the other
+// goroutines, until it may be or it is closed; and the end of the waits
+// on fd, which is being closed.
+func ioReady(fd int, write bool) bool
+func ioWait(fd int, write bool)
+func ioClose(fd int)
 
 // read makes one read system call and returns its result: the bytes
 // read, or the negated errno.
@@ -155,6 +198,9 @@ func (f *File) Close() error {
 		return f.wrapErr("close", ErrClosed)
 	}
 	f.closed = true
+	if f.kind == filePollable {
+		ioClose(f.fd)
+	}
 	// As gc's: no retry after EINTR, which leaves the descriptor closed.
 	if r := syscall6(sysClose, uintptr(f.fd), 0, 0, 0, 0, 0); r < 0 {
 		return f.wrapErr("close", syscall.Errno(-r))

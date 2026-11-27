@@ -31,6 +31,9 @@ const (
 	// time's (D-054).
 	sysClockGettime   = 228
 	sysClockNanosleep = 230
+	// runtime's, for os (D-058).
+	sysPoll = 7
+	einval  = 22 // EINVAL
 )
 
 // atFDCWD is AT_FDCWD, the working directory as a directory descriptor.
@@ -89,7 +92,42 @@ func (p *process) syscall(mem *memory, a [7]int64) (int64, error) {
 			return 0, nil
 		}
 		return host(sysClose, uintptr(v.host), 0, 0, 0), nil
+	case sysPoll:
+		// The run's standard input is the bytes given, and the program's
+		// other descriptors are files: every one is ready.
+		if a[2] < 0 || a[2] > 1<<16 {
+			return -einval, nil
+		}
+		b, err := mem.writable(a[1], 8*a[2])
+		if err != nil {
+			return 0, err
+		}
+		ready := int64(0)
+		for i := range a[2] {
+			e := b[8*i:]
+			ev := uint16(e[4]) | uint16(e[5])<<8
+			fd := int64(int32(uint32(e[0]) | uint32(e[1])<<8 | uint32(e[2])<<16 | uint32(e[3])<<24))
+			if _, ok := p.fds[fd]; !ok {
+				ev = 0x20 // POLLNVAL
+			}
+			if ev &= 0x20 | 0x1 | 0x4; ev != 0 { // POLLIN, POLLOUT
+				ready++
+			}
+			e[6], e[7] = byte(ev), byte(ev>>8)
+		}
+		return ready, nil
 	case sysFstat:
+		if v, ok := p.fds[a[1]]; ok && v.std >= 0 {
+			// A standard file is a pipe: its struct stat is zero but for
+			// st_mode, S_IFIFO and 0600.
+			b, err := mem.writable(a[2], statSize)
+			if err != nil {
+				return 0, err
+			}
+			clear(b)
+			b[24], b[25] = 0x80, 0x11
+			return 0, nil
+		}
 		fd, err := p.hostFD(a[1])
 		if err != nil || fd < 0 {
 			return int64(fd), err

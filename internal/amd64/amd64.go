@@ -95,7 +95,7 @@ const symPanicIndex = "aether.panicindex"
 var symSys = [...]string{ir.SysExit: "aether.exit", ir.SysWrite: "aether.syswrite", ir.SysArgc: "aether.argc",
 	ir.SysArgPtr: "aether.argptr", ir.SysArgLen: "aether.arglen", ir.SysGC: "aether.gc", ir.SysRead: "aether.sysread",
 	ir.SysCall: "aether.syscall6", ir.SysEnvc: "aether.envc", ir.SysEnvPtr: "aether.envptr", ir.SysEnvLen: "aether.envlen",
-	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand", ir.SysSpecials: "aether.setspecials"}
+	ir.SysCPUFMA: "aether.cpufma", ir.SysRand: "aether.rand", ir.SysSpecials: "aether.setspecials", ir.SysTicks: "aether.cputicks"}
 
 // sysOutgoing is the outgoing area a Sys needs: SysCall's args.
 func sysOutgoing(in *ir.Instr) int {
@@ -229,6 +229,11 @@ type EmitOptions struct {
 	// where one is free (preferences in regalloc.go), as aether build
 	// does; it needs Registers. The allocation is checked as without it.
 	Coalesce bool
+	// UniqueCells gives every value without a register its own cell and
+	// every slot its own word, as before D-058 (cells.go): a baseline for
+	// tests that compare other options' code and frames, which sharing
+	// would make depend on how the cells happen to be colored.
+	UniqueCells bool
 }
 
 // EmitWith is Emit with options.
@@ -394,41 +399,25 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 			return Frame{}, err
 		}
 	}
-	// Each value without a register has a cell, numbered by the rank of
-	// its value number among those values. Lowering numbers values
-	// densely, so without registers the cell is the value number; slot
-	// promotion removes loads and leaves gaps, which take no cells.
-	var vals []*ir.Instr
+	// Each value without a register or an immediate has a cell, and a
+	// Tuple call one per result, shared with values never live at the
+	// same time, as are the words of slots (cells.go, D-058).
 	out := 0
 	for _, blk := range f.Blocks {
 		for _, in := range blk.Instrs {
-			if _, ok := regs[in]; in.ID >= 0 && !ok && !none[in] {
-				vals = append(vals, in)
-			}
 			if in.IsCall() {
 				out = max(out, outgoingWords(in, opts.ABIR1))
 			}
 			out = max(out, sysOutgoing(in))
 		}
 	}
-	slices.SortFunc(vals, func(x, y *ir.Instr) int { return x.ID - y.ID })
-	cells := map[*ir.Instr]int{}
-	for i, in := range vals {
-		cells[in] = i
+	plan := shareCells(f, regs, none, opts.ABIR1, opts.UniqueCells)
+	slotWord, words := shareSlots(f, opts.UniqueCells)
+	if err := checkCells(f, plan, slotWord, words); err != nil {
+		return Frame{}, err
 	}
-	values := len(vals)
-	// A Tuple call has its own cells, one per result, after the values'
-	// cells (D-023 tuple storage); tuples maps it to the first one.
-	tuples := map[*ir.Instr]int{}
-	for _, blk := range f.Blocks {
-		for _, in := range blk.Instrs {
-			if in.Type == ir.Tuple {
-				tuples[in] = values
-				values += len(in.CallResults())
-			}
-		}
-	}
-	fr, err := newFrame(len(f.Slots), values, out, f.Mems)
+	cells, tuples, values := plan.cells, plan.tuples, plan.n
+	fr, err := newFrame(words, values, out, f.Mems)
 	if err != nil {
 		return Frame{}, fmt.Errorf("amd64: func %s: %v", f.Name, err)
 	}
@@ -446,7 +435,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	// Blocks are emitted in order, each under a local label; the entry
 	// block follows the prologue.
 	label := func(blk *ir.Block) string { return fmt.Sprintf(".L%d.b%d", fi, blk.ID) }
-	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples, sel: sel}
+	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples, slotWord: slotWord, sel: sel}
 	var blocks []*ir.Block
 	if sel != nil {
 		sel.fwd = e.forwarders()
@@ -522,11 +511,13 @@ type emitter struct {
 	cells  map[*ir.Instr]int // the cell of each value without a register
 	regs   map[*ir.Instr]int // the register of each value with one, in allocRegs
 	tuples map[*ir.Instr]int // each Tuple call's first result cell
-	sel    *selection        // instruction selection, or nil (select.go)
-	r1     *abiR1            // ABI-R1's state, or nil for ABI-S0 (abir1.go)
-	next   *ir.Block         // the block emitted after the current one, or nil
-	arith  []arithSite       // the register-form sequences (arith.go)
-	err    error             // the first error of the current function
+	// slotWord is the frame word of each slot (cells.go).
+	slotWord []int
+	sel      *selection  // instruction selection, or nil (select.go)
+	r1       *abiR1      // ABI-R1's state, or nil for ABI-S0 (abir1.go)
+	next     *ir.Block   // the block emitted after the current one, or nil
+	arith    []arithSite // the register-form sequences (arith.go)
+	err      error       // the first error of the current function
 }
 
 // val is the location of v: its register or its cell, or the operand of an
@@ -571,10 +562,10 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 			op("movq\t%%rax, %s", res())
 		}
 	case ir.Load:
-		op("movq\t%d(%%rbp), %%rax", fr.SlotOffset(in.Slot.ID))
+		op("movq\t%d(%%rbp), %%rax", fr.SlotOffset(e.slotWord[in.Slot.ID]))
 		op("movq\t%%rax, %s", res())
 	case ir.Store:
-		e.put(in.Args[0], fmt.Sprintf("%d(%%rbp)", fr.SlotOffset(in.Slot.ID)))
+		e.put(in.Args[0], fmt.Sprintf("%d(%%rbp)", fr.SlotOffset(e.slotWord[in.Slot.ID])))
 	case ir.GLoad:
 		op("movq\t%s(%%rip), %%rax", globalSym(in.Global))
 		op("movq\t%%rax, %s", res())

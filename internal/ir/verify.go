@@ -708,7 +708,7 @@ func (v *verifier) signature(bi, i int, in *Instr) {
 			args = []Type{I64}
 		case SysWrite, SysRead:
 			want, args = I64, []Type{I64, Ptr, I64}
-		case SysArgc, SysEnvc, SysCPUFMA:
+		case SysArgc, SysEnvc, SysCPUFMA, SysTicks:
 			want = I64
 		case SysArgPtr, SysEnvPtr:
 			want, args = Ptr, []Type{I64}

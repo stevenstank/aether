@@ -5000,6 +5000,131 @@ minutes: `AGENTS.md` gives `-timeout 45m`.
 
 ---
 
+## D-058: Runtime hardening: shared frame cells, scheduler fairness, descriptors waited on
+
+**Status:** Accepted (2026-11-27; owner review pending). Written with its
+code, after D-057.
+
+**Context.** Investigation of the runtime under load found five causes:
+- **Stack depth (V-2).** The backend gave every value without a
+  register its own 8-byte cell, and every slot its own word, so a frame
+  grew with a function's size rather than with what it keeps at once.
+  `09-scheme`'s `Interp.Eval` had a 2,944-byte frame (30,368 with
+  `-O0`): its recursion overflowed the 256 MiB stack at depth 89,821
+  (8,808 with `-O0`), below the program's own limit of 100,000, where
+  gc's stack holds it. These were practical evaluation v2's three
+  failures.
+- **Network latency.** The poller was polled at one switch in 61: a ready
+  connection waited 61 switches, about 120 ms when the other goroutines
+  run 1 ms between switches (241 ms per echo round trip with workers
+  computing 2 ms; gc 23 µs).
+- **Run-queue starvation.** `runnext` never yielded to the queue: two
+  goroutines passing a value back and forth, each making the other
+  `runnext`, kept a queued goroutine from ever running. gc runs it after
+  its 10 ms time slice.
+- **Blocking reads.** A read of a pipe or terminal (`os.Stdin`) blocked
+  every goroutine, timers included.
+- **Yields that switch to nothing.** `runtime.Gosched` and `runtime.GC`
+  with no other goroutine runnable did not enter the scheduler, so a due
+  timer never fired in a `Gosched` loop, and the goroutine running queued
+  cleanups never started in a program that does not block: no cleanup
+  ran, and their records and closures grew without bound (51 MB after
+  200,000 objects, gc 5 MB).
+
+**Decision.**
+- **Shared cells and slots** (`internal/amd64/cells.go`). Cells are
+  colored as registers are, with as many colors as needed: in a function
+  not in SSA form a value lives in its block, so a scan of each block
+  frees a cell after its value's last use; in an SSA function within
+  `maxAllocValues`, values are colored in dominator-tree preorder from
+  their liveness; a larger SSA function keeps a cell per value. A
+  value's operands keep their cells until after its definition, those
+  of a fused comparison until the block's end, and a block's φs take
+  distinct cells. Slots of a function not in SSA form (at most 4,096)
+  are colored by interference from their liveness: lowering stores every
+  slot before loading it (D-023 invariant 4). Under ABI-R1, in a function not in SSA
+  form, params with uses keep cells of their own: the entry copies the
+  register ones at once. `checkCells` verifies each function independently (a forward
+  dataflow of which value last wrote each cell and which slot each
+  word); a failure is an internal error. `EmitOptions.UniqueCells`
+  keeps the old layout, for tests that compare other options.
+  The stack sizes stay as they were (D-009, D-048).
+- **`ir.SysTicks`**: the time-stamp counter (`aether.cputicks`,
+  `rdtsc`), gc's `runtime.cputicks`; the interpreter gives monotonic
+  nanoseconds.
+- **Time slices.** `runnext` inherits the running time slice, as gc's.
+  A slice starts when a goroutine is taken from the queue, or the queue
+  goes from empty to not empty; once it has run `sliceTicks` (2^24, about
+  10 ms at 1.6 GHz), a switch takes the queue's head and puts `runnext`
+  after the others. With the queue empty `runnext` always runs, so gc's
+  `GOMAXPROCS=1` order (D-049) is kept for programs that switch within a
+  slice.
+- **Descriptors waited on** (`runtime/iowait.go`). Runtime's `ioPoll`
+  is the scheduler's one poll of descriptors: at a switch once 61
+  switches (as before) or `pollTicks` (2^17 ticks, about 50 µs) have
+  passed since the last poll, whichever is first, and,
+  with every goroutine blocked, until one is ready or the next timer is
+  due (time's `runTimers` calls it; without timers, the scheduler does).
+  The network poller registers with it (`runtime.setNetpoll`, moved from
+  `time`) and no longer counts switches. Aether's `os`: a `File.Read` of
+  a pipe, character device, or socket (`fstat`, once per `File`) first
+  asks `poll(2)`; if nothing is ready, the goroutine waits in `ioWait`,
+  and one `poll(2)` covers those descriptors and the poller's epoll
+  descriptor. `Close` wakes the goroutines waiting on the file, whose
+  read returns `ErrClosed`. Writes, and regular files, still block.
+  `frontend.RuntimeHooks` holds several hooks per package: runtime's
+  `ioPoll` when `ioWait` or `setNetpoll` is reachable.
+- **Yields.** `Gosched` and `GC` with nothing else runnable first run
+  what a switch runs before it chooses: the due timers, the poll, and
+  `specialsPoll`; if that made a goroutine runnable, they switch.
+- The interpreter emulates `poll(2)` (every descriptor ready) and
+  `fstat` of a standard file (a pipe).
+
+**Alternatives considered.** A larger main stack: it hides the frame
+sizes, multiplies the memory a deep recursion uses, and does nothing for
+goroutines' 64 MiB slots. Stack-slot coloring only with `-O0`, or only
+for SSA functions: both modes overflowed. The vDSO's `clock_gettime`
+(42 ns on this host, against 233 ns for the system call) for slices and
+polls: it needs the auxiliary vector and ELF parsing in the runtime;
+`rdtsc` costs a few nanoseconds. Polling by time alone (first tried at
+2^20 ticks, about 0.5 ms): a regression where goroutines switch every
+100 ns or so, which 61 switches had polled within microseconds;
+`10-httpapi`'s `selftest-big` then failed in 4 of 24 runs under load
+(its client kept a connection it dialed but never used, which
+`Shutdown` waits 5 s for), 0 of 40 with both bounds. Preemption at loop back edges (D-049's
+deferred alternative): still deferred; time slices take effect only at
+switches. Registering `os.Stdin` with the epoll poller: every program
+reading a file would carry `internal/poll`, and gc itself does not poll
+a standard file it did not open non-blocking. Setting `O_NONBLOCK` on
+standard files: it changes them for the processes sharing them.
+
+**Consequences.** Measured on the D-057 host (2026-11-27):
+- `Interp.Eval`'s frame is 224 bytes (336 with `-O0`). Summed over the S2
+  suite and the workloads, frames shrink 37.5% (90.7% with `-O0`); no
+  function's frame or code grows (`TestSharedCellsNoLarger`). The Scheme
+  recursion runs to depth 1,117,907 before the stack overflows.
+  `TestDeepRecursion` recurses 1,000,000 levels on the main stack and
+  200,000 on a goroutine, with and without `-O0`, as gc does; before,
+  both modes overflowed. V-2 remains: Aether's limits are 256 MiB and
+  64 MiB, gc's 1e9 bytes, and the message differs.
+- An echo round trip with three goroutines computing 1 ms between
+  `Gosched` calls: a median of about 2 ms (before: about 120 ms);
+  bounded by how long others run between switches, since there is no
+  preemption. A queued goroutine runs within about 10 ms of a back-and-
+  forth (before: never). A switch costs about 10 ns more under load.
+- A goroutine waiting for a pipe or terminal lets the others run, timers
+  included (`TestStdinWaits`). A read of such a file makes one more
+  system call, `poll(2)`.
+- Cleanups run after `runtime.GC` in a program that never blocks, and
+  memory stays bounded (`testdata/native/cleanups.go`); a `Gosched`
+  loop sees a due timer fire.
+- `net/http` under a sustained load of 2,400 keep-alive requests, with
+  cancellation, timeouts, graceful shutdown, and descriptors and
+  goroutines released, matches gc (`testdata/net/httplife.go`); no bug
+  was found there.
+
+---
+
 ## Phase 0 research notes
 
 Experiments E1–E12 ran in a scratch directory outside the repository on

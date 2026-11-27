@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stevenstank/aether/internal/diag"
 )
@@ -317,6 +320,124 @@ func main() {
 		}
 		if got := runExeIn(t, out, nil, strings.NewReader(input)); got != want {
 			t.Errorf("-O0 %v: aether %+v, gc %+v", o0, got, want)
+		}
+	}
+}
+
+// slowReader gives its lines one at a time, pausing before each: a pipe
+// whose writer is slow.
+type slowReader struct {
+	lines []string
+	pause time.Duration
+}
+
+func (r *slowReader) Read(b []byte) (int, error) {
+	if len(r.lines) == 0 {
+		return 0, io.EOF
+	}
+	time.Sleep(r.pause)
+	n := copy(b, r.lines[0])
+	r.lines[0] = r.lines[0][n:]
+	if r.lines[0] == "" {
+		r.lines = r.lines[1:]
+	}
+	return n, nil
+}
+
+// TestStdinWaits checks that a goroutine reading a pipe that has nothing
+// to read lets the others run (D-058), as gc's: a ticker keeps ticking
+// while main waits for the slow writer's lines. A goroutine waiting on
+// the standard input returns once another closes it; gc's stays blocked
+// in read(2) until data come, so that is checked without gc.
+func TestStdinWaits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds with gc")
+	}
+	requireTools(t)
+	gobin, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go command not found")
+	}
+	src := []byte(`package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"sync/atomic"
+	"time"
+)
+
+func main() {
+	if len(os.Args) > 1 {
+		done := make(chan error)
+		go func() {
+			_, err := os.Stdin.Read(make([]byte, 1))
+			done <- err
+		}()
+		time.Sleep(20 * time.Millisecond)
+		os.Stdin.Close()
+		fmt.Println("closed while reading:", <-done)
+		return
+	}
+	var ticks atomic.Int32
+	stop := make(chan struct{})
+	go func() {
+		t := time.NewTicker(5 * time.Millisecond)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				ticks.Add(1)
+			case <-stop:
+				return
+			}
+		}
+	}()
+	sc := bufio.NewScanner(os.Stdin)
+	var lines []string
+	for sc.Scan() {
+		lines = append(lines, sc.Text())
+	}
+	close(stop)
+	fmt.Println(lines, sc.Err(), "ticked while reading:", ticks.Load() >= 15)
+}
+`)
+	input := func() io.Reader { return &slowReader{[]string{"one\n", "two\n", "three\n"}, 100 * time.Millisecond} }
+	bin := gcBuild(t, gobin, map[string][]byte{"wait": src})
+	want := runExeIn(t, filepath.Join(bin, "wait"), nil, input())
+	if want != (result{stdout: "[one two three] <nil> ticked while reading: true\n"}) {
+		t.Fatalf("gc: %+v", want)
+	}
+	f := filepath.Join(t.TempDir(), "wait.go")
+	writeFile(t, f, src)
+	for _, o0 := range []bool{false, true} {
+		out := filepath.Join(t.TempDir(), "wait")
+		args := []string{"build", "-o", out}
+		if o0 {
+			args = append(args, "-O0")
+		}
+		if stderr, code := runAether(append(args, f)...); code != 0 {
+			t.Fatalf("aether %v: exit %d\n%s", args, code, stderr)
+		}
+		if got := runExeIn(t, out, nil, input()); got != want {
+			t.Errorf("-O0 %v: aether %+v, gc %+v", o0, got, want)
+		}
+		// The standard input is a pipe whose writer stays open and silent.
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		cmd := exec.CommandContext(ctx, out, "close")
+		cmd.Stdin = r
+		start := time.Now()
+		b, err := cmd.Output()
+		cancel()
+		r.Close()
+		w.Close()
+		if want := "closed while reading: read /dev/stdin: file already closed\n"; err != nil || string(b) != want || time.Since(start) > 10*time.Second {
+			t.Errorf("-O0 %v: close: %v, %q after %v, want %q", o0, err, b, time.Since(start), want)
 		}
 	}
 }

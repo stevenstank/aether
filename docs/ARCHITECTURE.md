@@ -433,9 +433,17 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
 ```
  8(%rbp)                  return address
  0(%rbp)                  saved %rbp
--8(%rbp) .. -8*S(%rbp)    slots s0 .. s(S-1)
--8*(S+1)(%rbp) ..         values v0 .. v(V-1)
+-8(%rbp) .. -8*S(%rbp)    slot words 0 .. S-1
+-8*(S+1)(%rbp) ..         value cells 0 .. V-1
 ```
+
+- **Shared cells (D-058, `cells.go`).** Values never live at the same
+  time share a cell, and slots never live at the same time a word: a
+  block's scan in a function not in SSA form, a coloring from liveness
+  in dominator-tree preorder in an SSA one (within `maxAllocValues`),
+  and an interference coloring of slots. `checkCells` verifies each
+  function. `EmitOptions.UniqueCells` gives one cell per value and one
+  word per slot, as before, for tests that compare options.
 
 - **Size** is `8*(S+V)` rounded up to a multiple of 16, computed with
   checked arithmetic (`amd64.NewFrame`). A frame over 1 GiB is an internal
@@ -473,18 +481,15 @@ in AT&T syntax. The backend consumes only IR: `internal/amd64` imports no
   `%rax` and `%rcx` for operands in cells (and `%rdx` for a stored value),
   and move 1, 2, 4, or 8 bytes, sign- or zero-extending a load to the
   value's canonical form.
-- **SSA functions (D-006 part 4, D-025).** Value cells are numbered by
-  the rank of the value number, so the gaps that slot promotion leaves
-  take no space; for ordinary functions the cell is the value number. A
-  `phi` emits no code. Each edge into its block copies the operands for
+- **SSA functions (D-006 part 4, D-025).** A `phi` emits no code. Each edge into its block copies the operands for
   that edge into the φs' cells, as one parallel copy (a cycle is broken
   through `%rcx`). A `jump` makes the copies before jumping. A `branch`
   makes them after its conditional jump, on the path of the edge they
   belong to, or under a label `.L<f>.b<n>.1` for the false edge when both
   targets have φs. Critical and parallel edges are split in the emitted
   code only, and the CFG is unchanged.
-- **Tuples (increment 4.3).** A call with several results has one extra
-  value cell per result, after the ordinary values' cells; they are filled
+- **Tuples (increment 4.3).** A call with several results has
+  consecutive cells, one per result; they are filled
   from the outgoing area right after the call, and `extract` copies one.
 - **Blocks (increment 4.1).** Blocks are emitted in order, each under the
   local label `.L<function index>.b<block ID>`. A comparison is `cmpq` and
@@ -697,7 +702,8 @@ so none can be read as an option.
     `argv`, and `aether.gc` in `rt/heap.s` (table below); `aether.envc`,
     `aether.envptr`, `aether.envlen`, and `aether.syscall6`, which takes
     its seven words in the outgoing area (D-051); `aether.cpufma` (CPUID
-    and XGETBV) and `aether.rand` (wyrand seeded by `getrandom`) (D-053).
+    and XGETBV) and `aether.rand` (wyrand seeded by `getrandom`) (D-053);
+    `aether.cputicks` (`rdtsc`, D-058).
   - Timers (D-054) are Go, in Aether's `time/runtime.go`: lowering's
     scheduler (`.nextg`) calls `time.runTimers` at every switch and,
     with every goroutine blocked, to sleep until the next timer; a
@@ -706,9 +712,17 @@ so none can be read as an option.
     Lowering generates these calls only if the program can make a timer
     (`frontend.RuntimeHooks`).
   - The network poller (D-056) is Go, in Aether's
-    `internal/poll/aether.go`: edge-triggered epoll, which
-    `time.runTimers` polls at one switch in 61 and waits on with every
-    goroutine blocked; a program with it has the timer hooks too.
+    `internal/poll/aether.go`: edge-triggered epoll, registered with
+    runtime's `ioPoll` (`runtime/iowait.go`, D-058), the scheduler's one
+    poll of descriptors: at a switch once 61 switches or about 50 µs
+    (`ir.SysTicks`) have passed, and, with every goroutine blocked, until a descriptor is ready or the
+    next timer is due. `time.runTimers` calls it, or the scheduler
+    without timers. Aether's `os` waits there (`ioWait`) for a pipe,
+    terminal, or socket with nothing to read.
+  - The scheduler's time slice (D-058): `.nextg` takes the run queue's
+    head before `runnext` once the queue has waited `sliceTicks` since
+    the slice began (`.slicestart`). `runtime.Gosched` and `GC` with
+    nothing else runnable run the switch's hooks first.
   - Weak pointers and cleanups (D-057): package runtime's table of
     records (`runtime/special.go`), which `aether.setspecials`
     (`ir.SysSpecials`) gives the collector; after marking, `.Lspecials`

@@ -85,12 +85,14 @@ func TestNativeRASuite(t *testing.T) {
 		if err := promoteProgram(prog, &promoteStats{}); err != nil {
 			t.Fatal(err)
 		}
-		plain, err := amd64.Emit(prog)
+		// Both with a cell for each value, as before D-058: shared
+		// cells would compare how each happens to be colored.
+		plain, err := amd64.EmitWith(prog, amd64.EmitOptions{UniqueCells: true})
 		if err != nil {
 			t.Fatal(err)
 		}
 		s, sStack := measureAsm(t, plain)
-		r, rStack := measureAsm(t, asm)
+		r, rStack := measureAsm(t, emitPromoted(t, p.name, p.src, amd64.EmitOptions{Registers: true, UniqueCells: true}))
 		ssa.mainStack += sStack
 		ra.mainStack += rStack
 		for _, name := range slices.Sorted(maps.Keys(s)) {

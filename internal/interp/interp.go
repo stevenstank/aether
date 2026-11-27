@@ -15,6 +15,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/stevenstank/aether/internal/ir"
 )
@@ -565,6 +566,10 @@ func run(entry *ir.Func, globals []int64, mem *memory, gs *goroutines, sys *proc
 				fr.values[in.ID] = hostCPUFMA()
 			case ir.SysRand:
 				fr.values[in.ID] = int64(rand.Uint64())
+			case ir.SysTicks:
+				// Nanoseconds of the monotonic clock stand for the
+				// counter's ticks.
+				fr.values[in.ID] = int64(time.Since(ticksBase))
 			case ir.SysEnvPtr, ir.SysEnvLen:
 				i := arg(0)
 				if i < 0 || i >= int64(len(sys.env)) {

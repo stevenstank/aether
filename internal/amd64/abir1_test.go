@@ -227,13 +227,14 @@ func TestR1StackBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// x, y, three constants, the comparison, and the call's result, with no
+	// x and y, which the entry copy writes together, a constant, and the
+	// comparison; the other blocks' values share their cells (D-058). No
 	// outgoing word; ABI-S0 needs two.
-	r1, err := NewFrame(0, 7, 0)
+	r1, err := NewFrame(0, 4, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s0, err := NewFrame(0, 7, 2)
+	s0, err := NewFrame(0, 4, 2)
 	if err != nil {
 		t.Fatal(err)
 	}

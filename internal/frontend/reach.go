@@ -61,16 +61,17 @@ func prune(prog *Program) {
 	// The functions lowering's scheduler calls are reachable if the
 	// program can make what they serve (D-054).
 	for _, p := range prog.Packages {
-		hooks := RuntimeHooks[p.Types.Path()]
-		if !slices.ContainsFunc(hooks.Triggers, func(name string) bool {
-			trigger := p.Types.Scope().Lookup(name)
-			return trigger != nil && r.seen[trigger]
-		}) {
-			continue
-		}
-		for _, name := range hooks.Funcs {
-			if obj := p.Types.Scope().Lookup(name); obj != nil {
-				r.mark(obj)
+		for _, hooks := range RuntimeHooks[p.Types.Path()] {
+			if !slices.ContainsFunc(hooks.Triggers, func(name string) bool {
+				trigger := p.Types.Scope().Lookup(name)
+				return trigger != nil && r.seen[trigger]
+			}) {
+				continue
+			}
+			for _, name := range hooks.Funcs {
+				if obj := p.Types.Scope().Lookup(name); obj != nil {
+					r.mark(obj)
+				}
 			}
 		}
 	}
@@ -86,14 +87,18 @@ type Hooks struct {
 	Funcs    []string
 }
 
-// RuntimeHooks are the functions of time that lowering's scheduler and
-// channels call, by package path, if the program can make a timer or has
-// the network poller: the part of gc's runtime that is Aether's
-// time/runtime.go (D-054, D-056).
-var RuntimeHooks = map[string]Hooks{
-	// Weak pointers and cleanups (D-057).
-	"runtime": {Triggers: []string{"addSpecial"}, Funcs: []string{"specialsPoll"}},
-	"time":    {Triggers: []string{"newRuntimeTimer", "setNetpoll"}, Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}},
+// RuntimeHooks are the functions that lowering's scheduler and channels
+// call, by package path: those of time if the program can make a timer,
+// the part of gc's runtime that is Aether's time/runtime.go (D-054); of
+// runtime, if it can make a weak pointer or a cleanup (D-057), and if a
+// goroutine can wait on a descriptor, of package os or the network poller
+// (D-056, D-058). time's runTimers calls runtime's ioPoll.
+var RuntimeHooks = map[string][]Hooks{
+	"runtime": {
+		{Triggers: []string{"addSpecial"}, Funcs: []string{"specialsPoll"}},
+		{Triggers: []string{"ioWait", "setNetpoll"}, Funcs: []string{"ioPoll"}},
+	},
+	"time": {{Triggers: []string{"newRuntimeTimer"}, Funcs: []string{"runTimers", "maybeRunChan", "blockTimerChan", "unblockTimerChan"}}},
 }
 
 type reacher struct {

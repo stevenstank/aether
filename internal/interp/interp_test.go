@@ -535,3 +535,22 @@ func TestSysEnvAndCall(t *testing.T) {
 		t.Errorf("getpid: err = %v", err)
 	}
 }
+
+// TestTicks checks SysTicks in the interpreter (D-058): nanoseconds of
+// the monotonic clock, which grow.
+func TestTicks(t *testing.T) {
+	p := &ir.Program{}
+	f := p.NewFunc("main", "p.go", p1)
+	b := f.Entry()
+	t0 := f.Sys(b, ir.SysTicks, ir.I64, p1)
+	for range 1000 {
+		f.Sys(b, ir.SysRand, ir.U64, p1)
+	}
+	t1 := f.Sys(b, ir.SysTicks, ir.I64, p1)
+	f.Println(b, []*ir.Instr{f.Compare(b, ir.Gt, t1, t0, p1), f.Compare(b, ir.Ge, t0, f.Const(b, 0, p1), p1)}, p1)
+	f.Ret(b, p1)
+	var stderr bytes.Buffer
+	if code, err := RunOptions(p, &stderr, Options{}); err != nil || code != 0 || stderr.String() != "true true\n" {
+		t.Errorf("exit %d, %v, %q", code, err, stderr.String())
+	}
+}
