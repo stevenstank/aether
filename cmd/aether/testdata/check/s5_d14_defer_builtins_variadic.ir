@@ -9113,44 +9113,47 @@ b0:
   ret v21 @76:2
 
 func .preempt @testdata/check/s5_d14_defer_builtins_variadic.go:7:1
-  slot s0 g ptr @7:1
-  slot s1 tail ptr @7:1
+  slot s0 rframe bool @7:1
+  slot s1 g ptr @7:1
+  slot s2 tail ptr @7:1
 b0:
-  v0 = sys ticks @7:1
-  v1 = conv u64, v0 @7:1
-  v2 = gload g7 @7:1
-  v3 = sub v1, v2 @7:1
-  v4 = const u64 16777216 @7:1
-  v5 = ge v3, v4 @7:1
-  branch v5, b1, b2 @7:1
+  v0 = gload g2 @7:1
+  store s0, v0 @7:1
+  v1 = sys ticks @7:1
+  v2 = conv u64, v1 @7:1
+  v3 = gload g7 @7:1
+  v4 = sub v2, v3 @7:1
+  v5 = const u64 16777216 @7:1
+  v6 = ge v4, v5 @7:1
+  branch v6, b1, b2 @7:1
 b1:
-  v6 = gload g4 @7:1
-  v7 = const ptr 0 @7:1
-  v8 = eq v6, v7 @7:1
-  branch v8, b4, b5 @7:1
+  v7 = gload g4 @7:1
+  v8 = const ptr 0 @7:1
+  v9 = eq v7, v8 @7:1
+  branch v9, b4, b5 @7:1
 b2:
   ret @7:1
 b3:
-  v12 = sys ticks @7:1
-  v13 = conv u64, v12 @7:1
-  gstore g7, v13 @7:1
-  v14 = call .getg @7:1
-  store s0, v14 @7:1
-  v15 = load s0 @7:1
-  v16 = const ptr 0 @7:1
-  v17 = const 16 @7:1
-  stm v15, v17, v16 @7:1
-  v18 = gload g6 @7:1
-  store s1, v18 @7:1
-  v19 = load s1 @7:1
-  v20 = const ptr 0 @7:1
-  v21 = eq v19, v20 @7:1
-  branch v21, b9, b10 @7:1
+  v13 = sys ticks @7:1
+  v14 = conv u64, v13 @7:1
+  gstore g7, v14 @7:1
+  v15 = call .getg @7:1
+  store s1, v15 @7:1
+  v16 = load s1 @7:1
+  v17 = const ptr 0 @7:1
+  v18 = const 16 @7:1
+  stm v16, v18, v17 @7:1
+  v19 = gload g6 @7:1
+  store s2, v19 @7:1
+  v20 = load s2 @7:1
+  v21 = const ptr 0 @7:1
+  v22 = eq v20, v21 @7:1
+  branch v22, b9, b10 @7:1
 b4:
-  v9 = gload g5 @7:1
-  v10 = const ptr 0 @7:1
-  v11 = eq v9, v10 @7:1
-  branch v11, b6, b7 @7:1
+  v10 = gload g5 @7:1
+  v11 = const ptr 0 @7:1
+  v12 = eq v10, v11 @7:1
+  branch v12, b6, b7 @7:1
 b5:
   jump b3 @7:1
 b6:
@@ -9158,23 +9161,25 @@ b6:
 b7:
   jump b3 @7:1
 b8:
+  v30 = load s0 @7:1
+  gstore g2, v30 @7:1
   jump b2 @7:1
 b9:
-  v22 = load s0 @7:1
-  gstore g5, v22 @7:1
-  v23 = sys ticks @7:1
-  v24 = conv u64, v23 @7:1
-  gstore g7, v24 @7:1
+  v23 = load s1 @7:1
+  gstore g5, v23 @7:1
+  v24 = sys ticks @7:1
+  v25 = conv u64, v24 @7:1
+  gstore g7, v25 @7:1
   jump b11 @7:1
 b10:
-  v25 = load s1 @7:1
-  v26 = load s0 @7:1
-  v27 = const 16 @7:1
-  stm v25, v27, v26 @7:1
+  v26 = load s2 @7:1
+  v27 = load s1 @7:1
+  v28 = const 16 @7:1
+  stm v26, v28, v27 @7:1
   jump b11 @7:1
 b11:
-  v28 = load s0 @7:1
-  gstore g6, v28 @7:1
+  v29 = load s1 @7:1
+  gstore g6, v29 @7:1
   call .park @7:1
   jump b8 @7:1
 

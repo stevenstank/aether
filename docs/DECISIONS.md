@@ -5173,7 +5173,8 @@ registers saved on a stack.
   clock that sends `SIGURG` every 10 ms. A process waiting in a system
   call uses no CPU time, so the timer does not interrupt it; `SIGURG` is
   ignored by default, and POSIX timers end at `execve`. If any of it
-  fails, the program runs without preemption.
+  fails, the program runs without preemption (since D-060 it ends with a
+  fatal error).
 - **Interpreter.** Every 1024th `Preempt` after `SysPreempt` calls the
   registered function: a deterministic stand-in for the timer. The
   function decides by the time slice, as natively.
@@ -5250,6 +5251,24 @@ preempted by poisoning that check (`stackguard0 = stackPreempt`).
   is pending, so a request is never lost. A function whose entry block
   has a predecessor keeps D-059's test of the request.
 - **Interpreter.** An entry `Preempt` is a `Preempt`: D-059's count.
+- **Recover.** An entry `Preempt` runs before the function copies
+  `.rframe` (D-043), which the exit loop sets for the deferred call it
+  makes, and which the switch hooks clear as their functions enter, on
+  the preempted goroutine, before `park` saves it. `.preempt` therefore
+  saves `.rframe` and restores it after the yield. Without that, a
+  deferred call preempted at its entry did not recover
+  (`testdata/native/preempt_recover.go`: wrong in 10 of 10 runs;
+  practical evaluation v1 `08-interp`: 12 of 40).
+- **Setup is never silently off.** `aether.preemptstart` also unblocks
+  `SIGURG` (`rt_sigprocmask`): the signal mask survives `execve`, and
+  under a parent that had it blocked the timer's signals stayed pending,
+  so nothing was preempted, with no error. If any of its system calls
+  fails (`mmap`, `sigaltstack`, `rt_sigaction`, `rt_sigprocmask`,
+  `timer_create`, `timer_settime`), the program writes `fatal error:
+  runtime: cannot start preemption: CALL failed, errno N` and exits with
+  status 2, as gc's runtime throws when it cannot install its signal
+  handlers. `SysPreempt` runs first in `Init`, so no code of the program
+  has run. D-059 instead ran on without preemption.
 
 **Alternatives considered.** D-059's flag test at each entry: a load,
 compare, and branch per call, where the poisoned guard costs nothing,
@@ -5277,6 +5296,11 @@ overflow later.
   -17%, `b09_crc` +6%, each with run-to-run ranges under 3%). Each
   function's text grows by its 10-byte stub. Programs without a
   scheduler are unchanged.
+- `TestPreemptStart` runs a program that ends only if preempted with
+  `SIGURG` blocked at `execve` (before the unblock: killed after 20 s)
+  and under `RLIMIT_SIGPENDING` 0, where `timer_create` fails with
+  `EAGAIN` and the program ends with the fatal error, in both modes.
+  Where gc runs under that limit, Aether does not (divergence V-10).
 - Code of the overlay files is still never preempted; gc preempts at any
   instruction.
 

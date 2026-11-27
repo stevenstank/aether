@@ -70,9 +70,18 @@ func (l *lowerer) preemption(prog *ir.Program) {
 			l.fn.Ret(l.b, pos)
 			l.b = out
 		}
+		// The preempted code may be a function's entry, before it copies
+		// .rframe (D-060), which the hooks and the other goroutines that
+		// run meanwhile clear as their functions enter: it is restored.
+		restore := func() {}
+		if ps := l.ps; ps != nil && ps.recovers {
+			rframe := m.v("rframe", l.fn.GLoad(l.b, ps.rframe, pos))
+			restore = func() { l.fn.GStore(l.b, ps.rframe, rframe.get(), pos) }
+		}
 		ran := m.bin(ir.Sub, l.ticks(pos), l.fn.GLoad(l.b, sc.sliceStart, pos))
 		within := m.when(m.cmp(ir.Ge, ran, l.fn.TypedConst(l.b, ir.U64, sliceTicks, pos)))
 		l.yield(pos)
+		restore()
 		m.join(within)
 		l.fn.Ret(l.b, pos)
 	})

@@ -39,8 +39,14 @@
 	.text
 # aether.preemptstart takes the code address of a function with no
 # parameters and no results in %rdi (ir.SysPreempt) and starts the
-# timer, under the helper interface. A failure leaves the program
-# without preemption, as it was before D-059.
+# timer, under the helper interface. It also unblocks SIGURG, which a
+# process inherits blocked if its parent had it blocked at execve: the
+# timer's signals would stay pending, and nothing would be preempted.
+# Preemption is never silently off: if any of its system calls fails, it
+# writes "fatal error: runtime: cannot start preemption: CALL failed,
+# errno N" and exits with status 2, as gc's runtime throws when it cannot
+# install its signal handlers. ir.SysPreempt runs first in Init, before
+# any of the program's code.
 	.globl	aether.preemptstart
 	.type	aether.preemptstart, @function
 aether.preemptstart:
@@ -57,8 +63,10 @@ aether.preemptstart:
 	xorl	%r9d, %r9d
 	movl	$9, %eax		# mmap
 	syscall
+	leaq	.Lcmmap(%rip), %rsi
+	movl	$.Lcmmaplen, %edx
 	cmpq	$-4095, %rax
-	jae	9f
+	jae	.Lstartfail
 	subq	$80, %rsp		# stack_t, struct sigaction, struct sigevent
 	movq	%rax, (%rsp)		# ss_sp
 	movq	$0, 8(%rsp)		# ss_flags
@@ -67,8 +75,10 @@ aether.preemptstart:
 	xorl	%esi, %esi
 	movl	$131, %eax		# sigaltstack
 	syscall
+	leaq	.Lcaltstack(%rip), %rsi
+	movl	$.Lcaltstacklen, %edx
 	testq	%rax, %rax
-	jnz	8f
+	jnz	.Lstartfail
 	leaq	.Lhandler(%rip), %rax
 	movq	%rax, (%rsp)		# sa_handler
 	movq	$0x1c000000, 8(%rsp)	# SA_ONSTACK|SA_RESTART|SA_RESTORER
@@ -81,8 +91,21 @@ aether.preemptstart:
 	movl	$8, %r10d		# sizeof(sigset_t)
 	movl	$13, %eax		# rt_sigaction
 	syscall
+	leaq	.Lcsigaction(%rip), %rsi
+	movl	$.Lcsigactionlen, %edx
 	testq	%rax, %rax
-	jnz	8f
+	jnz	.Lstartfail
+	movq	$1<<(.Lsigurg-1), (%rsp)	# the set {SIGURG}
+	movl	$1, %edi		# SIG_UNBLOCK
+	movq	%rsp, %rsi
+	xorl	%edx, %edx
+	movl	$8, %r10d		# sizeof(sigset_t)
+	movl	$14, %eax		# rt_sigprocmask
+	syscall
+	leaq	.Lcsigprocmask(%rip), %rsi
+	movl	$.Lcsigprocmasklen, %edx
+	testq	%rax, %rax
+	jnz	.Lstartfail
 	movq	$0, (%rsp)		# struct sigevent: sigev_value
 	movl	$.Lsigurg, 8(%rsp)	# sigev_signo
 	movl	$0, 12(%rsp)		# sigev_notify: SIGEV_SIGNAL
@@ -92,8 +115,10 @@ aether.preemptstart:
 	leaq	64(%rsp), %rdx		# the timer's id
 	movl	$222, %eax		# timer_create
 	syscall
+	leaq	.Lctimercreate(%rip), %rsi
+	movl	$.Lctimercreatelen, %edx
 	testq	%rax, %rax
-	jnz	8f
+	jnz	.Lstartfail
 	movl	64(%rsp), %edi
 	movq	$0, (%rsp)		# it_interval: 10 ms
 	movq	$10000000, 8(%rsp)
@@ -104,11 +129,67 @@ aether.preemptstart:
 	xorl	%r10d, %r10d
 	movl	$223, %eax		# timer_settime
 	syscall
-8:	addq	$80, %rsp
+	leaq	.Lctimersettime(%rip), %rsi
+	movl	$.Lctimersettimelen, %edx
+	testq	%rax, %rax
+	jnz	.Lstartfail
+	addq	$80, %rsp
 9:	popq	%rbx
 	ret
+
+# .Lstartfail ends the program: the system call named by %rsi and %rdx
+# failed with %rax, -errno.
+.Lstartfail:
+	andq	$-16, %rsp		# for the helpers
+	negq	%rax
+	movq	%rax, %rbx		# errno, which the helpers preserve
+	movq	%rsi, %r12
+	movq	%rdx, %r13
+	leaq	.Lfailmsg(%rip), %rsi
+	movl	$.Lfailmsglen, %edx
+	call	aether.write
+	movq	%r12, %rsi
+	movq	%r13, %rdx
+	call	aether.write
+	leaq	.Lerrnomsg(%rip), %rsi
+	movl	$.Lerrnomsglen, %edx
+	call	aether.write
+	movq	%rbx, %rdi
+	call	aether.printint
+	call	aether.printnl
+	movl	$231, %eax		# exit_group
+	movl	$2, %edi		# status 2, as for gc's fatal errors
+	syscall
+	hlt				# not reached
 	.size	aether.preemptstart, .-aether.preemptstart
 
+	.section	.rodata
+.Lfailmsg:
+	.ascii	"fatal error: runtime: cannot start preemption: "
+	.set	.Lfailmsglen, .-.Lfailmsg
+.Lerrnomsg:
+	.ascii	" failed, errno "
+	.set	.Lerrnomsglen, .-.Lerrnomsg
+.Lcmmap:
+	.ascii	"mmap"
+	.set	.Lcmmaplen, .-.Lcmmap
+.Lcaltstack:
+	.ascii	"sigaltstack"
+	.set	.Lcaltstacklen, .-.Lcaltstack
+.Lcsigaction:
+	.ascii	"rt_sigaction"
+	.set	.Lcsigactionlen, .-.Lcsigaction
+.Lcsigprocmask:
+	.ascii	"rt_sigprocmask"
+	.set	.Lcsigprocmasklen, .-.Lcsigprocmask
+.Lctimercreate:
+	.ascii	"timer_create"
+	.set	.Lctimercreatelen, .-.Lctimercreate
+.Lctimersettime:
+	.ascii	"timer_settime"
+	.set	.Lctimersettimelen, .-.Lctimersettime
+
+	.text
 # .Lhandler is SIGURG's handler: it requests a preemption. It runs on the
 # alternate stack and returns to .Lrestorer.
 	.type	.Lhandler, @function
