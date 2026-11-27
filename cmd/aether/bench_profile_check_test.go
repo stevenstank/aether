@@ -49,6 +49,7 @@ func TestBenchClassify(t *testing.T) {
 		{"8(%rsp)", mArgOut},
 		{"main.g(%rip)", mGlobal},
 		{"aether.stacklimit(%rip)", mLimit},
+		{"aether.stackguard(%rip)", mLimit},
 		{"(%rax,%rcx)", mData},
 		{"8(%rax)", mData},
 		{"0(%rbx)", mData},

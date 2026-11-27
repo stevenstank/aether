@@ -307,7 +307,9 @@ func modelR1(name string, lines []string, s map[string]abiSig) ([]string, error)
 
 // hasPrologue reports whether a function has one; main.init may be only ret.
 func hasPrologue(lines []string) bool {
-	return slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "aether.stacklimit") })
+	return slices.ContainsFunc(lines, func(l string) bool {
+		return strings.Contains(l, "aether.stacklimit") || strings.Contains(l, "aether.stackguard")
+	})
 }
 
 // setFrame rewrites the prologue for a frame of the given size.

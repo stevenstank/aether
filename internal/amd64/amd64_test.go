@@ -211,7 +211,7 @@ func TestRuntimeFiles(t *testing.T) {
 	}
 	for _, sym := range []string{"_start", symPrintInt, symPrintSpace, symPrintNL, symAlloc, panicSyms[ir.PanicNil],
 		symMemmove, symPanicBounds, panicSyms[ir.PanicMakeLen], panicSyms[ir.PanicMakeCap], panicSyms[ir.PanicGrowLen],
-		symGoNew, symGoSwitch, symGoExit, symPreempt, symPreemptReq, symSys[ir.SysPreempt]} {
+		symGoNew, symGoSwitch, symGoExit, symPreempt, symPreemptReq, symSys[ir.SysPreempt], symStackGuard, symPreemptEntry} {
 		if !strings.Contains(all, "\t.globl\t"+sym+"\n") || !strings.Contains(all, "\n"+sym+":\n") {
 			t.Errorf("runtime does not define %s", sym)
 		}

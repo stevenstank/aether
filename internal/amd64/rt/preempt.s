@@ -18,8 +18,22 @@
 # collector scans them (D-046, D-048): at a Preempt, the program's
 # values may be in any allocatable register, and in %rax, %rcx, and
 # %rdx. No XMM register holds a value across instructions (float.go).
+#
+# A function of that code also begins with a Preempt, which its prologue
+# makes, so that recursion with no loop is preempted too (D-060). The
+# prologue compares its frame against aether.stackguard, not
+# aether.stacklimit: the guard is the limit, but as the handler requests a
+# preemption it sets the guard to the poison, bit 63 alone, above every
+# stack. The check then fails and calls aether.preemptentry, which tells
+# a poisoned guard from an overflow by bit 63 of the prologue's sum, the
+# guard plus the frame's bytes, preempts, and returns to run the prologue
+# again. Every switch sets the guard again (goroutine.s, .Ltarget), and
+# aether.preempt sets it to the limit before it clears the request: a
+# request is never lost, and a poison left by a signal between the two
+# only costs one more call of the scheduler.
 
 	.set	.Lsigurg, 23
+	.set	.Lpoisonbit, 63
 	.set	.Laltsize, 65536
 
 	.text
@@ -100,6 +114,8 @@ aether.preemptstart:
 	.type	.Lhandler, @function
 .Lhandler:
 	movb	$1, aether.preemptreq(%rip)
+	movabsq	$1<<.Lpoisonbit, %rax	# the kernel restores every register
+	movq	%rax, aether.stackguard(%rip)
 	ret
 	.size	.Lhandler, .-.Lhandler
 
@@ -131,6 +147,8 @@ aether.preempt:
 	pushq	%r14
 	pushq	%r15
 	pushq	%rbp			# 15 words and the return address: aligned
+	movq	aether.stacklimit(%rip), %rax	# the guard first (D-060)
+	movq	%rax, aether.stackguard(%rip)
 	movb	$0, aether.preemptreq(%rip)
 	call	*aether.preemptfn(%rip)	# ABI-S0 and ABI-R1 alike: no arguments
 	popq	%rbp
@@ -151,6 +169,32 @@ aether.preempt:
 	ret
 	.size	aether.preempt, .-aether.preempt
 
+# aether.preemptentry is called by a function whose prologue check
+# against aether.stackguard failed, with %rax the guard it read plus the
+# bytes the frame needs, and nothing written below the function's return
+# address but the call's (D-060). If the guard was the poison and the
+# frame fits the limit, it preempts, as aether.preempt does, and returns;
+# the function then runs its prologue again. Otherwise the stack
+# overflowed: it continues at aether.stackoverflow as the prologue would
+# have. It preserves every general register but %rax, as aether.preempt
+# does, and uses at most 136 bytes below the function's entry %rsp before
+# the call of the scheduler, which checks its own frames; the frame fits,
+# so they are inside the stack, and its reserve.
+	.globl	aether.preemptentry
+	.type	aether.preemptentry, @function
+aether.preemptentry:
+	btrq	$.Lpoisonbit, %rax	# CF: the guard was the poison
+	jnc	1f
+	addq	aether.stacklimit(%rip), %rax
+	subq	$8, %rax		# %rsp is the entry %rsp minus 8
+	cmpq	%rax, %rsp
+	jb	1f
+	call	aether.preempt		# %rsp is aligned here
+	ret
+1:	addq	$8, %rsp		# the prologue's state
+	jmp	aether.stackoverflow
+	.size	aether.preemptentry, .-aether.preemptentry
+
 	.bss
 	.globl	aether.preemptreq
 	.type	aether.preemptreq, @object
@@ -167,6 +211,13 @@ aether.preemptreq:
 	.size	aether.preemptfn, 8
 # aether.preemptfn is the function aether.preempt calls.
 aether.preemptfn:
+	.zero	8
+	.globl	aether.stackguard
+	.type	aether.stackguard, @object
+	.size	aether.stackguard, 8
+# aether.stackguard is what the prologue of a function that begins with a
+# Preempt compares its frame against: aether.stacklimit or the poison.
+aether.stackguard:
 	.zero	8
 
 	.section	.note.GNU-stack,"",@progbits

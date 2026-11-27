@@ -43,7 +43,7 @@ const (
 	mArgIn                      // +N(%rbp): this function's arguments and results
 	mArgOut                     // N(%rsp): the outgoing area
 	mGlobal                     // sym(%rip), program globals
-	mLimit                      // aether.stacklimit(%rip), the prologue check
+	mLimit                      // aether.stacklimit(%rip) or aether.stackguard(%rip), the prologue check
 	mStack                      // push, pop, call, ret
 	mData                       // (%rax,%rcx): a byte of string data (loadb, D-033)
 	nClass
@@ -113,7 +113,7 @@ func classify(op string, slots int) (memClass, error) {
 		// in a register (D-034).
 		return mData, nil
 	case strings.HasSuffix(op, "(%rip)"):
-		if strings.HasPrefix(op, "aether.stacklimit") {
+		if strings.HasPrefix(op, "aether.stacklimit") || strings.HasPrefix(op, "aether.stackguard") {
 			return mLimit, nil
 		}
 		return mGlobal, nil

@@ -172,8 +172,10 @@ aether.goexit:
 
 # .Ltarget makes the goroutine whose handle is in %rdi the running one: it
 # returns its record in %rax, after setting aether.gcur, aether.stacklimit,
-# and aether.stacktop from it. The caller then moves to its stack. It
-# clobbers %rcx.
+# and aether.stacktop from it, and aether.stackguard to the limit, or, if
+# a preemption is requested, to preempt.s's poison: the guard is set
+# before the request is read, so a request is never lost (D-060). The
+# caller then moves to its stack. It clobbers %rcx.
 	.type	.Ltarget, @function
 .Ltarget:
 	movq	%rdi, %rax
@@ -186,7 +188,12 @@ aether.goexit:
 2:	movq	%rdi, aether.gcur(%rip)
 	movq	24(%rax), %rcx
 	movq	%rcx, aether.stacklimit(%rip)
-	movq	32(%rax), %rcx
+	movq	%rcx, aether.stackguard(%rip)
+	cmpb	$0, aether.preemptreq(%rip)
+	je	3f
+	movabsq	$0x8000000000000000, %rcx	# the poison
+	movq	%rcx, aether.stackguard(%rip)
+3:	movq	32(%rax), %rcx
 	movq	%rcx, aether.stacktop(%rip)
 	ret
 	.size	.Ltarget, .-.Ltarget

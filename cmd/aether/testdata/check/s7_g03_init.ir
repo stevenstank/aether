@@ -93,6 +93,7 @@ func record(ptr, i64) i64 @testdata/check/s7_g03_init.go:13:6
   slot s9 cap i64 @14:10
   slot s10 newcap i64 @14:10
 b0:
+  preempt @13:27
   v0 = param 0 @13:13
   store s0, v0 @13:13
   v1 = param 1 @13:13
@@ -187,6 +188,7 @@ b6:
 
 func init.0 @testdata/check/s7_g03_init.go:18:6
 b0:
+  preempt @18:13
   v0 = const false @18:13
   gstore g8, v0 @18:13
   v1 = str s0 @19:9
@@ -210,6 +212,7 @@ func init.1 @testdata/check/s7_g03_init.go:25:6
   slot s8 tmp ptr @28:1
   slot s9 tmp bool @28:1
 b0:
+  preempt @25:13
   v0 = const false @25:13
   gstore g8, v0 @25:13
   v1 = const ptr 0 @25:13
@@ -294,6 +297,7 @@ func init.2 @testdata/check/s7_g03_init.go:32:6
   slot s1 tmp ptr @33:2
   mem m0 recv 1 align 1 @37:2
 b0:
+  preempt @32:13
   v0 = const false @32:13
   gstore g8, v0 @32:13
   v1 = addr gm8 @33:5
@@ -330,6 +334,7 @@ func main @testdata/check/s7_g03_init.go:40:6
   slot s3 s ptr @42:9
   slot s4 s i64 @42:9
 b0:
+  preempt @40:13
   v0 = const false @40:13
   gstore g8, v0 @40:13
   v1 = str s3 @41:9
@@ -3734,6 +3739,7 @@ func .lit1(ptr) @testdata/check/s7_g03_init.go:26:8
   slot s9 tmp ptr @26:49
   slot s10 tmp ptr @26:49
 b0:
+  preempt @26:15
   v0 = param 0 @26:8
   store s0, v0 @26:8
   v1 = gload g8 @26:15
@@ -4257,6 +4263,7 @@ func .lit2(ptr) @testdata/check/s7_g03_init.go:33:5
   slot s2 tmp bool @35:8
   mem m0 send 1 align 1 @35:8
 b0:
+  preempt @33:12
   v0 = param 0 @33:5
   store s0, v0 @33:5
   v1 = const false @33:12

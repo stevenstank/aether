@@ -169,7 +169,10 @@ func checkR1Entry(f *ir.Func) error {
 			return fmt.Errorf("amd64: func %s: abi-r1: entry block has predecessor b%d", f.Name, b.ID)
 		}
 	}
-	for _, in := range entry.Instrs[:last] {
+	for i, in := range entry.Instrs[:last] {
+		if i == 0 && in.Op == ir.Preempt {
+			continue // the prologue's (D-060), with no edge into the entry
+		}
 		if in.Op != ir.Param && (in.Op != ir.Store || in.Args[0].Op != ir.Param) {
 			return fmt.Errorf("amd64: func %s: abi-r1: %s runs before the last param", f.Name, in)
 		}

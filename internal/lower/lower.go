@@ -754,6 +754,7 @@ func (l *lowerer) function(fd *ast.FuncDecl) {
 func (l *lowerer) body(fields []*ast.Field, first int, results *ast.FieldList, body *ast.BlockStmt, prologue func(), name string) {
 	l.b = l.fn.Entry()
 	l.done = false
+	l.entryPreempt(l.pos(body, body.Lbrace))
 	l.retPtrs, l.named = nil, nil
 	i := first            // the first IR parameter of the next Go one
 	var heap []*ast.Ident // the address-taken parameters

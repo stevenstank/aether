@@ -16,6 +16,10 @@ import (
 // between two of its statements (D-049), have none, nor have the
 // functions lowering generates: the scheduler, channels, maps.
 //
+// Every function of that code also begins with a Preempt, so that
+// recursion with no loop is preempted too (D-060); the backend makes it in
+// the prologue's stack check, at no cost.
+//
 // A program without a scheduler has nothing to switch to: its Preempts
 // are removed. Otherwise Init, or main without one, first registers the
 // scheduler's .preempt (SysPreempt), which yields as Gosched does once
@@ -31,6 +35,16 @@ func (l *lowerer) backEdge(pos ir.Pos) {
 	}
 	l.fn.Preempt(l.b, pos)
 	l.preempts = true
+}
+
+// entryPreempt adds a Preempt as the first instruction of the function
+// being lowered, before a closure's context param, which the backend makes
+// in the prologue (D-060).
+func (l *lowerer) entryPreempt(pos ir.Pos) {
+	entry := l.fn.Entry()
+	n := len(entry.Instrs)
+	l.backEdge(pos)
+	entry.Instrs = append(entry.Instrs[n:], entry.Instrs[:n]...)
 }
 
 // preemption registers the scheduler's preemption, or removes the Preempts

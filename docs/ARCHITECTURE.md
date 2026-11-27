@@ -729,6 +729,10 @@ so none can be read as an option.
     every 10 ms (`rt/preempt.s`), and a call of `aether.preempt`, which
     saves every register and calls the scheduler's `.preempt`
     (`lower/preempt.go`), registered by `ir.SysPreempt` in `Init`.
+    Since D-060 each such function also begins with a `Preempt`, made
+    by the prologue's stack check against `aether.stackguard`, which
+    the signal handler poisons; `aether.preemptentry` tells the poison
+    from an overflow.
   - Weak pointers and cleanups (D-057): package runtime's table of
     records (`runtime/special.go`), which `aether.setspecials`
     (`ir.SysSpecials`) gives the collector; after marking, `.Lspecials`

@@ -41,6 +41,7 @@ func find(ptr, i64, i64, i64) (i64, i64) @testdata/check/s7_g02_labels.go:8:6
   slot s14 j i64 @11:7
   slot s15 v i64 @11:10
 b0:
+  preempt @8:40
   v0 = param 0 @8:11
   store s0, v0 @8:11
   v1 = param 1 @8:11
@@ -153,6 +154,7 @@ func collatz(i64) i64 @testdata/check/s7_g02_labels.go:23:6
   slot s0 n i64 @23:14
   slot s1 steps i64 @23:22
 b0:
+  preempt @23:33
   v0 = param 0 @23:14
   store s0, v0 @23:14
   v1 = const 0 @23:22
@@ -211,6 +213,7 @@ func classify(ptr, i64, i64) (i64, i64) @testdata/check/s7_g02_labels.go:39:6
   slot s10 tmp ptr @42:3
   slot s11 tmp ptr @42:3
 b0:
+  preempt @39:42
   v0 = param 0 @39:15
   store s0, v0 @39:15
   v1 = param 1 @39:15
@@ -346,6 +349,7 @@ func main @testdata/check/s7_g02_labels.go:56:6
 b0:
   v214 = funcaddr .preempt @56:6
   sys preempt, v214 @56:6
+  preempt @56:13
   v0 = const 72 @57:7
   v1 = alloc v0 @57:7
   store s0, v1 @57:7

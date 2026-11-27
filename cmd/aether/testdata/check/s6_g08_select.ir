@@ -89,6 +89,7 @@ func ch(i64, ptr) ptr @testdata/check/s6_g08_select.go:16:6
   slot s0 n i64 @16:9
   slot s1 c ptr @16:16
 b0:
+  preempt @16:37
   v0 = param 0 @16:9
   store s0, v0 @16:9
   v1 = param 1 @16:16
@@ -107,6 +108,7 @@ b0:
 func val(i64) i64 @testdata/check/s6_g08_select.go:17:6
   slot s0 n i64 @17:10
 b0:
+  preempt @17:36
   v0 = param 0 @17:10
   store s0, v0 @17:10
   v1 = const false @17:36
@@ -261,6 +263,7 @@ func main @testdata/check/s6_g08_select.go:19:6
 b0:
   v522 = funcaddr .preempt @19:6
   sys preempt, v522 @19:6
+  preempt @19:13
   v0 = const false @19:13
   gstore g2, v0 @19:13
   v1 = const 0 @20:7
@@ -5447,6 +5450,7 @@ func .lit1(ptr) @testdata/check/s6_g08_select.go:45:5
   slot s4 tmp i64 @47:7
   mem m0 send 8 align 8 @47:7
 b0:
+  preempt @45:12
   v0 = param 0 @45:5
   store s0, v0 @45:5
   v1 = load s0 @45:5
@@ -5541,6 +5545,7 @@ func .lit2(ptr) @testdata/check/s6_g08_select.go:51:5
   slot s4 tmp i64 @53:7
   mem m0 send 8 align 8 @53:7
 b0:
+  preempt @51:12
   v0 = param 0 @51:5
   store s0, v0 @51:5
   v1 = load s0 @51:5
@@ -5648,6 +5653,7 @@ func .lit3(ptr) @testdata/check/s6_g08_select.go:80:5
   mem m3 p 16 align 8 @84:9
   mem m4 send 1 align 1 @88:10
 b0:
+  preempt @80:12
   v0 = param 0 @80:5
   store s0, v0 @80:5
   v1 = load s0 @80:5
@@ -6651,6 +6657,7 @@ func .lit4(ptr) @testdata/check/s6_g08_select.go:123:2
   mem m1 case 8 align 8 @129:3
   mem m2 cases 64 align 8 @127:3
 b0:
+  preempt @123:9
   v0 = param 0 @123:2
   store s0, v0 @123:2
   v1 = load s0 @123:2
@@ -6805,6 +6812,7 @@ func .lit6(ptr) @testdata/check/s6_g08_select.go:132:5
   slot s4 tmp bool @132:14
   mem m0 cases 0 align 8 @132:14
 b0:
+  preempt @132:12
   v0 = param 0 @132:5
   store s0, v0 @132:5
   v1 = const false @132:12
@@ -7450,6 +7458,7 @@ func .lit5(ptr) @testdata/check/s6_g08_select.go:124:9
   slot s9 tmp ptr @124:26
   slot s10 tmp i64 @124:26
 b0:
+  preempt @124:16
   v0 = param 0 @124:9
   store s0, v0 @124:9
   v1 = gload g2 @124:16

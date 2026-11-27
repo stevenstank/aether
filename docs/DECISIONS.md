@@ -5212,7 +5212,73 @@ the guarantee would need an analysis of the loop's variable.
   within 1%, which code layout dominates. Programs without a scheduler
   are unchanged.
 - A goroutine computing in a function that recurses without a loop is
-  still not preempted.
+  still not preempted (since D-060 it is).
+
+---
+
+## D-060: Preemption at function entries
+
+**Status:** Accepted (2026-11-28; owner review pending). Written with its
+code, after D-059, which it extends.
+
+**Context.** D-059 preempts at loop iterations and backward `goto`s, so a
+goroutine computing in a recursion without a loop (a naive Fibonacci)
+still kept every other goroutine, the timers, and the poller from
+running until it returned. Every function already checks its frame
+against the stack limit in its prologue (D-011), as gc's did when it
+preempted by poisoning that check (`stackguard0 = stackPreempt`).
+
+**Decision.**
+- **Where.** Lowering puts a `Preempt` first in every function whose
+  loops get them (D-059): the program's and GOROOT's functions and
+  closures, not those of the overlay files or those lowering generates.
+  Every call of such a function passes one; with D-059's, every path that
+  runs long does.
+- **Native.** A function whose entry block begins with a `Preempt` and has
+  no edge into it compares its frame in the prologue against
+  `aether.stackguard` instead of `aether.stacklimit`; the `Preempt` emits
+  nothing more. The guard is the limit, but `SIGURG`'s handler, as it
+  sets the request, sets the guard to bit 63 alone (the poison), above
+  every stack, so the check fails. Its `jb` goes to a stub after the
+  function's blocks, `call aether.preemptentry` and a jump back to the
+  function's entry. `aether.preemptentry` reads bit 63 of the prologue's
+  sum, the guard it read plus the frame's bytes: if set and the frame
+  fits the real limit, it calls `aether.preempt`, which now sets the guard
+  to the limit before it clears the request; otherwise it continues at
+  `aether.stackoverflow`, as before. Every switch (`.Ltarget`) sets the
+  guard from the resumed goroutine's limit, then poisons it if a request
+  is pending, so a request is never lost. A function whose entry block
+  has a predecessor keeps D-059's test of the request.
+- **Interpreter.** An entry `Preempt` is a `Preempt`: D-059's count.
+
+**Alternatives considered.** D-059's flag test at each entry: a load,
+compare, and branch per call, where the poisoned guard costs nothing,
+since the prologue loads a word in any case. A `Preempt` only in functions
+on a cycle of the call graph: bounded recursion needs none, but calls
+through func values, interfaces, and methods need a whole-program
+analysis to bound, for a stub of 10 bytes a function. Poisoning
+`aether.stacklimit` itself: switches save it in the goroutine's record,
+so a signal at a switch would leave a poisoned limit to be taken for an
+overflow later.
+
+**Consequences.** Measured on the D-057 host (AMD Ryzen 7 7435HS, WSL2,
+2026-11-28):
+- `testdata/native/preempt.go` now also has a goroutine recursing without
+  a loop until main stops it, and recursive computations preempted with
+  their arguments in registers under ABI-R1; it matches gc in both modes
+  and `TestPreemption` runs it in the interpreter, both modes, and ABI-R1.
+  With D-059 alone it never ended.
+- With two goroutines in `fib(60)`, a 1 ms `time.Sleep` wakes about
+  10-12 ms late (D-059 alone: never).
+- A call costs nothing measurable: `b01_fib` (`fib(37)`, with a goroutine
+  added so that it has a scheduler) takes 0.161 s before and after,
+  median of 11. The other workloads change by -20% to +6%, most within
+  2%, which code layout dominates (`b08_ackermann` -20%, `a02_nested_copy`
+  -17%, `b09_crc` +6%, each with run-to-run ranges under 3%). Each
+  function's text grows by its 10-byte stub. Programs without a
+  scheduler are unchanged.
+- Code of the overlay files is still never preempted; gc preempts at any
+  instruction.
 
 ---
 

@@ -99,6 +99,7 @@ func U.Sum(ptr, ptr, i64, i64) i64 @testdata/check/s7_l03_variadic_values.go:11:
   slot s7 range.i i64 @13:2
   slot s8 x i64 @13:9
 b0:
+  preempt @11:31
   v0 = param 0 @11:7
   store s0, v0 @11:7
   v1 = param 1 @11:16
@@ -161,6 +162,7 @@ func U.Add(ptr, ptr, i64, i64) @testdata/check/s7_l03_variadic_values.go:19:13
   slot s8 tmp ptr @21:3
   slot s9 tmp i64 @21:3
 b0:
+  preempt @19:28
   v0 = param 0 @19:7
   store s0, v0 @19:7
   v1 = param 1 @19:17
@@ -239,6 +241,7 @@ func U.AddThen(ptr, ptr, ptr, i64, i64) @testdata/check/s7_l03_variadic_values.g
   slot s6 tmp bool @27:7
   mem m0 send 1 align 1 @27:7
 b0:
+  preempt @25:48
   v0 = param 0 @25:7
   store s0, v0 @25:7
   v1 = param 1 @25:21
@@ -298,6 +301,7 @@ func Box[string].Put(ptr, ptr, i64, i64) i64 @testdata/check/s7_l03_variadic_val
   slot s18 tmp i64 @35:2
   slot s19 tmp ptr @36:13
 b0:
+  preempt @34:35
   v0 = param 0 @34:7
   store s0, v0 @34:7
   v1 = param 1 @34:22
@@ -473,6 +477,7 @@ func sum(ptr, i64, i64) i64 @testdata/check/s7_l03_variadic_values.go:39:6
   slot s2 xs i64 @39:10
   mem m0 tmp 8 align 8 @39:34
 b0:
+  preempt @39:25
   v0 = param 0 @39:10
   store s0, v0 @39:10
   v1 = param 1 @39:10
@@ -493,6 +498,7 @@ b0:
 
 func two() (i64, i64) @testdata/check/s7_l03_variadic_values.go:41:6
 b0:
+  preempt @41:23
   v0 = const false @41:23
   gstore g2, v0 @41:23
   v1 = str s0 @41:33
@@ -504,6 +510,7 @@ b0:
 
 func three() (ptr, i64, i64, i64) @testdata/check/s7_l03_variadic_values.go:43:6
 b0:
+  preempt @43:33
   v0 = const false @43:33
   gstore g2, v0 @43:33
   v1 = str s1 @43:42
@@ -514,6 +521,7 @@ b0:
 
 func one() (ptr, i64, i64) @testdata/check/s7_l03_variadic_values.go:45:6
 b0:
+  preempt @45:26
   v0 = const false @45:26
   gstore g2, v0 @45:26
   v1 = str s2 @45:35
@@ -543,6 +551,7 @@ func describe(ptr, i64, ptr, i64, i64) @testdata/check/s7_l03_variadic_values.go
   slot s18 v ptr @50:10
   slot s19 v i64 @50:10
 b0:
+  preempt @47:39
   v0 = param 0 @47:15
   store s0, v0 @47:15
   v1 = param 1 @47:15
@@ -665,6 +674,7 @@ func clear0(ptr, i64, i64) @testdata/check/s7_l03_variadic_values.go:60:6
   slot s5 tmp i64 @62:5
   slot s6 tmp i64 @62:3
 b0:
+  preempt @60:24
   v0 = param 0 @60:13
   store s0, v0 @60:13
   v1 = param 1 @60:13
@@ -1026,6 +1036,7 @@ func main @testdata/check/s7_l03_variadic_values.go:66:6
 b0:
   v903 = funcaddr .preempt @66:6
   sys preempt, v903 @66:6
+  preempt @66:13
   v0 = const false @66:13
   gstore g2, v0 @66:13
   v1 = const ptr 0 @66:13
@@ -6920,6 +6931,7 @@ func .lit1(ptr, ptr, i64, ptr, i64, i64) (ptr, i64) @testdata/check/s7_l03_varia
   slot s12 x ptr @87:10
   slot s13 x i64 @87:10
 b0:
+  preempt @85:45
   v0 = param 0 @85:7
   store s0, v0 @85:7
   v1 = param 1 @85:12
@@ -7114,6 +7126,7 @@ func .lit2(ptr, ptr, i64, i64) @testdata/check/s7_l03_variadic_values.go:112:5
   slot s6 tmp bool @114:8
   mem m0 send 1 align 1 @114:8
 b0:
+  preempt @112:21
   v0 = param 0 @112:5
   store s0, v0 @112:5
   v1 = param 1 @112:10
@@ -7575,6 +7588,7 @@ func .lit3(ptr) @testdata/check/s7_l03_variadic_values.go:120:8
   slot s3 tmp ptr @121:11
   slot s4 tmp i64 @121:11
 b0:
+  preempt @120:15
   v0 = param 0 @120:8
   store s0, v0 @120:8
   v1 = load s0 @120:8

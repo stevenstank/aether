@@ -95,6 +95,31 @@ const (
 	symPreempt    = "aether.preempt"
 )
 
+// A Preempt that begins a function is made by the prologue's stack check
+// (D-060): it compares the frame against symStackGuard, which is the stack
+// limit, or, while a preemption is requested, above every stack, so that
+// the check fails. The failure calls symPreemptEntry, which tells the two
+// apart, and then runs the prologue again.
+const (
+	symStackGuard   = "aether.stackguard"
+	symPreemptEntry = "aether.preemptentry"
+)
+
+// entryPreempt reports whether f's Preempt at entry is the prologue's: the
+// first instruction of an entry block no edge returns to.
+func entryPreempt(f *ir.Func) bool {
+	entry := f.Entry()
+	if len(entry.Instrs) == 0 || entry.Instrs[0].Op != ir.Preempt {
+		return false
+	}
+	for _, b := range f.Blocks {
+		if slices.Contains(ir.Succs(b), entry) {
+			return false
+		}
+	}
+	return true
+}
+
 // symSys are the system calls of ir.Sys (D-049, increment 11.6), under the
 // helper interface: their args in %rdi, %rsi, and %rdx, their value in
 // %rax. SysCall's seven args do not fit: they go through the outgoing area,
@@ -434,8 +459,14 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	// The bound check comes before anything is written below the return
 	// address: entry %rsp must be at least L + Size + 8 (D-011). %rax is
 	// free, since neither ABI-S0 nor ABI-R1 passes anything in it at entry.
+	// A Preempt at entry checks against the guard instead (D-060).
+	guard := entryPreempt(f)
+	limit, fail := symStackLimit, symStackOverflow
+	if guard {
+		limit, fail = symStackGuard, fmt.Sprintf(".L%d.g", fi)
+	}
 	fmt.Fprintf(b, "\tmovq\t%s(%%rip), %%rax\n\taddq\t$%d, %%rax\n\tcmpq\t%%rax, %%rsp\n\tjb\t%s\n",
-		symStackLimit, fr.Size+8, symStackOverflow)
+		limit, fr.Size+8, fail)
 	b.WriteString("\tpushq\t%rbp\n\tmovq\t%rsp, %rbp\n")
 	if fr.Size > 0 {
 		fmt.Fprintf(b, "\tsubq\t$%d, %%rsp\n", fr.Size)
@@ -443,7 +474,7 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	// Blocks are emitted in order, each under a local label; the entry
 	// block follows the prologue.
 	label := func(blk *ir.Block) string { return fmt.Sprintf(".L%d.b%d", fi, blk.ID) }
-	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples, slotWord: slotWord, sel: sel}
+	e := &emitter{b: b, fr: fr, f: f, fi: fi, label: label, cells: cells, regs: regs, tuples: tuples, slotWord: slotWord, sel: sel, guard: guard}
 	var blocks []*ir.Block
 	if sel != nil {
 		sel.fwd = e.forwarders()
@@ -481,6 +512,10 @@ func emitFunc(b *bytes.Buffer, fi int, f *ir.Func, opts EmitOptions) (Frame, err
 	}
 	for n := range e.preempts {
 		fmt.Fprintf(b, ".L%d.p%d:\n\tcall\t%s\n\tjmp\t.L%d.r%d\n", fi, n, symPreempt, fi, n)
+	}
+	if guard {
+		// The prologue runs again after the preemption, or the overflow.
+		fmt.Fprintf(b, ".L%d.g:\n\tcall\t%s\n\tjmp\t%s\n", fi, symPreemptEntry, sym)
 	}
 	if err := e.checkArith(); err != nil {
 		return Frame{}, fmt.Errorf("amd64: func %s: two-address: %v", f.Name, err)
@@ -529,6 +564,7 @@ type emitter struct {
 	next     *ir.Block   // the block emitted after the current one, or nil
 	arith    []arithSite // the register-form sequences (arith.go)
 	preempts int         // the Preempts emitted
+	guard    bool        // the Preempt at entry is the prologue's (entryPreempt)
 	err      error       // the first error of the current function
 }
 
@@ -884,6 +920,9 @@ func (e *emitter) instr(blk *ir.Block, in *ir.Instr) error {
 		op("call\t%s", symGoNew)
 		e.finish(in, "%rax")
 	case ir.Preempt:
+		if e.guard && in == e.f.Entry().Instrs[0] {
+			break // made by the prologue
+		}
 		// Not a call: the request is tested inline, and the call, which
 		// preserves every register, is out of line after the function's
 		// blocks (emitFunc), so that a loop's iterations run straight on.

@@ -1,8 +1,9 @@
-// Cooperative preemption at loop back edges (D-059): goroutines that
-// compute without ever switching, in every kind of loop, do not keep the
-// others, the timers, or the collector from running, and the values they
-// hold in registers when preempted are intact afterwards. Nothing printed
-// depends on the schedule.
+// Cooperative preemption at loop back edges (D-059) and function entries
+// (D-060): goroutines that compute without ever switching, in every kind
+// of loop or in recursion with no loop, do not keep the others, the
+// timers, or the collector from running, and the values they hold in
+// registers when preempted are intact afterwards. Nothing printed depends
+// on the schedule.
 package main
 
 import (
@@ -29,6 +30,26 @@ again:
 		goto again
 	}
 	done <- "goto"
+}
+
+// walk recurses, with no loop, until stop is set: 2^d calls at most.
+func walk(stop *atomic.Bool, d int) {
+	if d == 0 || stop.Load() {
+		return
+	}
+	walk(stop, d-1)
+	walk(stop, d-1)
+}
+
+// rec recurses, with no loop, 2^n times, passing and returning integer
+// and floating-point values.
+func rec(n, a int, f float64) (int, float64) {
+	if n == 0 {
+		return a, f
+	}
+	x, g := rec(n-1, a*31+n, f*0.5+float64(n))
+	y, h := rec(n-1, x^a, g+f)
+	return x + y, g - h
 }
 
 // nested runs nested loops with many values live across the inner loop's
@@ -129,13 +150,17 @@ func main() {
 		}
 		done <- "range int"
 	}()
+	go func() {
+		walk(&stop, 62)
+		done <- "recursion"
+	}()
 	time.Sleep(5 * time.Millisecond)
 	stop.Store(true)
 	got := map[string]bool{}
-	for range 4 {
+	for range 5 {
 		got[<-done] = true
 	}
-	fmt.Println("stopped", len(got), got["goto"], got["for"], got["range map"], got["range int"])
+	fmt.Println("stopped", len(got), got["goto"], got["for"], got["range map"], got["range int"], got["recursion"])
 
 	// Computations preempted by each other, and by the spinners, keep
 	// their registers.
@@ -163,6 +188,29 @@ func main() {
 		wantF += f
 	}
 	fmt.Println("nested", sum == want, fsum == wantF)
+
+	// So do recursive ones, preempted at their calls.
+	type pair struct {
+		i int
+		f float64
+	}
+	var wantRec [4]pair
+	for s := 1; s <= 3; s++ {
+		i, f := rec(20, s, float64(s))
+		wantRec[s] = pair{i, f}
+	}
+	same := make(chan bool)
+	for s := 1; s <= 3; s++ {
+		go func() {
+			i, f := rec(20, s, float64(s))
+			same <- pair{i, f} == wantRec[s]
+		}()
+	}
+	all := true
+	for range 3 {
+		all = <-same && all
+	}
+	fmt.Println("recursion", all)
 
 	// The collector runs while a goroutine holds its list in registers.
 	// Each list sums to 280.

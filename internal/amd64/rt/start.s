@@ -23,7 +23,8 @@
 # (D-051).
 #
 # Every function's prologue checks its frame against L and jumps to
-# aether.stackoverflow if it does not fit (D-011).
+# aether.stackoverflow if it does not fit (D-011), or, if it begins with a
+# Preempt, against aether.stackguard (preempt.s, D-060).
 
 	.set	.Lpage, 4096
 	.set	.Lreserve, 4096		# helpers use at most 256 bytes below %rsp
@@ -89,6 +90,7 @@ _start:
 	leaq	(%rax,%rsi), %rbx	# top of the stack, page-aligned
 	leaq	.Lpage+.Lreserve(%rax), %rcx
 	movq	%rcx, aether.stacklimit(%rip)	# L, before any call to Aether code
+	movq	%rcx, aether.stackguard(%rip)	# and the guard (preempt.s, D-060)
 	movq	%rax, %rdi
 	movl	$.Lpage, %esi
 	xorl	%edx, %edx		# PROT_NONE

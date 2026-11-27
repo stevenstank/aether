@@ -212,7 +212,8 @@ includes nested blocks specifically to test this.
   - All goroutines run on one OS thread.
   - A goroutine switches only inside a channel operation, a `select`, or at
     its own end, or, once its time slice is over, at the head of a loop
-    iteration or a backward `goto` (D-059).
+    iteration or a backward `goto` (D-059), or at a function's entry
+    (D-060).
   - Every execution is therefore sequentially consistent, which satisfies
     the memory model.
 - **Optimizer invariant.**
@@ -277,7 +278,7 @@ has a defined normalization in the test harness.
 | V-8 | Map iteration order | A range over a map visits its entries in insertion order, the same in every run, where gc's order is randomized and differs from run to run; both are allowed by the spec (D-042). Whether an entry added during a range is visited, which the spec leaves open, follows Aether's rule in D-042. | Phase 8 increment 8.5b | None: differential test programs only print what does not depend on the order (sums, counts, lookups), and add no entries during a range. `TestMapRangeOrder` pins Aether's order in the interpreter, both backends, and ABI-R1. |
 | V-9 | Panic values | A panic value of a type other than a basic type, `error`, or `fmt.Stringer`-like (`String() string`) is written as `(T) ` and its data word in hex, which is an address of Aether's (or the interpreter's), not gc's, except for nil (`0x0`). If an `Error` or `String` method panics while the panics are written at exit, gc ends with `panic while printing panic value`; Aether writes that value as empty (D-043). | Phase 8 increment 8.6a | None: differential test programs panic with such values only when nil, and with no method that panics. |
 | V-2 | Stack overflow | Detailed below: Aether overflows at a different depth and prints only `fatal error: stack overflow`; both exit 2. A goroutine other than `main` has a stack of 64 MiB (D-048). | Phase 4 increment 4.2 | The overflow comparison rule below (`TestStackOverflowAgainstGc`). |
-| V-10 | Scheduling | All goroutines run on one thread and switch only inside channel operations and at their end (D-048), in gc's order with `GOMAXPROCS=1`; gc runs them on several threads and preempts them. A `select` with several ready cases chooses with a generator of fixed seed, where gc's choice differs from run to run. Since D-059 a goroutine is preempted at a loop iteration or backward `goto` once its time slice of about 10 ms of CPU time is over; one that computes without a loop, in a recursion, is not. Since D-058 a goroutine made runnable by another inherits its time slice, as under gc: once goroutines in the run queue have waited about 10 ms, measured at switches, the queue's head runs next. A fatal error (a deadlock, `go` of a nil func value) writes only gc's `fatal error: ` line, with no goroutine traceback. At most 131,072 goroutines may be live at once; one more ends the program with `fatal error: runtime: cannot allocate goroutine stack`. | Phase 10 increment 10.2 | Differential test programs write nothing that depends on the schedule; only `testdata/native/preempt.go` spins. Fatal errors are compared as panics (`panicPrefix`): gc's stderr up to its `fatal error: ` line. `TestScheduleOrder` and `TestSelectChoice` pin Aether's order and choice in the interpreter, both backends, and ABI-R1. |
+| V-10 | Scheduling | All goroutines run on one thread and switch only inside channel operations and at their end (D-048), in gc's order with `GOMAXPROCS=1`; gc runs them on several threads and preempts them. A `select` with several ready cases chooses with a generator of fixed seed, where gc's choice differs from run to run. Since D-059 a goroutine is preempted at a loop iteration or backward `goto`, and since D-060 at a function's entry, once its time slice of about 10 ms of CPU time is over; code of Aether's overlay files is not preempted. Since D-058 a goroutine made runnable by another inherits its time slice, as under gc: once goroutines in the run queue have waited about 10 ms, measured at switches, the queue's head runs next. A fatal error (a deadlock, `go` of a nil func value) writes only gc's `fatal error: ` line, with no goroutine traceback. At most 131,072 goroutines may be live at once; one more ends the program with `fatal error: runtime: cannot allocate goroutine stack`. | Phase 10 increment 10.2 | Differential test programs write nothing that depends on the schedule; only `testdata/native/preempt.go` spins. Fatal errors are compared as panics (`panicPrefix`): gc's stderr up to its `fatal error: ` line. `TestScheduleOrder` and `TestSelectChoice` pin Aether's order and choice in the interpreter, both backends, and ABI-R1. |
 
 Implemented (Phase 4 increment 4.5):
 - **V-3, panics.** The run-time errors are `integer divide by zero` (for
@@ -1333,9 +1334,10 @@ internals). They declare part of gc's API, with gc's behavior:
   module, which gc's packages declare; and a standard-library package
   that uses one (for example `io` needs `sync.Pool`, so `strings` and
   `bytes` stay unsupported).
-- A goroutine that never blocks or yields is preempted only in loops
-  (D-059): one computing in a recursion without a loop keeps the others
-  from running, where gc would preempt it.
+- A goroutine that never blocks or yields is preempted only at loop
+  iterations, backward `goto`s, and function entries (D-059, D-060),
+  where gc preempts at any instruction; every computation that runs long
+  passes one of them.
 
 ## Generics across packages (Phase 11 increment 11.7, first part)
 
@@ -1798,7 +1800,7 @@ D-057.
 | `net` over the network poller (TCP, UDP, deadlines), `syscall` (gc's) | The packages' documentation | D-056 | Supported (native) | `TestNativePrograms` (`testdata/net`, against gc, natively, with and without `-O0` and collector stress); `TestStdPrograms` |
 | `net/http` (client, server, TLS, HTTP/2, `httptest`), `crypto/tls`, `crypto/rand`, `weak`, `runtime.AddCleanup`, `sync.Cond`; arrays and structs up to 1 GiB outside frames; local types as type arguments | The packages' documentation; Instantiations | D-057 | Supported (native) | `TestNativePrograms` (`testdata/net/http.go`, `leak.go`, `testdata/native`, against gc, natively, with and without `-O0` and collector stress); `TestStdPrograms` (`synccond`, `largearray`, `localtypes`); `TestStdRejects`; `TestPackagePrograms` (`cmd/curve`); corpus `run_generic_local_type_arg`; `eval/practical-v2` (`10-httpapi`) |
 | Scheduler fairness (time slices, the network polled by time), reads of pipes and terminals that let other goroutines run, `Gosched` and `GC` running due timers and cleanups; frames sharing cells (deeper recursion) | Go statements; the packages' documentation | D-058 | Supported (native), with divergences V-2 and V-10 | `TestNativePrograms` (`testdata/net/fairness.go`, `httplife.go`, `testdata/native/cleanups.go`); `TestStdinWaits`; `TestDeepRecursion`; `TestSharedCellsNoLarger`; `TestShareCells`, `TestCheckCellsRejects`, `TestTicks` |
-| Preemption at loop back edges: goroutines spinning in loops let the others, timers, the poller, and the collector run | Go statements; the packages' documentation | D-059 | Supported (native), with divergence V-10 | `TestNativePrograms` (`testdata/native/preempt.go`); `TestPreemption`; `TestPreemptOps`; the S2 corpus `.ir` files |
+| Preemption at loop back edges and function entries: goroutines spinning in loops or recursion let the others, timers, the poller, and the collector run | Go statements; the packages' documentation | D-059, D-060 | Supported (native), with divergence V-10 | `TestNativePrograms` (`testdata/native/preempt.go`); `TestPreemption`; `TestPreemptOps`; the S2 corpus `.ir` files |
 | Everything else | — | — | Unsupported | gate tests, corpus |
 
 "Tests" names corpus programs (`cmd/aether/testdata/check`, cases from

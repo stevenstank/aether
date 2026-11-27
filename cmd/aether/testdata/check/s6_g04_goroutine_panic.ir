@@ -75,6 +75,7 @@ mem gm7 .t7 32 align 8 @testdata/check/s6_g04_goroutine_panic.go:17:9
 func E.Error(ptr) (ptr, i64) @testdata/check/s6_g04_goroutine_panic.go:10:12
   slot s0 e ptr @10:7
 b0:
+  preempt @10:27
   v0 = param 0 @10:7
   store s0, v0 @10:7
   v1 = const false @10:27
@@ -97,6 +98,9 @@ func main @testdata/check/s6_g04_goroutine_panic.go:12:6
   slot s10 tmp ptr @13:7
   mem m0 recv 8 align 8 @24:2
 b0:
+  v65 = funcaddr .preempt @12:6
+  sys preempt, v65 @12:6
+  preempt @12:13
   v0 = const false @12:13
   gstore g2, v0 @12:13
   v1 = const ptr 0 @12:13
@@ -108,8 +112,8 @@ b0:
   v5 = const true @13:7
   v6 = call .makechan, v4, v3, v5 @13:7
   store s10, v6 @13:7
-  v66 = gload g0 @13:7
-  branch v66, b1, b11 @13:7
+  v67 = gload g0 @13:7
+  branch v67, b1, b11 @13:7
 b1:
   v46 = load s0 @25:1
   v47 = const ptr 0 @25:1
@@ -169,13 +173,13 @@ b9:
 b10:
   ret @25:1
 b11:
-  v65 = load s10 @13:7
+  v66 = load s10 @13:7
   v7 = const 8 @13:2
   v8 = alloc v7 @13:2
   store s2, v8 @13:2
   v9 = load s2 @13:2
   v10 = const 0 @13:2
-  stm v9, v10, v65 @13:2
+  stm v9, v10, v66 @13:2
   v11 = str s1 @14:16
   v12 = const 33 @14:16
   store s3, v11 @14:2
@@ -222,6 +226,7 @@ b11:
 func c2(ptr) i64 @testdata/check/s6_g04_goroutine_panic.go:27:6
   slot s0 c ptr @27:9
 b0:
+  preempt @27:25
   v0 = param 0 @27:9
   store s0, v0 @27:9
   v1 = const false @27:25
@@ -3998,6 +4003,7 @@ func .lit1(ptr) @testdata/check/s6_g04_goroutine_panic.go:15:5
   slot s13 tmp ptr @23:2
   slot s14 tmp bool @23:2
 b0:
+  preempt @15:12
   v0 = param 0 @15:5
   store s0, v0 @15:5
   v1 = load s0 @15:5
@@ -4457,6 +4463,7 @@ func .lit2(ptr) @testdata/check/s6_g04_goroutine_panic.go:17:9
   slot s17 tmp ptr @20:10
   mem m0 tmp 8 align 8 @20:10
 b0:
+  preempt @17:16
   v0 = param 0 @17:9
   store s0, v0 @17:9
   v1 = load s0 @17:9
@@ -5076,6 +5083,72 @@ b0:
   v8 = extract 0, v7 @3:1
   v9 = extract 1, v7 @3:1
   ret v8, v9 @3:1
+
+func .preempt @testdata/check/s6_g04_goroutine_panic.go:3:1
+  slot s0 g ptr @3:1
+  slot s1 tail ptr @3:1
+b0:
+  v0 = sys ticks @3:1
+  v1 = conv u64, v0 @3:1
+  v2 = gload g7 @3:1
+  v3 = sub v1, v2 @3:1
+  v4 = const u64 16777216 @3:1
+  v5 = ge v3, v4 @3:1
+  branch v5, b1, b2 @3:1
+b1:
+  v6 = gload g4 @3:1
+  v7 = const ptr 0 @3:1
+  v8 = eq v6, v7 @3:1
+  branch v8, b4, b5 @3:1
+b2:
+  ret @3:1
+b3:
+  v12 = sys ticks @3:1
+  v13 = conv u64, v12 @3:1
+  gstore g7, v13 @3:1
+  v14 = call .getg @3:1
+  store s0, v14 @3:1
+  v15 = load s0 @3:1
+  v16 = const ptr 0 @3:1
+  v17 = const 16 @3:1
+  stm v15, v17, v16 @3:1
+  v18 = gload g6 @3:1
+  store s1, v18 @3:1
+  v19 = load s1 @3:1
+  v20 = const ptr 0 @3:1
+  v21 = eq v19, v20 @3:1
+  branch v21, b9, b10 @3:1
+b4:
+  v9 = gload g5 @3:1
+  v10 = const ptr 0 @3:1
+  v11 = eq v9, v10 @3:1
+  branch v11, b6, b7 @3:1
+b5:
+  jump b3 @3:1
+b6:
+  jump b8 @3:1
+b7:
+  jump b3 @3:1
+b8:
+  jump b2 @3:1
+b9:
+  v22 = load s0 @3:1
+  gstore g5, v22 @3:1
+  v23 = sys ticks @3:1
+  v24 = conv u64, v23 @3:1
+  gstore g7, v24 @3:1
+  jump b11 @3:1
+b10:
+  v25 = load s1 @3:1
+  v26 = load s0 @3:1
+  v27 = const 16 @3:1
+  stm v25, v27, v26 @3:1
+  jump b11 @3:1
+b11:
+  v28 = load s0 @3:1
+  gstore g6, v28 @3:1
+  call .park @3:1
+  jump b8 @3:1
 
 func init @testdata/check/s6_g04_goroutine_panic.go:3:1
 b0:

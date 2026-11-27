@@ -19,6 +19,7 @@ func gen(i64) ptr @testdata/check/s6_g02_pipeline.go:9:6
   slot s3 tmp ptr @11:2
   slot s4 tmp ptr @11:2
 b0:
+  preempt @9:28
   v0 = param 0 @9:10
   store s0, v0 @9:10
   v1 = load s0 @9:10
@@ -82,6 +83,7 @@ func square(ptr) ptr @testdata/check/s6_g02_pipeline.go:20:6
   slot s3 tmp ptr @22:2
   slot s4 tmp ptr @22:2
 b0:
+  preempt @20:39
   v0 = param 0 @20:13
   store s0, v0 @20:13
   v1 = load s0 @20:13
@@ -174,6 +176,7 @@ func main @testdata/check/s6_g02_pipeline.go:31:6
 b0:
   v172 = funcaddr .preempt @31:6
   sys preempt, v172 @31:6
+  preempt @31:13
   v0 = const 0 @32:7
   store s0, v0 @32:2
   v1 = const 20 @33:35
@@ -775,6 +778,7 @@ func .lit1(ptr) @testdata/check/s6_g02_pipeline.go:11:5
   slot s5 tmp i64 @13:8
   mem m0 send 8 align 8 @13:8
 b0:
+  preempt @11:12
   v0 = param 0 @11:5
   store s0, v0 @11:5
   v1 = load s0 @11:5
@@ -856,6 +860,7 @@ func .lit2(ptr) @testdata/check/s6_g02_pipeline.go:22:5
   mem m0 recv 8 align 8 @23:3
   mem m1 send 8 align 8 @24:8
 b0:
+  preempt @22:12
   v0 = param 0 @22:5
   store s0, v0 @22:5
   v1 = load s0 @22:5
@@ -1151,6 +1156,7 @@ func .lit3(ptr, i64) @testdata/check/s6_g02_pipeline.go:41:6
   slot s4 tmp i64 @41:28
   mem m0 send 8 align 8 @41:28
 b0:
+  preempt @41:18
   v0 = param 0 @41:6
   store s0, v0 @41:6
   v1 = param 1 @41:11
@@ -1214,6 +1220,7 @@ func .lit4(ptr) @testdata/check/s6_g02_pipeline.go:50:5
   mem m0 recv 8 align 8 @51:3
   mem m1 send 8 align 8 @52:9
 b0:
+  preempt @50:12
   v0 = param 0 @50:5
   store s0, v0 @50:5
   v1 = load s0 @50:5
@@ -1565,6 +1572,7 @@ func .lit5(ptr) @testdata/check/s6_g02_pipeline.go:67:6
   slot s1 stuck ptr @67:6
   mem m0 recv 8 align 8 @67:15
 b0:
+  preempt @67:13
   v0 = param 0 @67:6
   store s0, v0 @67:6
   v1 = load s0 @67:6
