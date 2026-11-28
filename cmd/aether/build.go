@@ -22,6 +22,27 @@ type buildOptions struct {
 	x    bool   // -x: log every command and tool version to stderr
 	work bool   // -work: keep the work directory and print its path
 	o0   bool   // -O0: no SSA promotion and no registers (D-028)
+
+	// progress, if not nil, is told as each step of the build starts, and
+	// as each file is assembled; aether tui shows it (D-061).
+	progress func(s step, done, total int)
+}
+
+// A step of build, in the order they run.
+type step int
+
+const (
+	stepCheck    step = iota // compileGOROOT
+	stepEmit                 // optimize and emit the assembly
+	stepAssemble             // GNU as on each file
+	stepLink                 // GNU ld
+	stepPublish              // the executable to opt.out
+)
+
+func (o buildOptions) report(s step, done, total int) {
+	if o.progress != nil {
+		o.progress(s, done, total)
+	}
 }
 
 // errUsage reports a problem with the command line or the files it names;
@@ -89,10 +110,12 @@ func build(srcs []source, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 	var asm []byte
 	var gorootErr error
 	ds := guard(func() []diag.Diagnostic {
+		opt.report(stepCheck, 0, 0)
 		prog, ds, err := compileGOROOT(srcs)
 		if gorootErr = err; err != nil || len(ds) > 0 {
 			return ds
 		}
+		opt.report(stepEmit, 0, 0)
 		if opt.o0 {
 			// compile verified prog, and nothing has changed it.
 			asm, err = amd64.EmitWith(prog, amd64.EmitOptions{Verified: true})
@@ -198,6 +221,7 @@ func assemble(asm []byte, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 	if opt.x {
 		log = stderr
 	}
+	opt.report(stepAssemble, 0, 0)
 	var tools [2]toolchain.Tool
 	for i, name := range []string{"as", "ld"} {
 		t, err := toolchain.Find(name, log)
@@ -225,7 +249,8 @@ func assemble(asm []byte, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 	files := []amd64.File{{Name: "prog.s", Data: asm}}
 	files = append(files, amd64.Runtime()...)
 	var objs []string
-	for _, f := range files {
+	for i, f := range files {
+		opt.report(stepAssemble, i, len(files))
 		if err := os.WriteFile(filepath.Join(work, f.Name), f.Data, 0o644); err != nil {
 			return nil, err
 		}
@@ -235,6 +260,8 @@ func assemble(asm []byte, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 		}
 		objs = append(objs, obj)
 	}
+	opt.report(stepAssemble, len(files), len(files))
+	opt.report(stepLink, 0, 0)
 	if err := ld.Run(work, append(linkArgs, objs...), log); err != nil {
 		return toolDiag(err), nil
 	}
@@ -242,6 +269,7 @@ func assemble(asm []byte, opt buildOptions, stderr io.Writer) ([]diag.Diagnostic
 		return toolDiag(&toolchain.Error{Tool: ld.Name, Path: ld.Path, Version: ld.Version,
 			Msg: "succeeded without writing " + linkOutput}), nil
 	}
+	opt.report(stepPublish, 0, 0)
 	return nil, publish(filepath.Join(work, linkOutput), opt.out)
 }
 

@@ -130,9 +130,9 @@ func TestDependencyRulesDetectViolations(t *testing.T) {
 
 // TestNoProcessStartOutsideToolchain checks the non-test source of every
 // Aether package except internal/toolchain for other ways of starting a
-// process: importing syscall, or calling os.StartProcess. The one file
-// allowed syscall is the interpreter's emulation of a program's file system
-// calls (D-051), and it may use only the names of syscallAllowed.
+// process: importing syscall, or calling os.StartProcess. The files
+// allowed syscall are those of syscallAllowed, and each may use only the
+// names listed for it.
 func TestNoProcessStartOutsideToolchain(t *testing.T) {
 	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Dir}}{{range .GoFiles}} {{.}}{{end}}", modulePath+"/...")
 	out, err := cmd.Output()
@@ -155,15 +155,37 @@ func TestNoProcessStartOutsideToolchain(t *testing.T) {
 	}
 }
 
-// interpSyscallFile makes the host's file system calls for the interpreter
-// (D-051), and syscallAllowed are the names of syscall it may use: none
-// starts a process, and its Syscall6 calls make only the system calls of
-// Aether's os package.
-const interpSyscallFile = "internal/interp/syscall_linux_amd64.go"
+// syscallAllowed are the files that may import syscall, and the names of
+// syscall each may use; none starts a process.
+//   - The interpreter's file system calls for a program (D-051): its
+//     Syscall6 calls make only the system calls of Aether's os package.
+//   - The TUI's terminal (D-061): its Syscall calls make only the ioctls
+//     TCGETS, TCSETS, and TIOCGWINSZ.
+var syscallAllowed = map[string]map[string]bool{
+	"internal/interp/syscall_linux_amd64.go": {
+		"Syscall6": true, "Errno": true, "Open": true, "Close": true, "Faccessat": true,
+		"O_CLOEXEC": true, "O_DIRECTORY": true, "EBADF": true, "ERANGE": true,
+	},
+	"internal/tui/term_linux.go": {
+		"Syscall": true, "SYS_IOCTL": true, "TCGETS": true, "TCSETS": true, "TIOCGWINSZ": true,
+		"Termios": true, "SIGWINCH": true, "SIGTERM": true, "SIGHUP": true, "SIGINT": true,
+		"IGNBRK": true, "BRKINT": true, "PARMRK": true, "ISTRIP": true, "INLCR": true,
+		"IGNCR": true, "ICRNL": true, "IXON": true, "OPOST": true, "ECHO": true,
+		"ECHONL": true, "ICANON": true, "ISIG": true, "IEXTEN": true, "CSIZE": true,
+		"PARENB": true, "CS8": true, "VMIN": true, "VTIME": true,
+	},
+}
 
-var syscallAllowed = map[string]bool{
-	"Syscall6": true, "Errno": true, "Open": true, "Close": true, "Faccessat": true,
-	"O_CLOEXEC": true, "O_DIRECTORY": true, "EBADF": true, "ERANGE": true,
+// syscallNames returns the names of syscall that path may use, or nil if it
+// may not import syscall.
+func syscallNames(path string) map[string]bool {
+	path = filepath.ToSlash(path)
+	for file, names := range syscallAllowed {
+		if path == file || strings.HasSuffix(path, "/"+file) {
+			return names
+		}
+	}
+	return nil
 }
 
 func checkNoProcessStart(t *testing.T, path string) {
@@ -177,13 +199,14 @@ func checkNoProcessStart(t *testing.T, path string) {
 		p, _ := strconv.Unquote(imp.Path.Value)
 		switch p {
 		case "syscall":
-			if filepath.ToSlash(path) != interpSyscallFile && !strings.HasSuffix(filepath.ToSlash(path), "/"+interpSyscallFile) {
+			allowed := syscallNames(path)
+			if allowed == nil {
 				t.Errorf("%s imports syscall", path)
 				break
 			}
 			ast.Inspect(file, func(n ast.Node) bool {
 				if sel, ok := n.(*ast.SelectorExpr); ok {
-					if x, ok := sel.X.(*ast.Ident); ok && x.Name == "syscall" && !syscallAllowed[sel.Sel.Name] {
+					if x, ok := sel.X.(*ast.Ident); ok && x.Name == "syscall" && !allowed[sel.Sel.Name] {
 						t.Errorf("%s uses syscall.%s", path, sel.Sel.Name)
 					}
 				}

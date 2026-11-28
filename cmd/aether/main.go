@@ -4,6 +4,8 @@
 // Aether's supported subset (S2), or acceptable. "aether build" compiles an
 // S2 program into a static Linux x86-64 executable with Aether's own backend
 // and runtime, using GNU as and ld only to assemble and link (D-007, D-008).
+// "aether tui" runs both, on the programs of a directory, in a terminal UI
+// (D-061).
 package main
 
 import (
@@ -23,6 +25,8 @@ Commands:
                                     supported subset (S2)
   build [-x] [-work] [-O0] -o OUT FILE.go...
                                     compile the program into the executable OUT
+  tui [DIR]                         browse, check, and build the programs
+                                    under DIR (default .) in a terminal UI
   help                              print this message
 
 Supported subset (S2):
@@ -62,6 +66,8 @@ Exit status of check and build:
   3  valid Go outside the supported subset
   4  internal compiler error
   5  GNU as or ld missing, not identified, or failed
+
+Exit status of tui: 0, or 2 if there is no usable terminal
 `
 
 func main() {
@@ -83,6 +89,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runCheck(args[1:], stderr)
 	case "build":
 		return runBuild(args[1:], stderr)
+	case "tui":
+		return runTUI(args[1:], stderr)
 	}
 	fmt.Fprintf(stderr, "aether: unknown command %q\n\n%s", args[0], usage)
 	return diag.ExitUsage
@@ -93,17 +101,24 @@ func runCheck(args []string, stderr io.Writer) int {
 	if err != nil {
 		return diag.ExitUsage
 	}
+	ds, err := checkProgram(srcs)
+	if err != nil {
+		fmt.Fprintf(stderr, "aether check: %v\n", err)
+		return diag.ExitUsage
+	}
+	return report(stderr, ds)
+}
+
+// checkProgram is aether check of srcs: its diagnostics, or a problem with
+// GOROOT, which is a usage error.
+func checkProgram(srcs []source) ([]diag.Diagnostic, error) {
 	var gorootErr error
 	ds := guard(func() []diag.Diagnostic {
 		_, ds, err := compileGOROOT(srcs)
 		gorootErr = err
 		return ds
 	})
-	if gorootErr != nil {
-		fmt.Fprintf(stderr, "aether check: %v\n", gorootErr)
-		return diag.ExitUsage
-	}
-	return report(stderr, ds)
+	return ds, gorootErr
 }
 
 // readSources reads the source files named on the command line of cmd. A

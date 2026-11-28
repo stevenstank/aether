@@ -848,6 +848,9 @@ Packages are created only when code exists. Everything lives under one module.
 - `internal/mono` (increment 8.8, D-045)
 - `internal/rangefunc` (D-055)
 
+**Implemented in Phase 12:**
+- `internal/tui` (D-061), and `cmd/aether`: `tui`, in `tui.go`
+
 The other rows are still candidates.
 
 | Candidate path | Contents | Depends on | Stability |
@@ -864,6 +867,7 @@ The other rows are still candidates.
 | `internal/opt` | Optimization passes (Phase 5+): constant folding, dead code elimination | `ir` (no `go/*`) | internal |
 | `internal/amd64` | isel, frames, regalloc, asm emission; runtime sources in `internal/amd64/rt/*.s`, embedded (§9) | `ir` | internal |
 | `internal/toolchain` | Locate and run `as` and `ld` | — | internal |
+| `internal/tui` | Terminal UI: explorer, source view, build options, progress, diagnostics (D-061) | `diag` only; compiles through the driver's runner | internal |
 
 Dependency rules. They are enforced by `cmd/aether/deps_test.go` on the import
 graph from `go list -deps`, for each package once it exists. They govern

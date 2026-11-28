@@ -60,6 +60,14 @@ replaced only then. `-x` prints the commands run and the tool versions,
 `-work` keeps the work directory, and `-O0` builds without SSA promotion or
 registers, with every value in a stack cell. See D-022 and D-028.
 
+`aether tui [DIR]` is a terminal UI over the same two commands, for the
+programs under `DIR` (default `.`): an explorer and source viewer, a picker
+of the directories with files of package `main`, the build flags above,
+each step of a build as it runs, and the diagnostics, each linked to its
+source line. It runs `check` and `build` in its own process and reports
+the same diagnostics and exit codes; `?` lists its keys. It needs a
+terminal (exit 2 otherwise) and does not run the built program. See D-061.
+
 The IR interpreter is a test oracle and has no command. Tests compare the
 interpreter and the built executables with the gc-built binary.
 

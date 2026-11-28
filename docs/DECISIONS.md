@@ -5306,6 +5306,64 @@ overflow later.
 
 ---
 
+## D-061: A terminal UI over the driver, with the standard library alone
+
+**Status:** Accepted (2026-11-28; owner review pending). Written with its
+code.
+
+**Context.** Phase 12 adds an interactive front end: choosing a program in
+a workspace, reading its source, setting the build flags, following a
+build, and moving from a diagnostic to its line. D-013 allows no module
+dependency without a decision, and `TestNoProcessStartOutsideToolchain`
+allowed `syscall` in one file only, while raw terminal mode needs the
+`TCGETS`, `TCSETS`, and `TIOCGWINSZ` ioctls.
+
+**Decision.**
+- **Command.** `aether tui [DIR]`, `DIR` defaulting to `.`. Exit status 0
+  when the user quits, 2 for a usage error or when standard input or
+  output is not a terminal, or `TERM` is unset or `dumb`. The exit codes
+  of `check` and `build` are unchanged.
+- **Separation.** `internal/tui` imports `internal/diag` and no other
+  Aether package (`TestTUIIsSeparate`). It compiles through a
+  `tui.Runner` that `cmd/aether/tui.go` supplies: `runRequest` calls
+  `readSources`, `checkProgram` (shared with `runCheck`), `checkOutput`,
+  and `build`, in this process, so a run reports the same sorted
+  diagnostics and exit status as the command line that the TUI shows for
+  it (`TestTUICheckMatchesCLI`; `TestTUIBuild` compares the executables).
+  `buildOptions.progress`, nil for the command line, reports each step of
+  `build` (check, emit, each file assembled, link, publish); what `build`
+  writes to stderr, such as `-x`'s log, goes to the TUI line by line.
+- **Terminal.** Standard library only. `internal/tui/term_linux.go` is the
+  second file allowed `syscall`, limited to the ioctls, the termios flags,
+  and the signals it names (`syscallAllowed`); elsewhere the TUI reports
+  that there is no terminal. It uses the alternate screen, hides the
+  cursor, turns off wrapping, and restores all of it and the saved termios
+  on every exit, including a panic and `SIGTERM`/`SIGHUP`/`SIGINT`.
+  `SIGWINCH` redraws at the new size; under 60x16 it shows only that the
+  terminal is too small. Each frame rewrites only the rows that changed,
+  in a synchronized update. Colors are 24-bit with `COLORTERM=truecolor`,
+  else the 256-color palette; `NO_COLOR` and `TERM=linux` use attributes
+  only.
+- **Runs.** One at a time, on a goroutine; it cannot be cancelled, since
+  `check` and `build` have no cancellation, so quitting during a run waits
+  for it unless `q` is pressed again, which may leave `build`'s temporary
+  work directory behind.
+
+**Alternatives considered.** A TUI library (`bubbletea`, `tcell`) or
+`golang.org/x/term`: module dependencies, against D-013, for what about
+200 lines of the standard library do. Running the `aether` binary as a
+child process and parsing its stderr: it would need `os/exec` outside
+`internal/toolchain`, and parse text that `diag.Diagnostic` already
+gives as a structure. Running the built program from the TUI: it would
+start a process outside `internal/toolchain`, so it is left out.
+
+**Consequences.** The TUI needs no maintenance when a compiler stage
+changes, only when `build`'s steps or the CLI flags do. Its rendering is
+tested on a cell grid without a terminal; the terminal layer itself (raw
+mode, signals) has no automated test.
+
+---
+
 ## Phase 0 research notes
 
 Experiments E1–E12 ran in a scratch directory outside the repository on

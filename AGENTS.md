@@ -37,6 +37,9 @@ changing anything architectural.
 - `internal/toolchain`: finds, identifies, and runs GNU `as` and `ld`; the
   only package that starts processes.
 - `cmd/aether/build.go`: `aether build` (D-022).
+- `cmd/aether/tui.go` and `internal/tui`: `aether tui` (D-061). The TUI
+  imports only `internal/diag` and compiles through the driver's runner,
+  which calls the same functions as `check` and `build`.
 - `cmd/aether/testdata/check`: the classification corpus. Each `*.go` file has
   an `// aether:expect` header and a reviewed `*.golden` file. Each `run` file
   also has a reviewed `*.ir` file with its lowered IR.

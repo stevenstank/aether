@@ -1351,6 +1351,24 @@ causes with regression tests.
 
 ---
 
+## Phase 12: Terminal UI (implemented 2026-11-28; owner review pending)
+
+- **Scope:** `aether tui [DIR]` (D-061): choosing a program in a
+  workspace, browsing its source, configuring and running `check` and
+  `build`, their progress and output as they run, and their diagnostics,
+  linked to the source. No compilation of its own, no new dependency.
+- **Done:** `internal/tui` and `cmd/aether/tui.go`. Tests: `internal/tui`
+  (key decoding, drawing, the painter, colors, highlighting, discovery,
+  and the model's flows at many terminal sizes, with a fake runner);
+  `TestTUICheckMatchesCLI` (the same diagnostics and exit status as
+  `aether check`), `TestTUIBuild` (the steps in order, `-x`'s log, an
+  executable identical to `aether build`'s), `TestTUIUsageErrors`,
+  `TestTUICommand`, `TestTUIIsSeparate`.
+- **Not done:** running the built program (only `internal/toolchain`
+  starts processes), editing files, mouse input, cancelling a run.
+
+---
+
 ## Milestone 1 acceptance test
 
 **Implemented in Phase 3** by `cmd/aether/m1_test.go`. The program is the
